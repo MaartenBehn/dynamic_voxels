@@ -2,7 +2,7 @@ use glsl_compiler::glsl;
 
 #[allow(unused)]
 pub fn debug_shader() {
-    glsl!{type = Include, name = "shader", code = {
+    glsl!{type = Include, name = "shaders", code = {
         #ifndef _DEBUG_GLSL_
         #define _DEBUG_GLSL_
 

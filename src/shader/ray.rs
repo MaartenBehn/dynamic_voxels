@@ -2,7 +2,7 @@ use glsl_compiler::glsl;
 
 #[allow(unused)]
 pub fn ray_shader() {
-    glsl!{type = Include, name = "shader", code = {
+    glsl!{type = Include, name = "shaders", code = {
         #ifndef _RAY_GLSL_
         #define _RAY_GLSL_
 
@@ -12,7 +12,7 @@ pub fn ray_shader() {
             vec3 odir; // = 1 / dir
         };
 
-        Ray init_ray(vec3 pos, vec3 dir, vec2 coord, vec2 res){
+        Ray init_ray(vec3 pos, vec3 dir, vec2 coord, vec2 res) {
             vec2 uv = ((coord * 2 - res) / res.y) * vec2(-1);
 
             vec3 ro = pos;
@@ -26,8 +26,7 @@ pub fn ray_shader() {
             return Ray(ro, rd, vec3(1) / rd);
         }
 
-        bool aabb_ray_test(in Ray ray, in vec3 minPos, in vec3 maxPos, out float tMin, out float tMax)
-        {
+        bool aabb_ray_test(in Ray ray, in vec3 minPos, in vec3 maxPos, out float tMin, out float tMax) {
             vec3 isPositive = vec3(ray.odir.x > 0, ray.odir.y > 0, ray.odir.z >= 0); // ray.odir = 1.0 / ray.dir
             vec3 isNegative = 1.0f - isPositive;
 
