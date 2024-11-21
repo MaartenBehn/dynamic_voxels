@@ -12,5 +12,7 @@ crate-type = ["rlib", "dylib"]
 # octa-force = { path = "../octa-force-rs" }
 octa-force = { version = "0.2.2", git = "https://github.com/MaartenBehn/octa-force-rs" }
 fastrand = "2.2.0"
-glsl_compiler = "0.1.1"
+glsl_compiler = { path = "../glsl_compiler" }
+#glsl_compiler = "0.1.1"
 image = "0.25.5"
+log = "0.4.22"
