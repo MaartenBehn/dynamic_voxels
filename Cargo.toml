@@ -1,0 +1,16 @@
+[package]
+name = "dynamic_voxels"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "reload"
+path = "src/reload.rs"
+crate-type = ["rlib", "dylib"]
+
+[dependencies]
+# octa-force = { path = "../octa-force-rs" }
+octa-force = { version = "0.2.2", git = "https://github.com/MaartenBehn/octa-force-rs" }
+fastrand = "2.2.0"
+glsl_compiler = "0.1.1"
+image = "0.25.5"
