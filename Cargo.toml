@@ -16,5 +16,5 @@ glsl_compiler = { path = "../glsl_compiler" }
 # glsl_compiler = "0.1.1"
 image = "0.25.5"
 log = "0.4.22"
-
-
+shades = "0.4.0"
+shades-edsl = "0.1.0"

@@ -10,7 +10,7 @@ use octa_force::vulkan::{
 };
 use octa_force::ImageAndView;
 use std::mem::size_of;
-use crate::shader::trace_ray::trace_ray_shader;
+use crate::shader::trace_ray_shader;
 
 const RENDER_DISPATCH_GROUP_SIZE_X: u32 = 32;
 const RENDER_DISPATCH_GROUP_SIZE_Y: u32 = 32;
