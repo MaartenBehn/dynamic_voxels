@@ -24,7 +24,7 @@ layout(binding = 1) uniform UniformBufferObject {
 void main () {
     Ray ray = init_ray(POS, DIR, gl_GlobalInvocationID.xy, RES);
 
-    vec4 color = vec4(ray.dir, 1);
+    vec4 color = vec4(ray.dir * 1.0, 1);
 
     imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
 }

@@ -46,7 +46,7 @@ impl BindingTrait for App {
     fn record_render_commands(render_state: &mut RenderState, logic_state: &mut LogicState, engine: &mut Engine, image_index: usize) -> OctaResult<()> {
         record_render_commands(render_state, logic_state, engine, image_index)
     }
-
+    
     fn on_window_event(render_state: &mut RenderState, logic_state: &mut LogicState, engine: &mut Engine, event: &WindowEvent) -> OctaResult<()> {
         on_window_event(render_state, logic_state, engine, event)
     }

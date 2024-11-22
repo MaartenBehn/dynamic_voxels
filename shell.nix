@@ -27,6 +27,7 @@ pkgs.mkShell rec {
     vulkan-tools
     graphviz.out
     renderdoc
+    watchexec
   ];
 
   buildInputs = with pkgs; [
