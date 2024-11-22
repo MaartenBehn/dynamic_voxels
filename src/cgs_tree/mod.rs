@@ -74,8 +74,15 @@ impl CGSTree {
             }
             CSGNode::Box(transform) | CSGNode::Sphere(transform) => {
                 let index = data.len();
+
+                let t = match node {
+                    CSGNode::Box(_) => {0}
+                    CSGNode::Sphere(_) => {1}
+                    _ => unreachable!()
+                };
                 
                 data.extend_from_slice(any_as_u32_slice(transform));
+                data[index + 15] = t;
                 
                 Self::node_data(index, 0, Material::None)
             }
