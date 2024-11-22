@@ -22,6 +22,16 @@ mat4 mat4_scale(vec3 scale) {
     );
 }
 
+mat4 mat4_pos(vec3 pos) {
+    return mat4(
+    1.0, 0.0, 0.0, pos.x,
+    0.0, 1.0, 0.0, pos.y,
+    0.0, 0.0, 1.0, pos.z,
+    0.0, 0.0, 0.0, 1.0
+    );
+}
+
+
 mat3 mat3_rotate_x(float rad) {
     float c = cos(rad);
     float s = sin(rad);

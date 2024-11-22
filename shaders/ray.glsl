@@ -74,24 +74,23 @@ bool solve_quadratic(float a, float b, float c, out float x0, out float x1) {
     return true;
 }
 
-bool ray_sphere_intersect(Ray ray, float radius, vec3 center, out float t_min, out float t_max) {
-
+bool ray_sphere_intersect(Ray ray, out float t_min, out float t_max) {
     #if 0
         // Geometric solution
-        vec3 L = center - ray.pos;
+        vec3 L = ray.pos;
         float tca = dot(L, ray.dir);
         // if (tca < 0) return false;
         float d2 = dot(L, L) - tca * tca;
-        if (d2 > radius * radius) return false;
-        float thc = sqrt(radius * radius - d2);
+        if (d2 > 1.0) return false;
+        float thc = sqrt(1.0 - d2);
         t_min = tca - thc;
         t_max = tca + thc;
     #else
         // Analytic solution
-        vec3 L = ray.pos - center;
+        vec3 L = ray.pos;
         float a = dot(ray.dir, ray.dir);
         float b = 2 * dot(ray.dir, L);
-        float c = dot(L, L) - radius * radius;
+        float c = dot(L, L) - 1.0;
         if (!solve_quadratic(a, b, c, t_min, t_max)) return false;
     #endif
 

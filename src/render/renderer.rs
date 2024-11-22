@@ -56,6 +56,12 @@ impl Renderer {
             size_of::<RenderBuffer>() as _,
         )?;
 
+        let cgs_tree_buffer = context.create_buffer(
+            vk::BufferUsageFlags::STORAGE_BUFFER,
+            MemoryLocation::CpuToGpu,
+            size_of::<u32>() as _,
+        )?;
+
         let descriptor_pool = context.create_descriptor_pool(
             num_frames as u32,
             &[

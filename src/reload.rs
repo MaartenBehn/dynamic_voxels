@@ -1,5 +1,6 @@
 mod render;
 mod shader;
+mod cgs_tree;
 
 use std::time::{Duration, Instant};
 use octa_force::{Engine, OctaResult};
@@ -8,6 +9,7 @@ use octa_force::egui_winit::winit::event::WindowEvent;
 use octa_force::glam::{vec3, Vec3};
 use octa_force::log::Log;
 use octa_force::logger::setup_logger;
+use crate::cgs_tree::CGSTree;
 use crate::render::renderer::Renderer;
 
 pub struct RenderState {
@@ -17,6 +19,7 @@ pub struct RenderState {
 pub struct LogicState {
     pub camera: Camera,
     pub start_time: Instant,
+    pub cgs_tree: CGSTree,
 }
 
 #[no_mangle]
@@ -37,6 +40,10 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
 
 #[no_mangle]
 pub fn new_logic_state(engine: &mut Engine) -> OctaResult<LogicState> {
+    let mut cgs_tree = CGSTree::new();
+    cgs_tree.set_example_tree();
+    cgs_tree.make_data();
+    
     log::info!("Creating Camera");
     let mut camera = Camera::base(engine.swapchain.size.as_vec2());
 
@@ -50,6 +57,7 @@ pub fn new_logic_state(engine: &mut Engine) -> OctaResult<LogicState> {
     Ok(LogicState {
         camera,
         start_time: Instant::now(),
+        cgs_tree,
     })
 }
 
