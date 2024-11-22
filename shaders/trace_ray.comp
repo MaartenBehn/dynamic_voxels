@@ -30,8 +30,8 @@ void main () {
     vec4 color = vec4(ray.dir * 1.0, 1);
 
     float time = TIME;
-    CGSObject box = get_test_box(time);
-    color += ray_hits_cgs_object(ray, box);
+    CGSObject object = get_test_sphere(time);
+    color += ray_hits_cgs_object(ray, object);
 
     imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
 }

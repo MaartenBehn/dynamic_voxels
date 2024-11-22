@@ -22,7 +22,6 @@ struct CGSChild {
 };
 
 
-
 CGSObject get_test_box(float time) {
     float scale = 1.0 + ease_cubic_in_out(ease_loop(time_mod(time, 1.0))) * 0.1;
 
@@ -40,12 +39,29 @@ CGSObject get_test_box(float time) {
     );
 }
 
+CGSObject get_test_sphere(float time) {
+    float scale = 1.0 + ease_cubic_in_out(ease_loop(time_mod(time, 1.0))) * 0.1;
+
+    mat4 mat = inverse(mat4_scale(vec3(scale)));
+
+    return CGSObject(
+    mat,
+    CGS_TYPE_SPHERE,
+    vec3(0.0)
+    );
+}
+
 vec4 ray_hits_cgs_object(Ray ray, CGSObject object) {
     Ray model_space_ray = ray_to_model_space(ray, object.transform);
 
     float t_min;
     float t_max;
-    bool hit = aabb_ray_test(model_space_ray, vec3(-0.5), vec3(0.5), t_min, t_max);
+    bool hit;
+    if (object.type == CGS_TYPE_BOX) {
+       hit = ray_aabb_intersect(model_space_ray, vec3(-0.5), vec3(0.5), t_min, t_max);
+    } else if (object.type == CGS_TYPE_SPHERE) {
+        hit = ray_sphere_intersect(model_space_ray, 1.0, vec3(0.0), t_min, t_max);
+    }
 
     if (hit) {
         return vec4(1.0, 1.0, 1.0, 1.0);
