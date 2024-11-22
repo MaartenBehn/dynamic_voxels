@@ -1,7 +1,7 @@
 #ifndef _DEBUG_GLSL_
 #define _DEBUG_GLSL_
 
-#define GET_GRADIENT(i, max) float(i) / max
+#define GET_GRADIENT(i, max) float(i) / float(max)
 
 vec3 get_debug_color_gradient_from_float(float x){
     if (x == 0){

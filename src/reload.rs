@@ -1,7 +1,7 @@
 mod render;
 mod shader;
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use octa_force::{Engine, OctaResult};
 use octa_force::camera::Camera;
 use octa_force::egui_winit::winit::event::WindowEvent;
@@ -15,7 +15,8 @@ pub struct RenderState {
 }
 
 pub struct LogicState {
-    pub camera: Camera
+    pub camera: Camera,
+    pub start_time: Instant,
 }
 
 #[no_mangle]
@@ -39,7 +40,7 @@ pub fn new_logic_state(engine: &mut Engine) -> OctaResult<LogicState> {
     log::info!("Creating Camera");
     let mut camera = Camera::base(engine.swapchain.size.as_vec2());
 
-    camera.position = Vec3::new(1.0, 1.0, 1.0);
+    camera.position = Vec3::new(0.0, 0.0, 0.0);
     //camera.position = Vec3::new(1.0, -100.0, 1.0);
     camera.direction = Vec3::new(0.0, 1.0, 0.0).normalize();
     camera.speed = 10.0;
@@ -47,14 +48,17 @@ pub fn new_logic_state(engine: &mut Engine) -> OctaResult<LogicState> {
     camera.up = vec3(0.0, 0.0, 1.0);
 
     Ok(LogicState {
-        camera
+        camera,
+        start_time: Instant::now(),
     })
 }
 
 #[no_mangle]
 pub fn update(render_state: &mut RenderState, logic_state: &mut LogicState, engine: &mut Engine, image_index: usize, delta_time: Duration) -> OctaResult<()> {
+    let time = logic_state.start_time.elapsed();
+    
     logic_state.camera.update(&engine.controls, delta_time);
-    render_state.renderer.update(&logic_state.camera, engine.swapchain.size)?;
+    render_state.renderer.update(&logic_state.camera, engine.swapchain.size, time)?;
 
     Ok(())
 }

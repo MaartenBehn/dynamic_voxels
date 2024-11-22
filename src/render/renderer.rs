@@ -10,6 +10,7 @@ use octa_force::vulkan::{
 };
 use octa_force::ImageAndView;
 use std::mem::size_of;
+use std::time::Duration;
 use crate::shader::trace_ray_shader;
 
 const RENDER_DISPATCH_GROUP_SIZE_X: u32 = 32;
@@ -34,6 +35,10 @@ pub struct RenderBuffer {
     pub screen_size_x: f32,
     pub dir: Vec3,
     pub screen_size_y: f32,
+    pub time: f32,
+    fill1: f32,
+    fill2: f32,
+    fill3: f32,
 }
 
 
@@ -127,11 +132,12 @@ impl Renderer {
         })
     }
 
-    pub fn update(&self, camera: &Camera, res: UVec2) -> Result<()> {
+    pub fn update(&self, camera: &Camera, res: UVec2, time: Duration) -> Result<()> {
         self.render_buffer.copy_data_to_buffer(&[RenderBuffer::new(
             camera.position,
             camera.direction,
             res,
+            time.as_secs_f32(),
         )])?;
         Ok(())
     }
@@ -188,12 +194,16 @@ impl Renderer {
 }
 
 impl RenderBuffer {
-    pub fn new(pos: Vec3, dir: Vec3, res: UVec2) -> RenderBuffer {
+    pub fn new(pos: Vec3, dir: Vec3, res: UVec2, time: f32) -> RenderBuffer {
         RenderBuffer {
             pos,
             dir,
             screen_size_x: res.x as f32,
             screen_size_y: res.y as f32,
+            time,
+            fill1: 0.0,
+            fill2: 0.0,
+            fill3: 0.0,
         }
     }
 }

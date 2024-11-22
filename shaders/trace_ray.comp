@@ -1,6 +1,7 @@
 #version 450 core
 
 #include "ray.glsl"
+#include "cgs.glsl"
 
 #define MAX_RAY_STEPS 50
 #define EPSILON 0.0001
@@ -13,6 +14,7 @@ layout(binding = 0, rgba8) uniform writeonly image2D img;
 layout(binding = 1) uniform UniformBufferObject {
     vec4 pos; // w is screen_size_x
     vec4 dir; // w is screen_size_y
+    vec4 data; // time in sec
 } render_buffer;
 
 #define POS render_buffer.pos.xyz
@@ -20,11 +22,16 @@ layout(binding = 1) uniform UniformBufferObject {
 #define RES_X render_buffer.pos.w
 #define RES_Y render_buffer.dir.w
 #define RES vec2(RES_X, RES_Y)
+#define TIME render_buffer.data.x;
 
 void main () {
     Ray ray = init_ray(POS, DIR, gl_GlobalInvocationID.xy, RES);
 
     vec4 color = vec4(ray.dir * 1.0, 1);
+
+    float time = TIME;
+    CGSObject box = get_test_box(time);
+    color += ray_hits_cgs_object(ray, box);
 
     imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
 }

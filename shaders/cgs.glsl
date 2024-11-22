@@ -1,30 +1,58 @@
 #ifndef _CGS_GLSL_
 #define _CGS_GLSL_
 
+#include "ray.glsl"
+#include "easing.glsl"
+#include "mat_helper.glsl"
+
 #define CGS_TYPE_BOX 0
 #define CGS_TYPE_SPHERE 1
 #define CGS_TYPE_CAPSULE 2
 
-struct CGS {
-    int type;
-    int child_pointer;
-    int child_count;
+struct CGSObject {
     mat4 transform;
+    uint type;
     vec3 data;
 };
 
-mat4 mat_identity() {
-    return mat4(
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 1.0, 0.0,
-    0.0, 0.0, 0.0, 1.0
+struct CGSChild {
+    uint pointer;
+    uint material;
+    uint type;
+};
+
+
+
+CGSObject get_test_box(float time) {
+    float scale = 1.0 + ease_cubic_in_out(ease_loop(time_mod(time, 1.0))) * 0.1;
+
+    mat4 rot_mat = mat4_rotate_xyz(vec3(
+        time_mod_rot(time, 0.2),
+        time_mod_rot(time, 1.0),
+        time_mod_rot(time, 0.4)));
+
+    mat4 mat = inverse(rot_mat * mat4_scale(vec3(scale)));
+
+    return CGSObject(
+        mat,
+        CGS_TYPE_BOX,
+        vec3(1.0)
     );
 }
 
-CGS[1] get_cgs_tree() {
-    mat4 mat = mat_identity();
-    return CGS[1](CGS(CGS_TYPE_BOX, 1, 0, mat, vec3(1, 1, 1)));
+vec4 ray_hits_cgs_object(Ray ray, CGSObject object) {
+    Ray model_space_ray = ray_to_model_space(ray, object.transform);
+
+    float t_min;
+    float t_max;
+    bool hit = aabb_ray_test(model_space_ray, vec3(-0.5), vec3(0.5), t_min, t_max);
+
+    if (hit) {
+        return vec4(1.0, 1.0, 1.0, 1.0);
+    } else {
+        return vec4(0.0);
+    }
 }
+
 
 #endif // _CGS_GLSL_

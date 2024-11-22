@@ -21,24 +21,31 @@ Ray init_ray(vec3 pos, vec3 dir, vec2 coord, vec2 res) {
     return Ray(ro, rd, vec3(1) / rd);
 }
 
-bool aabb_ray_test(in Ray ray, in vec3 minPos, in vec3 maxPos, out float tMin, out float tMax) {
-    vec3 isPositive = vec3(ray.odir.x > 0, ray.odir.y > 0, ray.odir.z >= 0); // ray.odir = 1.0 / ray.dir
-    vec3 isNegative = 1.0f - isPositive;
+bool aabb_ray_test(in Ray ray, in vec3 min_pos, in vec3 max_pos, out float t_min, out float t_max) {
+    vec3 is_positive = vec3(ray.odir.x > 0, ray.odir.y > 0, ray.odir.z >= 0); // ray.odir = 1.0 / ray.dir
+    vec3 is_negative = 1.0f - is_positive;
 
-    vec3 leftSide  = isPositive * minPos + isNegative * maxPos;
-    vec3 rightSide = isPositive * maxPos + isNegative * minPos;
+    vec3 left_side  = is_positive * min_pos + is_negative * max_pos;
+    vec3 right_side = is_positive * max_pos + is_negative * min_pos;
 
-    vec3 leftSideTimesOneOverDir  = (leftSide  - ray.pos) * ray.odir;
-    vec3 rightSideTimesOneOverDir = (rightSide - ray.pos) * ray.odir;
+    vec3 left_side_times_one_over_dir  = (left_side  - ray.pos) * ray.odir;
+    vec3 right_side_times_one_over_dir = (right_side - ray.pos) * ray.odir;
 
-    tMin = max(leftSideTimesOneOverDir.x, max(leftSideTimesOneOverDir.y, leftSideTimesOneOverDir.z));
-    tMax = min(rightSideTimesOneOverDir.x, min(rightSideTimesOneOverDir.y, rightSideTimesOneOverDir.z));
+    t_min = max(left_side_times_one_over_dir.x, max(left_side_times_one_over_dir.y, left_side_times_one_over_dir.z));
+    t_max = min(right_side_times_one_over_dir.x, min(right_side_times_one_over_dir.y, right_side_times_one_over_dir.z));
 
     // vec3 directionSign = sign(odir);
     // sideMin = vec3(leftSideTimesOneOverDir.x == tMin, leftSideTimesOneOverDir.y == tMin, leftSideTimesOneOverDir.z == tMin) * directionSign;
     // sideMax = vec3(rightSideTimesOneOverDir.x == tMax, rightSideTimesOneOverDir.y == tMax, rightSideTimesOneOverDir.z == tMax) * directionSign;
 
-    return tMax > tMin;
+    return t_max > 0 && t_max > t_min;
+}
+
+Ray ray_to_model_space(Ray ray, mat4 transform) {
+    vec3 new_pos = (vec4(ray.pos, 1.0) * transform).xyz;
+    vec3 new_dir = (vec4(ray.dir, 0.0) * transform).xyz;
+
+    return Ray(new_pos, new_dir, vec3(1) / new_dir);
 }
 
 #endif // _RAY_GLSL_
