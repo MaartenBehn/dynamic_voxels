@@ -1,6 +1,14 @@
-use std::{iter, slice};
-use log::debug;
+use std::{slice};
 use octa_force::glam::{vec3, Mat4};
+
+const CGS_TYPE_BOX: u32 = 0;
+const CGS_TYPE_SPHERE: u32 =  1;
+const CGS_TYPE_CAPSULE: u32 =  2;
+
+const CGS_CHILD_TYPE_GEO: u32 =  0;
+const CGS_CHILD_TYPE_UNION: u32 =  1;
+const CGS_CHILD_TYPE_REMOVE: u32 =  2;
+const CGS_CHILD_TYPE_INTERSECT: u32 =  3;
 
 #[derive(Copy, Clone)]
 pub enum Material {
@@ -65,9 +73,9 @@ impl CGSTree {
                 (data, data[index + 1]) = self.add_data(*child2, data);
                 
                 let t = match node {
-                    CSGNode::Union(_, _, _) => {1}
-                    CSGNode::Remove(_, _, _) => {2}
-                    CSGNode::Intersect(_, _, _) => {3}
+                    CSGNode::Union(_, _, _) => { CGS_CHILD_TYPE_UNION }
+                    CSGNode::Remove(_, _, _) => { CGS_CHILD_TYPE_REMOVE }
+                    CSGNode::Intersect(_, _, _) => { CGS_CHILD_TYPE_INTERSECT }
                     _ => unreachable!()
                 };
                 Self::node_data(index, t, *mat)
@@ -76,15 +84,15 @@ impl CGSTree {
                 let index = data.len();
 
                 let t = match node {
-                    CSGNode::Box(_) => {0}
-                    CSGNode::Sphere(_) => {1}
+                    CSGNode::Box(_) => {CGS_TYPE_BOX}
+                    CSGNode::Sphere(_) => {CGS_TYPE_SPHERE}
                     _ => unreachable!()
                 };
                 
                 data.extend_from_slice(any_as_u32_slice(transform));
                 data[index + 15] = t;
                 
-                Self::node_data(index, 0, Material::None)
+                Self::node_data(index, CGS_CHILD_TYPE_GEO, Material::None)
             }
         };
         
