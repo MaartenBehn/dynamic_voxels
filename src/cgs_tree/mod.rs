@@ -46,7 +46,7 @@ impl CGSTree {
     pub fn set_example_tree(&mut self) {
         self.nodes = vec![
             CSGNode::Union(1, 4, Material::None),
-            CSGNode::Remove(2, 3, Material::None),
+            CSGNode::Intersect(2, 3, Material::None),
             CSGNode::Box(Mat4::from_translation(vec3(1.0, 1.0, 0.0)).inverse()),
             CSGNode::Sphere(Mat4::from_translation(vec3(0.5, 0.5, 0.0)).inverse()),
             CSGNode::Box(Mat4::from_translation(vec3(5.0, 1.0, 0.0)).inverse()),

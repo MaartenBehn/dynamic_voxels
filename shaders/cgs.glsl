@@ -113,7 +113,8 @@ void cgs_operation(float t_min_1, float t_max_1, float t_min_2, float t_max_2, u
         }
 
     } else if (operation == CGS_CHILD_TYPE_INTERSECT) {
-
+        t_min = max(t_min_1, t_min_2);
+        t_max = min(t_max_1, t_max_2);
     }
 }
 
