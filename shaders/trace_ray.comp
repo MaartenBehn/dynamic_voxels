@@ -16,7 +16,8 @@ void main () {
     vec4 color = vec4(ray.dir * 1.0, 1);
 
     float time = TIME;
-    vec4 new_color = ray_hits_cgs_object(ray, get_test_sphere(time, vec3(0.0, 0.0, 0.0)));
+    //vec4 new_color = ray_hits_cgs_object(ray, get_test_sphere(time, vec3(0.0, 0.0, 0.0)));
+    vec4 new_color = render_cgs_tree(ray);
     if (new_color.w > 0) {
         color = new_color;
     }

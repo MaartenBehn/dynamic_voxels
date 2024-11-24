@@ -100,7 +100,7 @@ bool ray_sphere_intersect(Ray ray, out float t_min, out float t_max) {
         t_min = t_max;
         t_max = temp;
     }
-
+    
     return t_max > 0 && t_max > t_min;
 }
 

@@ -3,6 +3,7 @@ mod shader;
 mod cgs_tree;
 
 use std::time::{Duration, Instant};
+use log::debug;
 use octa_force::{Engine, OctaResult};
 use octa_force::camera::Camera;
 use octa_force::egui_winit::winit::event::WindowEvent;
@@ -47,9 +48,10 @@ pub fn new_logic_state(engine: &mut Engine) -> OctaResult<LogicState> {
     log::info!("Creating Camera");
     let mut camera = Camera::base(engine.swapchain.size.as_vec2());
 
-    camera.position = Vec3::new(0.0, 0.0, 0.0);
+    camera.position = Vec3::new(-2.0, -5.0, 0.0);
     //camera.position = Vec3::new(1.0, -100.0, 1.0);
-    camera.direction = Vec3::new(0.0, 1.0, 0.0).normalize();
+    //camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
+    camera.direction = Vec3::new(0.27669728, 0.7196394, -0.63683414).normalize();
     camera.speed = 10.0;
     camera.z_far = 100.0;
     camera.up = vec3(0.0, 0.0, 1.0);
@@ -67,6 +69,10 @@ pub fn update(render_state: &mut RenderState, logic_state: &mut LogicState, engi
     
     logic_state.camera.update(&engine.controls, delta_time);
     render_state.renderer.update(&logic_state.camera, engine.swapchain.size, time)?;
+    
+    render_state.renderer.set_cgs_tree(&logic_state.cgs_tree.data)?;
+    
+    debug!("{:?}", logic_state.camera.direction);
 
     Ok(())
 }

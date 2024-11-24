@@ -10,6 +10,8 @@ const CGS_CHILD_TYPE_UNION: u32 =  1;
 const CGS_CHILD_TYPE_REMOVE: u32 =  2;
 const CGS_CHILD_TYPE_INTERSECT: u32 =  3;
 
+pub const MAX_CGS_TREE_DATA_SIZE: usize = 1024;
+
 #[derive(Copy, Clone)]
 pub enum Material {
     None,
@@ -45,9 +47,9 @@ impl CGSTree {
         self.nodes = vec![
             CSGNode::Union(1, 4, Material::None),
             CSGNode::Remove(2, 3, Material::None),
-            CSGNode::Box(Mat4::from_translation(vec3(0.0, 0.0, 0.0))),
-            CSGNode::Sphere(Mat4::from_translation(vec3(0.5, 0.5, 0.0))),
-            CSGNode::Box(Mat4::from_translation(vec3(1.0, 1.0, 0.0))),
+            CSGNode::Box(Mat4::from_translation(vec3(1.0, 1.0, 0.0)).inverse()),
+            CSGNode::Sphere(Mat4::from_translation(vec3(0.5, 0.5, 0.0)).inverse()),
+            CSGNode::Box(Mat4::from_translation(vec3(5.0, 1.0, 0.0)).inverse()),
         ];
     }
     
@@ -100,7 +102,7 @@ impl CGSTree {
     }
     
     fn node_data(pointer: usize, t: u32, mat: Material) -> u32 {
-        (pointer as u32) << 16 + t << 6 + (mat as u32)
+        ((pointer as u32) << 16) + (t << 6) + (mat as u32)
     }
 }
 
