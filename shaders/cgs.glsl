@@ -119,7 +119,7 @@ void cgs_operation(float t_min_1, float t_max_1, float t_min_2, float t_max_2, u
 }
 
 
-vec4 render_cgs_tree(Ray ray) {
+void ray_hits_cgs_tree(Ray ray, out float t_min, out float t_max) {
     uint stack_len = 0;
     uint stack[MAX_CGS_TREE_DEPTH];
     uint operation_stack[MAX_CGS_TREE_DEPTH + 1];
@@ -143,8 +143,8 @@ vec4 render_cgs_tree(Ray ray) {
     CGSChild child;
     float t_min_2 = pos_infinity;
     float t_max_2 = neg_infinity;
-    float t_min = pos_infinity;
-    float t_max = neg_infinity;
+    t_min = pos_infinity;
+    t_max = neg_infinity;
 
     bool hit = false;
     uint i = 0;
@@ -231,12 +231,6 @@ vec4 render_cgs_tree(Ray ray) {
         }
     }
 
-    if (t_max > 0 && t_max > t_min) {
-        //return vec4(get_debug_color_gradient_from_float(float(i) / 10.0), 1.0);
-        return vec4(get_debug_color_gradient_from_float(t_min / 25.0), 1.0);
-    }
-
-    return vec4(0.0);
 }
 
 

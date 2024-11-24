@@ -21,6 +21,10 @@ Ray init_ray(vec3 pos, vec3 dir, vec2 coord, vec2 res) {
     return Ray(ro, rd, vec3(1) / rd);
 }
 
+vec3 get_ray_pos(Ray ray, float t) {
+    return ray.pos + ray.dir * t;
+}
+
 bool ray_aabb_intersect(in Ray ray, in vec3 min_pos, in vec3 max_pos, out float t_min, out float t_max) {
     vec3 is_positive = vec3(ray.odir.x > 0, ray.odir.y > 0, ray.odir.z >= 0); // ray.odir = 1.0 / ray.dir
     vec3 is_negative = 1.0f - is_positive;
@@ -100,7 +104,7 @@ bool ray_sphere_intersect(Ray ray, out float t_min, out float t_max) {
         t_min = t_max;
         t_max = temp;
     }
-    
+
     return t_max > 0 && t_max > t_min;
 }
 

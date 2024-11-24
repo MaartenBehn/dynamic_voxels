@@ -49,7 +49,7 @@ impl CGSTree {
             CSGNode::Intersect(2, 3, Material::None),
             CSGNode::Box(Mat4::from_translation(vec3(1.0, 1.0, 0.0)).inverse()),
             CSGNode::Sphere(Mat4::from_translation(vec3(0.5, 0.5, 0.0)).inverse()),
-            CSGNode::Box(Mat4::from_translation(vec3(5.0, 1.0, 0.0)).inverse()),
+            CSGNode::Sphere(Mat4::from_translation(vec3(3.0, 1.0, 0.0)).inverse()),
         ];
     }
     
