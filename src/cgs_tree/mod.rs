@@ -1,5 +1,5 @@
 use std::{slice};
-use octa_force::glam::{vec3, Mat4};
+use octa_force::glam::{vec3, EulerRot, Mat4, Quat};
 
 const CGS_TYPE_BOX: u32 = 0;
 const CGS_TYPE_SPHERE: u32 =  1;
@@ -46,10 +46,25 @@ impl CGSTree {
     pub fn set_example_tree(&mut self) {
         self.nodes = vec![
             CSGNode::Union(1, 4, Material::None),
-            CSGNode::Intersect(2, 3, Material::None),
-            CSGNode::Box(Mat4::from_translation(vec3(1.0, 1.0, 0.0)).inverse()),
-            CSGNode::Sphere(Mat4::from_translation(vec3(0.5, 0.5, 0.0)).inverse()),
-            CSGNode::Sphere(Mat4::from_translation(vec3(3.0, 1.0, 0.0)).inverse()),
+            CSGNode::Remove(2, 3, Material::None),
+            
+            CSGNode::Box(Mat4::from_scale_rotation_translation(
+                vec3(2.0, 5.0, 7.0),
+                Quat::from_euler(EulerRot::XYZ, 0.0,0.0,0.0),
+                vec3(5.0, 0.0, 0.0)
+            ).inverse()),
+
+            CSGNode::Sphere(Mat4::from_scale_rotation_translation(
+                vec3(2.0, 1.0, 3.0),
+                Quat::from_euler(EulerRot::XYZ, 0.0,0.0,0.0),
+                vec3(5.0, 1.0, 0.0)
+            ).inverse()),
+        
+            CSGNode::Sphere(Mat4::from_scale_rotation_translation(
+                vec3(3.0, 3.0, 1.0),
+                Quat::from_euler(EulerRot::XYZ, 0.0,0.0,0.0),
+                vec3(0.0, 0.0, 0.0)
+            ).inverse()),
         ];
     }
     

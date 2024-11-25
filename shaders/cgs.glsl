@@ -94,7 +94,7 @@ bool ray_hits_cgs_object(Ray ray, CGSObject object, out float t_min, out float t
     return false;
 }
 
-void cgs_operation(float t_min_1, float t_max_1, float t_min_2, float t_max_2, uint operation, out float t_min, out float t_max) {
+void cgs_t_intervall_operation(float t_min_1, float t_max_1, float t_min_2, float t_max_2, uint operation, out float t_min, out float t_max) {
     if (operation == CGS_CHILD_TYPE_UNION) {
         t_min = min(t_min_1, t_min_2);
         t_max = max(t_max_1, t_max_2);
@@ -146,7 +146,6 @@ void ray_hits_cgs_tree(Ray ray, out float t_min, out float t_max) {
     t_min = pos_infinity;
     t_max = neg_infinity;
 
-    bool hit = false;
     uint i = 0;
     while (i < MAX_CGS_RENDER_ITERATIONS) {
         i++;
@@ -158,7 +157,7 @@ void ray_hits_cgs_tree(Ray ray, out float t_min, out float t_max) {
 
             t_min = pos_infinity;
             t_max = neg_infinity;
-            cgs_operation(t_min_1, t_max_1, t_min_2, t_max_2, operation, t_min, t_max);
+            cgs_t_intervall_operation(t_min_1, t_max_1, t_min_2, t_max_2, operation, t_min, t_max);
 
             stack_len--;
             if (is_left) {
@@ -230,7 +229,169 @@ void ray_hits_cgs_tree(Ray ray, out float t_min, out float t_max) {
             }
         }
     }
+}
 
+bool pos_in_aabb(vec3 pos, vec3 min, vec3 max) {
+    return min.x <= pos.x && pos.x <= max.x &&
+        min.y <= pos.y && pos.y <= max.y &&
+        min.z <= pos.z && pos.z <= max.z;
+}
+
+bool pos_in_sphere(vec3 pos, vec3 s_pos, float radius) {
+    return distance(pos, s_pos) < radius;
+}
+
+bool exits_cgs_object(vec3 pos, CGSObject object, float padding) {
+    pos = (vec4(pos, 1.0) * object.transform).xyz;
+    vec3 padding_vec = (object.transform * vec4(padding, padding, padding, 1.0)).xyz;
+
+    if (object.type == CGS_GEO_TYPE_BOX) {
+        return pos_in_aabb(pos, vec3(-0.5) - padding_vec, vec3(0.5) + padding_vec);
+
+    } else if (object.type == CGS_GEO_TYPE_SPHERE) {
+        return length(pos) < 1.0 + padding;
+    }
+
+    return false;
+}
+
+bool cgs_bool_operation(bool exits_1, bool exits_2, uint operation) {
+    if (operation == CGS_CHILD_TYPE_UNION) {
+        return exits_1 || exits_2;
+    }
+
+    if (operation == CGS_CHILD_TYPE_REMOVE) {
+        return exits_1 && !exits_2;
+    }
+
+    if (operation == CGS_CHILD_TYPE_INTERSECT) {
+        return exits_1 && exits_2;
+    }
+
+    return false;
+}
+
+bool cgs_operation_padding(uint operation, out float padding_1, out float padding_2) {
+    if (operation == CGS_CHILD_TYPE_UNION) {
+        padding_1 = -0.2;
+        padding_2 = -0.2;
+    }
+
+    if (operation == CGS_CHILD_TYPE_REMOVE) {
+        padding_1 = -0.2;
+        padding_2 = 0.2;
+    }
+
+    if (operation == CGS_CHILD_TYPE_INTERSECT) {
+        padding_1 = -0.2;
+        padding_2 = -0.2;
+    }
+
+    return false;
+}
+
+
+bool cgs_tree_at_pos(vec3 pos) {
+    uint stack_len = 0;
+    uint stack[MAX_CGS_TREE_DEPTH];
+    uint operation_stack[MAX_CGS_TREE_DEPTH + 1];
+    bool exits_1_stack[MAX_CGS_TREE_DEPTH + 1];
+    operation_stack[0] = CGS_CHILD_TYPE_UNION;
+
+    bool is_left = false;
+    bool left = true;
+    bool perform = false;
+
+    uint current = 0;
+    CGSChild child;
+    bool exits_2 = false;
+    bool exits = false;
+
+
+    float padding_1;
+    float padding_2;
+    cgs_operation_padding(operation_stack[0], padding_1, padding_2);
+
+    uint i = 0;
+    while (i < MAX_CGS_RENDER_ITERATIONS) {
+        i++;
+
+        if (perform) {
+            uint operation = operation_stack[stack_len];
+            bool exits_1 = exits_1_stack[stack_len];
+
+            exits = cgs_bool_operation(exits_1, exits_2, operation);
+
+            stack_len--;
+            if (is_left) {
+
+                exits_1_stack[stack_len] = exits;
+
+                perform = false;
+                left = false;
+
+                if (stack_len == 0) {
+                    is_left = false;
+                }
+            } else {
+
+                exits_2 = exits;
+
+                if (stack_len == 0) {
+                    break;
+                }
+            }
+
+            cgs_operation_padding(operation_stack[stack_len], padding_1, padding_2);
+
+            current = stack[stack_len];
+            continue;
+        }
+
+        if (left) {
+            child = get_csg_tree_child(current);
+
+            if (child.type != CGS_CHILD_TYPE_GEO) {
+                stack[stack_len] = current;
+
+                stack_len++;
+                operation_stack[stack_len] = child.type;
+
+                cgs_operation_padding(child.type, padding_1, padding_2);
+
+                current = child.pointer;
+
+                is_left = true;
+            } else {
+                CGSObject object = get_csg_tree_object(child.pointer);
+
+                exits_1_stack[stack_len] = exits_cgs_object(pos, object, padding_1);
+
+                left = false;
+            }
+        } else {
+            child = get_csg_tree_child(current + 1);
+
+            if (child.type != CGS_CHILD_TYPE_GEO) {
+                stack[stack_len] = current;
+                stack_len++;
+
+                cgs_operation_padding(child.type, padding_1, padding_2);
+
+                current = child.pointer;
+                is_left = false;
+                left = true;
+            } else {
+                CGSObject object = get_csg_tree_object(child.pointer);
+
+                exits_2 = exits_cgs_object(pos, object, padding_2);
+
+                perform = true;
+            }
+        }
+    }
+
+    return exits;
 }
 
 
