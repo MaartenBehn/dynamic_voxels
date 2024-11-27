@@ -11,9 +11,7 @@ use octa_force::vulkan::{
 use octa_force::ImageAndView;
 use std::mem::size_of;
 use std::time::Duration;
-use log::debug;
 use crate::cgs_tree::{MAX_CGS_TREE_DATA_SIZE};
-use crate::profiler::MAX_PROFILE_TIMINGS;
 use crate::shader::trace_ray_shader;
 
 const RENDER_DISPATCH_GROUP_SIZE_X: u32 = 32;
