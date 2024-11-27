@@ -10,7 +10,7 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
 #define RENDER_CGS false
 #define RENDER_CGS_STEPS false
-#define RENDER_DDA_STEPS true
+#define RENDER_DDA_STEPS false
 
 #define MAX_RAY_STEPS 50
 #define EPSILON 0.0001
@@ -37,6 +37,7 @@ void main () {
         if (t_min > 0 && t_max > t_min) {
             if (RENDER_CGS) {
                 color = vec4(get_debug_color_gradient_from_float(t_min / 10.0), 1.0);
+                break;
             } else {
                 vec3 start_pos = get_ray_pos(ray, t_min) * VOXEL_SIZE;
                 DDA dda = init_DDA(ray, start_pos, ivec3(100000));
@@ -78,3 +79,6 @@ void main () {
 
     imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
 }
+
+
+

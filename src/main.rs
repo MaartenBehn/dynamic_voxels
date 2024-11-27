@@ -36,8 +36,8 @@ impl BindingTrait for App {
         new_render_state(engine)
     }
 
-    fn new_logic_state(engine: &mut Engine) -> OctaResult<Self::LogicState> {
-        new_logic_state(engine)
+    fn new_logic_state(render_state: &mut RenderState, engine: &mut Engine) -> OctaResult<Self::LogicState> {
+        new_logic_state(render_state, engine)
     }
 
     fn update(render_state: &mut RenderState, logic_state: &mut LogicState, engine: &mut Engine, image_index: usize, delta_time: Duration) -> OctaResult<()> {

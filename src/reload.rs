@@ -41,10 +41,12 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
 }
 
 #[no_mangle]
-pub fn new_logic_state(engine: &mut Engine) -> OctaResult<LogicState> {
+pub fn new_logic_state(render_state: &mut RenderState, engine: &mut Engine) -> OctaResult<LogicState> {
     let mut cgs_tree = CGSTree::new();
     cgs_tree.set_example_tree();
     cgs_tree.make_data();
+
+    render_state.renderer.set_cgs_tree(&cgs_tree.data)?;
     
     log::info!("Creating Camera");
     let mut camera = Camera::base(engine.swapchain.size.as_vec2());
@@ -70,10 +72,8 @@ pub fn update(render_state: &mut RenderState, logic_state: &mut LogicState, engi
     
     logic_state.camera.update(&engine.controls, delta_time);
     render_state.renderer.update(&logic_state.camera, engine.swapchain.size, time)?;
-    
-    render_state.renderer.set_cgs_tree(&logic_state.cgs_tree.data)?;
-    
-    //debug!("{:?}", logic_state.camera.direction);
+
+    debug!("{:?}", logic_state.camera.direction);
 
     Ok(())
 }

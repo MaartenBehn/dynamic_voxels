@@ -360,7 +360,7 @@ IntervalList cgs_t_interval_operation(IntervalList left, IntervalList right, uin
 
 
 IntervalList ray_hits_cgs_tree(Ray ray) {
-    uint stack_len = 0;
+    int stack_len = 0;
     uint stack[MAX_CGS_TREE_DEPTH];
     uint operation_stack[MAX_CGS_TREE_DEPTH + 1];
     IntervalList left_stack[MAX_CGS_TREE_DEPTH + 1];
@@ -385,7 +385,7 @@ IntervalList ray_hits_cgs_tree(Ray ray) {
 
             result = cgs_t_interval_operation(left, right, operation);
 
-            if (stack_len == 0) {
+            if (stack_len <= 0) {
                 if (is_left) {
                     is_left = false;
                 } else {
@@ -529,7 +529,7 @@ bool cgs_operation_padding(uint operation, out float padding_1, out float paddin
 
 
 bool cgs_tree_at_pos(vec3 pos) {
-    uint stack_len = 0;
+    int stack_len = 0;
     uint stack[MAX_CGS_TREE_DEPTH];
     uint operation_stack[MAX_CGS_TREE_DEPTH + 1];
     bool exits_1_stack[MAX_CGS_TREE_DEPTH + 1];
@@ -559,29 +559,27 @@ bool cgs_tree_at_pos(vec3 pos) {
 
             exits = cgs_bool_operation(exits_1, exits_2, operation);
 
-            stack_len--;
-            if (is_left) {
-
-                exits_1_stack[stack_len] = exits;
-
-                perform = false;
-                left = false;
-
-                if (stack_len == 0) {
+            if (stack_len <= 0) {
+                if (is_left) {
                     is_left = false;
+                } else {
+                    break;
                 }
             } else {
+                stack_len--;
+                current = stack[stack_len];
 
-                exits_2 = exits;
+                if (is_left) {
+                    exits_1_stack[stack_len] = exits;
 
-                if (stack_len == 0) {
-                    break;
+                    perform = false;
+                    left = false;
+                } else {
+                    exits_2 = exits;
                 }
             }
 
             cgs_operation_padding(operation_stack[stack_len], padding_1, padding_2);
-
-            current = stack[stack_len];
             continue;
         }
 
