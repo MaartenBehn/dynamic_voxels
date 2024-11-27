@@ -1,6 +1,18 @@
 { pkgs ? (import <nixpkgs> {
     config.allowUnfree = true;
 }), ... }:
+
+let my-nsight_compute = pkgs.cudaPackages.nsight_compute.overrideAttrs(
+    oldAttrs: {
+        buildInputs = oldAttrs.buildInputs ++ [
+            pkgs.rdma-core
+            pkgs.ucx
+            pkgs.e2fsprogs
+            pkgs.kdePackages.qtwayland
+            ];
+        }
+    );
+in
 pkgs.mkShell rec {
 
   name = "dynamic_voxels";
@@ -29,11 +41,12 @@ pkgs.mkShell rec {
     graphviz.out
     watchexec
     renderdoc
-    cudaPackages.nsight_systems
+
+    my-nsight_compute
   ];
 
   buildInputs = with pkgs; [
-
+    boost
   ];
 
   LD_LIBRARY_PATH = with pkgs; lib.makeLibraryPath [
