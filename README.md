@@ -1,9 +1,9 @@
 
 
 
-### Build
+### Run
 ```shell
-cargo clean -p dynamic_voxels && cargo build
+cargo clean -p dynamic_voxels && cargo run
 ```
 
 ### Hot reload

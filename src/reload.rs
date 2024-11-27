@@ -73,7 +73,7 @@ pub fn update(render_state: &mut RenderState, logic_state: &mut LogicState, engi
     
     render_state.renderer.set_cgs_tree(&logic_state.cgs_tree.data)?;
     
-    debug!("{:?}", logic_state.camera.direction);
+    //debug!("{:?}", logic_state.camera.direction);
 
     Ok(())
 }

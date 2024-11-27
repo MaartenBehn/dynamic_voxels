@@ -1,5 +1,5 @@
 
-#extension ARB_shader_clock : require
+#extension GL_EXT_shader_realtime_clock : require
 #define PROFILER_TIMING_LENGHT 1000
 
 #include "binding.glsl"
@@ -13,7 +13,7 @@ void take_timing() {
     uint counter_index = pixel_index * PROFILER_TIMING_LENGHT;
     uint index = counter_index + profiler.data[counter_index];
 
-    uvec2 timing = clock2x32ARB();
+    uvec2 timing = clockRealtime2x32EXT();
     profiler.data[index + 1] = timing.x;
     profiler.data[index + 2] = timing.y;
     profiler.data[counter_index] += 2;

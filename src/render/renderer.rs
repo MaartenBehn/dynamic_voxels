@@ -23,7 +23,7 @@ pub struct Renderer {
     storage_images: Vec<ImageAndView>,
     render_buffer: Buffer,
     cgs_tree_buffer: Buffer,
-    profiler_buffer: Buffer,
+    //profiler_buffer: Buffer,
 
     descriptor_pool: DescriptorPool,
     descriptor_layout: DescriptorSetLayout,
@@ -67,6 +67,7 @@ impl Renderer {
             (size_of::<u32>() * MAX_CGS_TREE_DATA_SIZE) as _,
         )?;
 
+        /*
         let profiler_size: usize = size_of::<u32>() * MAX_PROFILE_TIMINGS * 2 * res.x as usize * res.y as usize;
         debug!("Profiler Buffer size: {} MB", profiler_size as f32 / 1000000.0);
         let profiler_buffer = context.create_buffer(
@@ -74,6 +75,7 @@ impl Renderer {
             MemoryLocation::GpuToCpu,
             profiler_size as _,
         )?;
+         */
 
         let descriptor_pool = context.create_descriptor_pool(
             num_frames as u32,
@@ -88,8 +90,14 @@ impl Renderer {
                 },
                 vk::DescriptorPoolSize {
                     ty: vk::DescriptorType::STORAGE_BUFFER,
-                    descriptor_count: num_frames as u32 * 2,
+                    descriptor_count: num_frames as u32,
                 },
+                /*
+                vk::DescriptorPoolSize {
+                    ty: vk::DescriptorType::STORAGE_BUFFER,
+                    descriptor_count: num_frames as u32,
+                },
+                 */
             ],
         )?;
 
@@ -115,6 +123,7 @@ impl Renderer {
                 stage_flags: vk::ShaderStageFlags::COMPUTE,
                 ..Default::default()
             },
+            /*
             vk::DescriptorSetLayoutBinding {
                 binding: 3,
                 descriptor_count: 1,
@@ -122,6 +131,7 @@ impl Renderer {
                 stage_flags: vk::ShaderStageFlags::COMPUTE,
                 ..Default::default()
             },
+             */
         ])?;
 
         let mut descriptor_sets = Vec::new();
@@ -148,12 +158,14 @@ impl Renderer {
                         buffer: &cgs_tree_buffer,
                     },
                 },
+                /*
                 WriteDescriptorSet {
                     binding: 2,
                     kind: WriteDescriptorSetKind::StorageBuffer {
                         buffer: &profiler_buffer,
                     },
                 },
+                 */
             ]);
             descriptor_sets.push(descriptor_set);
         }
@@ -172,7 +184,7 @@ impl Renderer {
             storage_images,
             render_buffer,
             cgs_tree_buffer,
-            profiler_buffer,
+            //profiler_buffer,
 
             descriptor_pool,
             descriptor_layout,
