@@ -66,6 +66,25 @@ impl CGSTree {
                 vec3(0.0, 0.0, 0.0)
             ).inverse()),
         ];
+         
+        /*
+        self.nodes = vec![
+            CSGNode::Union(1, 2, Material::None),
+
+            CSGNode::Box(Mat4::from_scale_rotation_translation(
+                vec3(2.0, 5.0, 7.0),
+                Quat::from_euler(EulerRot::XYZ, 0.0,0.0,0.0),
+                vec3(5.0, 0.0, 0.0)
+            ).inverse()),
+
+            CSGNode::Sphere(Mat4::from_scale_rotation_translation(
+                vec3(2.0, 1.0, 3.0),
+                Quat::from_euler(EulerRot::XYZ, 0.0,0.0,0.0),
+                vec3(5.0, 1.0, 0.0)
+            ).inverse()),
+        ];
+        
+         */
     }
     
     pub fn make_data(&mut self) {

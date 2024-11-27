@@ -11,7 +11,9 @@ use octa_force::vulkan::{
 use octa_force::ImageAndView;
 use std::mem::size_of;
 use std::time::Duration;
-use crate::cgs_tree::{CGSTree, MAX_CGS_TREE_DATA_SIZE};
+use log::debug;
+use crate::cgs_tree::{MAX_CGS_TREE_DATA_SIZE};
+use crate::profiler::MAX_PROFILE_TIMINGS;
 use crate::shader::trace_ray_shader;
 
 const RENDER_DISPATCH_GROUP_SIZE_X: u32 = 32;
@@ -21,6 +23,7 @@ pub struct Renderer {
     storage_images: Vec<ImageAndView>,
     render_buffer: Buffer,
     cgs_tree_buffer: Buffer,
+    profiler_buffer: Buffer,
 
     descriptor_pool: DescriptorPool,
     descriptor_layout: DescriptorSetLayout,
@@ -64,6 +67,14 @@ impl Renderer {
             (size_of::<u32>() * MAX_CGS_TREE_DATA_SIZE) as _,
         )?;
 
+        let profiler_size: usize = size_of::<u32>() * MAX_PROFILE_TIMINGS * 2 * res.x as usize * res.y as usize;
+        debug!("Profiler Buffer size: {} MB", profiler_size as f32 / 1000000.0);
+        let profiler_buffer = context.create_buffer(
+            vk::BufferUsageFlags::STORAGE_BUFFER,
+            MemoryLocation::GpuToCpu,
+            profiler_size as _,
+        )?;
+
         let descriptor_pool = context.create_descriptor_pool(
             num_frames as u32,
             &[
@@ -77,7 +88,7 @@ impl Renderer {
                 },
                 vk::DescriptorPoolSize {
                     ty: vk::DescriptorType::STORAGE_BUFFER,
-                    descriptor_count: num_frames as u32,
+                    descriptor_count: num_frames as u32 * 2,
                 },
             ],
         )?;
@@ -99,6 +110,13 @@ impl Renderer {
             },
             vk::DescriptorSetLayoutBinding {
                 binding: 2,
+                descriptor_count: 1,
+                descriptor_type: vk::DescriptorType::STORAGE_BUFFER,
+                stage_flags: vk::ShaderStageFlags::COMPUTE,
+                ..Default::default()
+            },
+            vk::DescriptorSetLayoutBinding {
+                binding: 3,
                 descriptor_count: 1,
                 descriptor_type: vk::DescriptorType::STORAGE_BUFFER,
                 stage_flags: vk::ShaderStageFlags::COMPUTE,
@@ -130,6 +148,12 @@ impl Renderer {
                         buffer: &cgs_tree_buffer,
                     },
                 },
+                WriteDescriptorSet {
+                    binding: 2,
+                    kind: WriteDescriptorSetKind::StorageBuffer {
+                        buffer: &profiler_buffer,
+                    },
+                },
             ]);
             descriptor_sets.push(descriptor_set);
         }
@@ -148,6 +172,7 @@ impl Renderer {
             storage_images,
             render_buffer,
             cgs_tree_buffer,
+            profiler_buffer,
 
             descriptor_pool,
             descriptor_layout,

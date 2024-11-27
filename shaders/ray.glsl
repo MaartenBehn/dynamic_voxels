@@ -1,10 +1,18 @@
 #ifndef _RAY_GLSL_
 #define _RAY_GLSL_
 
+#define FLOAT_POS_INF uintBitsToFloat(0x7F800000)
+#define FLOAT_NEG_INF uintBitsToFloat(0xFF800000)
+
 struct Ray{
     vec3 pos;
     vec3 dir;
     vec3 odir; // = 1 / dir
+};
+
+struct Interval {
+    float t_min;
+    float t_max;
 };
 
 Ray init_ray(vec3 pos, vec3 dir, vec2 coord, vec2 res) {
@@ -21,11 +29,15 @@ Ray init_ray(vec3 pos, vec3 dir, vec2 coord, vec2 res) {
     return Ray(ro, rd, vec3(1) / rd);
 }
 
+Interval init_interval() {
+    return Interval(FLOAT_POS_INF, FLOAT_NEG_INF);
+}
+
 vec3 get_ray_pos(Ray ray, float t) {
     return ray.pos + ray.dir * t;
 }
 
-bool ray_aabb_intersect(in Ray ray, in vec3 min_pos, in vec3 max_pos, out float t_min, out float t_max) {
+bool ray_aabb_intersect(in Ray ray, in vec3 min_pos, in vec3 max_pos, out Interval intervall) {
     vec3 is_positive = vec3(ray.odir.x > 0, ray.odir.y > 0, ray.odir.z >= 0); // ray.odir = 1.0 / ray.dir
     vec3 is_negative = 1.0f - is_positive;
 
@@ -35,14 +47,14 @@ bool ray_aabb_intersect(in Ray ray, in vec3 min_pos, in vec3 max_pos, out float 
     vec3 left_side_times_one_over_dir  = (left_side  - ray.pos) * ray.odir;
     vec3 right_side_times_one_over_dir = (right_side - ray.pos) * ray.odir;
 
-    t_min = max(left_side_times_one_over_dir.x, max(left_side_times_one_over_dir.y, left_side_times_one_over_dir.z));
-    t_max = min(right_side_times_one_over_dir.x, min(right_side_times_one_over_dir.y, right_side_times_one_over_dir.z));
+    intervall.t_min = max(left_side_times_one_over_dir.x, max(left_side_times_one_over_dir.y, left_side_times_one_over_dir.z));
+    intervall.t_max = min(right_side_times_one_over_dir.x, min(right_side_times_one_over_dir.y, right_side_times_one_over_dir.z));
 
     // vec3 directionSign = sign(odir);
     // sideMin = vec3(leftSideTimesOneOverDir.x == tMin, leftSideTimesOneOverDir.y == tMin, leftSideTimesOneOverDir.z == tMin) * directionSign;
     // sideMax = vec3(rightSideTimesOneOverDir.x == tMax, rightSideTimesOneOverDir.y == tMax, rightSideTimesOneOverDir.z == tMax) * directionSign;
 
-    return t_max > 0 && t_max > t_min;
+    return intervall.t_max > 0 && intervall.t_max > intervall.t_min;
 }
 
 Ray ray_to_model_space(Ray ray, mat4 transform) {
@@ -78,7 +90,7 @@ bool solve_quadratic(float a, float b, float c, out float x0, out float x1) {
     return true;
 }
 
-bool ray_sphere_intersect(Ray ray, out float t_min, out float t_max) {
+bool ray_sphere_intersect(Ray ray, out Interval intervall) {
     #if 0
         // Geometric solution
         vec3 L = ray.pos;
@@ -95,17 +107,17 @@ bool ray_sphere_intersect(Ray ray, out float t_min, out float t_max) {
         float a = dot(ray.dir, ray.dir);
         float b = 2 * dot(ray.dir, L);
         float c = dot(L, L) - 1.0;
-        if (!solve_quadratic(a, b, c, t_min, t_max)) return false;
+        if (!solve_quadratic(a, b, c, intervall.t_min, intervall.t_max)) return false;
     #endif
 
-    if (t_min > t_max) {
+    if (intervall.t_min > intervall.t_max) {
         // Should use swap
-        float temp = t_min;
-        t_min = t_max;
-        t_max = temp;
+        float temp = intervall.t_min;
+        intervall.t_min = intervall.t_max;
+        intervall.t_max = temp;
     }
 
-    return t_max > 0 && t_max > t_min;
+    return intervall.t_max > 0 && intervall.t_max > intervall.t_min;
 }
 
 #endif // _RAY_GLSL_

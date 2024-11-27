@@ -19,6 +19,7 @@ fn main() {
             compute_rendering: EngineFeatureValue::Needed,
             validation_layers: EngineFeatureValue::Needed,
             shader_debug_printing: EngineFeatureValue::Needed,
+            shader_debug_clock: EngineFeatureValue::Needed,
             hot_reload_config: Some(HotReloadConfig{
                 lib_dir: "target/debug".to_string(),
                 lib_name: "reload".to_string()

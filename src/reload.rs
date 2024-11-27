@@ -1,6 +1,7 @@
 mod render;
 mod shader;
 mod cgs_tree;
+mod profiler;
 
 use std::time::{Duration, Instant};
 use log::debug;
@@ -51,7 +52,7 @@ pub fn new_logic_state(engine: &mut Engine) -> OctaResult<LogicState> {
     camera.position = Vec3::new(-2.0, -5.0, 0.0);
     //camera.position = Vec3::new(1.0, -100.0, 1.0);
     //camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
-    camera.direction = Vec3::new(0.27669728, 0.7196394, -0.63683414).normalize();
+    camera.direction = Vec3::new(0.8260885, -0.14534459, -0.5444748).normalize();
     camera.speed = 10.0;
     camera.z_far = 100.0;
     camera.up = vec3(0.0, 0.0, 1.0);

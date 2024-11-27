@@ -1,5 +1,4 @@
 { pkgs ? import <nixpkgs> {} }:
-
 pkgs.mkShell rec {
 
   name = "dynamic_voxels";
@@ -26,8 +25,8 @@ pkgs.mkShell rec {
     fontconfig
     vulkan-tools
     graphviz.out
-    renderdoc
     watchexec
+    renderdoc
   ];
 
   buildInputs = with pkgs; [
