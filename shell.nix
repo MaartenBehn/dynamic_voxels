@@ -6,15 +6,17 @@ with builtins;
  pkgs-fix ? (import (getFlake github:mcwitt/nixpkgs/fix/nsight_systems) {
          config.allowUnfree = true;
          config.cudaSupport = true;
-     }), ... }:
+     }),
+  ... }:
 
-let my-nsight_compute = pkgs.cudaPackages.nsight_compute.overrideAttrs(
+let my-nsight_compute = pkgs-fix.cudaPackages.nsight_compute.overrideAttrs(
     oldAttrs: {
         buildInputs = oldAttrs.buildInputs ++ [
-            pkgs.rdma-core
-            pkgs.ucx
-            pkgs.e2fsprogs
-            pkgs.kdePackages.qtwayland
+            pkgs-fix.rdma-core
+            pkgs-fix.ucx
+            pkgs-fix.e2fsprogs
+            pkgs-fix.gst_all_1.gst-plugins-base
+            pkgs-fix.qt6.qtwayland
             ];
         }
     );
@@ -48,8 +50,10 @@ pkgs.mkShell rec {
     renderdoc
 
     pkgs-fix.cudaPackages.nsight_systems
-    my-nsight_compute
   ];
+
+
+
 
   buildInputs = with pkgs; [
     boost

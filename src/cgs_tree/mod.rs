@@ -3,6 +3,7 @@ use octa_force::glam::{vec3, EulerRot, Mat4, Quat};
 
 const CGS_TYPE_BOX: u32 = 0;
 const CGS_TYPE_SPHERE: u32 =  1;
+#[allow(dead_code)]
 const CGS_TYPE_CAPSULE: u32 =  2;
 
 const CGS_CHILD_TYPE_GEO: u32 =  0;

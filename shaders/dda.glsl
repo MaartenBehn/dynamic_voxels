@@ -25,6 +25,8 @@ DDA init_DDA(in Ray ray, in vec3 start_pos, in ivec3 upper_bound) {
 }
 
 DDA step_DDA(in DDA dda) {
+    profile_scope_begin(4);
+
     // Implementaion inspirend by: https://www.shadertoy.com/view/4dX3zl
     #ifdef USE_BRANCHLESS_DDA
     dda.mask = vec3(lessThanEqual(dda.side_dist.xyz, min(dda.side_dist.yzx, dda.side_dist.zxy)));
@@ -61,6 +63,7 @@ DDA step_DDA(in DDA dda) {
     || dda.mask.y != 0 && (dda.pos.y < 0 || dda.pos.y > dda.upper_bound.y)
     || dda.mask.z != 0 && (dda.pos.z < 0 || dda.pos.z > dda.upper_bound.z));
 
+    profile_scope_end(4);
     return dda;
 }
 

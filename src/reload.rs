@@ -12,10 +12,12 @@ use octa_force::glam::{vec3, Vec3};
 use octa_force::log::Log;
 use octa_force::logger::setup_logger;
 use crate::cgs_tree::CGSTree;
+use crate::profiler::Profiler;
 use crate::render::renderer::Renderer;
 
 pub struct RenderState {
-    pub renderer: Renderer
+    pub renderer: Renderer,
+    pub profiler: Profiler,
 }
 
 pub struct LogicState {
@@ -33,10 +35,12 @@ pub fn init_hot_reload(logger: &'static dyn Log) -> OctaResult<()> {
 
 #[no_mangle]
 pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
-    let renderer = Renderer::new(&engine.context, engine.swapchain.size, engine.num_frames)?;
+    let profiler = Profiler::new(&engine.context, engine.swapchain.size, engine.num_frames)?;
+    let renderer = Renderer::new(&engine.context, engine.swapchain.size, engine.num_frames, &profiler)?;
 
     Ok(RenderState {
-        renderer
+        renderer,
+        profiler,
     })
 }
 
@@ -67,19 +71,21 @@ pub fn new_logic_state(render_state: &mut RenderState, engine: &mut Engine) -> O
 }
 
 #[no_mangle]
-pub fn update(render_state: &mut RenderState, logic_state: &mut LogicState, engine: &mut Engine, image_index: usize, delta_time: Duration) -> OctaResult<()> {
+pub fn update(render_state: &mut RenderState, logic_state: &mut LogicState, engine: &mut Engine, _image_index: usize, delta_time: Duration) -> OctaResult<()> {
     let time = logic_state.start_time.elapsed();
     
     logic_state.camera.update(&engine.controls, delta_time);
     render_state.renderer.update(&logic_state.camera, engine.swapchain.size, time)?;
-
-    debug!("{:?}", logic_state.camera.direction);
+    
+    //debug!("{:?}", logic_state.camera.direction);
+    
+    render_state.profiler.print_result()?;
 
     Ok(())
 }
 
 #[no_mangle]
-pub fn record_render_commands(render_state: &mut RenderState, logic_state: &mut LogicState, engine: &mut Engine, image_index: usize) -> OctaResult<()> {
+pub fn record_render_commands(render_state: &mut RenderState, _logic_state: &mut LogicState, engine: &mut Engine, image_index: usize) -> OctaResult<()> {
 
     let command_buffer = &engine.command_buffers[image_index];
     render_state.renderer.render(command_buffer, image_index, &engine.swapchain)?;
@@ -88,12 +94,12 @@ pub fn record_render_commands(render_state: &mut RenderState, logic_state: &mut 
 }
 
 #[no_mangle]
-pub fn on_window_event(render_state: &mut RenderState, logic_state: &mut LogicState, engine: &mut Engine, event: &WindowEvent) -> OctaResult<()> {
+pub fn on_window_event(_render_state: &mut RenderState, _logic_state: &mut LogicState, _engine: &mut Engine, _event: &WindowEvent) -> OctaResult<()> {
     Ok(())
 }
 
 #[no_mangle]
-pub fn on_recreate_swapchain(render_state: &mut RenderState, logic_state: &mut LogicState, engine: &mut Engine) -> OctaResult<()> {
+pub fn on_recreate_swapchain(render_state: &mut RenderState, _logic_state: &mut LogicState, engine: &mut Engine) -> OctaResult<()> {
     render_state.renderer
         .on_recreate_swapchain(&engine.context, engine.num_frames, engine.swapchain.size)?;
 
