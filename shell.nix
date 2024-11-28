@@ -1,6 +1,12 @@
+with builtins;
+
 { pkgs ? (import <nixpkgs> {
     config.allowUnfree = true;
-}), ... }:
+    }),
+ pkgs-fix ? (import (getFlake github:mcwitt/nixpkgs/fix/nsight_systems) {
+         config.allowUnfree = true;
+         config.cudaSupport = true;
+     }), ... }:
 
 let my-nsight_compute = pkgs.cudaPackages.nsight_compute.overrideAttrs(
     oldAttrs: {
@@ -17,7 +23,6 @@ pkgs.mkShell rec {
 
   name = "dynamic_voxels";
   RUSTC_VERSION = "stable";
-
   shellHook = ''
     export PATH=$PATH:''${CARGO_HOME:-~/.cargo}/bin
     export PATH=$PATH:''${RUSTUP_HOME:-~/.rustup}/toolchains/$RUSTC_VERSION-x86_64-unknown-linux-gnu/bin/
@@ -42,6 +47,7 @@ pkgs.mkShell rec {
     watchexec
     renderdoc
 
+    pkgs-fix.cudaPackages.nsight_systems
     my-nsight_compute
   ];
 
