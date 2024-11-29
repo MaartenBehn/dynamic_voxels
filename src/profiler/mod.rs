@@ -1,16 +1,14 @@
-use std::iter;
-use std::ops::Index;
 use log::debug;
-use octa_force::glam::{UVec2, Vec3};
+use octa_force::glam::{UVec2};
 use octa_force::OctaResult;
 use octa_force::vulkan::ash::vk;
 use octa_force::vulkan::{Buffer, Context, DescriptorPool, WriteDescriptorSet, WriteDescriptorSetKind};
 use octa_force::vulkan::gpu_allocator::MemoryLocation;
 
-pub const MAX_PROFILE_TIMINGS: usize = 1000;
+pub const SCOPES: usize = 20;
+
 
 pub struct Profiler {
-    num_timings: usize,
     out_data_len: usize,
     profiler_in_buffer: Buffer,
     profiler_out_buffer: Buffer,
@@ -40,9 +38,8 @@ impl Profiler {
             MemoryLocation::CpuToGpu,
             size_of::<ProfilerInData>() as _,
         )?;
-
-        let num_timings = MAX_PROFILE_TIMINGS;
-        let out_data_len = num_timings * 3 + 1;
+        
+        let out_data_len = SCOPES * 5;
         let profiler_size: usize = size_of::<u32>() * out_data_len;
         debug!("Profiler Buffer size: {} MB", profiler_size as f32 / 1000000.0);
         let profiler_out_buffer = context.create_buffer(
@@ -70,7 +67,6 @@ impl Profiler {
             profiler_out_buffer,
             descriptor_pool,
             out_data_len,
-            num_timings,
         })
     }
 
@@ -112,65 +108,25 @@ impl Profiler {
 
     pub fn print_result(&self) -> OctaResult<()> {
         let data: Vec<u32> = self.profiler_out_buffer.get_data_from_buffer(self.out_data_len)?;
-        if data[0] <= 0 {
-            return Ok(())
-        }
         
-        let num_timings = ((data[0] - 1) / 3) as usize;
-        debug!("{} timings", num_timings);
+        let num_scopes = self.out_data_len / 5;
+        debug!("{} scopes", num_scopes);
         
-        let mut timings = Vec::with_capacity(num_timings);
-        for i in 0..num_timings {
-            let id = data[i * 3 + 1];
-            let timing = data[i * 3 + 2] as u64 + (data[i * 3 + 3] as u64) << 32;
-
-            timings.push((id, timing));
-        }
+        let total_start = data[1] as u64 + (data[2] as u64) << 32;
+        let total_end = data[3] as u64 + (data[4] as u64) << 32;
+        let total_time = total_end - total_start;
         
-        let total_diff = (timings[num_timings - 1].1 - timings[0].1) as f64;
-        let mut level_start = vec![];
-        let mut last_timing = 0;
-        let mut id_sums = vec![];
-        
-        for i in 0..num_timings {
-            let id = timings[i].0 as usize;
-            let timing = timings[i].1;
+        for i in 1..num_scopes {
+            let counter = data[i * 5];
+            let start = data[i * 5 + 1] as u64 + (data[i * 5 + 2] as u64) << 32;
+            let end = data[i * 5 + 3] as u64 + (data[i * 5 + 4] as u64) << 32;
             
-            let level = (id / 10) as usize;
-            let in_level = (id % 10) as usize;
-            let padding = iter::repeat(" ").take(level).collect::<String>();
-            
-            let level_percent = if in_level == 0 {
-                if level_start.len() <= level {
-                    level_start.resize(level + 1, 0);
-                }
-                
-                level_start[level] = timing;
-                0.0
-            } else {
-                let level_start = level_start[level];
-                ((timing - level_start) as f64 / total_diff) * 100.0
-            };
-            
-            let last_percent = (timing - last_timing) as f64 / total_diff * 100.0;
-            
-            debug!("{padding} {id} {level_percent:0.2}% {last_percent:0.2}%");
-
-            last_timing = timing;
-
-            if id_sums.len() <= id {
-                id_sums.resize(id + 1, 0.0);
-            }
-
-            id_sums[id] += last_percent
-        }
-        
-        for (id, sum) in id_sums.into_iter().enumerate() {
-            if id == 0 || sum == 0.0 {
+            if end < start {
                 continue
             }
-
-            debug!("{id} {sum:0.2}%");
+            let percent = ((end - start) as f64 / total_time as f64) * counter as f64 * 100.0;
+            
+            debug!("{i}: {counter} {percent:0.04}%")
         }
 
         Ok(())
