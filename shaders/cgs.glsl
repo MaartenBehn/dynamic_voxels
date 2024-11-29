@@ -61,7 +61,7 @@ Interval pop_interval_list(in out IntervalList list) {
 }
 
 CGSObject get_csg_tree_object(uint index) {
-    profile_scope_begin(11);
+    PROFILE("get_csg_tree_object");
 
     mat4 transform = mat4(
         uintBitsToFloat(CSG_TREE[index    ]), uintBitsToFloat(CSG_TREE[index + 4]), uintBitsToFloat(CSG_TREE[index +  8]), uintBitsToFloat(CSG_TREE[index +  12]),
@@ -72,24 +72,22 @@ CGSObject get_csg_tree_object(uint index) {
     vec3 data = vec3(uintBitsToFloat(CSG_TREE[index + 3]), uintBitsToFloat(CSG_TREE[index + 7]), uintBitsToFloat(CSG_TREE[index + 11]));
     uint type = CSG_TREE[index + 15];
 
-    profile_scope_end(11);
     return CGSObject(transform, data, type);
 }
 
 CGSChild get_csg_tree_child(uint index) {
-    profile_scope_begin(5);
+    PROFILE("get_csg_tree_child");
 
     uint data = CSG_TREE[index];
     uint pointer = data >> 16;         // 16 Bit
     uint material = data & uint(63);   //  6 Bit
     uint type = (data >> 6) & uint(3); //  2 Bit
 
-    profile_scope_end(5);
     return CGSChild(pointer, material, type);
 }
 
 CGSObject get_test_box(float time, vec3 pos) {
-    profile_scope_begin(6);
+    PROFILE("get_test_box");
     float scale = 1.0 + ease_cubic_in_out(ease_loop(time_mod(time, 1.0))) * 2.0;
 
     mat4 rot_mat = mat4_rotate_xyz(vec3(
@@ -99,7 +97,7 @@ CGSObject get_test_box(float time, vec3 pos) {
 
     mat4 mat = inverse(mat4_scale(vec3(scale, 2.0, 1.5)) * rot_mat * mat4_pos(pos));
 
-    profile_scope_end(6);
+
     return CGSObject(
         mat,
         vec3(1.0),
@@ -108,16 +106,15 @@ CGSObject get_test_box(float time, vec3 pos) {
 }
 
 CGSObject get_test_sphere(float time, vec3 pos) {
-    profile_scope_begin(7);
+    PROFILE("get_test_sphere");
     float scale = 1.0 + ease_cubic_in_out(ease_loop(time_mod(time, 1.0))) * 0.1;
 
     mat4 mat = inverse(mat4_scale(vec3(scale, 2.0, 3.0)) * mat4_pos(pos));
 
-    profile_scope_begin(7);
     return CGSObject(
-    mat,
-    vec3(0.0),
-    CGS_GEO_TYPE_SPHERE
+        mat,
+        vec3(0.0),
+        CGS_GEO_TYPE_SPHERE
     );
 }
 
@@ -134,7 +131,7 @@ bool ray_hits_cgs_object(Ray ray, CGSObject object, out Interval intervall) {
 }
 
 IntervalList cgs_union_interval(IntervalList left, IntervalList right) {
-    profile_scope_begin(8);
+    PROFILE("cgs_union_interval");
 
     if (left.len == 0){
         return right;
@@ -188,12 +185,11 @@ IntervalList cgs_union_interval(IntervalList left, IntervalList right) {
         }
     }
 
-    profile_scope_end(8);
     return result;
 }
 
 IntervalList cgs_remove_interval(IntervalList left, IntervalList right) {
-    profile_scope_begin(12);
+    PROFILE("cgs_remove_interval");
 
     if (left.len == 0){
         return init_interval_list();
@@ -298,12 +294,11 @@ IntervalList cgs_remove_interval(IntervalList left, IntervalList right) {
         }
     }
 
-    profile_scope_end(12);
     return result;
 }
 
 IntervalList cgs_intersect_interval(IntervalList left, IntervalList right) {
-    profile_scope_begin(13);
+    PROFILE("cgs_intersect_interval");
 
     IntervalList result = init_interval_list();
 
@@ -353,12 +348,11 @@ IntervalList cgs_intersect_interval(IntervalList left, IntervalList right) {
         }
     }
 
-    profile_scope_end(13);
     return result;
 }
 
 IntervalList cgs_t_interval_operation(IntervalList left, IntervalList right, uint operation) {
-    profile_scope_begin(14);
+    PROFILE("cgs_t_interval_operation");
 
     if (operation == CGS_CHILD_TYPE_UNION) {
         return cgs_union_interval(left, right);
@@ -372,13 +366,12 @@ IntervalList cgs_t_interval_operation(IntervalList left, IntervalList right, uin
         return cgs_intersect_interval(left, right);
     }
 
-    profile_scope_end(14);
     return init_interval_list();
 }
 
 
 IntervalList ray_hits_cgs_tree(Ray ray) {
-    profile_scope_begin(2);
+    PROFILE("ray_hits_cgs_tree");
 
     int stack_len = 0;
     uint stack[MAX_CGS_TREE_DEPTH];
@@ -485,7 +478,6 @@ IntervalList ray_hits_cgs_tree(Ray ray) {
         }
     }
 
-    profile_scope_end(2);
     return result;
 }
 
@@ -500,7 +492,7 @@ bool pos_in_sphere(vec3 pos, vec3 s_pos, float radius) {
 }
 
 bool exits_cgs_object(vec3 pos, CGSObject object, float padding) {
-    profile_scope_begin(9);
+    PROFILE("exits_cgs_object");
 
     pos = (vec4(pos, 1.0) * object.transform).xyz;
     vec3 padding_vec = (object.transform * vec4(padding, padding, padding, 1.0)).xyz;
@@ -512,7 +504,6 @@ bool exits_cgs_object(vec3 pos, CGSObject object, float padding) {
         return length(pos) < 1.0 + padding;
     }
 
-    profile_scope_end(9);
     return false;
 }
 
@@ -553,7 +544,7 @@ bool cgs_operation_padding(uint operation, out float padding_1, out float paddin
 
 
 bool cgs_tree_at_pos(vec3 pos) {
-    profile_scope_begin(10);
+    PROFILE("cgs_tree_at_pos");
 
     int stack_len = 0;
     uint stack[MAX_CGS_TREE_DEPTH];
@@ -581,7 +572,6 @@ bool cgs_tree_at_pos(vec3 pos) {
         i++;
 
         if (perform) {
-            profile_scope_begin(15);
             uint operation = operation_stack[stack_len];
             bool exits_1 = exits_1_stack[stack_len];
 
@@ -609,7 +599,6 @@ bool cgs_tree_at_pos(vec3 pos) {
 
             cgs_operation_padding(operation_stack[stack_len], padding_1, padding_2);
 
-            profile_scope_end(15);
             continue;
         }
 
@@ -656,7 +645,6 @@ bool cgs_tree_at_pos(vec3 pos) {
         }
     }
 
-    profile_scope_end(10);
     return exits;
 }
 

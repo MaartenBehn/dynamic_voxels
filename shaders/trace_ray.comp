@@ -2,8 +2,6 @@
 
 layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
-#include "profiler.glsl"
-
 #include "binding.glsl"
 #include "ray.glsl"
 #include "cgs.glsl"
@@ -21,12 +19,9 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 #define VOXEL_SIZE 10.0
 
 void main () {
-    init_profile();
-    profile_scope_begin(0);
+    PROFILE("main");
 
-    profile_scope_begin(1);
     Ray ray = init_ray(POS, DIR, gl_GlobalInvocationID.xy, RES);
-    profile_scope_end(1);
 
     vec4 color = vec4(ray.dir * 1.0, 1);
 
@@ -84,8 +79,6 @@ void main () {
     }
 
     imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
-
-    profile_scope_end(0);
 }
 
 

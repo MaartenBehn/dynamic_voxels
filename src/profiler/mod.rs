@@ -1,45 +1,95 @@
-use log::debug;
-use octa_force::glam::{UVec2};
-use octa_force::OctaResult;
+use std::{iter, mem};
+use log::{debug, info};
+use octa_force::egui_ash_renderer::Renderer;
+use octa_force::glam::{uvec2, vec3, vec4, UVec2, Vec4};
+use octa_force::{egui, ImageAndView, OctaResult};
+use octa_force::egui::{Ui, Widget};
+use octa_force::egui::load::SizedTexture;
 use octa_force::vulkan::ash::vk;
-use octa_force::vulkan::{Buffer, Context, DescriptorPool, WriteDescriptorSet, WriteDescriptorSetKind};
+use octa_force::vulkan::{Buffer, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, Sampler, WriteDescriptorSet, WriteDescriptorSetKind};
+use octa_force::vulkan::ash::vk::{Format};
 use octa_force::vulkan::gpu_allocator::MemoryLocation;
 
 pub const SCOPES: usize = 20;
+pub const MAX_SAMPLE_RES_WIDTH: u32 = 100;
 
-
-pub struct Profiler {
+pub struct ShaderProfiler {
     out_data_len: usize,
     profiler_in_buffer: Buffer,
     profiler_out_buffer: Buffer,
 
     descriptor_pool: DescriptorPool,
+    scopes: Vec<String>,
+    main_scope: usize,
+
+    sample_res: UVec2,
+    sample_multiplication_factor: u32,
+    active_sample_pixel: UVec2,
+    active_pixel: UVec2,
+    pixel_results: Vec<ShaderProfilerPixelData>,
+    max_total_time: u64,
+    
+    _egui_descriptor_layout: DescriptorSetLayout,
+    egui_descriptor_sets: Vec<DescriptorSet>,
+    
+    result_samplers: Vec<Sampler>,
+    result_images: Vec<ImageAndView>,
+    result_images_staging_buffers: Vec<Buffer>,
+    result_textures: Vec<SizedTexture>,
+    current_result_image: usize,
+
+    last_colors: Vec<u32>,
+}
+
+#[derive(Clone)]
+pub struct ShaderProfilerPixelData {
+    pub scope_data: Vec<ShaderProfilerScopeData>,
+    pub total_time: u64,
+    pub sample_count: usize,
+}
+
+#[derive(Clone, Copy)]
+pub struct ShaderProfilerScopeData {
+    pub percent_mean: f32,
+    pub percent_max: f32,
+    pub percent_min: f32,
+
+    pub num_call_mean: u32,
+    pub num_call_max: u32,
+    pub num_call_min: u32,
 }
 
 #[derive(Clone, Copy)]
 #[allow(dead_code)]
 #[repr(C)]
 pub struct ProfilerInData {
-    pub active_pixel: u32,
-    pub counter: u32,
-    pub max_timings: u32,
-    pub mode: u32,
+    pub active_pixel_x: u32,
+    pub active_pixel_y: u32,
 }
 
 
-impl Profiler {
+impl ShaderProfiler {
     pub fn new(
         context: &Context,
+        format: Format,
         res: UVec2,
         num_frames: usize,
-    ) -> OctaResult<Profiler> {
+        scopes: &[&str],
+        egui_renderer: &mut Renderer,
+    ) -> OctaResult<ShaderProfiler> {
         let profiler_in_buffer = context.create_buffer(
             vk::BufferUsageFlags::UNIFORM_BUFFER,
             MemoryLocation::CpuToGpu,
             size_of::<ProfilerInData>() as _,
         )?;
+
+        let active_sample_pixel = uvec2(0,0);
+        profiler_in_buffer.copy_data_to_buffer(&[ProfilerInData {
+            active_pixel_x: active_sample_pixel.x,
+            active_pixel_y: active_sample_pixel.y,
+        }])?;
         
-        let out_data_len = SCOPES * 5;
+        let out_data_len = scopes.len() * 5;
         let profiler_size: usize = size_of::<u32>() * out_data_len;
         debug!("Profiler Buffer size: {} MB", profiler_size as f32 / 1000000.0);
         let profiler_out_buffer = context.create_buffer(
@@ -59,15 +109,117 @@ impl Profiler {
                     ty: vk::DescriptorType::STORAGE_BUFFER,
                     descriptor_count: num_frames as u32,
                 },
+                vk::DescriptorPoolSize {
+                    ty: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
+                    descriptor_count: (num_frames * 2) as u32,
+                },
             ],
         )?;
 
-        Ok(Profiler {
+        let main_scope = scopes.iter().position(|s| *s == "main").unwrap();
+        let scopes: Vec<String> = scopes.into_iter().map(|s| s.to_string()).collect();
+
+        let (sample_res, sample_multiplication_factor) = Self::get_sample_res(res);
+
+        let pixel_results = Self::new_pixel_results(sample_res, scopes.len());
+
+
+        let egui_descriptor_layout = context.create_descriptor_set_layout(&[
+            vk::DescriptorSetLayoutBinding {
+                binding: 0,
+                descriptor_count: 1,
+                descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
+                stage_flags: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+        ]).unwrap();
+
+        let sampler_info = vk::SamplerCreateInfo::builder();
+
+
+        let mut egui_descriptor_sets = Vec::with_capacity(3);
+
+        let mut result_samplers = Vec::with_capacity(3);
+        let mut result_images = Vec::with_capacity(3);
+        let mut result_images_staging_buffers = Vec::with_capacity(3);
+        let mut textures = Vec::with_capacity(3);
+
+        for _ in 0..3 {
+            let egui_descriptor_set = descriptor_pool.allocate_set(&egui_descriptor_layout).unwrap();
+            let texture_id = egui_renderer.add_user_texture(egui_descriptor_set.inner, false);
+            let texture = SizedTexture::new(texture_id, sample_res.as_vec2().as_ref());
+
+            let sampler = context.create_sampler(&sampler_info)?;
+            let (result_image, result_staging_buffer) = context.create_live_egui_texture_image(format, sample_res)?;
+
+            egui_descriptor_set.update(&[
+                WriteDescriptorSet {
+                    binding: 0,
+                    kind: WriteDescriptorSetKind::CombinedImageSampler {
+                        layout: vk::ImageLayout::GENERAL,
+                        view: &result_image.view,
+                        sampler: &sampler,
+                    },
+                },
+            ]);
+
+            egui_descriptor_sets.push(egui_descriptor_set);
+            result_samplers.push(sampler);
+
+            result_images.push(result_image);
+            result_images_staging_buffers.push(result_staging_buffer);
+            textures.push(texture);
+        }
+
+        Ok(ShaderProfiler {
             profiler_in_buffer,
             profiler_out_buffer,
             descriptor_pool,
             out_data_len,
+            scopes,
+            main_scope,
+            active_sample_pixel,
+            active_pixel: active_sample_pixel,
+            pixel_results,
+            max_total_time: 0,
+
+            sample_multiplication_factor,
+            sample_res,
+
+            _egui_descriptor_layout: egui_descriptor_layout,
+            egui_descriptor_sets,
+            result_samplers,
+            result_images,
+            result_images_staging_buffers,
+
+            result_textures: textures,
+            current_result_image: 0,
+            last_colors: vec![0; 3]
         })
+    }
+
+    fn new_pixel_results(res: UVec2, num_scopes: usize) -> Vec<ShaderProfilerPixelData> {
+        let num = res.element_product() as usize;
+
+        iter::repeat(ShaderProfilerPixelData {
+            scope_data: vec![ShaderProfilerScopeData {
+                percent_mean: 0.0,
+                percent_min: 0.0,
+                percent_max: 0.0,
+                num_call_mean: 0,
+                num_call_max: 0,
+                num_call_min: 0,
+            }; num_scopes],
+            total_time: 0,
+            sample_count: 0,
+        }).take(num).collect()
+    }
+
+    fn get_sample_res(res: UVec2) -> (UVec2, u32) {
+        let reduction_factor = MAX_SAMPLE_RES_WIDTH as f32 / res.x as f32;
+        let y = res.y as f32 * reduction_factor;
+
+        (uvec2(MAX_SAMPLE_RES_WIDTH, y as u32), (1.0 / reduction_factor) as u32)
     }
 
     pub fn descriptor_layout_bindings(&self) -> [vk::DescriptorSetLayoutBinding; 2] {
@@ -106,28 +258,156 @@ impl Profiler {
         ]
     }
 
-    pub fn print_result(&self) -> OctaResult<()> {
+    pub fn update(&mut self, frame_index: usize, context: &Context) -> OctaResult<()> {
+        self.process_results(frame_index, context)?;
+        self.update_active_pixel()?;
+
+        Ok(())
+    }
+
+    pub fn process_results(&mut self, frame_index: usize, context: &Context) -> OctaResult<()> {
+        let pixel_index = (self.active_sample_pixel.y * self.sample_res.x + self.active_sample_pixel.x) as usize;
+
         let data: Vec<u32> = self.profiler_out_buffer.get_data_from_buffer(self.out_data_len)?;
-        
-        let num_scopes = self.out_data_len / 5;
-        debug!("{} scopes", num_scopes);
-        
-        let total_start = data[1] as u64 + (data[2] as u64) << 32;
-        let total_end = data[3] as u64 + (data[4] as u64) << 32;
+
+        let total_start = data[self.main_scope * 5 + 1] as u64 + (data[self.main_scope * 5 + 2] as u64) << 32;
+        let total_end = data[self.main_scope * 5 + 3] as u64 + (data[self.main_scope * 5 + 4] as u64) << 32;
+        if total_end < total_start {
+            return Ok(())
+        }
         let total_time = total_end - total_start;
+        self.pixel_results[pixel_index].total_time = total_time;
+        self.pixel_results[pixel_index].sample_count += 1;
         
-        for i in 1..num_scopes {
+        //info!("Shader profile: {}", self.active_pixel);
+        for (i, name) in self.scopes.iter().enumerate() {
             let counter = data[i * 5];
             let start = data[i * 5 + 1] as u64 + (data[i * 5 + 2] as u64) << 32;
             let end = data[i * 5 + 3] as u64 + (data[i * 5 + 4] as u64) << 32;
-            
             if end < start {
                 continue
             }
-            let percent = ((end - start) as f64 / total_time as f64) * counter as f64 * 100.0;
+
+            let percent = ((end - start) as f64 / total_time as f64) as f32 * counter as f32;
             
-            debug!("{i}: {counter} {percent:0.04}%")
+            //info!("{name}: {counter} {:0.04}%", percent * 100.0);
+
+            self.pixel_results[pixel_index].scope_data[i].num_call_mean = counter;
+            self.pixel_results[pixel_index].scope_data[i].percent_mean = percent;
         }
+
+        self.max_total_time = self.max_total_time.max(total_time);
+
+        let factor = (total_time as f64) / (self.max_total_time as f64);
+        let color = Self::get_debug_color_gradient_from_float(factor as f32);
+        let color_u8 = Self::get_color_u8(color);
+
+        self.last_colors.rotate_left(1);
+        *self.last_colors.last_mut().unwrap() = color_u8;
+
+        let next_result_image = (self.current_result_image + 1) % 3;
+        let staging_result_image = (self.current_result_image + 2) % 3;
+        let staging_result_image_2 = self.current_result_image;
+        
+        let offset = pixel_index as isize - 2;
+        if offset < 0 {
+            let offset_pos = (offset * -1) as usize;
+            let upper_index = self.sample_res.element_product() as usize - offset_pos;
+            self.result_images_staging_buffers[staging_result_image_2].copy_data_to_buffer_complex(&self.last_colors[offset_pos..], 0, align_of::<u32>())?;
+            self.result_images_staging_buffers[staging_result_image_2].copy_data_to_buffer_complex(&self.last_colors[..offset_pos], upper_index, align_of::<u32>())?;
+        } else {
+            self.result_images_staging_buffers[staging_result_image_2].copy_data_to_buffer_complex(&self.last_colors, offset as usize, align_of::<u32>())?;
+        }
+        
+        context.copy_live_egui_texture_staging_buffer_to_image(&self.result_images_staging_buffers[staging_result_image], &self.result_images[staging_result_image].image)?;
+
+        self.current_result_image = next_result_image;
+        Ok(())
+    }
+
+    pub fn get_debug_color_gradient_from_float(x: f32) -> Vec4 {
+        let firstColor = vec4(0.0, 1.0, 0.0, 1.0); // green
+        let middleColor = vec4(0.0, 0.0, 1.0, 1.0); // blue
+        let endColor = vec4(1.0, 0.0, 0.0, 1.0); // red
+
+        if x == 0.0 {
+            return firstColor;
+        }
+
+        let h = 0.5; // adjust position of middleColor
+        if x < h {Vec4::lerp(firstColor, middleColor, x/h)} else {Vec4::lerp(middleColor, endColor, (x - h)/(1.0 - h))}
+    }
+
+    pub fn get_color_u8(mut color: Vec4) -> u32 {
+        color *= 256.0;
+
+        color.x as u32 | (color.y as u32) << 8 | (color.z as u32) << 16 | (color.w as u32) << 24
+    }
+
+    pub fn update_active_pixel(&mut self) -> OctaResult<()> {
+        self.active_sample_pixel.x += 1;
+        if self.active_sample_pixel.x >= self.sample_res.x {
+            self.active_sample_pixel.y += 1;
+            self.active_sample_pixel.x = 0;
+        }
+        if self.active_sample_pixel.y >= self.sample_res.y {
+            self.active_sample_pixel.y = 0;
+        }
+
+        self.active_pixel = self.active_sample_pixel * self.sample_multiplication_factor;
+
+        self.profiler_in_buffer.copy_data_to_buffer(&[ProfilerInData {
+            active_pixel_x: self.active_pixel.x,
+            active_pixel_y: self.active_pixel.y,
+        }])?;
+
+        Ok(())
+    }
+
+    pub fn gui_content(&self, ui: &mut Ui) {
+        egui::Image::new(self.result_textures[self.current_result_image])
+            .shrink_to_fit()
+            .ui(ui);
+    }
+
+    pub fn on_recreate_swapchain(&mut self, context: &Context, format: Format, res: UVec2) -> OctaResult<()> {
+        (self.sample_res, self.sample_multiplication_factor) = Self::get_sample_res(res);
+        self.pixel_results = Self::new_pixel_results(self.sample_res, self.scopes.len());
+
+        let mut result_images = Vec::with_capacity(3);
+        let mut result_images_staging_buffers = Vec::with_capacity(3);
+        let mut result_textures = Vec::with_capacity(3);
+        
+        let num_pixel = self.sample_res.element_product() as usize;
+        for i in 0..3 {
+            let (result_image, result_staging_buffer) = context.create_live_egui_texture_image(format, self.sample_res)?;
+
+            // Clear image
+            result_staging_buffer.copy_data_to_buffer(&vec![0; num_pixel])?;
+            context.copy_live_egui_texture_staging_buffer_to_image(&result_staging_buffer, &result_image.image)?;
+            self.last_colors[i] = 0;
+
+            self.egui_descriptor_sets[i].update(&[
+                WriteDescriptorSet {
+                    binding: 0,
+                    kind: WriteDescriptorSetKind::CombinedImageSampler {
+                        layout: vk::ImageLayout::GENERAL,
+                        view: &result_image.view,
+                        sampler: &self.result_samplers[i],
+                    },
+                },
+            ]);
+
+            let texture = SizedTexture::new(self.result_textures[i].id, self.sample_res.as_vec2().as_ref());
+
+            result_images.push(result_image);
+            result_images_staging_buffers.push(result_staging_buffer);
+            result_textures.push(texture);
+        }
+        
+        self.result_images = result_images;
+        self.result_images_staging_buffers = result_images_staging_buffers;
+        self.result_textures = result_textures;
 
         Ok(())
     }

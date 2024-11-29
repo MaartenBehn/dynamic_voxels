@@ -12,8 +12,7 @@ use octa_force::ImageAndView;
 use std::mem::size_of;
 use std::time::Duration;
 use crate::cgs_tree::{MAX_CGS_TREE_DATA_SIZE};
-use crate::profiler::{Profiler};
-use crate::shader::trace_ray_shader;
+use crate::profiler::{ShaderProfiler};
 
 const RENDER_DISPATCH_GROUP_SIZE_X: u32 = 32;
 const RENDER_DISPATCH_GROUP_SIZE_Y: u32 = 32;
@@ -51,7 +50,8 @@ impl Renderer {
         context: &Context,
         res: UVec2,
         num_frames: usize,
-        profiler: &Profiler,
+        profiler: &ShaderProfiler,
+        shader_bin: &[u8],
     ) -> Result<Renderer> {
         let storage_images = context.create_storage_images(res, num_frames)?;
 
@@ -149,7 +149,7 @@ impl Renderer {
         let pipeline = context.create_compute_pipeline(
             &pipeline_layout,
             ComputePipelineCreateInfo {
-                shader_source: trace_ray_shader(),
+                shader_source: shader_bin,
             },
         )?;
 
