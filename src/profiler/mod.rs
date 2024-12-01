@@ -1,10 +1,11 @@
 use std::{iter, mem};
 use log::{debug, info};
 use octa_force::egui_ash_renderer::Renderer;
-use octa_force::glam::{uvec2, vec3, vec4, UVec2, Vec4};
+use octa_force::glam::{uvec2, vec2, vec3, vec4, UVec2, Vec2, Vec4};
 use octa_force::{egui, ImageAndView, OctaResult};
-use octa_force::egui::{Ui, Widget};
+use octa_force::egui::{Pos2, Ui, Widget};
 use octa_force::egui::load::SizedTexture;
+use octa_force::egui_extras::{Column, TableBuilder};
 use octa_force::vulkan::ash::vk;
 use octa_force::vulkan::{Buffer, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, Sampler, WriteDescriptorSet, WriteDescriptorSetKind};
 use octa_force::vulkan::ash::vk::{Format};
@@ -27,18 +28,21 @@ pub struct ShaderProfiler {
     active_sample_pixel: UVec2,
     active_pixel: UVec2,
     pixel_results: Vec<ShaderProfilerPixelData>,
-    max_total_time: u64,
+    mean_pixel_results: ShaderProfilerPixelData,
+    
     
     _egui_descriptor_layout: DescriptorSetLayout,
     egui_descriptor_sets: Vec<DescriptorSet>,
-    
-    result_samplers: Vec<Sampler>,
-    result_images: Vec<ImageAndView>,
-    result_images_staging_buffers: Vec<Buffer>,
-    result_textures: Vec<SizedTexture>,
-    current_result_image: usize,
+
+    result_overview_samplers: Vec<Sampler>,
+    result_overview_images: Vec<ImageAndView>,
+    result_overview_images_staging_buffers: Vec<Buffer>,
+    result_overview_textures: Vec<SizedTexture>,
+    current_result_overview_image: usize,
 
     last_colors: Vec<u32>,
+    
+    selected_result_pixel: Option<UVec2>
 }
 
 #[derive(Clone)]
@@ -54,9 +58,9 @@ pub struct ShaderProfilerScopeData {
     pub percent_max: f32,
     pub percent_min: f32,
 
-    pub num_call_mean: u32,
-    pub num_call_max: u32,
-    pub num_call_min: u32,
+    pub num_call_mean: f32,
+    pub num_call_max: f32,
+    pub num_call_min: f32,
 }
 
 #[derive(Clone, Copy)]
@@ -122,7 +126,18 @@ impl ShaderProfiler {
         let (sample_res, sample_multiplication_factor) = Self::get_sample_res(res);
 
         let pixel_results = Self::new_pixel_results(sample_res, scopes.len());
-
+        let mean_pixel_results = ShaderProfilerPixelData {
+            scope_data: vec![ShaderProfilerScopeData {
+                percent_mean: 0.0,
+                percent_min: 0.0,
+                percent_max: 0.0,
+                num_call_mean: 0.0,
+                num_call_max: f32::MIN,
+                num_call_min: f32::MAX,
+            }; scopes.len()],
+            total_time: 0,
+            sample_count: 1,
+        };
 
         let egui_descriptor_layout = context.create_descriptor_set_layout(&[
             vk::DescriptorSetLayoutBinding {
@@ -181,20 +196,23 @@ impl ShaderProfiler {
             active_sample_pixel,
             active_pixel: active_sample_pixel,
             pixel_results,
-            max_total_time: 0,
+            mean_pixel_results,
 
             sample_multiplication_factor,
             sample_res,
 
             _egui_descriptor_layout: egui_descriptor_layout,
             egui_descriptor_sets,
-            result_samplers,
-            result_images,
-            result_images_staging_buffers,
+            result_overview_samplers: result_samplers,
+            result_overview_images: result_images,
+            result_overview_images_staging_buffers: result_images_staging_buffers,
 
-            result_textures: textures,
-            current_result_image: 0,
-            last_colors: vec![0; 3]
+            result_overview_textures: textures,
+            current_result_overview_image: 0,
+            last_colors: vec![0; 3],
+            
+            selected_result_pixel: None,
+            
         })
     }
 
@@ -206,9 +224,9 @@ impl ShaderProfiler {
                 percent_mean: 0.0,
                 percent_min: 0.0,
                 percent_max: 0.0,
-                num_call_mean: 0,
-                num_call_max: 0,
-                num_call_min: 0,
+                num_call_mean: 0.0,
+                num_call_max: f32::MIN,
+                num_call_min: f32::MAX,
             }; num_scopes],
             total_time: 0,
             sample_count: 0,
@@ -277,7 +295,12 @@ impl ShaderProfiler {
         }
         let total_time = total_end - total_start;
         self.pixel_results[pixel_index].total_time = total_time;
-        self.pixel_results[pixel_index].sample_count += 1;
+        
+        let sample_count = self.pixel_results[pixel_index].sample_count + 1;
+        self.pixel_results[pixel_index].sample_count = sample_count;
+
+        let global_sample_count = self.mean_pixel_results.sample_count + 1;
+        self.mean_pixel_results.sample_count = global_sample_count;
         
         //info!("Shader profile: {}", self.active_pixel);
         for (i, name) in self.scopes.iter().enumerate() {
@@ -288,40 +311,47 @@ impl ShaderProfiler {
                 continue
             }
 
-            let percent = ((end - start) as f64 / total_time as f64) as f32 * counter as f32;
+            let mut percent = ((end - start) as f64 / total_time as f64) as f32 * counter as f32;
+            
+            if !percent.is_finite() {
+                percent = 0.0;
+            }
             
             //info!("{name}: {counter} {:0.04}%", percent * 100.0);
 
-            self.pixel_results[pixel_index].scope_data[i].num_call_mean = counter;
-            self.pixel_results[pixel_index].scope_data[i].percent_mean = percent;
+            self.pixel_results[pixel_index].scope_data[i].add_mean_calls(counter as f32, sample_count as f32);
+            self.pixel_results[pixel_index].scope_data[i].add_mean_percent(percent, sample_count as f32);
+
+            self.mean_pixel_results.scope_data[i].add_mean_calls(counter as f32, global_sample_count as f32);
+            self.mean_pixel_results.scope_data[i].add_mean_percent(percent, global_sample_count as f32);
         }
 
-        self.max_total_time = self.max_total_time.max(total_time);
+        self.mean_pixel_results.total_time = self.mean_pixel_results.total_time.max(total_time);
 
-        let factor = (total_time as f64) / (self.max_total_time as f64);
+        let factor = (total_time as f64) / (self.mean_pixel_results.total_time as f64);
         let color = Self::get_debug_color_gradient_from_float(factor as f32);
         let color_u8 = Self::get_color_u8(color);
 
         self.last_colors.rotate_left(1);
         *self.last_colors.last_mut().unwrap() = color_u8;
 
-        let next_result_image = (self.current_result_image + 1) % 3;
-        let staging_result_image = (self.current_result_image + 2) % 3;
-        let staging_result_image_2 = self.current_result_image;
+        let next_result_image = (self.current_result_overview_image + 1) % 3;
+        let staging_result_image = (self.current_result_overview_image + 2) % 3;
+        let staging_result_image_2 = self.current_result_overview_image;
         
         let offset = pixel_index as isize - 2;
         if offset < 0 {
             let offset_pos = (offset * -1) as usize;
             let upper_index = self.sample_res.element_product() as usize - offset_pos;
-            self.result_images_staging_buffers[staging_result_image_2].copy_data_to_buffer_complex(&self.last_colors[offset_pos..], 0, align_of::<u32>())?;
-            self.result_images_staging_buffers[staging_result_image_2].copy_data_to_buffer_complex(&self.last_colors[..offset_pos], upper_index, align_of::<u32>())?;
+            self.result_overview_images_staging_buffers[staging_result_image_2].copy_data_to_buffer_complex(&self.last_colors[offset_pos..], 0, align_of::<u32>())?;
+            self.result_overview_images_staging_buffers[staging_result_image_2].copy_data_to_buffer_complex(&self.last_colors[..offset_pos], upper_index, align_of::<u32>())?;
         } else {
-            self.result_images_staging_buffers[staging_result_image_2].copy_data_to_buffer_complex(&self.last_colors, offset as usize, align_of::<u32>())?;
+            self.result_overview_images_staging_buffers[staging_result_image_2].copy_data_to_buffer_complex(&self.last_colors, offset as usize, align_of::<u32>())?;
         }
         
-        context.copy_live_egui_texture_staging_buffer_to_image(&self.result_images_staging_buffers[staging_result_image], &self.result_images[staging_result_image].image)?;
+        context.copy_live_egui_texture_staging_buffer_to_image(&self.result_overview_images_staging_buffers[staging_result_image], &self.result_overview_images[staging_result_image].image)?;
 
-        self.current_result_image = next_result_image;
+        self.current_result_overview_image = next_result_image;
         Ok(())
     }
 
@@ -364,12 +394,87 @@ impl ShaderProfiler {
         Ok(())
     }
 
-    pub fn gui_content(&self, ui: &mut Ui) {
-        egui::Image::new(self.result_textures[self.current_result_image])
-            .shrink_to_fit()
-            .ui(ui);
-    }
+    pub fn gui_windows(&mut self, ctx: &egui::Context, mouse_left: bool) {
+        
+        let mut overview_pos = None;
+        egui::Window::new("Shader Profile").show(ctx, |ui| {
+            
+            let pos = ui.next_widget_position();
 
+            let image = egui::Image::new(self.result_overview_textures[self.current_result_overview_image])
+                .shrink_to_fit();
+            
+            let size = image.calc_size(ui.available_size(), image.size());
+            image.ui(ui);
+
+            if let Some(Pos2{x, y}) = ui.ctx().pointer_latest_pos() {
+                let pos = vec2(
+                    (x - pos.x) * (self.sample_res.x as f32 / size.x),
+                    (y - pos.y) * (self.sample_res.y as f32 / size.y)
+                );
+                
+                if pos.x > 0.0 && pos.x < self.sample_res.x as f32 && pos.y > 0.0 && pos.y < self.sample_res.y as f32 {
+                    overview_pos = Some(pos.as_uvec2());
+                }
+            }
+        });
+        
+        if mouse_left {
+            if let Some(pos) = overview_pos {
+                self.selected_result_pixel = Some(pos);
+            } else {
+                self.selected_result_pixel = None;
+            }
+        }
+
+        egui::Window::new("Pixel result").show(ctx, |ui| {
+            let pixel = if let Some(pos) = self.selected_result_pixel {
+                ui.label(format!("Selected: {pos}"));
+                
+                let pixel_index = (pos.y * self.sample_res.x + pos.x) as usize;
+                 &self.pixel_results[pixel_index]
+            } else {
+                &self.mean_pixel_results
+            };
+
+            ui.label(format!("Samples: {}", pixel.sample_count));
+
+            TableBuilder::new(ui)
+                .column(Column::exact(200.0).resizable(true))
+                .column(Column::exact(40.0).resizable(true))
+                .column(Column::remainder())
+                .header(20.0, |mut header| {
+                    header.col(|ui| {
+                        ui.label("Name");
+                    });
+                    header.col(|ui| {
+                        ui.label("Calls");
+                    });
+                    header.col(|ui| {
+                        ui.label("Percent");
+                    });
+                })
+                .body(|mut body| {
+
+                    for (scope, name) in pixel.scope_data.iter().zip(self.scopes.iter()) {
+                        body.row(30.0, |mut row| {
+                            row.col(|ui| {
+                                ui.label(format!("{name}"));
+                            });
+                            row.col(|ui| {
+                                ui.label(format!("{:.02}", scope.num_call_mean));
+                            });
+                            row.col(|ui| {
+                                ui.label(format!("{:>2.03}%", scope.percent_mean * 100.0));
+                            });
+                        });
+                    }
+                });
+        });
+        
+        
+    }
+    
     pub fn on_recreate_swapchain(&mut self, context: &Context, format: Format, res: UVec2) -> OctaResult<()> {
         (self.sample_res, self.sample_multiplication_factor) = Self::get_sample_res(res);
         self.pixel_results = Self::new_pixel_results(self.sample_res, self.scopes.len());
@@ -393,22 +498,36 @@ impl ShaderProfiler {
                     kind: WriteDescriptorSetKind::CombinedImageSampler {
                         layout: vk::ImageLayout::GENERAL,
                         view: &result_image.view,
-                        sampler: &self.result_samplers[i],
+                        sampler: &self.result_overview_samplers[i],
                     },
                 },
             ]);
 
-            let texture = SizedTexture::new(self.result_textures[i].id, self.sample_res.as_vec2().as_ref());
+            let texture = SizedTexture::new(self.result_overview_textures[i].id, self.sample_res.as_vec2().as_ref());
 
             result_images.push(result_image);
             result_images_staging_buffers.push(result_staging_buffer);
             result_textures.push(texture);
         }
         
-        self.result_images = result_images;
-        self.result_images_staging_buffers = result_images_staging_buffers;
-        self.result_textures = result_textures;
+        self.result_overview_images = result_images;
+        self.result_overview_images_staging_buffers = result_images_staging_buffers;
+        self.result_overview_textures = result_textures;
 
         Ok(())
+    }
+}
+
+impl ShaderProfilerScopeData {
+    pub fn add_mean_percent(&mut self, percent: f32, n: f32) {
+        self.percent_mean = (self.percent_mean * (n -1.0) + percent) / n;
+        self.percent_max = self.percent_max.max(percent);
+        self.percent_min = self.percent_min.min(percent);
+    }
+
+    pub fn add_mean_calls(&mut self, calls: f32, n: f32) {
+        self.num_call_mean = (self.num_call_mean * (n -1.0) + calls) / n;
+        self.num_call_max = self.num_call_max.max(calls);
+        self.num_call_min = self.num_call_min.min(calls);
     }
 }

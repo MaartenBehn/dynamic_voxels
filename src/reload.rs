@@ -105,9 +105,7 @@ pub fn record_render_commands(render_state: &mut RenderState, _logic_state: &mut
     );
 
     render_state.gui.cmd_draw(command_buffer, engine.swapchain.size, image_index, &engine.window, &engine.context, |ctx| {
-        egui::Window::new("Shader Profile").show(ctx, |ui| {
-            render_state.profiler.gui_content(ui);
-        });
+        render_state.profiler.gui_windows(ctx, engine.controls.mouse_left);
     })?;
 
     command_buffer.end_rendering();
