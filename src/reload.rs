@@ -1,6 +1,7 @@
 mod render;
 mod cgs_tree;
 mod profiler;
+mod aabb;
 
 use std::time::{Duration, Instant};
 use log::debug;

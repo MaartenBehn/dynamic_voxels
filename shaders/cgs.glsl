@@ -32,6 +32,11 @@ struct CGSChild {
     uint type;
 };
 
+struct AABB {
+    vec3 min;
+    vec3 max;
+};
+
 struct IntervalList {
     Interval interval[MAX_CGS_INTERVALL_LIST];
     uint len;
@@ -84,6 +89,23 @@ CGSChild get_csg_tree_child(uint index) {
     uint type = (data >> 6) & uint(3); //  2 Bit
 
     return CGSChild(pointer, material, type);
+}
+
+AABB get_aabb(uint index) {
+    PROFILE("get_aabb");
+
+    vec3 min = vec3(uintBitsToFloat(CSG_TREE[index + 0]), uintBitsToFloat(CSG_TREE[index + 1]), uintBitsToFloat(CSG_TREE[index + 2]));
+    vec3 max = vec3(uintBitsToFloat(CSG_TREE[index + 3]), uintBitsToFloat(CSG_TREE[index + 4]), uintBitsToFloat(CSG_TREE[index + 5]));
+
+    return AABB(min, max);
+}
+
+AABB get_node_aabb(uint index) {
+    return get_aabb(index + 2);
+}
+
+AABB get_leaf_aabb(uint index) {
+    return get_aabb(index + 16);
 }
 
 CGSObject get_test_box(float time, vec3 pos) {
