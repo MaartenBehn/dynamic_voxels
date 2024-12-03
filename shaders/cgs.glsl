@@ -94,7 +94,7 @@ CGSChild get_csg_tree_child(uint index) {
 AABB get_aabb(uint index) {
     PROFILE("get_aabb");
 
-    vec3 min = vec3(uintBitsToFloat(CSG_TREE[index + 0]), uintBitsToFloat(CSG_TREE[index + 1]), uintBitsToFloat(CSG_TREE[index + 2]));
+    vec3 min = vec3(uintBitsToFloat(CSG_TREE[index    ]), uintBitsToFloat(CSG_TREE[index + 1]), uintBitsToFloat(CSG_TREE[index + 2]));
     vec3 max = vec3(uintBitsToFloat(CSG_TREE[index + 3]), uintBitsToFloat(CSG_TREE[index + 4]), uintBitsToFloat(CSG_TREE[index + 5]));
 
     return AABB(min, max);
@@ -443,10 +443,22 @@ IntervalList ray_hits_cgs_tree(Ray ray) {
             continue;
         }
 
+
         if (go_left) {
             child = get_csg_tree_child(current);
 
             if (child.type != CGS_CHILD_TYPE_GEO) {
+                AABB aabb = get_node_aabb(child.pointer);
+
+                Interval interval;
+                if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
+                    left_stack[stack_len] = init_interval_list();
+
+                    go_left = false;
+                    continue;
+                }
+
+
                 stack[stack_len] = current;
 
                 stack_len++;
@@ -456,6 +468,18 @@ IntervalList ray_hits_cgs_tree(Ray ray) {
 
                 is_left = true;
             } else {
+                AABB aabb = get_leaf_aabb(child.pointer);
+
+                Interval interval;
+                if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
+                    left_stack[stack_len] = init_interval_list();
+
+                    go_left = false;
+                    continue;
+                }
+
+
+
                 CGSObject object = get_csg_tree_object(child.pointer);
 
                 Interval left_intervall;
@@ -475,6 +499,17 @@ IntervalList ray_hits_cgs_tree(Ray ray) {
             child = get_csg_tree_child(current + 1);
 
             if (child.type != CGS_CHILD_TYPE_GEO) {
+                AABB aabb = get_node_aabb(child.pointer);
+
+                Interval interval;
+                if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
+                    right = init_interval_list();
+
+                    perform = true;
+                    continue;
+                }
+
+
                 stack[stack_len] = current;
                 stack_len++;
 
@@ -482,6 +517,15 @@ IntervalList ray_hits_cgs_tree(Ray ray) {
                 is_left = false;
                 go_left = true;
             } else {
+                AABB aabb = get_leaf_aabb(child.pointer);
+                Interval interval;
+                if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
+                    right = init_interval_list();
+
+                    perform = true;
+                    continue;
+                }
+
                 CGSObject object = get_csg_tree_object(child.pointer);
 
                 Interval right_intervall;

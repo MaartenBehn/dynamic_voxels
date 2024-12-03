@@ -2,12 +2,13 @@
 
 layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
+
 #include "binding.glsl"
 #include "ray.glsl"
 #include "cgs.glsl"
 #include "dda.glsl"
 
-#define RENDER_CGS false
+#define RENDER_CGS true
 #define RENDER_CGS_STEPS false
 #define RENDER_DDA_STEPS false
 

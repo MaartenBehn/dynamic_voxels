@@ -57,39 +57,43 @@ impl CGSTree {
                 vec3(2.0, 5.0, 7.0),
                 Quat::from_euler(EulerRot::XYZ, 0.0,0.0,0.0),
                 vec3(5.0, 0.0, 0.0)
-            ).inverse(), AABB::default()),
+            ), AABB::default()),
 
             CSGNode::Sphere(Mat4::from_scale_rotation_translation(
                 vec3(2.0, 1.0, 3.0),
                 Quat::from_euler(EulerRot::XYZ, 0.0,0.0,0.0),
                 vec3(5.0, 1.0, 0.0)
-            ).inverse(), AABB::default()),
+            ), AABB::default()),
         
             CSGNode::Sphere(Mat4::from_scale_rotation_translation(
                 vec3(3.0, 3.0, 1.0),
                 Quat::from_euler(EulerRot::XYZ, 0.0,0.0,0.0),
                 vec3(0.0, 0.0, 0.0)
-            ).inverse(), AABB::default()),
+            ), AABB::default()),
         ];
+        
+        
          
         /*
         self.nodes = vec![
-            CSGNode::Union(1, 2, Material::None),
+            CSGNode::Union(1, 2, Material::None, AABB::default()),
 
             CSGNode::Box(Mat4::from_scale_rotation_translation(
                 vec3(2.0, 5.0, 7.0),
                 Quat::from_euler(EulerRot::XYZ, 0.0,0.0,0.0),
-                vec3(5.0, 0.0, 0.0)
-            ).inverse()),
+                vec3(0.0, 0.0, 0.0)
+            ), AABB::default()),
 
             CSGNode::Sphere(Mat4::from_scale_rotation_translation(
                 vec3(2.0, 1.0, 3.0),
                 Quat::from_euler(EulerRot::XYZ, 0.0,0.0,0.0),
-                vec3(5.0, 1.0, 0.0)
-            ).inverse()),
+                vec3(0.0, 0.0, 0.0)
+            ), AABB::default()),
         ];
         
          */
+        
+        
         
         self.set_all_aabbs();
     }
@@ -200,7 +204,7 @@ impl CGSTree {
                     _ => unreachable!()
                 };
                 
-                data.extend_from_slice(any_as_u32_slice(transform));
+                data.extend_from_slice(any_as_u32_slice(&transform.inverse()));
                 data[index + 15] = t;
                 data.extend_from_slice(any_as_u32_slice(aabb));
                 
