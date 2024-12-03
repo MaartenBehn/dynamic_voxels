@@ -470,7 +470,6 @@ IntervalList ray_hits_cgs_tree(Ray ray, out uint i) {
                     }
                 #endif
 
-
                 stack[stack_len] = current;
 
                 stack_len++;

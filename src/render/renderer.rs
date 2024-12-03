@@ -63,7 +63,7 @@ impl Renderer {
         )?;
 
         let cgs_tree_buffer = context.create_buffer(
-            vk::BufferUsageFlags::STORAGE_BUFFER,
+            vk::BufferUsageFlags::UNIFORM_BUFFER,
             MemoryLocation::CpuToGpu,
             (size_of::<u32>() * MAX_CGS_TREE_DATA_SIZE) as _,
         )?;
@@ -81,7 +81,7 @@ impl Renderer {
                     descriptor_count: num_frames as u32,
                 },
                 vk::DescriptorPoolSize {
-                    ty: vk::DescriptorType::STORAGE_BUFFER,
+                    ty: vk::DescriptorType::UNIFORM_BUFFER,
                     descriptor_count: num_frames as u32,
                 },
             ],
@@ -106,7 +106,7 @@ impl Renderer {
             vk::DescriptorSetLayoutBinding {
                 binding: 2,
                 descriptor_count: 1,
-                descriptor_type: vk::DescriptorType::STORAGE_BUFFER,
+                descriptor_type: vk::DescriptorType::UNIFORM_BUFFER,
                 stage_flags: vk::ShaderStageFlags::COMPUTE,
                 ..Default::default()
             },
@@ -136,7 +136,7 @@ impl Renderer {
                 },
                 WriteDescriptorSet {
                     binding: 2,
-                    kind: WriteDescriptorSetKind::StorageBuffer {
+                    kind: WriteDescriptorSetKind::UniformBuffer {
                         buffer: &cgs_tree_buffer,
                     },
                 },
