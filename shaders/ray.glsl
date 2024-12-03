@@ -38,6 +38,7 @@ vec3 get_ray_pos(Ray ray, float t) {
 }
 
 bool ray_aabb_intersect(in Ray ray, in vec3 min_pos, in vec3 max_pos, out Interval intervall) {
+    PROFILE("ray_aabb_intersect");
     vec3 is_positive = vec3(ray.odir.x > 0, ray.odir.y > 0, ray.odir.z >= 0); // ray.odir = 1.0 / ray.dir
     vec3 is_negative = 1.0f - is_positive;
 
@@ -58,6 +59,7 @@ bool ray_aabb_intersect(in Ray ray, in vec3 min_pos, in vec3 max_pos, out Interv
 }
 
 Ray ray_to_model_space(Ray ray, mat4 transform) {
+    PROFILE("ray_to_model_space");
     vec3 new_pos = (vec4(ray.pos, 1.0) * transform).xyz;
     vec3 new_dir = (vec4(ray.dir, 0.0) * transform).xyz;
 
@@ -91,6 +93,7 @@ bool solve_quadratic(float a, float b, float c, out float x0, out float x1) {
 }
 
 bool ray_sphere_intersect(Ray ray, out Interval intervall) {
+    PROFILE("ray_sphere_intersect");
     #if 0
         // Geometric solution
         vec3 L = ray.pos;
