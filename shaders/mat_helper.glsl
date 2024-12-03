@@ -1,6 +1,9 @@
 #ifndef _MAT_HELPER_GLSL_
 #define _MAT_HELPER_GLSL_
 
+#define FLOAT_POS_INF uintBitsToFloat(0x7F800000)
+#define FLOAT_NEG_INF uintBitsToFloat(0xFF800000)
+
 // From
 // https://github.com/yuichiroharai/glsl-y-rotate
 

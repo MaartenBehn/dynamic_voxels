@@ -29,14 +29,16 @@ void main () {
     float time = TIME;
 
     uint cgs_tree_iterations;
-    IntervalList result = ray_hits_cgs_tree(ray, cgs_tree_iterations);
+    Interval result = ray_hits_cgs_tree(ray, cgs_tree_iterations);
 
     if (RENDER_CGS_TREE_STEPS) {
         color = vec4(get_debug_color_gradient_from_float(float(cgs_tree_iterations) / float(MAX_CGS_RENDER_ITERATIONS)), 1.0);
     } else if (RENDER_CGS) {
-        float t_min = result.interval[0].t_min;
+        float t_min = result.t_min;
         color = vec4(get_debug_color_gradient_from_float(t_min / 10.0), 1.0);
-    } else {
+    }
+    /*
+    else {
         uint dda_step_counter = 0;
         for (uint i = 0; i < result.len; i++) {
 
@@ -86,6 +88,7 @@ void main () {
             }
         }
     }
+    */
 
     imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
 }

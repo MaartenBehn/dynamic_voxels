@@ -39,33 +39,6 @@ struct AABB {
     vec3 max;
 };
 
-struct IntervalList {
-    Interval interval[MAX_CGS_INTERVALL_LIST];
-    uint len;
-};
-
-IntervalList init_interval_list() {
-    Interval interval[MAX_CGS_INTERVALL_LIST];
-
-    return IntervalList(interval, 0);
-}
-
-IntervalList init_interval_list_with_value(Interval val) {
-    Interval interval[MAX_CGS_INTERVALL_LIST];
-    interval[0] = val;
-
-    return IntervalList(interval, 1);
-}
-
-void push_interval_list(Interval val, in out IntervalList list) {
-    list.interval[list.len] = val;
-    list.len++;
-}
-
-Interval pop_interval_list(in out IntervalList list) {
-    list.len--;
-    return list.interval[list.len];
-}
 
 CGSObject get_csg_tree_object(uint index) {
     PROFILE("get_csg_tree_object");
@@ -154,250 +127,52 @@ bool ray_hits_cgs_object(Ray ray, CGSObject object, out Interval intervall) {
     return false;
 }
 
-IntervalList cgs_union_interval(IntervalList left, IntervalList right) {
-    PROFILE("cgs_union_interval");
-
-    if (left.len == 0){
-        return right;
-    }
-
-    if (right.len == 0){
-        return left;
-    }
-
-    uint index_left = 0;
-    uint index_right = 0;
-    Interval current;
-    IntervalList result = init_interval_list();
-
-    bool left_t_smaller = left.interval[index_left].t_min < right.interval[index_right].t_min;
-    if (left_t_smaller) {
-        current = left.interval[index_left];
-        index_left++;
-
-    } else {
-        current = right.interval[index_right];
-        index_right++;
-    }
-
-    for(uint i = 0; i < MAX_CGS_INTERVALL_LIST * 2; i++) {
-        Interval other;
-
-        bool left_in_bound = index_left < left.len;
-        bool right_in_bound = index_right < right.len;
-        left_t_smaller = left.interval[index_left].t_min < right.interval[index_right].t_min;
-
-        if ((left_t_smaller && left_in_bound) || !right_in_bound) {
-            if (!left_in_bound) {
-                push_interval_list(current, result);
-                break;
-            }
-
-            other = left.interval[index_left];
-            index_left++;
-        } else {
-            other = right.interval[index_right];
-            index_right++;
-        }
-
-        bool intersects = current.t_min < other.t_max && current.t_max > other.t_min;
-        if (intersects) {
-            current.t_max = other.t_max;
-        } else {
-            push_interval_list(current, result);
-            current = other;
-        }
-    }
-
-    return result;
-}
-
-IntervalList cgs_remove_interval(IntervalList left, IntervalList right) {
-    PROFILE("cgs_remove_interval");
-
-    if (left.len == 0){
-        return init_interval_list();
-    } else if (right.len == 0) {
-        return left;
-    }
-
-    Interval current = left.interval[0];
-    Interval other = right.interval[0];
-    uint next_left = 1;
-    uint next_right = 1;
-
-    IntervalList result = init_interval_list();
-
-    for(uint i = 0; i < MAX_CGS_INTERVALL_LIST * 2; i++)  {
-
-        // Cases
-        // ----       | ----   |   ---- | ------- |   ----    |      ---- |
-        //       ---- |   ---- | ----   |   ---   | --------- | ----      |
-        // 0            1        2        3         4           5
-
-        bool keep_front = current.t_min < other.t_min;
-        bool keep_back = current.t_max > other.t_max;
-        bool left_first = current.t_max < other.t_min;
-        bool right_first = other.t_max < current.t_min;
-        bool intersection = !left_first && !right_first;
-
-        uint c;
-        if (!intersection && left_first) {
-            c = 0;
-        } else if (intersection && keep_front && !keep_back) {
-            c = 1;
-        } else if (intersection && !keep_front && keep_back) {
-            c = 2;
-        } else if (intersection && keep_front && keep_back) {
-            c = 3;
-        } else if (intersection && !keep_front && !keep_back) {
-            c = 4;
-        } else if (!intersection && right_first) {
-            c = 5;
-        }
-
-        // Create front bit and push it
-        if (c == 1 || c == 3) {
-            Interval sub = current;
-            sub.t_max = other.t_min;
-
-            push_interval_list(sub, result);
-        }
-
-        // Make current end bit
-        if (c == 2 || c == 3) {
-            current.t_min = other.t_max;
-        }
-
-        // Push current
-        if (c == 0) {
-            push_interval_list(current, result);
-        }
-
-        bool left_out_of_bounds = next_left >= left.len;
-        bool right_out_of_bounds = next_right >= right.len;
-        bool both_out_of_bounds = left_out_of_bounds && right_out_of_bounds;
-
-        // current = next left
-        if ((c == 0 || c == 1 || c == 4) && !left_out_of_bounds) {
-            current = left.interval[next_left];
-            next_left++;
-        }
-
-        // other = next right
-        if ((c == 2 || c == 3 || c == 5) && !right_out_of_bounds) {
-            other = right.interval[next_right];
-            next_right++;
-        }
-
-
-        if (both_out_of_bounds) {
-            if (c == 0 || c == 1 || c == 4) {
-                break;
-            }
-
-            if (c == 2 || c == 3 || c == 5) {
-                push_interval_list(current, result);
-                break;
-            }
-        }
-
-        if (left_out_of_bounds && (c == 0 || c == 1 || c == 4)) {
-            break;
-        }
-
-        if (right_out_of_bounds && (c == 2 || c == 3 || c == 5)) {
-            push_interval_list(current, result);
-
-            while (next_left < left.len) {
-                push_interval_list(left.interval[next_left], result);
-                next_left++;
-            }
-
-            break;
-        }
-    }
-
-    return result;
-}
-
-IntervalList cgs_intersect_interval(IntervalList left, IntervalList right) {
-    PROFILE("cgs_intersect_interval");
-
-    IntervalList result = init_interval_list();
-
-    if (left.len == 0 || right.len == 0){
-        return result;
-    }
-
-    Interval current_left = left.interval[0];
-    Interval current_right = right.interval[0];
-
-    uint index_left = 1;
-    uint index_right = 1;
-
-    for(uint i = 0; i < MAX_CGS_INTERVALL_LIST * 2; i++)  {
-        if (current_left.t_min < current_right.t_max && current_left.t_max > current_right.t_min) {
-
-            Interval intersection;
-            if (current_left.t_min > current_right.t_min) {
-                intersection = current_left;
-            } else {
-                intersection = current_right;
-            }
-
-            if (current_left.t_max < current_right.t_max) {
-                intersection.t_max = current_left.t_max;
-            } else {
-                intersection.t_max = current_right.t_max;
-            }
-
-            push_interval_list(intersection, result);
-        }
-
-        bool left_in_bound = index_left < left.len;
-        bool right_in_bound = index_right < right.len;
-        bool left_bt_smaller = left.interval[index_left].t_max < right.interval[index_right].t_max;
-
-        if ((left_bt_smaller && left_in_bound) || !right_in_bound) {
-            if (!left_in_bound) {
-                break;
-            }
-
-            current_left = left.interval[index_left];
-            index_left++;
-        } else {
-            current_right = right.interval[index_right];
-            index_right++;
-        }
-    }
-
-    return result;
-}
-
-IntervalList cgs_t_interval_operation(IntervalList left, IntervalList right, uint operation) {
+Interval cgs_t_interval_operation(Interval left, Interval right, uint operation) {
     PROFILE("cgs_t_interval_operation");
 
+    float t_min, t_max;
     if (operation == CGS_CHILD_TYPE_UNION) {
-        return cgs_union_interval(left, right);
+        t_min = min(left.t_min, right.t_min);
+        t_max = max(left.t_max, right.t_max);
+
+    } else if (operation == CGS_CHILD_TYPE_REMOVE) {
+        if (right.t_min < left.t_min && left.t_min < right.t_max) {
+            if (right.t_min < left.t_max && left.t_max < right.t_max) {
+                t_min = FLOAT_POS_INF;
+                t_max = FLOAT_NEG_INF;
+            } else {
+                t_min = right.t_max;
+                t_max = left.t_max;
+            }
+        } else {
+            if (right.t_min < left.t_max && left.t_max < right.t_max) {
+                t_min = left.t_min;
+                t_max = right.t_min;
+            } else {
+                t_min = left.t_min;
+                t_max = left.t_max;
+            }
+        }
+
+        if (right.t_min < left.t_max && left.t_max < right.t_max) {
+            t_max = right.t_min;
+        } else {
+            t_max = left.t_max;
+        }
+
+    } else if (operation == CGS_CHILD_TYPE_INTERSECT) {
+        t_min = max(left.t_min, right.t_min);
+        t_max = min(left.t_max, right.t_max);
     }
 
-    if (operation == CGS_CHILD_TYPE_REMOVE) {
-        return cgs_remove_interval(left, right);
-    }
-
-    if (operation == CGS_CHILD_TYPE_INTERSECT) {
-        return cgs_intersect_interval(left, right);
-    }
-
-    return init_interval_list();
+    return Interval(t_min, t_max);
 }
 
 
-IntervalList ray_hits_cgs_tree(Ray ray, out uint i) {
+Interval ray_hits_cgs_tree(Ray ray, out uint i) {
     PROFILE("ray_hits_cgs_tree");
 
-    IntervalList result = init_interval_list();
+    Interval result = init_interval();
 
     #if BROAD_PHASE
         AABB aabb = get_node_aabb(0);
@@ -411,8 +186,8 @@ IntervalList ray_hits_cgs_tree(Ray ray, out uint i) {
     int stack_len = 0;
     uint stack[MAX_CGS_TREE_DEPTH];
     uint operation_stack[MAX_CGS_TREE_DEPTH + 1];
-    IntervalList left_stack[MAX_CGS_TREE_DEPTH + 1];
-    IntervalList right = init_interval_list();
+    Interval left_stack[MAX_CGS_TREE_DEPTH + 1];
+    Interval right = init_interval();
 
     operation_stack[0] = CGS_CHILD_TYPE_UNION;
     bool is_left = false;
@@ -428,7 +203,7 @@ IntervalList ray_hits_cgs_tree(Ray ray, out uint i) {
 
         if (perform) {
             uint operation = operation_stack[stack_len];
-            IntervalList left = left_stack[stack_len];
+            Interval left = left_stack[stack_len];
 
             result = cgs_t_interval_operation(left, right, operation);
 
@@ -464,7 +239,7 @@ IntervalList ray_hits_cgs_tree(Ray ray, out uint i) {
                     AABB aabb = get_node_aabb(child.pointer);
                     Interval interval;
                     if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
-                        left_stack[stack_len] = init_interval_list();
+                        left_stack[stack_len] = init_interval();
                         go_left = false;
                         continue;
                     }
@@ -484,7 +259,7 @@ IntervalList ray_hits_cgs_tree(Ray ray, out uint i) {
                     AABB aabb = get_leaf_aabb(child.pointer);
                     Interval interval;
                     if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
-                        left_stack[stack_len] = init_interval_list();
+                        left_stack[stack_len] = init_interval();
                         go_left = false;
                         continue;
                     }
@@ -495,9 +270,9 @@ IntervalList ray_hits_cgs_tree(Ray ray, out uint i) {
                 Interval left_intervall;
                 bool hit = ray_hits_cgs_object(ray, object, left_intervall);
                 if (hit) {
-                    left_stack[stack_len] = init_interval_list_with_value(left_intervall);
+                    left_stack[stack_len] = left_intervall;
                 } else {
-                    left_stack[stack_len] = init_interval_list();
+                    left_stack[stack_len] = init_interval();
                 }
 
                 // result = init_interval_list_with_value(left_intervall);
@@ -513,7 +288,7 @@ IntervalList ray_hits_cgs_tree(Ray ray, out uint i) {
                     AABB aabb = get_node_aabb(child.pointer);
                     Interval interval;
                     if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
-                        right = init_interval_list();
+                        right = init_interval();
                         perform = true;
                         continue;
                     }
@@ -531,7 +306,7 @@ IntervalList ray_hits_cgs_tree(Ray ray, out uint i) {
                     AABB aabb = get_leaf_aabb(child.pointer);
                     Interval interval;
                     if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
-                        right = init_interval_list();
+                        right = init_interval();
                         perform = true;
                         continue;
                     }
@@ -542,9 +317,9 @@ IntervalList ray_hits_cgs_tree(Ray ray, out uint i) {
                 Interval right_intervall;
                 bool hit = ray_hits_cgs_object(ray, object, right_intervall);
                 if (hit) {
-                    right = init_interval_list_with_value(right_intervall);
+                    right = right_intervall;
                 } else {
-                    right = init_interval_list();
+                    right = init_interval();
                 }
 
                 // result = init_interval_list_with_value(right_intervall);

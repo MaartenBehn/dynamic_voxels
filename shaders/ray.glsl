@@ -1,8 +1,7 @@
 #ifndef _RAY_GLSL_
 #define _RAY_GLSL_
 
-#define FLOAT_POS_INF uintBitsToFloat(0x7F800000)
-#define FLOAT_NEG_INF uintBitsToFloat(0xFF800000)
+#include "mat_helper.glsl"
 
 struct Ray{
     vec3 pos;
