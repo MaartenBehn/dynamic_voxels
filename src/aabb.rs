@@ -39,13 +39,12 @@ impl AABB {
         let a = vec3(
             f32::sqrt(mat.x_axis.x.powf(2.0) + mat.x_axis.y.powf(2.0) + mat.x_axis.z.powf(2.0)),
             f32::sqrt(mat.y_axis.x.powf(2.0) + mat.y_axis.y.powf(2.0) + mat.y_axis.z.powf(2.0)),
-            f32::sqrt(mat.z_axis.x.powf(2.0) + mat.z_axis.y.powf(2.0) + mat.z_axis.z.powf(2.0)))
-            + padding;
+            f32::sqrt(mat.z_axis.x.powf(2.0) + mat.z_axis.y.powf(2.0) + mat.z_axis.z.powf(2.0)));
         let b = vec3(mat.w_axis.x, mat.w_axis.y, mat.w_axis.z);
 
         AABB {
-            min: b - a,
-            max: b + a,
+            min: b - a - padding,
+            max: b + a + padding,
         }
     }
 

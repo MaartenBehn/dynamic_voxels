@@ -15,7 +15,7 @@ const CGS_CHILD_TYPE_INTERSECT: u32 =  3;
 
 pub const MAX_CGS_TREE_DATA_SIZE: usize = 100;
 
-const AABB_PADDING: f32 = 0.0;
+const AABB_PADDING: f32 = 0.2;
 
 #[derive(Copy, Clone, Debug)]
 pub enum Material {

@@ -6,8 +6,10 @@
 #include "easing.glsl"
 #include "mat_helper.glsl"
 #include "debug.glsl"
+#include "dda.glsl"
 
-#define ONLY_AABB_RENDER false
+#define ONLY_RENDER_AABB false
+#define ONLY_RENDER_CGS false
 
 #define CGS_GEO_TYPE_BOX 0
 #define CGS_GEO_TYPE_SPHERE 1
@@ -21,6 +23,8 @@
 #define MAX_CGS_TREE_DEPTH 10
 #define MAX_CGS_RENDER_ITERATIONS 10
 #define MAX_CGS_INTERVALL_LIST 5
+
+#define VOXEL_SIZE 10.0
 
 struct CGSObject {
     mat4 transform;
@@ -169,6 +173,7 @@ Interval cgs_t_interval_operation(Interval left, Interval right, uint operation)
 }
 
 
+bool exits_cgs_object(vec3 pos, CGSObject object);
 Interval ray_hits_cgs_tree(Ray ray, out uint i) {
     PROFILE("ray_hits_cgs_tree");
 
@@ -251,22 +256,48 @@ Interval ray_hits_cgs_tree(Ray ray, out uint i) {
                 } else {
 
                     AABB aabb = get_leaf_aabb(child.pointer);
-                    Interval interval;
-                    if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
+                    Interval aabb_interval;
+                    if (!ray_aabb_intersect(ray, aabb.min, aabb.max, aabb_interval)) {
                         left_stack[stack_len] = init_interval();
-                        go_left = false;
-                        continue;
                     }
                     else {
-                        if (ONLY_AABB_RENDER) {
-                            left_stack[stack_len] = interval;
+                        if (ONLY_RENDER_AABB) {
+                            left_stack[stack_len] = aabb_interval;
                         } else {
                             CGSObject object = get_csg_tree_object(child.pointer);
 
                             Interval left_intervall;
                             bool hit = ray_hits_cgs_object(ray, object, left_intervall);
                             if (hit) {
-                                left_stack[stack_len] = left_intervall;
+                                if (ONLY_RENDER_CGS) {
+                                    left_stack[stack_len] = left_intervall;
+                                } else {
+                                    vec3 start_pos = get_ray_pos(ray, aabb_interval.t_min) * VOXEL_SIZE;
+                                    DDA dda = init_DDA(ray, start_pos, ivec3(100000));
+
+                                    bool wait_in_side = true;
+                                    for (uint j = 0; j < 1000; j++) {
+                                        dda = step_DDA(dda);
+
+                                        bool in_side = exits_cgs_object(floor(dda.pos) / VOXEL_SIZE, object);
+                                        if (wait_in_side) {
+                                            if (in_side) {
+                                                float t = get_DDA_t(dda) / VOXEL_SIZE;
+                                                left_intervall.t_min = aabb_interval.t_min + t;
+                                                wait_in_side = false;
+                                            }
+                                        } else {
+                                            if (!in_side) {
+                                                float t = get_DDA_t(dda) / VOXEL_SIZE;
+                                                left_intervall.t_max = aabb_interval.t_min + t;
+                                                break;
+                                            }
+                                        }
+
+                                    }
+
+                                    left_stack[stack_len] = left_intervall;
+                                }
                             } else {
                                 left_stack[stack_len] = init_interval();
                             }
@@ -297,22 +328,49 @@ Interval ray_hits_cgs_tree(Ray ray, out uint i) {
 
                 } else {
 
-
                     AABB aabb = get_leaf_aabb(child.pointer);
-                    Interval interval;
-                    if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
+                    Interval aabb_interval;
+                    if (!ray_aabb_intersect(ray, aabb.min, aabb.max, aabb_interval)) {
                         right = init_interval();
                     }
                     else {
-                        if (ONLY_AABB_RENDER) {
-                            right = interval;
+                        if (ONLY_RENDER_AABB) {
+                            right = aabb_interval;
                         } else {
                             CGSObject object = get_csg_tree_object(child.pointer);
 
-                            Interval right_intervall;
-                            bool hit = ray_hits_cgs_object(ray, object, right_intervall);
+                            Interval right_interval;
+                            bool hit = ray_hits_cgs_object(ray, object, right_interval);
                             if (hit) {
-                                right = right_intervall;
+                                if (ONLY_RENDER_CGS) {
+                                    right = right_interval;
+                                } else {
+                                    vec3 start_pos = get_ray_pos(ray, aabb_interval.t_min) * VOXEL_SIZE;
+                                    DDA dda = init_DDA(ray, start_pos, ivec3(100000));
+
+                                    bool wait_in_side = true;
+                                    for (uint j = 0; j < 1000; j++) {
+                                        dda = step_DDA(dda);
+
+                                        bool in_side = exits_cgs_object(floor(dda.pos) / VOXEL_SIZE, object);
+                                        if (wait_in_side) {
+                                            if (in_side) {
+                                                float t = get_DDA_t(dda) / VOXEL_SIZE;
+                                                right_interval.t_min = aabb_interval.t_min + t;
+                                                wait_in_side = false;
+                                            }
+                                        } else {
+                                            if (!in_side) {
+                                                float t = get_DDA_t(dda) / VOXEL_SIZE;
+                                                right_interval.t_max = aabb_interval.t_min + t;
+                                                break;
+                                            }
+                                        }
+
+                                    }
+
+                                    left_stack[stack_len] = right_interval;
+                                }
                             } else {
                                 right = init_interval();
                             }
@@ -320,7 +378,6 @@ Interval ray_hits_cgs_tree(Ray ray, out uint i) {
                     }
 
                     perform = true;
-
                 }
             }
         }
@@ -331,25 +388,24 @@ Interval ray_hits_cgs_tree(Ray ray, out uint i) {
 
 bool pos_in_aabb(vec3 pos, vec3 min, vec3 max) {
     return min.x <= pos.x && pos.x <= max.x &&
-        min.y <= pos.y && pos.y <= max.y &&
-        min.z <= pos.z && pos.z <= max.z;
+    min.y <= pos.y && pos.y <= max.y &&
+    min.z <= pos.z && pos.z <= max.z;
 }
 
 bool pos_in_sphere(vec3 pos, vec3 s_pos, float radius) {
     return distance(pos, s_pos) < radius;
 }
 
-bool exits_cgs_object(vec3 pos, CGSObject object, float padding) {
+bool exits_cgs_object(vec3 pos, CGSObject object) {
     PROFILE("exits_cgs_object");
 
     pos = (vec4(pos, 1.0) * object.transform).xyz;
-    vec3 padding_vec = (object.transform * vec4(padding, padding, padding, 1.0)).xyz;
 
     if (object.type == CGS_GEO_TYPE_BOX) {
-        return pos_in_aabb(pos, vec3(-0.5) - padding_vec, vec3(0.5) + padding_vec);
+        return pos_in_aabb(pos, vec3(-0.5), vec3(0.5));
 
     } else if (object.type == CGS_GEO_TYPE_SPHERE) {
-        return length(pos) < 1.0 + padding;
+        return length(pos) < 1.0;
     }
 
     return false;
@@ -371,26 +427,6 @@ bool cgs_bool_operation(bool exits_1, bool exits_2, uint operation) {
     return false;
 }
 
-bool cgs_operation_padding(uint operation, out float padding_1, out float padding_2) {
-    if (operation == CGS_CHILD_TYPE_UNION) {
-        padding_1 = -0.2;
-        padding_2 = -0.2;
-    }
-
-    if (operation == CGS_CHILD_TYPE_REMOVE) {
-        padding_1 = -0.2;
-        padding_2 = 0.2;
-    }
-
-    if (operation == CGS_CHILD_TYPE_INTERSECT) {
-        padding_1 = -0.2;
-        padding_2 = -0.2;
-    }
-
-    return false;
-}
-
-
 bool cgs_tree_at_pos(vec3 pos) {
     PROFILE("cgs_tree_at_pos");
 
@@ -408,11 +444,6 @@ bool cgs_tree_at_pos(vec3 pos) {
     CGSChild child;
     bool exits_2 = false;
     bool exits = false;
-
-
-    float padding_1;
-    float padding_2;
-    cgs_operation_padding(operation_stack[0], padding_1, padding_2);
 
     uint i = 0;
 
@@ -445,8 +476,6 @@ bool cgs_tree_at_pos(vec3 pos) {
                 }
             }
 
-            cgs_operation_padding(operation_stack[stack_len], padding_1, padding_2);
-
             continue;
         }
 
@@ -459,15 +488,13 @@ bool cgs_tree_at_pos(vec3 pos) {
                 stack_len++;
                 operation_stack[stack_len] = child.type;
 
-                cgs_operation_padding(child.type, padding_1, padding_2);
-
                 current = child.pointer;
 
                 is_left = true;
             } else {
                 CGSObject object = get_csg_tree_object(child.pointer);
 
-                exits_1_stack[stack_len] = exits_cgs_object(pos, object, padding_1);
+                exits_1_stack[stack_len] = exits_cgs_object(pos, object);
 
                 left = false;
             }
@@ -478,15 +505,13 @@ bool cgs_tree_at_pos(vec3 pos) {
                 stack[stack_len] = current;
                 stack_len++;
 
-                cgs_operation_padding(child.type, padding_1, padding_2);
-
                 current = child.pointer;
                 is_left = false;
                 left = true;
             } else {
                 CGSObject object = get_csg_tree_object(child.pointer);
 
-                exits_2 = exits_cgs_object(pos, object, padding_2);
+                exits_2 = exits_cgs_object(pos, object);
 
                 perform = true;
             }
@@ -495,6 +520,5 @@ bool cgs_tree_at_pos(vec3 pos) {
 
     return exits;
 }
-
 
 #endif // _CGS_GLSL_
