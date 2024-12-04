@@ -10,6 +10,8 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
 #define RENDER_TEST_OBJECT false
 #define RENDER_DDA_STEPS true
+#define RENDER_NEXT_T false
+#define USE_DDA_SKIPPING false
 
 #define MAX_RAY_STEPS 50
 #define MAX_FULL_DDA_STEPS 200
@@ -49,17 +51,30 @@ void main () {
         while (dda_step_counter < MAX_FULL_DDA_STEPS) {
             dda_step_counter += 1;
 
-            dda = step_DDA(dda);
+            float current_t = get_DDA_t(dda) + t_start;
+            float next_t = interval.t_max;
+            bool exits = cgs_tree_at_pos(ray, floor(dda.pos), next_t);
 
-            if (dda.out_of_bounds) {
+
+            if (RENDER_NEXT_T) {
+                color = vec4(get_debug_color_gradient_from_float(float(next_t) / 100.0), 1.0);
                 break;
             }
 
-            bool exits = cgs_tree_at_pos((floor(dda.pos)));
-
             if (exits) {
-                float dist = get_DDA_t(dda);
-                color = vec4(get_debug_color_gradient_from_float(dist / 100.0), 1.0);
+                color = vec4(get_debug_color_gradient_from_float(current_t / 100.0), 1.0);
+                break;
+            }
+
+            if (USE_DDA_SKIPPING) {
+                uint steps = clamp(uint((next_t - current_t)), 1, 100);
+                dda = step_DDA(dda, steps);
+            } else {
+                dda = step_DDA(dda, 1);
+            }
+
+
+            if (dda.out_of_bounds) {
                 break;
             }
         }

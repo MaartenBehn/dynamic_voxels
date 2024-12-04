@@ -25,40 +25,29 @@ DDA init_DDA(in Ray ray, in vec3 start_pos, in vec3 lower_bound, in vec3 upper_b
     return DDA(start_pos, delta_dist, step, side_dist, mask, lower_bound, upper_bound, false);
 }
 
-DDA step_DDA(in DDA dda) {
+DDA step_DDA(in DDA dda, in uint steps) {
     PROFILE("step_DDA");
 
-    // Implementaion inspirend by: https://www.shadertoy.com/view/4dX3zl
-    #ifdef USE_BRANCHLESS_DDA
-    dda.mask = vec3(lessThanEqual(dda.side_dist.xyz, min(dda.side_dist.yzx, dda.side_dist.zxy)));
-    dda.side_dist += vec3(dda.mask) * dda.delta_dist;
-    dda.pos += dda.mask * dda.step;
-    #else
-    if (dda.side_dist.x < dda.side_dist.y) {
-        if (dda.side_dist.x < dda.side_dist.z) {
-            dda.side_dist.x += dda.delta_dist.x;
-            dda.pos.x += dda.step.x;
-            dda.mask = vec3(1, 0, 0);
+    if (steps == 1) {
+        dda.mask = vec3(lessThanEqual(dda.side_dist.xyz, min(dda.side_dist.yzx, dda.side_dist.zxy)));
+        dda.side_dist += dda.mask * dda.delta_dist;
+        dda.pos += dda.mask * dda.step;
+    } else {
+        for (uint i = 0; i < steps; i++) {
+            dda.mask = vec3(lessThanEqual(dda.side_dist.xyz, min(dda.side_dist.yzx, dda.side_dist.zxy)));
+            dda.side_dist += dda.mask * dda.delta_dist;
+            dda.pos += dda.mask * dda.step;
         }
-        else {
-            dda.side_dist.z += dda.delta_dist.z;
-            dda.pos.z += dda.step.z;
-            dda.mask = vec3(0, 0, 1);
+
+        /*
+        if (skip_steps > 1)
+        {
+            dda.mask  = floor( float(skip_steps) / dda.delta_dist );
+            dda.side_dist += dda.mask  * dda.delta_dist;
+            dda.pos += dda.mask  * dda.step;
         }
+        */
     }
-    else {
-        if (dda.side_dist.y < dda.side_dist.z) {
-            dda.side_dist.y += dda.delta_dist.y;
-            dda.pos.y += dda.step.y;
-            dda.mask = vec3(0, 1, 0);
-        }
-        else {
-            dda.side_dist.z += dda.delta_dist.z;
-            dda.pos.z += dda.step.z;
-            dda.mask = vec3(0, 0, 1);
-        }
-    }
-    #endif
 
     dda.out_of_bounds =
       (dda.mask.x != 0 && (dda.pos.x < dda.lower_bound.x || dda.pos.x > dda.upper_bound.x)

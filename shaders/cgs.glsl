@@ -170,14 +170,8 @@ bool cgs_bool_operation(bool exits_1, bool exits_2, uint operation) {
     return false;
 }
 
-bool cgs_tree_at_pos(vec3 pos) {
+bool cgs_tree_at_pos(Ray ray, vec3 pos, in out float next_t) {
     PROFILE("cgs_tree_at_pos");
-
-    AABB aabb = get_node_aabb(0);
-    if (!pos_in_aabb(pos, aabb.min, aabb.max)) {
-        return false;
-    }
-
     int stack_len = 0;
     uint stack[MAX_CGS_TREE_DEPTH];
     uint operation_stack[MAX_CGS_TREE_DEPTH + 1];
@@ -246,6 +240,11 @@ bool cgs_tree_at_pos(vec3 pos) {
 
                     is_left = true;
                 }
+
+                Interval interval;
+                if (ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
+                    next_t = min(interval.t_min, next_t);
+                }
             } else {
                 AABB aabb = get_leaf_aabb(child.pointer);
                 if (USE_AABB && !pos_in_aabb(pos, aabb.min, aabb.max)) {
@@ -253,6 +252,11 @@ bool cgs_tree_at_pos(vec3 pos) {
                 } else {
                     CGSObject object = get_csg_tree_object(child.pointer);
                     exits_1_stack[stack_len] = exits_cgs_object(pos, object);
+                }
+
+                Interval interval;
+                if (ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
+                    next_t = min(interval.t_min, next_t);
                 }
 
                 go_left = false;
@@ -274,6 +278,11 @@ bool cgs_tree_at_pos(vec3 pos) {
                     is_left = false;
                     go_left = true;
                 }
+
+                Interval interval;
+                if (ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
+                    next_t = min(interval.t_min, next_t);
+                }
             } else {
                 AABB aabb = get_leaf_aabb(child.pointer);
                 if (USE_AABB && !pos_in_aabb(pos, aabb.min, aabb.max)) {
@@ -281,6 +290,11 @@ bool cgs_tree_at_pos(vec3 pos) {
                 } else {
                     CGSObject object = get_csg_tree_object(child.pointer);
                     exits_2 = exits_cgs_object(pos, object);
+                }
+
+                Interval interval;
+                if (ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
+                    next_t = min(interval.t_min, next_t);
                 }
 
                 perform = true;
