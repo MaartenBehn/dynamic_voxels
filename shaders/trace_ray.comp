@@ -8,6 +8,7 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 #include "cgs.glsl"
 #include "dda.glsl"
 
+#define RENDER_TEST_OBJECT false
 #define RENDER_CGS_TREE_STEPS false
 #define RENDER_CGS true
 #define RENDER_INTERVALL_STEPS false
@@ -28,15 +29,37 @@ void main () {
 
     float time = TIME;
 
+    if (RENDER_TEST_OBJECT) {
+        CGSObject box = get_test_sphere(time, vec3(0,0,0));
+        Interval interval;
+        if (ray_hits_cgs_object(ray, box, interval)) {
+            float t_min = interval.t_min;
+            color = vec4(get_debug_color_gradient_from_float(t_min / 10.0), 1.0);
+        }
+
+        imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
+        return;
+    }
+
+
     uint cgs_tree_iterations;
     Interval result = ray_hits_cgs_tree(ray, cgs_tree_iterations);
 
     if (RENDER_CGS_TREE_STEPS) {
         color = vec4(get_debug_color_gradient_from_float(float(cgs_tree_iterations) / float(MAX_CGS_RENDER_ITERATIONS)), 1.0);
-    } else if (RENDER_CGS) {
+
+        imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
+        return;
+    }
+
+    if (RENDER_CGS) {
         float t_min = result.t_min;
         color = vec4(get_debug_color_gradient_from_float(t_min / 10.0), 1.0);
+
+        imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
+        return;
     }
+
     /*
     else {
         uint dda_step_counter = 0;
