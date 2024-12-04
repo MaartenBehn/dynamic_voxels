@@ -12,7 +12,7 @@ use octa_force::vulkan::ash::vk::{Format};
 use octa_force::vulkan::gpu_allocator::MemoryLocation;
 
 pub const SCOPES: usize = 20;
-pub const MAX_SAMPLE_RES_WIDTH: u32 = 100;
+pub const MAX_SAMPLE_RES_WIDTH: u32 = 30;
 
 pub struct ShaderProfiler {
     out_data_len: usize,
@@ -29,7 +29,6 @@ pub struct ShaderProfiler {
     active_pixel: UVec2,
     pixel_results: Vec<ShaderProfilerPixelData>,
     mean_pixel_results: ShaderProfilerPixelData,
-    
     
     _egui_descriptor_layout: DescriptorSetLayout,
     egui_descriptor_sets: Vec<DescriptorSet>,
