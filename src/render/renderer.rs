@@ -50,8 +50,7 @@ impl Renderer {
         context: &Context,
         res: UVec2,
         num_frames: usize,
-        #[cfg(debug_assertions)]
-        profiler: &ShaderProfiler,
+        profiler: &Option<ShaderProfiler>,
         shader_bin: &[u8],
     ) -> Result<Renderer> {
         let storage_images = context.create_storage_images(res, num_frames)?;
@@ -111,8 +110,10 @@ impl Renderer {
                 ..Default::default()
             },
         ];
-        #[cfg(debug_assertions)]
-        descriptor_layout_bindings.extend_from_slice(&profiler.descriptor_layout_bindings());
+        
+        if profiler.is_some() {
+            descriptor_layout_bindings.extend_from_slice(&profiler.as_ref().unwrap().descriptor_layout_bindings());
+        }
         
         let descriptor_layout = context.create_descriptor_set_layout(&descriptor_layout_bindings)?;
 
@@ -141,9 +142,10 @@ impl Renderer {
                     },
                 },
             ];
-            
-            #[cfg(debug_assertions)]
-            write_descriptor_sets.extend_from_slice(&profiler.write_descriptor_sets());
+
+            if profiler.is_some() {
+                write_descriptor_sets.extend_from_slice(&profiler.as_ref().unwrap().write_descriptor_sets());
+            }
             
             descriptor_set.update(&write_descriptor_sets);
 

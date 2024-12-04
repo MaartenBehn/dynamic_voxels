@@ -21,8 +21,7 @@ use crate::render::renderer::Renderer;
 pub struct RenderState {
     pub gui: Gui,
     pub renderer: Renderer,
-    #[cfg(debug_assertions)]
-    pub profiler: ShaderProfiler,
+    pub profiler: Option<ShaderProfiler>,
 }
 
 pub struct LogicState {
@@ -40,25 +39,27 @@ pub fn init_hot_reload(logger: &'static dyn Log) -> OctaResult<()> {
 
 #[no_mangle]
 pub fn new_render_state(engine: &mut Engine, ) -> OctaResult<RenderState> {
-    
-    #[cfg(debug_assertions)]
-    let (shader_bin, profile_scopes): (&[u8], &[&str]) = glsl!{type = Compute, debug, profile, file = "shaders/trace_ray.comp"};
 
-    #[cfg(not(debug_assertions))]
-    let (shader_bin, profile_scopes): (&[u8], &[&str]) = glsl!{type = Compute, release, file = "shaders/trace_ray.comp"};
+    let (shader_bin, profile_scopes): (&[u8], &[&str]) = if engine.context.shader_clock {
+        glsl!{type = Compute, profile, file = "shaders/trace_ray.comp"}
+    } else {
+        glsl!{type = Compute, file = "shaders/trace_ray.comp"}
+    };
+    
 
     let mut gui = Gui::new(&engine.context, engine.swapchain.format,  engine.swapchain.depth_format, &engine.window, engine.num_frames)?;
 
-    #[cfg(debug_assertions)]
-    let profiler = ShaderProfiler::new(&engine.context, engine.swapchain.format, engine.swapchain.size, engine.num_frames, profile_scopes, &mut gui.renderer)?;
+    let profiler = if engine.context.shader_clock {
+        Some(ShaderProfiler::new(&engine.context, engine.swapchain.format, engine.swapchain.size, engine.num_frames, profile_scopes, &mut gui.renderer)?)
+    } else {
+        None
+    };
     
-    
-    let renderer = Renderer::new(&engine.context, engine.swapchain.size, engine.num_frames, #[cfg(debug_assertions)] &profiler, shader_bin)?;
+    let renderer = Renderer::new(&engine.context, engine.swapchain.size, engine.num_frames, &profiler, shader_bin)?;
 
     Ok(RenderState {
         gui,
         renderer,
-        #[cfg(debug_assertions)]
         profiler,
     })
 }
@@ -96,9 +97,10 @@ pub fn update(render_state: &mut RenderState, logic_state: &mut LogicState, engi
     logic_state.camera.update(&engine.controls, delta_time);
     render_state.renderer.update(&logic_state.camera, engine.swapchain.size, time)?;
     //debug!("{:?}", logic_state.camera.direction);
-
-    #[cfg(debug_assertions)]
-    render_state.profiler.update(frame_index, &engine.context)?;
+    
+    if render_state.profiler.is_some() {
+        render_state.profiler.as_mut().unwrap().update(frame_index, &engine.context)?;
+    }
 
     Ok(())
 }
@@ -118,8 +120,11 @@ pub fn record_render_commands(render_state: &mut RenderState, _logic_state: &mut
     );
 
     render_state.gui.cmd_draw(command_buffer, engine.swapchain.size, image_index, &engine.window, &engine.context, |ctx| {
-        #[cfg(debug_assertions)]
-        render_state.profiler.gui_windows(ctx, engine.controls.mouse_left);
+        
+        if render_state.profiler.is_some() {
+            render_state.profiler.as_mut().unwrap().gui_windows(ctx, engine.controls.mouse_left);
+        }
+        
     })?;
 
     command_buffer.end_rendering();
@@ -139,8 +144,9 @@ pub fn on_recreate_swapchain(render_state: &mut RenderState, _logic_state: &mut 
     render_state.renderer
         .on_recreate_swapchain(&engine.context, engine.num_frames, engine.swapchain.size)?;
 
-    #[cfg(debug_assertions)]
-    render_state.profiler.on_recreate_swapchain(&engine.context, engine.swapchain.format, engine.swapchain.size)?;
+    if render_state.profiler.is_some() {
+        render_state.profiler.as_mut().unwrap().on_recreate_swapchain(&engine.context, engine.swapchain.format, engine.swapchain.size)?;
+    }
 
     Ok(())
 }
