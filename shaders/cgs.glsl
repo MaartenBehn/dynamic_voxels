@@ -10,6 +10,7 @@
 
 #define ONLY_RENDER_AABB false
 #define ONLY_RENDER_CGS false
+#define USE_AABB true
 
 #define CGS_GEO_TYPE_BOX 0
 #define CGS_GEO_TYPE_SPHERE 1
@@ -20,9 +21,8 @@
 #define CGS_CHILD_TYPE_REMOVE 2
 #define CGS_CHILD_TYPE_INTERSECT 3
 
-#define MAX_CGS_TREE_DEPTH 10
+#define MAX_CGS_TREE_DEPTH 4
 #define MAX_CGS_RENDER_ITERATIONS 10
-#define MAX_CGS_INTERVALL_LIST 5
 
 #define VOXEL_SIZE 10.0
 
@@ -430,6 +430,11 @@ bool cgs_bool_operation(bool exits_1, bool exits_2, uint operation) {
 bool cgs_tree_at_pos(vec3 pos) {
     PROFILE("cgs_tree_at_pos");
 
+    AABB aabb = get_node_aabb(0);
+    if (!pos_in_aabb(pos, aabb.min, aabb.max)) {
+        return false;
+    }
+
     int stack_len = 0;
     uint stack[MAX_CGS_TREE_DEPTH];
     uint operation_stack[MAX_CGS_TREE_DEPTH + 1];
@@ -437,7 +442,7 @@ bool cgs_tree_at_pos(vec3 pos) {
     operation_stack[0] = CGS_CHILD_TYPE_UNION;
 
     bool is_left = false;
-    bool left = true;
+    bool go_left = true;
     bool perform = false;
 
     uint current = 0;
@@ -470,7 +475,7 @@ bool cgs_tree_at_pos(vec3 pos) {
                     exits_1_stack[stack_len] = exits;
 
                     perform = false;
-                    left = false;
+                    go_left = false;
                 } else {
                     exits_2 = exits;
                 }
@@ -479,39 +484,61 @@ bool cgs_tree_at_pos(vec3 pos) {
             continue;
         }
 
-        if (left) {
+        if (go_left) {
             child = get_csg_tree_child(current);
 
             if (child.type != CGS_CHILD_TYPE_GEO) {
-                stack[stack_len] = current;
+                AABB aabb = get_node_aabb(child.pointer);
+                if (USE_AABB && !pos_in_aabb(pos, aabb.min, aabb.max)) {
+                    exits_1_stack[stack_len] = false;;
+                    go_left = false;
+                }
+                else {
+                    stack[stack_len] = current;
 
-                stack_len++;
-                operation_stack[stack_len] = child.type;
+                    stack_len++;
+                    operation_stack[stack_len] = child.type;
 
-                current = child.pointer;
+                    current = child.pointer;
 
-                is_left = true;
+                    is_left = true;
+                }
             } else {
-                CGSObject object = get_csg_tree_object(child.pointer);
+                AABB aabb = get_leaf_aabb(child.pointer);
+                if (USE_AABB && !pos_in_aabb(pos, aabb.min, aabb.max)) {
+                    exits_1_stack[stack_len] = false;
+                } else {
+                    CGSObject object = get_csg_tree_object(child.pointer);
+                    exits_1_stack[stack_len] = exits_cgs_object(pos, object);
+                }
 
-                exits_1_stack[stack_len] = exits_cgs_object(pos, object);
-
-                left = false;
+                go_left = false;
             }
         } else {
             child = get_csg_tree_child(current + 1);
 
             if (child.type != CGS_CHILD_TYPE_GEO) {
-                stack[stack_len] = current;
-                stack_len++;
+                AABB aabb = get_node_aabb(child.pointer);
+                if (USE_AABB && !pos_in_aabb(pos, aabb.min, aabb.max)) {
+                    exits_2 = false;
+                    perform = true;
+                }
+                else {
+                    stack[stack_len] = current;
+                    stack_len++;
 
-                current = child.pointer;
-                is_left = false;
-                left = true;
+                    current = child.pointer;
+                    is_left = false;
+                    go_left = true;
+                }
             } else {
-                CGSObject object = get_csg_tree_object(child.pointer);
-
-                exits_2 = exits_cgs_object(pos, object);
+                AABB aabb = get_leaf_aabb(child.pointer);
+                if (USE_AABB && !pos_in_aabb(pos, aabb.min, aabb.max)) {
+                    exits_2 = false;
+                } else {
+                    CGSObject object = get_csg_tree_object(child.pointer);
+                    exits_2 = exits_cgs_object(pos, object);
+                }
 
                 perform = true;
             }
