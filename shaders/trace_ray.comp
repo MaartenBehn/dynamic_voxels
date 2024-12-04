@@ -8,12 +8,8 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 #include "cgs.glsl"
 #include "dda.glsl"
 
-#define FULL_DDA true
 #define RENDER_TEST_OBJECT false
-#define RENDER_CGS_TREE_STEPS false
-#define RENDER_CGS true
-#define RENDER_INTERVALL_STEPS false
-#define RENDER_DDA_STEPS false
+#define RENDER_DDA_STEPS true
 
 #define MAX_RAY_STEPS 50
 #define MAX_FULL_DDA_STEPS 200
@@ -41,59 +37,38 @@ void main () {
         return;
     }
 
-    if (FULL_DDA) {
+    AABB aabb = get_node_aabb(0);
+    Interval interval;
+    if (ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
 
-        AABB aabb = get_node_aabb(0);
-        Interval interval;
-        if (ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
+        float t_start = max(interval.t_min, 0.0);
+        vec3 start_pos = get_ray_pos(ray, t_start);
+        DDA dda = init_DDA(ray, start_pos, aabb.min, aabb.max);
 
-            float t_start = max(interval.t_min, 0.0);
-            vec3 start_pos = get_ray_pos(ray, t_start) * VOXEL_SIZE;
-            DDA dda = init_DDA(ray, start_pos, ivec3(100000));
+        uint dda_step_counter = 0;
+        while (dda_step_counter < MAX_FULL_DDA_STEPS) {
+            dda_step_counter += 1;
 
-            uint dda_step_counter = 0;
-            float t_max = interval.t_max - t_start;
-            while (dda_step_counter < MAX_FULL_DDA_STEPS) {
-                dda_step_counter += 1;
+            dda = step_DDA(dda);
 
-                dda = step_DDA(dda);
-
-                float t = get_DDA_t(dda) / VOXEL_SIZE;
-                if (t > t_max) {
-                    break;
-                }
-
-                bool exits = cgs_tree_at_pos(floor(dda.pos) / VOXEL_SIZE);
-
-                if (exits) {
-                    float dist = get_DDA_t(dda) / VOXEL_SIZE;
-                    color = vec4(get_debug_color_gradient_from_float(dist / 10.0), 1.0);
-                    break;
-                }
+            if (dda.out_of_bounds) {
+                break;
             }
 
-            if (RENDER_DDA_STEPS) {
-                color = vec4(get_debug_color_gradient_from_float(float(dda_step_counter) / MAX_FULL_DDA_STEPS), 1.0);
+            bool exits = cgs_tree_at_pos((floor(dda.pos)));
+
+            if (exits) {
+                float dist = get_DDA_t(dda);
+                color = vec4(get_debug_color_gradient_from_float(dist / 100.0), 1.0);
+                break;
             }
         }
 
-        imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
-        return;
+        if (RENDER_DDA_STEPS) {
+            color = vec4(get_debug_color_gradient_from_float(float(dda_step_counter) / MAX_FULL_DDA_STEPS), 1.0);
+        }
     }
 
-
-    uint cgs_tree_iterations;
-    Interval result = ray_hits_cgs_tree(ray, cgs_tree_iterations);
-
-    if (RENDER_CGS_TREE_STEPS) {
-        color = vec4(get_debug_color_gradient_from_float(float(cgs_tree_iterations) / float(MAX_CGS_RENDER_ITERATIONS)), 1.0);
-
-        imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
-        return;
-    }
-
-    float t_min = result.t_min;
-    color = vec4(get_debug_color_gradient_from_float(t_min / 10.0), 1.0);
 
     imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
 }

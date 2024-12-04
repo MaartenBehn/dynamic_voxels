@@ -14,7 +14,7 @@ use octa_force::log::Log;
 use octa_force::logger::setup_logger;
 use octa_force::vulkan::ash::vk::AttachmentLoadOp;
 use glsl_compiler::glsl;
-use crate::cgs_tree::CGSTree;
+use crate::cgs_tree::{CGSTree, VOXEL_SIZE};
 use crate::profiler::ShaderProfiler;
 use crate::render::renderer::Renderer;
 
@@ -75,11 +75,11 @@ pub fn new_logic_state(render_state: &mut RenderState, engine: &mut Engine) -> O
     log::info!("Creating Camera");
     let mut camera = Camera::base(engine.swapchain.size.as_vec2());
 
-    camera.position = Vec3::new(-2.0, -5.0, 0.0);
+    camera.position = Vec3::new(-2.0, -5.0, 0.0) * VOXEL_SIZE;
     //camera.position = Vec3::new(1.0, -100.0, 1.0);
     //camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
     camera.direction = Vec3::new(0.8260885, -0.14534459, -0.5444748).normalize();
-    camera.speed = 10.0;
+    camera.speed = 10.0 * VOXEL_SIZE;
     camera.z_far = 100.0;
     camera.up = vec3(0.0, 0.0, 1.0);
 

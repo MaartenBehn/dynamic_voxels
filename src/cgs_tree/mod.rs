@@ -15,7 +15,8 @@ const CGS_CHILD_TYPE_INTERSECT: u32 =  3;
 
 pub const MAX_CGS_TREE_DATA_SIZE: usize = 100;
 
-const AABB_PADDING: f32 = 0.2;
+const AABB_PADDING: f32 = 2.0;
+pub const VOXEL_SIZE: f32 = 10.0;
 
 #[derive(Copy, Clone, Debug)]
 pub enum Material {
@@ -54,21 +55,21 @@ impl CGSTree {
             CSGNode::Remove(2, 3, Material::None, AABB::default()),
             
             CSGNode::Box(Mat4::from_scale_rotation_translation(
-                vec3(2.0, 5.0, 7.0),
+                vec3(2.0, 5.0, 7.0) * VOXEL_SIZE,
                 Quat::from_euler(EulerRot::XYZ, 0.0,0.0,0.0),
-                vec3(5.0, 0.0, 0.0)
+                vec3(5.0, 0.0, 0.0)  * VOXEL_SIZE
             ), AABB::default()),
 
             CSGNode::Sphere(Mat4::from_scale_rotation_translation(
-                vec3(2.0, 1.0, 3.0),
+                vec3(2.0, 1.0, 3.0) * VOXEL_SIZE,
                 Quat::from_euler(EulerRot::XYZ, 0.0,0.0,0.0),
-                vec3(5.0, 1.0, 0.0)
+                vec3(5.0, 1.0, 0.0)  * VOXEL_SIZE
             ), AABB::default()),
         
             CSGNode::Sphere(Mat4::from_scale_rotation_translation(
-                vec3(3.0, 3.0, 1.0),
+                vec3(3.0, 3.0, 1.0) * VOXEL_SIZE,
                 Quat::from_euler(EulerRot::XYZ, 0.0,0.0,0.0),
-                vec3(0.0, 0.0, 0.0)
+                vec3(0.0, 0.0, 0.0)  * VOXEL_SIZE
             ), AABB::default()),
         ];
         

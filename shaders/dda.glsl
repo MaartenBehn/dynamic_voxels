@@ -10,18 +10,19 @@ struct DDA {
     vec3 step;
     vec3 side_dist;
     vec3 mask;
+    vec3 lower_bound;
     vec3 upper_bound;
     bool out_of_bounds;
 };
 
-DDA init_DDA(in Ray ray, in vec3 start_pos, in ivec3 upper_bound) {
+DDA init_DDA(in Ray ray, in vec3 start_pos, in vec3 lower_bound, in vec3 upper_bound) {
     vec3 cell = floor(start_pos);
     vec3 delta_dist = abs(vec3(length(ray.dir)) / ray.dir);
     vec3 step = sign(ray.dir);
     vec3 side_dist = (step * (cell - start_pos) + (step * 0.5) + 0.5) * delta_dist;
     vec3 mask;
 
-    return DDA(start_pos, delta_dist, step, side_dist, mask, upper_bound, false);
+    return DDA(start_pos, delta_dist, step, side_dist, mask, lower_bound, upper_bound, false);
 }
 
 DDA step_DDA(in DDA dda) {
@@ -59,9 +60,10 @@ DDA step_DDA(in DDA dda) {
     }
     #endif
 
-    dda.out_of_bounds = (dda.mask.x != 0 && (dda.pos.x < 0 || dda.pos.x > dda.upper_bound.x)
-    || dda.mask.y != 0 && (dda.pos.y < 0 || dda.pos.y > dda.upper_bound.y)
-    || dda.mask.z != 0 && (dda.pos.z < 0 || dda.pos.z > dda.upper_bound.z));
+    dda.out_of_bounds =
+      (dda.mask.x != 0 && (dda.pos.x < dda.lower_bound.x || dda.pos.x > dda.upper_bound.x)
+    || dda.mask.y != 0 && (dda.pos.y < dda.lower_bound.y || dda.pos.y > dda.upper_bound.y)
+    || dda.mask.z != 0 && (dda.pos.z < dda.lower_bound.z || dda.pos.z > dda.upper_bound.z));
 
     return dda;
 }
