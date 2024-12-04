@@ -9,7 +9,7 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 #include "dda.glsl"
 
 #define RENDER_TEST_OBJECT false
-#define RENDER_CGS_TREE_STEPS true
+#define RENDER_CGS_TREE_STEPS false
 #define RENDER_CGS true
 #define RENDER_INTERVALL_STEPS false
 #define RENDER_DDA_STEPS false

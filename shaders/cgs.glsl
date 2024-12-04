@@ -180,8 +180,6 @@ Interval ray_hits_cgs_tree(Ray ray, out uint i) {
         return result;
     }
 
-
-
     int stack_len = 0;
     uint stack[MAX_CGS_TREE_DEPTH];
     uint operation_stack[MAX_CGS_TREE_DEPTH + 1];
@@ -201,6 +199,7 @@ Interval ray_hits_cgs_tree(Ray ray, out uint i) {
         i++;
 
         if (perform) {
+
             uint operation = operation_stack[stack_len];
             Interval left = left_stack[stack_len];
 
@@ -226,115 +225,103 @@ Interval ray_hits_cgs_tree(Ray ray, out uint i) {
                 }
             }
 
-            continue;
         }
+        else {
+            if (go_left) {
+                child = get_csg_tree_child(current);
 
+                if (child.type != CGS_CHILD_TYPE_GEO) {
 
-        if (go_left) {
-            child = get_csg_tree_child(current);
+                    AABB aabb = get_node_aabb(child.pointer);
+                    Interval interval;
+                    if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
+                        left_stack[stack_len] = init_interval();
+                        go_left = false;
+                    } else {
+                        stack[stack_len] = current;
 
-            if (child.type != CGS_CHILD_TYPE_GEO) {
-                AABB aabb = get_node_aabb(child.pointer);
-                Interval interval;
-                if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
-                    left_stack[stack_len] = init_interval();
-                    go_left = false;
-                    continue;
-                }
+                        stack_len++;
+                        operation_stack[stack_len] = child.type;
 
-                stack[stack_len] = current;
+                        current = child.pointer;
 
-                stack_len++;
-                operation_stack[stack_len] = child.type;
+                        is_left = true;
+                    }
 
-                current = child.pointer;
-
-                is_left = true;
-            } else {
-
-                AABB aabb = get_leaf_aabb(child.pointer);
-                Interval interval;
-                if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
-                    left_stack[stack_len] = init_interval();
-                    go_left = false;
-                    continue;
-                }
-                #if ONLY_AABB_RENDER
-                else {
-                    left_stack[stack_len] = interval;
-                    go_left = false;
-                    continue;
-                }
-                #endif
-
-                CGSObject object = get_csg_tree_object(child.pointer);
-
-                Interval left_intervall;
-                bool hit = ray_hits_cgs_object(ray, object, left_intervall);
-                if (hit) {
-                    left_stack[stack_len] = left_intervall;
                 } else {
-                    left_stack[stack_len] = init_interval();
+
+                    AABB aabb = get_leaf_aabb(child.pointer);
+                    Interval interval;
+                    if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
+                        left_stack[stack_len] = init_interval();
+                        go_left = false;
+                        continue;
+                    }
+                    else {
+                        if (ONLY_AABB_RENDER) {
+                            left_stack[stack_len] = interval;
+                        } else {
+                            CGSObject object = get_csg_tree_object(child.pointer);
+
+                            Interval left_intervall;
+                            bool hit = ray_hits_cgs_object(ray, object, left_intervall);
+                            if (hit) {
+                                left_stack[stack_len] = left_intervall;
+                            } else {
+                                left_stack[stack_len] = init_interval();
+                            }
+                        }
+                    }
+
+                    go_left = false;
                 }
-
-                // result = init_interval_list_with_value(left_intervall);
-                // break;
-
-                go_left = false;
-            }
-        } else {
-            child = get_csg_tree_child(current + 1);
-
-            if (child.type != CGS_CHILD_TYPE_GEO) {
-
-                AABB aabb = get_node_aabb(child.pointer);
-                Interval interval;
-                if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
-                    right = init_interval();
-                    perform = true;
-                    continue;
-                }
-
-
-                stack[stack_len] = current;
-                stack_len++;
-
-                current = child.pointer;
-                is_left = false;
-                go_left = true;
             } else {
+                child = get_csg_tree_child(current + 1);
 
+                if (child.type != CGS_CHILD_TYPE_GEO) {
 
-                AABB aabb = get_leaf_aabb(child.pointer);
-                Interval interval;
-                if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
-                    right = init_interval();
-                    perform = true;
-                    continue;
-                }
-                #if ONLY_AABB_RENDER
-                else {
-                    right = interval;
-                    perform = true;
-                    continue;
-                }
-                #endif
+                    AABB aabb = get_node_aabb(child.pointer);
+                    Interval interval;
+                    if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
+                        right = init_interval();
+                        perform = true;
+                    }
+                    else {
+                        stack[stack_len] = current;
+                        stack_len++;
 
+                        current = child.pointer;
+                        is_left = false;
+                        go_left = true;
+                    }
 
-                CGSObject object = get_csg_tree_object(child.pointer);
-
-                Interval right_intervall;
-                bool hit = ray_hits_cgs_object(ray, object, right_intervall);
-                if (hit) {
-                    right = right_intervall;
                 } else {
-                    right = init_interval();
+
+
+                    AABB aabb = get_leaf_aabb(child.pointer);
+                    Interval interval;
+                    if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
+                        right = init_interval();
+                    }
+                    else {
+                        if (ONLY_AABB_RENDER) {
+                            right = interval;
+                        } else {
+                            CGSObject object = get_csg_tree_object(child.pointer);
+
+                            Interval right_intervall;
+                            bool hit = ray_hits_cgs_object(ray, object, right_intervall);
+                            if (hit) {
+                                right = right_intervall;
+                            } else {
+                                right = init_interval();
+                            }
+                        }
+                    }
+
+                    perform = true;
+
                 }
-
-                // result = init_interval_list_with_value(right_intervall);
-                // break;
-
-                perform = true;
             }
         }
     }
