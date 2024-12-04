@@ -13,7 +13,7 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 #define RENDER_CGS_TREE_STEPS false
 #define RENDER_CGS true
 #define RENDER_INTERVALL_STEPS false
-#define RENDER_DDA_STEPS true
+#define RENDER_DDA_STEPS false
 
 #define MAX_RAY_STEPS 50
 #define MAX_FULL_DDA_STEPS 200
@@ -47,12 +47,12 @@ void main () {
         Interval interval;
         if (ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
 
-
-            vec3 start_pos = get_ray_pos(ray, interval.t_min) * VOXEL_SIZE;
+            float t_start = max(interval.t_min, 0.0);
+            vec3 start_pos = get_ray_pos(ray, t_start) * VOXEL_SIZE;
             DDA dda = init_DDA(ray, start_pos, ivec3(100000));
 
             uint dda_step_counter = 0;
-            float t_max = interval.t_max - interval.t_min;
+            float t_max = interval.t_max - t_start;
             while (dda_step_counter < MAX_FULL_DDA_STEPS) {
                 dda_step_counter += 1;
 
