@@ -170,7 +170,7 @@ bool cgs_bool_operation(bool exits_1, bool exits_2, uint operation) {
     return false;
 }
 
-bool cgs_tree_at_pos(Ray ray, vec3 pos, in out float next_t) {
+bool cgs_tree_at_pos(Ray ray, vec3 pos, in float current_t, in out float next_t) {
     PROFILE("cgs_tree_at_pos");
     int stack_len = 0;
     uint stack[MAX_CGS_TREE_DEPTH];
@@ -243,8 +243,11 @@ bool cgs_tree_at_pos(Ray ray, vec3 pos, in out float next_t) {
 
                 Interval interval;
                 if (ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
-                    next_t = min(interval.t_min, next_t);
+                    if (interval.t_max > current_t) {
+                        next_t = min(interval.t_min, next_t);
+                    }
                 }
+
             } else {
                 AABB aabb = get_leaf_aabb(child.pointer);
                 if (USE_AABB && !pos_in_aabb(pos, aabb.min, aabb.max)) {
@@ -256,7 +259,9 @@ bool cgs_tree_at_pos(Ray ray, vec3 pos, in out float next_t) {
 
                 Interval interval;
                 if (ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
-                    next_t = min(interval.t_min, next_t);
+                    if (interval.t_max > current_t) {
+                        next_t = min(interval.t_min, next_t);
+                    }
                 }
 
                 go_left = false;
@@ -281,8 +286,11 @@ bool cgs_tree_at_pos(Ray ray, vec3 pos, in out float next_t) {
 
                 Interval interval;
                 if (ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
-                    next_t = min(interval.t_min, next_t);
+                    if (interval.t_max > current_t) {
+                        next_t = min(interval.t_min, next_t);
+                    }
                 }
+
             } else {
                 AABB aabb = get_leaf_aabb(child.pointer);
                 if (USE_AABB && !pos_in_aabb(pos, aabb.min, aabb.max)) {
@@ -294,7 +302,9 @@ bool cgs_tree_at_pos(Ray ray, vec3 pos, in out float next_t) {
 
                 Interval interval;
                 if (ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
-                    next_t = min(interval.t_min, next_t);
+                    if (interval.t_max > current_t) {
+                        next_t = min(interval.t_min, next_t);
+                    }
                 }
 
                 perform = true;

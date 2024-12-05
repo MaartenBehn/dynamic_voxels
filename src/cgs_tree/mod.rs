@@ -1,4 +1,5 @@
 use std::{slice};
+use std::f32::consts::PI;
 use fastrand::Rng;
 use octa_force::glam::{vec3, EulerRot, Mat4, Quat};
 use octa_force::log::{error, info};
@@ -64,7 +65,7 @@ impl CGSTree {
             
             CSGNode::Box(Mat4::from_scale_rotation_translation(
                 (vec3(2.0, 5.0 , 7.0) + simple_easing::expo_in_out(frac)) * VOXEL_SIZE,
-                Quat::from_euler(EulerRot::XYZ, 1.0,2.0,0.0),
+                Quat::from_euler(EulerRot::XYZ, (time * 0.1) % (2.0 * PI),(time * 0.08) % (2.0 * PI),0.0),
                 vec3(5.0, 0.0, 0.0)  * VOXEL_SIZE
             ), AABB::default()),
 
@@ -77,7 +78,7 @@ impl CGSTree {
             CSGNode::Sphere(Mat4::from_scale_rotation_translation(
                 (vec3(3.0, 3.0, 1.0) + simple_easing::back_in_out(frac_3)) * VOXEL_SIZE,
                 Quat::from_euler(EulerRot::XYZ, 0.0,0.0,0.0),
-                vec3(frac_2, frac, frac_3) * VOXEL_SIZE
+                vec3(frac_2 * 30.0, frac * 100.0, 0.0) * VOXEL_SIZE
             ), AABB::default()),
         ];
         

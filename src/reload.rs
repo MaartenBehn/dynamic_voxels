@@ -78,10 +78,10 @@ pub fn new_logic_state(render_state: &mut RenderState, engine: &mut Engine) -> O
     log::info!("Creating Camera");
     let mut camera = Camera::base(engine.swapchain.size.as_vec2());
 
-    camera.position = Vec3::new(54.152264, 72.950485, 77.68864);
+    camera.position = Vec3::new(42.20837, -106.22046, 98.00787);
     //camera.position = Vec3::new(1.0, -100.0, 1.0);
     //camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
-    camera.direction = Vec3::new(-0.18623944, -0.64378, -0.742201).normalize();
+    camera.direction = Vec3::new(0.2943352, 0.8200449, -0.49080887).normalize();
     camera.speed = 10.0 * VOXEL_SIZE;
     camera.z_far = 100.0;
     camera.up = vec3(0.0, 0.0, 1.0);
