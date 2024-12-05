@@ -1,6 +1,8 @@
 use std::{slice};
-use log::{debug, error, info};
+use fastrand::Rng;
 use octa_force::glam::{vec3, EulerRot, Mat4, Quat};
+use octa_force::log::{error, info};
+use octa_force::puffin_egui::puffin;
 use crate::aabb::AABB;
 
 const CGS_TYPE_BOX: u32 = 0;
@@ -49,27 +51,33 @@ impl CGSTree {
         }
     }
     
-    pub fn set_example_tree(&mut self) {
+    pub fn set_example_tree(&mut self, time: f32) {
+        puffin::profile_function!();
+        
+        let frac = simple_easing::roundtrip((time * 0.1) % 1.0);
+        let frac_2 = simple_easing::roundtrip((time * 0.2) % 1.0);
+        let frac_3 = simple_easing::roundtrip((time * 0.4) % 1.0);
+        
         self.nodes = vec![
             CSGNode::Union(1, 4, Material::None, AABB::default()),
             CSGNode::Remove(2, 3, Material::None, AABB::default()),
             
             CSGNode::Box(Mat4::from_scale_rotation_translation(
-                vec3(2.0, 5.0, 7.0) * VOXEL_SIZE,
-                Quat::from_euler(EulerRot::XYZ, 0.0,0.0,0.0),
+                (vec3(2.0, 5.0 , 7.0) + simple_easing::expo_in_out(frac)) * VOXEL_SIZE,
+                Quat::from_euler(EulerRot::XYZ, 1.0,2.0,0.0),
                 vec3(5.0, 0.0, 0.0)  * VOXEL_SIZE
             ), AABB::default()),
 
             CSGNode::Sphere(Mat4::from_scale_rotation_translation(
-                vec3(2.0, 1.0, 3.0) * VOXEL_SIZE,
+                (vec3(2.0, 1.0, 3.0) + simple_easing::cubic_in_out(frac_2) * 2.0) * VOXEL_SIZE,
                 Quat::from_euler(EulerRot::XYZ, 0.0,0.0,0.0),
-                vec3(5.0, 1.0, 0.0)  * VOXEL_SIZE
+                vec3(5.0 + frac_3, 1.0 + frac_2, 0.0)  * VOXEL_SIZE
             ), AABB::default()),
         
             CSGNode::Sphere(Mat4::from_scale_rotation_translation(
-                vec3(3.0, 3.0, 1.0) * VOXEL_SIZE,
+                (vec3(3.0, 3.0, 1.0) + simple_easing::back_in_out(frac_3)) * VOXEL_SIZE,
                 Quat::from_euler(EulerRot::XYZ, 0.0,0.0,0.0),
-                vec3(0.0, 0.0, 0.0)  * VOXEL_SIZE
+                vec3(frac_2, frac, frac_3) * VOXEL_SIZE
             ), AABB::default()),
         ];
         
@@ -93,13 +101,11 @@ impl CGSTree {
         ];
         
          */
-        
-        
-        
-        self.set_all_aabbs();
     }
     
     pub fn set_all_aabbs(&mut self) {
+        #[cfg(debug_assertions)]
+        puffin::profile_function!();
         
         let mut propergate_ids = vec![];
         for (i, node) in self.nodes.iter_mut().enumerate() {
@@ -165,12 +171,13 @@ impl CGSTree {
     }
     
     pub fn make_data(&mut self) {
+        #[cfg(debug_assertions)]
+        puffin::profile_function!();
+        
         let (data, _) = self.add_data(0, vec![]);
 
         if data.len() > MAX_CGS_TREE_DATA_SIZE {
             error!("CGS Tree Data to large: {} of {}", data.len(), MAX_CGS_TREE_DATA_SIZE)
-        } else {
-            info!("CGS Tree Data size: {} of {}", data.len(), MAX_CGS_TREE_DATA_SIZE)
         }
         
         self.data = data;

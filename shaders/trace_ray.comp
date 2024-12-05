@@ -62,7 +62,7 @@ void main () {
             }
 
             if (exits) {
-                color = vec4(get_debug_color_gradient_from_float(current_t / 100.0), 1.0);
+                color = vec4(get_debug_color_gradient_from_float(current_t / 300.0), 1.0);
                 break;
             }
 
@@ -72,7 +72,6 @@ void main () {
             } else {
                 dda = step_DDA(dda, 1);
             }
-
 
             if (dda.out_of_bounds) {
                 break;

@@ -5,7 +5,7 @@ mod aabb;
 
 use std::time::{Duration, Instant};
 use log::debug;
-use octa_force::{egui, Engine, OctaResult};
+use octa_force::{egui, log, Engine, OctaResult};
 use octa_force::camera::Camera;
 use octa_force::egui_winit::winit::event::WindowEvent;
 use octa_force::glam::{vec3, Vec3};
@@ -14,6 +14,7 @@ use octa_force::log::Log;
 use octa_force::logger::setup_logger;
 use octa_force::vulkan::ash::vk::AttachmentLoadOp;
 use glsl_compiler::glsl;
+use octa_force::puffin_egui::puffin;
 use crate::cgs_tree::{CGSTree, VOXEL_SIZE};
 use crate::profiler::ShaderProfiler;
 use crate::render::renderer::Renderer;
@@ -39,6 +40,8 @@ pub fn init_hot_reload(logger: &'static dyn Log) -> OctaResult<()> {
 
 #[no_mangle]
 pub fn new_render_state(engine: &mut Engine, ) -> OctaResult<RenderState> {
+    #[cfg(debug_assertions)]
+    puffin::profile_function!();
 
     let (shader_bin, profile_scopes): (&[u8], &[&str]) = if engine.context.shader_clock {
         glsl!{type = Compute, profile, file = "shaders/trace_ray.comp"}
@@ -46,7 +49,6 @@ pub fn new_render_state(engine: &mut Engine, ) -> OctaResult<RenderState> {
         glsl!{type = Compute, file = "shaders/trace_ray.comp"}
     };
     
-
     let mut gui = Gui::new(&engine.context, engine.swapchain.format,  engine.swapchain.depth_format, &engine.window, engine.num_frames)?;
 
     let profiler = if engine.context.shader_clock {
@@ -66,19 +68,20 @@ pub fn new_render_state(engine: &mut Engine, ) -> OctaResult<RenderState> {
 
 #[no_mangle]
 pub fn new_logic_state(render_state: &mut RenderState, engine: &mut Engine) -> OctaResult<LogicState> {
+    #[cfg(debug_assertions)]
+    puffin::profile_function!();
+    
     let mut cgs_tree = CGSTree::new();
-    cgs_tree.set_example_tree();
-    cgs_tree.make_data();
 
     render_state.renderer.set_cgs_tree(&cgs_tree.data)?;
     
     log::info!("Creating Camera");
     let mut camera = Camera::base(engine.swapchain.size.as_vec2());
 
-    camera.position = Vec3::new(-2.0, -5.0, 0.0) * VOXEL_SIZE;
+    camera.position = Vec3::new(54.152264, 72.950485, 77.68864);
     //camera.position = Vec3::new(1.0, -100.0, 1.0);
     //camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
-    camera.direction = Vec3::new(0.8260885, -0.14534459, -0.5444748).normalize();
+    camera.direction = Vec3::new(-0.18623944, -0.64378, -0.742201).normalize();
     camera.speed = 10.0 * VOXEL_SIZE;
     camera.z_far = 100.0;
     camera.up = vec3(0.0, 0.0, 1.0);
@@ -92,11 +95,19 @@ pub fn new_logic_state(render_state: &mut RenderState, engine: &mut Engine) -> O
 
 #[no_mangle]
 pub fn update(render_state: &mut RenderState, logic_state: &mut LogicState, engine: &mut Engine, frame_index: usize, delta_time: Duration) -> OctaResult<()> {
+    #[cfg(debug_assertions)]
+    puffin::profile_function!();
+
     let time = logic_state.start_time.elapsed();
+
+    logic_state.cgs_tree.set_example_tree(time.as_secs_f32());
+    logic_state.cgs_tree.set_all_aabbs();
+    logic_state.cgs_tree.make_data();
+    render_state.renderer.set_cgs_tree(&logic_state.cgs_tree.data)?;
     
     logic_state.camera.update(&engine.controls, delta_time);
     render_state.renderer.update(&logic_state.camera, engine.swapchain.size, time)?;
-    //debug!("{:?}", logic_state.camera.direction);
+    debug!("Pos: {:?} Dir: {:?}", logic_state.camera.position ,logic_state.camera.direction);
     
     if render_state.profiler.is_some() {
         render_state.profiler.as_mut().unwrap().update(frame_index, &engine.context)?;
@@ -107,6 +118,8 @@ pub fn update(render_state: &mut RenderState, logic_state: &mut LogicState, engi
 
 #[no_mangle]
 pub fn record_render_commands(render_state: &mut RenderState, _logic_state: &mut LogicState, engine: &mut Engine, image_index: usize) -> OctaResult<()> {
+    #[cfg(debug_assertions)]
+    puffin::profile_function!();
 
     let command_buffer = &engine.command_buffers[image_index];
     render_state.renderer.render(command_buffer, image_index, &engine.swapchain)?;

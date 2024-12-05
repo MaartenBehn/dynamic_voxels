@@ -1,11 +1,11 @@
 use std::{iter, mem};
-use log::{debug, info};
 use octa_force::egui_ash_renderer::Renderer;
 use octa_force::glam::{uvec2, vec2, vec3, vec4, UVec2, Vec2, Vec4};
 use octa_force::{egui, ImageAndView, OctaResult};
 use octa_force::egui::{Pos2, Ui, Widget};
 use octa_force::egui::load::SizedTexture;
 use octa_force::egui_extras::{Column, TableBuilder};
+use octa_force::log::debug;
 use octa_force::vulkan::ash::vk;
 use octa_force::vulkan::{Buffer, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, Sampler, WriteDescriptorSet, WriteDescriptorSetKind};
 use octa_force::vulkan::ash::vk::{Format};
