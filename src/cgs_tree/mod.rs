@@ -57,7 +57,7 @@ impl CGSTree {
         
         let frac = simple_easing::roundtrip((time * 0.1) % 1.0);
         let frac_2 = simple_easing::roundtrip((time * 0.2) % 1.0);
-        let frac_3 = simple_easing::roundtrip((time * 0.4) % 1.0);
+        let frac_3 = simple_easing::roundtrip((time * 0.01) % 1.0);
         
         self.nodes = vec![
             CSGNode::Union(1, 4, Material::None, AABB::default()),
@@ -65,20 +65,20 @@ impl CGSTree {
             
             CSGNode::Box(Mat4::from_scale_rotation_translation(
                 (vec3(2.0, 5.0 , 7.0) + simple_easing::expo_in_out(frac)) * VOXEL_SIZE,
-                Quat::from_euler(EulerRot::XYZ, (time * 0.1) % (2.0 * PI),(time * 0.08) % (2.0 * PI),0.0),
-                vec3(5.0, 0.0, 0.0)  * VOXEL_SIZE
+                Quat::from_euler(EulerRot::XYZ, (time * 0.1) % (2.0 * PI),(time * 0.11) % (2.0 * PI),0.0),
+                vec3(3.0, 3.0, 0.0)  * VOXEL_SIZE
             ), AABB::default()),
 
             CSGNode::Sphere(Mat4::from_scale_rotation_translation(
                 (vec3(2.0, 1.0, 3.0) + simple_easing::cubic_in_out(frac_2) * 2.0) * VOXEL_SIZE,
                 Quat::from_euler(EulerRot::XYZ, 0.0,0.0,0.0),
-                vec3(5.0 + frac_3, 1.0 + frac_2, 0.0)  * VOXEL_SIZE
+                vec3(2.0 + frac_3, 1.0 + frac_2, 0.0)  * VOXEL_SIZE
             ), AABB::default()),
         
             CSGNode::Sphere(Mat4::from_scale_rotation_translation(
-                (vec3(3.0, 3.0, 1.0) + simple_easing::back_in_out(frac_3)) * VOXEL_SIZE,
+                (vec3(3.0, 3.0, 1.0) + simple_easing::back_in_out(frac) * 10.0) * VOXEL_SIZE,
                 Quat::from_euler(EulerRot::XYZ, 0.0,0.0,0.0),
-                vec3(frac_2 * 30.0, frac * 100.0, 0.0) * VOXEL_SIZE
+                vec3(10.0 + frac * 30.0, 10.0 + frac_3 * 100.0, 0.0) * VOXEL_SIZE
             ), AABB::default()),
         ];
         
