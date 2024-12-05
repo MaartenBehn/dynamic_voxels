@@ -15,7 +15,7 @@ use octa_force::logger::setup_logger;
 use octa_force::vulkan::ash::vk::AttachmentLoadOp;
 use glsl_compiler::glsl;
 use octa_force::puffin_egui::puffin;
-use crate::cgs_tree::{CGSTree, VOXEL_SIZE};
+use crate::cgs_tree::{CSGTree, VOXEL_SIZE};
 use crate::profiler::ShaderProfiler;
 use crate::render::renderer::Renderer;
 
@@ -28,7 +28,7 @@ pub struct RenderState {
 pub struct LogicState {
     pub camera: Camera,
     pub start_time: Instant,
-    pub cgs_tree: CGSTree,
+    pub cgs_tree: CSGTree,
 }
 
 #[no_mangle]
@@ -71,7 +71,7 @@ pub fn new_logic_state(render_state: &mut RenderState, engine: &mut Engine) -> O
     #[cfg(debug_assertions)]
     puffin::profile_function!();
     
-    let mut cgs_tree = CGSTree::new();
+    let mut cgs_tree = CSGTree::new();
 
     render_state.renderer.set_cgs_tree(&cgs_tree.data)?;
     

@@ -2,7 +2,7 @@ use std::{slice};
 use std::f32::consts::PI;
 use fastrand::Rng;
 use octa_force::egui::Key::C;
-use octa_force::glam::{vec3, EulerRot, Mat4, Quat};
+use octa_force::glam::{ivec3, uvec3, vec3, EulerRot, Mat4, Quat};
 use octa_force::log::{error, info};
 use octa_force::puffin_egui::puffin;
 use crate::aabb::AABB;
@@ -47,14 +47,14 @@ pub enum CSGNodeData {
 }
 
 #[derive(Clone)]
-pub struct CGSTree {
+pub struct CSGTree {
     pub data: Vec<u32>,
     pub nodes: Vec<CSGNode>,
 }
 
-impl CGSTree {
+impl CSGTree {
     pub fn new() -> Self {
-        CGSTree {
+        CSGTree {
             data: vec![],
             nodes: vec![],
         }
@@ -110,6 +110,37 @@ impl CGSTree {
         ];
         
          */
+    }
+    
+    pub fn set_example_voxel_volume(&mut self) {
+        
+        let voxels = vec![];
+        let center = vec3(5.0, 5.0, 5.0);
+        let radius = 3.0;
+        for x in 0..10 {
+            for y in 0..10 {
+                for z in 0..10 {
+                    let index = x * 100 + y * 10 + z;
+                    let pos = vec3(x as f32, y as f32, z as f32); 
+                    let dist = (center - pos).length();
+                    
+                    if dist < radius {
+                        voxels[index] = 1;
+                    } else {
+                        voxels[index] = 0;
+                    }
+                    
+                    
+                }
+            }
+        }
+        
+        
+        self.nodes = vec![
+            CSGNode::new(CSGNodeData::Union(1, 4, Material::None)),
+            CSGNode::new(CSGNodeData::VoxelVolume()),
+            
+        ];
     }
     
     pub fn set_all_aabbs(&mut self) {
