@@ -43,7 +43,7 @@ pub enum CSGNodeData {
     Intersect(usize, usize, Material),
     Box(Mat4),
     Sphere(Mat4),
-    VoxelVolume(Vec<u8>)
+    VoxelVolume(Material)
 }
 
 #[derive(Clone)]
@@ -226,6 +226,9 @@ impl CSGTree {
     
     fn add_data(&self, index: usize, mut data: Vec<u32>) -> (Vec<u32>, u32) {
         let node = &self.nodes[index];
+
+        let index = data.len();
+        data.extend_from_slice(any_as_u32_slice(&node.aabb));
         
         let node_data = match node.data {
             CSGNodeData::Union(child1, child2, mat) 
@@ -233,13 +236,11 @@ impl CSGTree {
                 | CSGNodeData::Intersect(child1, child2, mat)
             => {
                 
-                let index = data.len();
                 data.push(0);
                 data.push(0);
-                data.extend_from_slice(any_as_u32_slice(&node.aabb));
-
-                (data, data[index]) = self.add_data(child1, data);
-                (data, data[index + 1]) = self.add_data(child2, data);
+                
+                (data, data[index + 6]) = self.add_data(child1, data);
+                (data, data[index + 7]) = self.add_data(child2, data);
                 
                 let t = match node.data {
                     CSGNodeData::Union(_, _, _) => { CGS_CHILD_TYPE_UNION }
@@ -250,8 +251,6 @@ impl CSGTree {
                 Self::node_data(index, t, mat)
             }
             CSGNodeData::Box(transform) | CSGNodeData::Sphere(transform) => {
-                let index = data.len();
-
                 let t = match node.data {
                     CSGNodeData::Box(_) => {CGS_TYPE_BOX}
                     CSGNodeData::Sphere(_) => {CGS_TYPE_SPHERE}
@@ -259,8 +258,7 @@ impl CSGTree {
                 };
                 
                 data.extend_from_slice(any_as_u32_slice(&transform.inverse()));
-                data[index + 15] = t;
-                data.extend_from_slice(any_as_u32_slice(&node.aabb));
+                data[index + 21] = t;
                 
                 Self::node_data(index, CGS_CHILD_TYPE_GEO, Material::None)
             },

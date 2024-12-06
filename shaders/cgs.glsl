@@ -46,13 +46,13 @@ CGSObject get_csg_tree_object(uint index) {
     PROFILE("get_csg_tree_object");
 
     mat4 transform = mat4(
-        uintBitsToFloat(CSG_TREE[index    ]), uintBitsToFloat(CSG_TREE[index + 4]), uintBitsToFloat(CSG_TREE[index +  8]), uintBitsToFloat(CSG_TREE[index +  12]),
-        uintBitsToFloat(CSG_TREE[index + 1]), uintBitsToFloat(CSG_TREE[index + 5]), uintBitsToFloat(CSG_TREE[index +  9]), uintBitsToFloat(CSG_TREE[index +  13]),
-        uintBitsToFloat(CSG_TREE[index + 2]), uintBitsToFloat(CSG_TREE[index + 6]), uintBitsToFloat(CSG_TREE[index + 10]), uintBitsToFloat(CSG_TREE[index +  14]),
+        uintBitsToFloat(CSG_TREE[index     + 6]), uintBitsToFloat(CSG_TREE[index + 4 + 6]), uintBitsToFloat(CSG_TREE[index +  8 + 6]), uintBitsToFloat(CSG_TREE[index +  12 + 6]),
+        uintBitsToFloat(CSG_TREE[index + 1 + 6]), uintBitsToFloat(CSG_TREE[index + 5 + 6]), uintBitsToFloat(CSG_TREE[index +  9 + 6]), uintBitsToFloat(CSG_TREE[index +  13 + 6]),
+        uintBitsToFloat(CSG_TREE[index + 2 + 6]), uintBitsToFloat(CSG_TREE[index + 6 + 6]), uintBitsToFloat(CSG_TREE[index + 10 + 6]), uintBitsToFloat(CSG_TREE[index +  14 + 6]),
         0.0, 0.0, 0.0, 1.0
     );
-    vec3 data = vec3(uintBitsToFloat(CSG_TREE[index + 3]), uintBitsToFloat(CSG_TREE[index + 7]), uintBitsToFloat(CSG_TREE[index + 11]));
-    uint type = CSG_TREE[index + 15];
+    vec3 data = vec3(uintBitsToFloat(CSG_TREE[index + 3 + 6]), uintBitsToFloat(CSG_TREE[index + 7 + 6]), uintBitsToFloat(CSG_TREE[index + 11 + 6]));
+    uint type = CSG_TREE[index + 15 + 6];
 
     return CGSObject(transform, data, type);
 }
@@ -60,7 +60,7 @@ CGSObject get_csg_tree_object(uint index) {
 CGSChild get_csg_tree_child(uint index) {
     PROFILE("get_csg_tree_child");
 
-    uint data = CSG_TREE[index];
+    uint data = CSG_TREE[index + 6];
     uint pointer = data >> 16;         // 16 Bit
     uint material = data & uint(63);   //  6 Bit
     uint type = (data >> 6) & uint(3); //  2 Bit
@@ -76,15 +76,6 @@ AABB get_aabb(uint index) {
 
     return AABB(min, max);
 }
-
-AABB get_node_aabb(uint index) {
-    return get_aabb(index + 2);
-}
-
-AABB get_leaf_aabb(uint index) {
-    return get_aabb(index + 16);
-}
-
 CGSObject get_test_box(float time, vec3 pos) {
     PROFILE("get_test_box");
     float scale = 1.0 + ease_cubic_in_out(ease_loop(time_mod(time, 1.0))) * 2.0;
@@ -225,7 +216,7 @@ bool cgs_tree_at_pos(Ray ray, vec3 pos, in float current_t, in out float next_t)
             child = get_csg_tree_child(current);
 
             if (child.type != CGS_CHILD_TYPE_GEO) {
-                AABB aabb = get_node_aabb(child.pointer);
+                AABB aabb = get_aabb(child.pointer);
                 if (USE_AABB && !pos_in_aabb(pos, aabb.min, aabb.max)) {
                     exits_1_stack[stack_len] = false;;
                     go_left = false;
@@ -249,7 +240,7 @@ bool cgs_tree_at_pos(Ray ray, vec3 pos, in float current_t, in out float next_t)
                 }
 
             } else {
-                AABB aabb = get_leaf_aabb(child.pointer);
+                AABB aabb = get_aabb(child.pointer);
                 if (USE_AABB && !pos_in_aabb(pos, aabb.min, aabb.max)) {
                     exits_1_stack[stack_len] = false;
                 } else {
@@ -270,7 +261,7 @@ bool cgs_tree_at_pos(Ray ray, vec3 pos, in float current_t, in out float next_t)
             child = get_csg_tree_child(current + 1);
 
             if (child.type != CGS_CHILD_TYPE_GEO) {
-                AABB aabb = get_node_aabb(child.pointer);
+                AABB aabb = get_aabb(child.pointer);
                 if (USE_AABB && !pos_in_aabb(pos, aabb.min, aabb.max)) {
                     exits_2 = false;
                     perform = true;
@@ -292,7 +283,7 @@ bool cgs_tree_at_pos(Ray ray, vec3 pos, in float current_t, in out float next_t)
                 }
 
             } else {
-                AABB aabb = get_leaf_aabb(child.pointer);
+                AABB aabb = get_aabb(child.pointer);
                 if (USE_AABB && !pos_in_aabb(pos, aabb.min, aabb.max)) {
                     exits_2 = false;
                 } else {

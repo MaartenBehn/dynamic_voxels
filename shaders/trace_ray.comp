@@ -39,7 +39,7 @@ void main () {
         return;
     }
 
-    AABB aabb = get_node_aabb(0);
+    AABB aabb = get_aabb(0);
     Interval interval;
     if (ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
 
