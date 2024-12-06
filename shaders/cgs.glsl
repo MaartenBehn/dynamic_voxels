@@ -12,14 +12,15 @@
 #define ONLY_RENDER_CGS false
 #define USE_AABB true
 
-#define CGS_GEO_TYPE_BOX 0
-#define CGS_GEO_TYPE_SPHERE 1
-#define CGS_GEO_TYPE_CAPSULE 2
 
-#define CGS_CHILD_TYPE_GEO 0
+#define CGS_CHILD_TYPE_NONE 0
 #define CGS_CHILD_TYPE_UNION 1
 #define CGS_CHILD_TYPE_REMOVE 2
+#define CGS_CHILD_TYPE_MAX_NODE 2
 #define CGS_CHILD_TYPE_INTERSECT 3
+#define CGS_CHILD_TYPE_VOXEL 4
+#define CGS_CHILD_TYPE_BOX 5
+#define CGS_CHILD_TYPE_SPHERE 6
 
 #define MAX_CGS_TREE_DEPTH 4
 #define MAX_CGS_RENDER_ITERATIONS 10
@@ -27,12 +28,11 @@
 struct CGSObject {
     mat4 transform;
     vec3 data;
-    uint type;
+    uint material;
 };
 
 struct CGSChild {
     uint pointer;
-    uint material;
     uint type;
 };
 
@@ -52,20 +52,19 @@ CGSObject get_csg_tree_object(uint index) {
         0.0, 0.0, 0.0, 1.0
     );
     vec3 data = vec3(uintBitsToFloat(CSG_TREE[index + 3 + 6]), uintBitsToFloat(CSG_TREE[index + 7 + 6]), uintBitsToFloat(CSG_TREE[index + 11 + 6]));
-    uint type = CSG_TREE[index + 15 + 6];
+    uint material = CSG_TREE[index + 15 + 6];
 
-    return CGSObject(transform, data, type);
+    return CGSObject(transform, data, material);
 }
 
 CGSChild get_csg_tree_child(uint index) {
     PROFILE("get_csg_tree_child");
 
     uint data = CSG_TREE[index + 6];
-    uint pointer = data >> 16;         // 16 Bit
-    uint material = data & uint(63);   //  6 Bit
-    uint type = (data >> 6) & uint(3); //  2 Bit
+    uint pointer = data >> 3;      // 29 Bit
+    uint type = data & uint(7);    //  3 Bit
 
-    return CGSChild(pointer, material, type);
+    return CGSChild(pointer, type);
 }
 
 AABB get_aabb(uint index) {
@@ -91,7 +90,7 @@ CGSObject get_test_box(float time, vec3 pos) {
     return CGSObject(
         mat,
         vec3(1.0),
-        CGS_GEO_TYPE_BOX
+        0
     );
 }
 
@@ -104,16 +103,16 @@ CGSObject get_test_sphere(float time, vec3 pos) {
     return CGSObject(
         mat,
         vec3(0.0),
-        CGS_GEO_TYPE_SPHERE
+        0
     );
 }
 
-bool ray_hits_cgs_object(Ray ray, CGSObject object, out Interval intervall) {
+bool ray_hits_cgs_object(Ray ray, CGSObject object, uint type, out Interval intervall) {
     Ray model_space_ray = ray_to_model_space(ray, object.transform);
 
-    if (object.type == CGS_GEO_TYPE_BOX) {
+    if (type == CGS_CHILD_TYPE_BOX) {
        return ray_aabb_intersect(model_space_ray, vec3(-0.5), vec3(0.5), intervall);
-    } else if (object.type == CGS_GEO_TYPE_SPHERE) {
+    } else if (type == CGS_CHILD_TYPE_SPHERE) {
         return ray_sphere_intersect(model_space_ray, intervall);
     }
 
@@ -130,15 +129,15 @@ bool pos_in_sphere(vec3 pos, vec3 s_pos, float radius) {
     return distance(pos, s_pos) < radius;
 }
 
-bool exits_cgs_object(vec3 pos, CGSObject object) {
+bool exits_cgs_object(vec3 pos, CGSObject object, uint type) {
     PROFILE("exits_cgs_object");
 
     pos = (vec4(pos, 1.0) * object.transform).xyz;
 
-    if (object.type == CGS_GEO_TYPE_BOX) {
+    if (type == CGS_CHILD_TYPE_BOX) {
         return pos_in_aabb(pos, vec3(-0.5), vec3(0.5));
 
-    } else if (object.type == CGS_GEO_TYPE_SPHERE) {
+    } else if (type == CGS_CHILD_TYPE_SPHERE) {
         return length(pos) < 1.0;
     }
 
@@ -215,7 +214,7 @@ bool cgs_tree_at_pos(Ray ray, vec3 pos, in float current_t, in out float next_t)
         if (go_left) {
             child = get_csg_tree_child(current);
 
-            if (child.type != CGS_CHILD_TYPE_GEO) {
+            if (child.type <= CGS_CHILD_TYPE_MAX_NODE) {
                 AABB aabb = get_aabb(child.pointer);
                 if (USE_AABB && !pos_in_aabb(pos, aabb.min, aabb.max)) {
                     exits_1_stack[stack_len] = false;;
@@ -245,7 +244,7 @@ bool cgs_tree_at_pos(Ray ray, vec3 pos, in float current_t, in out float next_t)
                     exits_1_stack[stack_len] = false;
                 } else {
                     CGSObject object = get_csg_tree_object(child.pointer);
-                    exits_1_stack[stack_len] = exits_cgs_object(pos, object);
+                    exits_1_stack[stack_len] = exits_cgs_object(pos, object, child.type);
                 }
 
                 Interval interval;
@@ -260,7 +259,7 @@ bool cgs_tree_at_pos(Ray ray, vec3 pos, in float current_t, in out float next_t)
         } else {
             child = get_csg_tree_child(current + 1);
 
-            if (child.type != CGS_CHILD_TYPE_GEO) {
+            if (child.type <= CGS_CHILD_TYPE_MAX_NODE) {
                 AABB aabb = get_aabb(child.pointer);
                 if (USE_AABB && !pos_in_aabb(pos, aabb.min, aabb.max)) {
                     exits_2 = false;
@@ -288,7 +287,7 @@ bool cgs_tree_at_pos(Ray ray, vec3 pos, in float current_t, in out float next_t)
                     exits_2 = false;
                 } else {
                     CGSObject object = get_csg_tree_object(child.pointer);
-                    exits_2 = exits_cgs_object(pos, object);
+                    exits_2 = exits_cgs_object(pos, object, child.type);
                 }
 
                 Interval interval;

@@ -28,9 +28,9 @@ void main () {
     float time = TIME;
 
     if (RENDER_TEST_OBJECT) {
-        CGSObject box = get_test_sphere(time, vec3(0,0,0));
+        CGSObject obj = get_test_sphere(time, vec3(0,0,0));
         Interval interval;
-        if (ray_hits_cgs_object(ray, box, interval)) {
+        if (ray_hits_cgs_object(ray, obj, CGS_CHILD_TYPE_SPHERE, interval)) {
             float t_min = interval.t_min;
             color = vec4(get_debug_color_gradient_from_float(t_min / 10.0), 1.0);
         }
