@@ -2,6 +2,7 @@ mod render;
 mod cgs_tree;
 mod profiler;
 mod aabb;
+mod buddy_controller;
 
 use std::time::{Duration, Instant};
 use log::debug;

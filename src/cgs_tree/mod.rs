@@ -114,7 +114,7 @@ impl CSGTree {
     
     pub fn set_example_voxel_volume(&mut self) {
         
-        let voxels = vec![];
+        let mut voxels = vec![];
         let center = vec3(5.0, 5.0, 5.0);
         let radius = 3.0;
         for x in 0..10 {
@@ -138,7 +138,7 @@ impl CSGTree {
         
         self.nodes = vec![
             CSGNode::new(CSGNodeData::Union(1, 4, Material::None)),
-            CSGNode::new(CSGNodeData::VoxelVolume()),
+            
             
         ];
     }
