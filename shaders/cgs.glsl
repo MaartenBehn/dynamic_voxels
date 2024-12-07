@@ -90,9 +90,9 @@ VoxelField get_voxel_field(uint index) {
 
 uint get_voxel_value(uint index) {
     uint buffer_index = index >> 2;         // Upper bist (= index / 4)
-    uint in_index = (index & uint(3)) << 3; // Lower 2 bits * 8 (= (index % 4) * 8;
+    uint shift = (index & uint(3)) << 3;    // Lower 2 bits * 8 (= (index % 4) * 8;
 
-    return (MATERIAL_BUFFER[buffer_index] >> in_index) & 255;
+    return (MATERIAL_BUFFER[buffer_index] >> shift) & 255;
 }
 
 CGSObject get_test_box(float time, vec3 pos) {
@@ -106,12 +106,7 @@ CGSObject get_test_box(float time, vec3 pos) {
 
     mat4 mat = inverse(mat4_scale(vec3(scale, 2.0, 1.5)) * rot_mat * mat4_pos(pos));
 
-
-    return CGSObject(
-        mat,
-        vec3(1.0),
-        0
-    );
+    return CGSObject(mat, vec3(1.0), 0);
 }
 
 CGSObject get_test_sphere(float time, vec3 pos) {
@@ -189,11 +184,12 @@ bool cgs_tree_at_pos(Ray ray, vec3 pos, in float current_t, in out float next_t)
     operation_stack[0] = CGS_CHILD_TYPE_UNION;
 
     bool is_left = false;
-    bool go_left = true;
+    bool go_right = false;
     bool perform = false;
 
     uint current = 0;
     CGSChild child;
+    AABB aabb;
     bool exits_2 = false;
     bool exits = false;
 
@@ -222,7 +218,7 @@ bool cgs_tree_at_pos(Ray ray, vec3 pos, in float current_t, in out float next_t)
                     exits_1_stack[stack_len] = exits;
 
                     perform = false;
-                    go_left = false;
+                    go_right = true;
                 } else {
                     exits_2 = exits;
                 }
@@ -231,93 +227,50 @@ bool cgs_tree_at_pos(Ray ray, vec3 pos, in float current_t, in out float next_t)
             continue;
         }
 
-        if (go_left) {
-            child = get_csg_tree_child(current);
+        child = get_csg_tree_child(current + uint(go_right));
+        aabb = get_aabb(child.pointer);
 
-            if (child.type <= CGS_CHILD_TYPE_MAX_NODE) {
-                AABB aabb = get_aabb(child.pointer);
-                if (USE_AABB && !pos_in_aabb(pos, aabb.min, aabb.max)) {
-                    exits_1_stack[stack_len] = false;;
-                    go_left = false;
-                }
-                else {
-                    stack[stack_len] = current;
-
-                    stack_len++;
-                    operation_stack[stack_len] = child.type;
-
-                    current = child.pointer;
-
-                    is_left = true;
-                }
-
-                Interval interval;
-                if (ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
-                    if (interval.t_max > current_t) {
-                        next_t = min(interval.t_min, next_t);
-                    }
-                }
-
+        if (USE_AABB && !pos_in_aabb(pos, aabb.min, aabb.max)) {
+            if (!go_right) {
+                exits_1_stack[stack_len] = false;;
+                go_right = true;
             } else {
-                AABB aabb = get_aabb(child.pointer);
-                if (USE_AABB && !pos_in_aabb(pos, aabb.min, aabb.max)) {
-                    exits_1_stack[stack_len] = false;
-                } else {
-                    CGSObject object = get_csg_tree_object(child.pointer);
-                    exits_1_stack[stack_len] = exits_cgs_object(pos, object, child.type);
-                }
-
-                Interval interval;
-                if (ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
-                    if (interval.t_max > current_t) {
-                        next_t = min(interval.t_min, next_t);
-                    }
-                }
-
-                go_left = false;
+                exits_2 = false;
+                perform = true;
             }
         } else {
-            child = get_csg_tree_child(current + 1);
-
             if (child.type <= CGS_CHILD_TYPE_MAX_NODE) {
-                AABB aabb = get_aabb(child.pointer);
-                if (USE_AABB && !pos_in_aabb(pos, aabb.min, aabb.max)) {
-                    exits_2 = false;
-                    perform = true;
-                }
-                else {
-                    stack[stack_len] = current;
-                    stack_len++;
+                stack[stack_len] = current;
+                stack_len++;
+                current = child.pointer;
 
-                    current = child.pointer;
+                if (!go_right) {
+                    operation_stack[stack_len] = child.type;
+                    is_left = true;
+                } else {
                     is_left = false;
-                    go_left = true;
-                }
-
-                Interval interval;
-                if (ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
-                    if (interval.t_max > current_t) {
-                        next_t = min(interval.t_min, next_t);
-                    }
+                    go_right = false;
                 }
 
             } else {
-                AABB aabb = get_aabb(child.pointer);
-                if (USE_AABB && !pos_in_aabb(pos, aabb.min, aabb.max)) {
-                    exits_2 = false;
+                CGSObject object = get_csg_tree_object(child.pointer);
+                bool hit = exits_cgs_object(pos, object, child.type);
+
+
+                if (!go_right) {
+                    exits_1_stack[stack_len] = hit;
+                    go_right = true;
                 } else {
-                    CGSObject object = get_csg_tree_object(child.pointer);
-                    exits_2 = exits_cgs_object(pos, object, child.type);
+                    exits_2 = hit;
+                    perform = true;
                 }
+            }
+        }
 
-                Interval interval;
-                if (ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
-                    if (interval.t_max > current_t) {
-                        next_t = min(interval.t_min, next_t);
-                    }
-                }
-
-                perform = true;
+        Interval interval;
+        if (ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
+            if (interval.t_max > current_t) {
+                next_t = min(interval.t_min, next_t);
             }
         }
     }
