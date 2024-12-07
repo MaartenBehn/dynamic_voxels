@@ -88,6 +88,14 @@ VoxelField get_voxel_field(uint index) {
     return VoxelField(start);
 }
 
+uint get_voxel_field_index(vec3 pos, AABB aabb) {
+    uvec3 size = uvec3(round(aabb.max - aabb.min));
+    uvec3 pos_in_aabb = uvec3(round(pos - aabb.min));
+
+    uint index = pos_in_aabb.x * size.y * size.z + pos_in_aabb.y * size.z + pos_in_aabb.z;
+    return index;
+}
+
 uint get_voxel_value(uint index) {
     uint buffer_index = index >> 2;         // Upper bist (= index / 4)
     uint shift = (index & uint(3)) << 3;    // Lower 2 bits * 8 (= (index % 4) * 8;
@@ -251,6 +259,10 @@ bool cgs_tree_at_pos(Ray ray, vec3 pos, in float current_t, in out float next_t)
                     is_left = false;
                     go_right = false;
                 }
+
+            } else if (child.type == CGS_CHILD_TYPE_VOXEL) {
+
+
 
             } else {
                 CGSObject object = get_csg_tree_object(child.pointer);
