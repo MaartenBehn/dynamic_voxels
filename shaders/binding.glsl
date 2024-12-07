@@ -26,7 +26,7 @@ layout(binding = 2, std430) uniform CGSTree {
 
 #define CSG_TREE cgs_tree.data
 
-layout(binding = 2, std430) buffer CGSTree {
+layout(binding = 3, std430) buffer Material {
     uint[] data;
 } material_buffer;
 

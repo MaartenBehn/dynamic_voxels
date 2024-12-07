@@ -33,7 +33,7 @@ pub enum CSGNodeData {
     Intersect(usize, usize),
     Box(Mat4, Material),
     Sphere(Mat4, Material),
-    VoxelVolume(usize, Material)
+    VoxelVolume(Material)
 }
 
 #[derive(Clone)]
@@ -212,8 +212,8 @@ impl CSGTree {
                 data.extend_from_slice(any_as_u32_slice(&transform.inverse()));
                 data[index + 21] = mat as u32;
             },
-            CSGNodeData::VoxelVolume(size, mat) => {
-                data.push(((mat as u32) << 8) + (size as u32));
+            CSGNodeData::VoxelVolume(mat) => {
+                data.push(mat as u32);
             }
         };
 

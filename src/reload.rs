@@ -64,7 +64,9 @@ pub fn new_render_state(engine: &mut Engine, ) -> OctaResult<RenderState> {
     let mut material_controller = MaterialController::new(&engine.context)?;
 
     let mut voxel_field = VoxelField::new(16);
+    voxel_field.set_example_sphere();
     material_controller.allocate_voxel_field(&mut voxel_field)?;
+    material_controller.push_voxel_field(&voxel_field)?;
 
     let profiler = if engine.context.shader_clock {
         Some(ShaderProfiler::new(&engine.context, engine.swapchain.format, engine.swapchain.size, engine.num_frames, profile_scopes, &mut gui.renderer)?)

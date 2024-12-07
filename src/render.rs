@@ -149,7 +149,7 @@ impl Renderer {
                     },
                 },
                 WriteDescriptorSet {
-                    binding: 2,
+                    binding: 3,
                     kind: WriteDescriptorSetKind::StorageBuffer {
                         buffer: &material_controller.buffer,
                     },

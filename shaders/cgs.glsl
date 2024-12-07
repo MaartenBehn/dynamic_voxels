@@ -42,7 +42,6 @@ struct CGSObject {
 };
 
 struct VoxelField {
-    uint size;
     uint start;
 };
 
@@ -84,11 +83,16 @@ CGSObject get_csg_tree_object(uint index) {
 VoxelField get_voxel_field(uint index) {
     PROFILE("get_voxel_field");
 
-    uint data = CSG_TREE[index + 6];
-    uint size = data & 255; // 8 Bits
-    uint start = data >> 8; // 24 Bits
+    uint start = CSG_TREE[index + 6];
     
-    return VoxelField(size, start);
+    return VoxelField(start);
+}
+
+uint get_voxel_value(uint index) {
+    uint buffer_index = index >> 2;         // Upper bist (= index / 4)
+    uint in_index = (index & uint(3)) << 3; // Lower 2 bits * 8 (= (index % 4) * 8;
+
+    return (MATERIAL_BUFFER[buffer_index] >> in_index) & 255;
 }
 
 CGSObject get_test_box(float time, vec3 pos) {

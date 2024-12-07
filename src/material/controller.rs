@@ -28,8 +28,8 @@ impl MaterialController {
         })
     }
 
-    pub fn set_data(&self, data: &[u32]) -> OctaResult<()> {
-        self.buffer.copy_data_to_buffer(data)
+    pub fn push_voxel_field(&self, voxel_field: &VoxelField) -> OctaResult<()> {
+        self.buffer.copy_data_to_buffer_complex(&voxel_field.data, voxel_field.buffer_start, align_of::<u8>())
     }
     
     pub fn allocate_voxel_field(&mut self, voxel_field: &mut VoxelField) -> OctaResult<()> {
