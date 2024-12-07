@@ -3,6 +3,8 @@ mod cgs_tree;
 mod profiler;
 mod aabb;
 mod buddy_controller;
+mod material;
+mod util;
 
 use std::time::{Duration, Instant};
 use log::debug;
@@ -16,12 +18,18 @@ use octa_force::logger::setup_logger;
 use octa_force::vulkan::ash::vk::AttachmentLoadOp;
 use glsl_compiler::glsl;
 use octa_force::puffin_egui::puffin;
-use crate::cgs_tree::{CSGTree, VOXEL_SIZE};
+use crate::cgs_tree::controller::CSGController;
+use crate::cgs_tree::tree::{CSGTree, VOXEL_SIZE};
+use crate::material::controller::MaterialController;
+use crate::material::voxels::VoxelField;
 use crate::profiler::ShaderProfiler;
-use crate::render::renderer::Renderer;
+use crate::render::Renderer;
 
 pub struct RenderState {
     pub gui: Gui,
+    pub csg_controller: CSGController,
+    pub material_controller: MaterialController,
+    pub voxel_field: VoxelField,
     pub renderer: Renderer,
     pub profiler: Option<ShaderProfiler>,
 }
@@ -52,16 +60,25 @@ pub fn new_render_state(engine: &mut Engine, ) -> OctaResult<RenderState> {
     
     let mut gui = Gui::new(&engine.context, engine.swapchain.format,  engine.swapchain.depth_format, &engine.window, engine.num_frames)?;
 
+    let csg_controller = CSGController::new(&engine.context)?;
+    let mut material_controller = MaterialController::new(&engine.context)?;
+
+    let mut voxel_field = VoxelField::new(16);
+    material_controller.allocate_voxel_field(&mut voxel_field)?;
+
     let profiler = if engine.context.shader_clock {
         Some(ShaderProfiler::new(&engine.context, engine.swapchain.format, engine.swapchain.size, engine.num_frames, profile_scopes, &mut gui.renderer)?)
     } else {
         None
     };
     
-    let renderer = Renderer::new(&engine.context, engine.swapchain.size, engine.num_frames, &profiler, shader_bin)?;
+    let renderer = Renderer::new(&engine.context, engine.swapchain.size, engine.num_frames, &csg_controller, &material_controller, &profiler, shader_bin)?;
 
     Ok(RenderState {
         gui,
+        csg_controller,
+        material_controller,
+        voxel_field,
         renderer,
         profiler,
     })
@@ -73,8 +90,7 @@ pub fn new_logic_state(render_state: &mut RenderState, engine: &mut Engine) -> O
     puffin::profile_function!();
     
     let mut cgs_tree = CSGTree::new();
-
-    render_state.renderer.set_cgs_tree(&cgs_tree.data)?;
+    render_state.csg_controller.set_data(&cgs_tree.data)?;
     
     log::info!("Creating Camera");
     let mut camera = Camera::base(engine.swapchain.size.as_vec2());
@@ -104,7 +120,7 @@ pub fn update(render_state: &mut RenderState, logic_state: &mut LogicState, engi
     logic_state.cgs_tree.set_example_tree(time.as_secs_f32());
     logic_state.cgs_tree.set_all_aabbs();
     logic_state.cgs_tree.make_data();
-    render_state.renderer.set_cgs_tree(&logic_state.cgs_tree.data)?;
+    render_state.csg_controller.set_data(&logic_state.cgs_tree.data)?;
     
     logic_state.camera.update(&engine.controls, delta_time);
     render_state.renderer.update(&logic_state.camera, engine.swapchain.size, time)?;

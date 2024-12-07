@@ -25,10 +25,9 @@
 #define MAX_CGS_TREE_DEPTH 4
 #define MAX_CGS_RENDER_ITERATIONS 10
 
-struct CGSObject {
-    mat4 transform;
-    vec3 data;
-    uint material;
+struct AABB {
+    vec3 min;
+    vec3 max;
 };
 
 struct CGSChild {
@@ -36,11 +35,36 @@ struct CGSChild {
     uint type;
 };
 
-struct AABB {
-    vec3 min;
-    vec3 max;
+struct CGSObject {
+    mat4 transform;
+    vec3 data;
+    uint material;
 };
 
+struct VoxelField {
+    uint size;
+    uint start;
+};
+
+
+AABB get_aabb(uint index) {
+    PROFILE("get_aabb");
+
+    vec3 min = vec3(uintBitsToFloat(CSG_TREE[index    ]), uintBitsToFloat(CSG_TREE[index + 1]), uintBitsToFloat(CSG_TREE[index + 2]));
+    vec3 max = vec3(uintBitsToFloat(CSG_TREE[index + 3]), uintBitsToFloat(CSG_TREE[index + 4]), uintBitsToFloat(CSG_TREE[index + 5]));
+
+    return AABB(min, max);
+}
+
+CGSChild get_csg_tree_child(uint index) {
+    PROFILE("get_csg_tree_child");
+
+    uint data = CSG_TREE[index + 6];
+    uint pointer = data >> 3;      // 29 Bit
+    uint type = data & uint(7);    //  3 Bit
+
+    return CGSChild(pointer, type);
+}
 
 CGSObject get_csg_tree_object(uint index) {
     PROFILE("get_csg_tree_object");
@@ -57,24 +81,16 @@ CGSObject get_csg_tree_object(uint index) {
     return CGSObject(transform, data, material);
 }
 
-CGSChild get_csg_tree_child(uint index) {
-    PROFILE("get_csg_tree_child");
+VoxelField get_voxel_field(uint index) {
+    PROFILE("get_voxel_field");
 
     uint data = CSG_TREE[index + 6];
-    uint pointer = data >> 3;      // 29 Bit
-    uint type = data & uint(7);    //  3 Bit
-
-    return CGSChild(pointer, type);
+    uint size = data & 255; // 8 Bits
+    uint start = data >> 8; // 24 Bits
+    
+    return VoxelField(size, start);
 }
 
-AABB get_aabb(uint index) {
-    PROFILE("get_aabb");
-
-    vec3 min = vec3(uintBitsToFloat(CSG_TREE[index    ]), uintBitsToFloat(CSG_TREE[index + 1]), uintBitsToFloat(CSG_TREE[index + 2]));
-    vec3 max = vec3(uintBitsToFloat(CSG_TREE[index + 3]), uintBitsToFloat(CSG_TREE[index + 4]), uintBitsToFloat(CSG_TREE[index + 5]));
-
-    return AABB(min, max);
-}
 CGSObject get_test_box(float time, vec3 pos) {
     PROFILE("get_test_box");
     float scale = 1.0 + ease_cubic_in_out(ease_loop(time_mod(time, 1.0))) * 2.0;

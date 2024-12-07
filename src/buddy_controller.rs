@@ -68,9 +68,10 @@ impl BuddyBufferAllocator {
 
         // map starting address with 
         // size to make deallocating easy
-        self.mp.insert(space.0, space.1 - space.0 + 1);
+        let size = space.1 - space.0 + 1;
+        self.mp.insert(space.0, size);
         
-        Ok(space)
+        Ok((space.0, size))
     }
 
     // From https://www.geeksforgeeks.org/buddy-memory-allocation-program-set-2-deallocation/?ref=ml_lbp

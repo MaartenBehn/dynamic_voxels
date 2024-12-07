@@ -11,7 +11,8 @@ use octa_force::vulkan::{
 use octa_force::ImageAndView;
 use std::mem::size_of;
 use std::time::Duration;
-use crate::cgs_tree::{MAX_CGS_TREE_DATA_SIZE};
+use crate::cgs_tree::controller::CSGController;
+use crate::material::controller::MaterialController;
 use crate::profiler::{ShaderProfiler};
 
 const RENDER_DISPATCH_GROUP_SIZE_X: u32 = 32;
@@ -21,7 +22,6 @@ const RENDER_DISPATCH_GROUP_SIZE_Y: u32 = 32;
 pub struct Renderer {
     storage_images: Vec<ImageAndView>,
     render_buffer: Buffer,
-    cgs_tree_buffer: Buffer,
 
     descriptor_pool: DescriptorPool,
     descriptor_layout: DescriptorSetLayout,
@@ -50,6 +50,8 @@ impl Renderer {
         context: &Context,
         res: UVec2,
         num_frames: usize,
+        csg_controller: &CSGController,
+        material_controller: &MaterialController,
         profiler: &Option<ShaderProfiler>,
         shader_bin: &[u8],
     ) -> Result<Renderer> {
@@ -59,12 +61,6 @@ impl Renderer {
             vk::BufferUsageFlags::UNIFORM_BUFFER,
             MemoryLocation::CpuToGpu,
             size_of::<RenderBuffer>() as _,
-        )?;
-
-        let cgs_tree_buffer = context.create_buffer(
-            vk::BufferUsageFlags::UNIFORM_BUFFER,
-            MemoryLocation::CpuToGpu,
-            (size_of::<u32>() * MAX_CGS_TREE_DATA_SIZE) as _,
         )?;
 
 
@@ -81,6 +77,10 @@ impl Renderer {
                 },
                 vk::DescriptorPoolSize {
                     ty: vk::DescriptorType::UNIFORM_BUFFER,
+                    descriptor_count: num_frames as u32,
+                },
+                vk::DescriptorPoolSize {
+                    ty: vk::DescriptorType::STORAGE_BUFFER,
                     descriptor_count: num_frames as u32,
                 },
             ],
@@ -109,12 +109,19 @@ impl Renderer {
                 stage_flags: vk::ShaderStageFlags::COMPUTE,
                 ..Default::default()
             },
+            vk::DescriptorSetLayoutBinding {
+                binding: 3,
+                descriptor_count: 1,
+                descriptor_type: vk::DescriptorType::STORAGE_BUFFER,
+                stage_flags: vk::ShaderStageFlags::COMPUTE,
+                ..Default::default()
+            },
         ];
-        
+
         if profiler.is_some() {
             descriptor_layout_bindings.extend_from_slice(&profiler.as_ref().unwrap().descriptor_layout_bindings());
         }
-        
+
         let descriptor_layout = context.create_descriptor_set_layout(&descriptor_layout_bindings)?;
 
         let mut descriptor_sets = Vec::new();
@@ -138,7 +145,13 @@ impl Renderer {
                 WriteDescriptorSet {
                     binding: 2,
                     kind: WriteDescriptorSetKind::UniformBuffer {
-                        buffer: &cgs_tree_buffer,
+                        buffer: &csg_controller.buffer,
+                    },
+                },
+                WriteDescriptorSet {
+                    binding: 2,
+                    kind: WriteDescriptorSetKind::StorageBuffer {
+                        buffer: &material_controller.buffer,
                     },
                 },
             ];
@@ -146,7 +159,7 @@ impl Renderer {
             if profiler.is_some() {
                 write_descriptor_sets.extend_from_slice(&profiler.as_ref().unwrap().write_descriptor_sets());
             }
-            
+
             descriptor_set.update(&write_descriptor_sets);
 
             descriptor_sets.push(descriptor_set);
@@ -165,7 +178,6 @@ impl Renderer {
         Ok(Renderer {
             storage_images,
             render_buffer,
-            cgs_tree_buffer,
 
             descriptor_pool,
             descriptor_layout,
@@ -184,10 +196,6 @@ impl Renderer {
             time.as_secs_f32(),
         )])?;
         Ok(())
-    }
-    
-    pub fn set_cgs_tree(&self, data: &[u32]) -> Result<()> {
-        self.cgs_tree_buffer.copy_data_to_buffer(data)
     }
 
     pub fn render(
