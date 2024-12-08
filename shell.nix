@@ -52,9 +52,6 @@ pkgs.mkShell rec {
     pkgs-fix.cudaPackages.nsight_systems
   ];
 
-
-
-
   buildInputs = with pkgs; [
     boost
   ];

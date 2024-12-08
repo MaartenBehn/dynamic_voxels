@@ -119,7 +119,7 @@ pub fn update(render_state: &mut RenderState, logic_state: &mut LogicState, engi
 
     let time = logic_state.start_time.elapsed();
 
-    logic_state.cgs_tree.set_example_tree(time.as_secs_f32());
+    logic_state.cgs_tree.set_example_tree_with_aabb_field(time.as_secs_f32());
     logic_state.cgs_tree.set_all_aabbs();
     logic_state.cgs_tree.make_data();
     render_state.csg_controller.set_data(&logic_state.cgs_tree.data)?;

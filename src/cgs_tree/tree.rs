@@ -1,7 +1,7 @@
 
 use std::{slice};
 use std::f32::consts::PI;
-use octa_force::glam::{uvec3, vec3, EulerRot, Mat4, Quat};
+use octa_force::glam::{uvec3, vec3, EulerRot, Mat4, Quat, UVec3, Vec3};
 use octa_force::log::{error, info};
 use octa_force::puffin_egui::puffin;
 use crate::aabb::AABB;
@@ -79,9 +79,8 @@ impl CSGTree {
                 vec3(10.0 + frac * 30.0, 10.0 + frac_3 * 100.0, 0.0) * VOXEL_SIZE
             ), MATERIAL_NONE)),
         ];
-
-
-
+        
+        
         /*
         self.nodes = vec![
             CSGNode::Union(1, 2, Material::None, AABB::default()),
@@ -100,6 +99,27 @@ impl CSGTree {
         ];
         
          */
+    }
+
+    pub fn set_example_tree_with_aabb_field(&mut self, time: f32) {
+        puffin::profile_function!();
+
+        let frac = simple_easing::roundtrip((time * 0.1) % 1.0);
+
+        self.nodes = vec![
+            CSGNode::new(CSGNodeData::Union(1, 2)),
+
+            CSGNode::new(CSGNodeData::Box(Mat4::from_scale_rotation_translation(
+                (vec3(2.0, 5.0 , 7.0) + simple_easing::expo_in_out(frac)) * VOXEL_SIZE,
+                Quat::from_euler(EulerRot::XYZ, (time * 0.1) % (2.0 * PI),(time * 0.11) % (2.0 * PI),0.0),
+                vec3(10.0, 10.0, 0.0) * VOXEL_SIZE
+            ), MATERIAL_NONE)),
+            
+            CSGNode::new_with_aabb(CSGNodeData::VoxelVolume(0), AABB {
+                min: Vec3::ZERO,
+                max: Vec3::ONE * 16.0,
+            })
+        ];
     }
     
     pub fn set_all_aabbs(&mut self) {
@@ -240,6 +260,13 @@ impl CSGNode {
         CSGNode {
             data,
             aabb: Default::default(),
+        }
+    }
+
+    pub fn new_with_aabb(data: CSGNodeData, aabb: AABB) -> CSGNode {
+        CSGNode {
+            data,
+            aabb,
         }
     }
 }
