@@ -1,5 +1,5 @@
 use std::time::Duration;
-use reload::{on_recreate_swapchain, on_window_event, record_render_commands, update, RenderState, LogicState, new_render_state, new_logic_state};
+use reload::{on_recreate_swapchain, on_window_event, record_render_commands, update, RenderState, LogicState, new_render_state, new_logic_state, USE_PROFILE};
 use octa_force::{Engine, EngineConfig, EngineFeatureValue, OctaResult};
 use octa_force::binding::r#trait::BindingTrait;
 use octa_force::egui_winit::winit::event::WindowEvent;
@@ -19,7 +19,7 @@ fn main() {
             compute_rendering: EngineFeatureValue::Needed,
             validation_layers: EngineFeatureValue::Needed,
             shader_debug_printing: EngineFeatureValue::Needed,
-            shader_debug_clock: EngineFeatureValue::NotUsed,
+            shader_debug_clock: if USE_PROFILE {EngineFeatureValue::Wanted} else {EngineFeatureValue::NotUsed},
             GL_EXT_scalar_block_layout: EngineFeatureValue::Needed,
             hot_reload_config: Some(HotReloadConfig{
                 lib_dir: "target/debug".to_string(),

@@ -2,11 +2,11 @@
 #define _DDA_GLSL_
 
 #include "ray.glsl"
-#define USE_BRANCHLESS_DDA true
 
 struct DDA {
     vec3 pos;
     vec3 delta_dist;
+    vec3 delta;
     vec3 step;
     vec3 side_dist;
     vec3 mask;
@@ -18,36 +18,41 @@ struct DDA {
 DDA init_DDA(in Ray ray, in vec3 start_pos, in vec3 lower_bound, in vec3 upper_bound) {
     vec3 cell = floor(start_pos);
     vec3 delta_dist = abs(vec3(length(ray.dir)) / ray.dir);
+    vec3 delta = abs(1.0 / ray.dir);
     vec3 step = sign(ray.dir);
     vec3 side_dist = (step * (cell - start_pos) + (step * 0.5) + 0.5) * delta_dist;
     vec3 mask;
 
-    return DDA(start_pos, delta_dist, step, side_dist, mask, lower_bound, upper_bound, false);
+    return DDA(start_pos, delta_dist, delta, step, side_dist, mask, lower_bound, upper_bound, false);
 }
 
 DDA step_DDA(in DDA dda, in uint steps) {
     PROFILE("step_DDA");
 
-    if (steps == 1) {
-        dda.mask = vec3(lessThanEqual(dda.side_dist.xyz, min(dda.side_dist.yzx, dda.side_dist.zxy)));
-        dda.side_dist += dda.mask * dda.delta_dist;
-        dda.pos += dda.mask * dda.step;
-    } else {
-        for (uint i = 0; i < steps; i++) {
+    if (steps > 1)
+    {
+        if (steps > 2)
+        {
+            if (steps > 3)
+            {
+                dda.mask = floor( float(steps - 2) / dda.delta );
+                dda.side_dist += dda.mask * dda.delta_dist;
+                dda.pos += dda.mask * dda.step;
+            }
+
             dda.mask = vec3(lessThanEqual(dda.side_dist.xyz, min(dda.side_dist.yzx, dda.side_dist.zxy)));
             dda.side_dist += dda.mask * dda.delta_dist;
             dda.pos += dda.mask * dda.step;
         }
 
-        /*
-        if (skip_steps > 1)
-        {
-            dda.mask  = floor( float(skip_steps) / dda.delta_dist );
-            dda.side_dist += dda.mask  * dda.delta_dist;
-            dda.pos += dda.mask  * dda.step;
-        }
-        */
+        dda.mask = vec3(lessThanEqual(dda.side_dist.xyz, min(dda.side_dist.yzx, dda.side_dist.zxy)));
+        dda.side_dist += dda.mask * dda.delta_dist;
+        dda.pos += dda.mask * dda.step;
     }
+
+    dda.mask = vec3(lessThanEqual(dda.side_dist.xyz, min(dda.side_dist.yzx, dda.side_dist.zxy)));
+    dda.side_dist += dda.mask * dda.delta_dist;
+    dda.pos += dda.mask * dda.step;
 
     dda.out_of_bounds =
       (dda.mask.x != 0 && (dda.pos.x < dda.lower_bound.x || dda.pos.x > dda.upper_bound.x)

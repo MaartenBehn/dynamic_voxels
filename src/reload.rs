@@ -25,6 +25,8 @@ use crate::material::voxels::VoxelField;
 use crate::profiler::ShaderProfiler;
 use crate::render::Renderer;
 
+pub const USE_PROFILE: bool = false;
+
 pub struct RenderState {
     pub gui: Gui,
     pub csg_controller: CSGController,
@@ -52,7 +54,7 @@ pub fn new_render_state(engine: &mut Engine, ) -> OctaResult<RenderState> {
     #[cfg(debug_assertions)]
     puffin::profile_function!();
 
-    let (shader_bin, profile_scopes): (&[u8], &[&str]) = if engine.context.shader_clock {
+    let (shader_bin, profile_scopes): (&[u8], &[&str]) = if USE_PROFILE && engine.context.shader_clock {
         glsl!{type = Compute, profile, file = "shaders/trace_ray.comp"}
     } else {
         glsl!{type = Compute, file = "shaders/trace_ray.comp"}
@@ -97,10 +99,10 @@ pub fn new_logic_state(render_state: &mut RenderState, engine: &mut Engine) -> O
     log::info!("Creating Camera");
     let mut camera = Camera::base(engine.swapchain.size.as_vec2());
 
-    camera.position = Vec3::new(42.20837, -106.22046, 98.00787);
+    camera.position = Vec3::new(-10.162412, 6.8168097, 7.785401);
     //camera.position = Vec3::new(1.0, -100.0, 1.0);
     //camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
-    camera.direction = Vec3::new(0.2943352, 0.8200449, -0.49080887).normalize();
+    camera.direction = Vec3::new(0.6782154, 0.7347866, 0.01060886).normalize();
     camera.speed = 10.0 * VOXEL_SIZE;
     camera.z_far = 100.0;
     camera.up = vec3(0.0, 0.0, 1.0);
