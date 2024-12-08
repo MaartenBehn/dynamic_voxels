@@ -16,14 +16,15 @@
 #define CGS_CHILD_TYPE_NONE 0
 #define CGS_CHILD_TYPE_UNION 1
 #define CGS_CHILD_TYPE_REMOVE 2
-#define CGS_CHILD_TYPE_MAX_NODE 2
 #define CGS_CHILD_TYPE_INTERSECT 3
+#define CGS_CHILD_TYPE_MAX_NODE 3
 #define CGS_CHILD_TYPE_VOXEL 4
 #define CGS_CHILD_TYPE_BOX 5
 #define CGS_CHILD_TYPE_SPHERE 6
 
 #define MAX_CGS_TREE_DEPTH 4
 #define MAX_CGS_RENDER_ITERATIONS 10
+#define MAX_INTERVAL_LIST 10
 
 struct AABB {
     vec3 min;
@@ -183,7 +184,7 @@ bool cgs_bool_operation(bool exits_1, bool exits_2, uint operation) {
     return false;
 }
 
-bool cgs_tree_at_pos(Ray ray, vec3 pos, in float current_t, in out float next_t) {
+bool cgs_tree_at_pos(vec3 pos) {
     PROFILE("cgs_tree_at_pos");
     int stack_len = 0;
     uint stack[MAX_CGS_TREE_DEPTH];
@@ -265,7 +266,7 @@ bool cgs_tree_at_pos(Ray ray, vec3 pos, in float current_t, in out float next_t)
                 VoxelField voxle_filed = get_voxel_field(child.pointer);
                 uint index = get_voxel_field_index(pos, aabb);
                 uint voxel_value = get_voxel_value(voxle_filed.start, index);
-                bool hit = voxel_value != 0;
+                bool hit = voxel_value != uint(0);
 
                 if (!go_right) {
                     exits_1_stack[stack_len] = hit;
@@ -288,16 +289,144 @@ bool cgs_tree_at_pos(Ray ray, vec3 pos, in float current_t, in out float next_t)
                 }
             }
         }
+    }
 
-        Interval interval;
+    return exits;
+}
+
+struct IntervalList {
+    Interval[MAX_INTERVAL_LIST] intervals;
+    AABB[MAX_INTERVAL_LIST] aabbs;
+    int len;
+};
+
+IntervalList init_interval_list() {
+    Interval intervals[MAX_INTERVAL_LIST];
+    AABB aabbs[MAX_INTERVAL_LIST];
+    return IntervalList(intervals, aabbs, 0);
+}
+
+// From https://www.geeksforgeeks.org/search-insert-position-of-k-in-a-sorted-array/
+int binary_search_interval_list(IntervalList list, float t)
+{
+    // Lower and upper bounds
+    int start = 0;
+    int end = list.len - 1;
+    // Traverse the search space
+    while (start <= end) {
+        int mid = (start + end) / 2;
+
+        if (list.intervals[mid].t_min < t) {
+            start = mid + 1;
+        } else {
+            end = mid - 1;
+        }
+    }
+    // Return insert position
+    return end + 1;
+}
+
+IntervalList insert_into_list(IntervalList list, Interval interval, AABB aabb) {
+
+    uint index = binary_search_interval_list(list, interval.t_min);
+
+    for (uint i = list.len; i > index; i--) {
+        list.intervals[i] = list.intervals[i - 1];
+        list.aabbs[i] = list.aabbs[i - 1];
+    }
+
+    list.intervals[index] = interval;
+    list.aabbs[index] = aabb;
+    list.len += 1;
+
+    return list;
+}
+
+void cgs_tree_interval_list(Ray ray, out IntervalList list) {
+    PROFILE("cgs_tree_interval_list");
+
+    list.len = 0;
+
+    AABB aabb = get_aabb(0);
+    Interval interval;
+    if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
+        return;
+    }
+
+    uint stack[MAX_CGS_TREE_DEPTH];
+    stack[0] = 0;
+    stack[1] = 1;
+    int stack_len = 2;
+
+    CGSChild child;
+
+    uint i = 0;
+    while (stack_len > 0 && i < MAX_CGS_RENDER_ITERATIONS) {
+        i++;
+
+        stack_len -= 1;
+        child = get_csg_tree_child(stack[stack_len]);
+        aabb = get_aabb(child.pointer);
+
         if (ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
-            if (interval.t_max > current_t) {
-                next_t = min(interval.t_min, next_t);
+
+            if (child.type > CGS_CHILD_TYPE_MAX_NODE) {
+                list = insert_into_list(list, interval, aabb);
+            } else {
+                stack[stack_len] = child.pointer;
+                stack[stack_len + 1] = child.pointer + 1;
+                stack_len += 1;
+            }
+        }
+    }
+}
+
+bool cgs_tree_next_interval(Ray ray, float current_t, out Interval interval, out AABB aabb) {
+    PROFILE("cgs_tree_interval_list");
+
+    aabb = get_aabb(0);
+    if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
+        return false;
+    }
+    interval.t_min = FLOAT_POS_INF;
+
+    uint stack[MAX_CGS_TREE_DEPTH];
+    stack[0] = 0;
+    stack[1] = 1;
+    int stack_len = 2;
+
+    CGSChild child;
+
+    uint i = 0;
+    bool hit = false;
+    while (stack_len > 0 && i < MAX_CGS_RENDER_ITERATIONS) {
+        i++;
+
+        stack_len -= 1;
+        child = get_csg_tree_child(stack[stack_len]);
+        AABB new_aabb = get_aabb(child.pointer);
+
+        Interval new_interval;
+        if (ray_aabb_intersect(ray, new_aabb.min, new_aabb.max, new_interval)) {
+
+            if (new_interval.t_max > current_t) {
+                if (child.type > CGS_CHILD_TYPE_MAX_NODE) {
+                    if (interval.t_min > new_interval.t_min) {
+                        interval = new_interval;
+                        aabb = new_aabb;
+
+                        hit = true;
+                    }
+                } else {
+                    stack[stack_len] = child.pointer;
+                    stack[stack_len + 1] = child.pointer + 1;
+                    stack_len += 1;
+                }
             }
         }
     }
 
-    return exits;
+    return hit;
 }
 
 #endif // _CGS_GLSL_
