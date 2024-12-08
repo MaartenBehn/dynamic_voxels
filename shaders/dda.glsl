@@ -18,14 +18,14 @@ vec3 get_mask(vec3 side_dist) {
     return vec3(lessThanEqual(side_dist.xyz, min(side_dist.yzx, side_dist.zxy)));
 }
 
-DDA init_DDA(in Ray ray, in vec3 start_pos, in vec3 lower_bound, in vec3 upper_bound) {
-    vec3 cell = floor(start_pos);
+DDA init_DDA(in Ray ray, in vec3 start_pos, in vec3 lower_bound, in vec3 upper_bound, in float scale) {
+    vec3 cell = floor(start_pos / scale) * scale;
     vec3 delta_dist = abs(ray.odir);
     vec3 step = sign(ray.dir);
     vec3 side_dist = (step * (cell - start_pos) + (step * 0.5) + 0.5) * delta_dist;
     vec3 mask = get_mask(side_dist);
 
-    return DDA(start_pos, delta_dist, step, side_dist, mask, lower_bound, upper_bound, false);
+    return DDA(start_pos, delta_dist * scale, step * scale, side_dist, mask, lower_bound, upper_bound, false);
 }
 
 DDA step_DDA(in DDA dda) {

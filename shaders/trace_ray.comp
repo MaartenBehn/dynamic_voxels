@@ -14,13 +14,9 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
 #define USE_INTERVAL_LIST false
 
-#define RENDER_DDA_STEPS true
+#define RENDER_DDA_STEPS false
 
-#define USE_DDA_SKIPPING true
-#define MAX_SKIP_STEPS 500
-
-#define MAX_RAY_STEPS 50
-#define MAX_FULL_DDA_STEPS 500
+#define MAX_DDA_STEPS 500
 #define MAX_DEPTH 300
 #define EPSILON 0.0001
 #define TO_1D(pos, size) ((pos.z * size * size) + (pos.y * size) + pos.x)
@@ -85,14 +81,14 @@ void main () {
         uint interval_counter = 0;
         uint dda_step_counter = 0;
         bool hit = false;
-        while (interval_counter < list.len && !hit && dda_step_counter < MAX_FULL_DDA_STEPS) {
+        while (interval_counter < list.len && !hit && dda_step_counter < MAX_DDA_STEPS) {
 
             float t_start = list.intervals[interval_counter].t_min + EPSILON;
             vec3 start_pos = get_ray_pos(ray, t_start);
             AABB aabb = list.aabbs[interval_counter];
-            DDA dda = init_DDA(ray, start_pos, aabb.min, aabb.max);
+            DDA dda = init_DDA(ray, start_pos, aabb.min, aabb.max, 1.0);
 
-            while (dda_step_counter < MAX_FULL_DDA_STEPS) {
+            while (dda_step_counter < MAX_DDA_STEPS) {
                 hit = cgs_tree_at_pos(floor(dda.pos));
 
                 if (hit) {
@@ -111,7 +107,7 @@ void main () {
             }
 
             if (RENDER_DDA_STEPS) {
-                color = vec4(get_debug_color_gradient_from_float(float(dda_step_counter) / MAX_FULL_DDA_STEPS), 1.0);
+                color = vec4(get_debug_color_gradient_from_float(float(dda_step_counter) / MAX_DDA_STEPS), 1.0);
             }
 
             interval_counter += 1;
@@ -126,14 +122,16 @@ void main () {
         float interval_t = 0;
         Interval interval;
         AABB aabb;
-        while (!hit && cgs_tree_next_interval(ray, interval_t, interval, aabb) && dda_step_counter < MAX_FULL_DDA_STEPS) {
+        float scale = 8.0;
+        while (!hit && cgs_tree_next_interval(ray, interval_t, interval, aabb) && dda_step_counter < MAX_DDA_STEPS) {
 
-            float t_start = interval.t_min + EPSILON;
+            float t_start = max(interval.t_min, 0) + EPSILON;
             vec3 start_pos = get_ray_pos(ray, t_start);
-            DDA dda = init_DDA(ray, start_pos, aabb.min, aabb.max);
+            scale = clamp(floor(t_start / 50.0), 1, 16);
+            DDA dda = init_DDA(ray, start_pos, aabb.min, aabb.max, scale);
 
-            while (dda_step_counter < MAX_FULL_DDA_STEPS) {
-                hit = cgs_tree_at_pos(floor(dda.pos));
+            while (dda_step_counter < MAX_DDA_STEPS) {
+                hit = cgs_tree_at_pos(floor(dda.pos / scale) * scale);
 
                 if (hit) {
                     float current_t = get_DDA_t(dda) + t_start;
@@ -151,7 +149,7 @@ void main () {
             }
 
             if (RENDER_DDA_STEPS) {
-                color = vec4(get_debug_color_gradient_from_float(float(dda_step_counter) / MAX_FULL_DDA_STEPS), 1.0);
+                color = vec4(get_debug_color_gradient_from_float(float(dda_step_counter) / MAX_DDA_STEPS), 1.0);
             }
 
             interval_t = interval.t_max + EPSILON;

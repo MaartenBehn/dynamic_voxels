@@ -15,7 +15,7 @@ const CGS_CHILD_TYPE_VOXEL: u32 =  4;
 const CGS_CHILD_TYPE_BOX: u32 =  5;
 const CGS_CHILD_TYPE_SPHERE: u32 =  6;
 
-const AABB_PADDING: f32 = 2.0;
+const AABB_PADDING: f32 = 10.0;
 pub const VOXEL_SIZE: f32 = 10.0;
 pub type Material = usize;
 pub const MATERIAL_NONE: usize = usize::MAX;
