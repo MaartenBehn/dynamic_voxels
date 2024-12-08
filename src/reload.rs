@@ -99,10 +99,10 @@ pub fn new_logic_state(render_state: &mut RenderState, engine: &mut Engine) -> O
     log::info!("Creating Camera");
     let mut camera = Camera::base(engine.swapchain.size.as_vec2());
 
-    camera.position = Vec3::new(-10.162412, 6.8168097, 7.785401);
+    camera.position = Vec3::new(4.064773, -11.470528, 7.6621723);
     //camera.position = Vec3::new(1.0, -100.0, 1.0);
     //camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
-    camera.direction = Vec3::new(0.6782154, 0.7347866, 0.01060886).normalize();
+    camera.direction = Vec3::new(0.86210537, -0.051354174, -0.50412005).normalize();
     camera.speed = 10.0 * VOXEL_SIZE;
     camera.z_far = 100.0;
     camera.up = vec3(0.0, 0.0, 1.0);
@@ -121,7 +121,7 @@ pub fn update(render_state: &mut RenderState, logic_state: &mut LogicState, engi
 
     let time = logic_state.start_time.elapsed();
 
-    logic_state.cgs_tree.set_example_tree_with_aabb_field(time.as_secs_f32());
+    logic_state.cgs_tree.set_example_tree_with_aabb_field(0.0);
     logic_state.cgs_tree.set_all_aabbs();
     logic_state.cgs_tree.make_data();
     render_state.csg_controller.set_data(&logic_state.cgs_tree.data)?;

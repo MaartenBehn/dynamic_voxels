@@ -14,7 +14,7 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 #define RENDER_DDA_STEPS false
 
 #define USE_DDA_SKIPPING true
-#define MAX_SKIP_STEPS 300
+#define MAX_SKIP_STEPS 500
 
 #define MAX_RAY_STEPS 50
 #define MAX_FULL_DDA_STEPS 500
@@ -55,9 +55,10 @@ void main () {
         while (dda_step_counter < MAX_FULL_DDA_STEPS) {
             dda_step_counter += 1;
 
-            float current_t = get_DDA_t(dda) + t_start;
+            float current_t = distance(dda.pos, ray.pos);
+            //float current_t = get_DDA_t(dda) + t_start;
             float next_t = interval.t_max;
-            bool exits = cgs_tree_at_pos(ray, floor(dda.pos), current_t - 0.1, next_t);
+            bool exits = cgs_tree_at_pos(ray, floor(dda.pos), current_t, next_t);
 
             if (RENDER_NEXT_T && RENDER_NEXT_T_AT == dda_step_counter) {
                 color = vec4(get_debug_color_gradient_from_float(float(next_t) / MAX_DEPTH), 1.0);
@@ -85,7 +86,6 @@ void main () {
             color = vec4(get_debug_color_gradient_from_float(float(dda_step_counter) / MAX_FULL_DDA_STEPS), 1.0);
         }
     }
-
 
     imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
 }

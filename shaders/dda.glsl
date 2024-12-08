@@ -15,13 +15,17 @@ struct DDA {
     bool out_of_bounds;
 };
 
+vec3 get_mask(vec3 side_dist) {
+    return vec3(lessThanEqual(side_dist.xyz, min(side_dist.yzx, side_dist.zxy)));
+}
+
 DDA init_DDA(in Ray ray, in vec3 start_pos, in vec3 lower_bound, in vec3 upper_bound) {
     vec3 cell = floor(start_pos);
     vec3 delta_dist = abs(vec3(length(ray.dir)) / ray.dir);
     vec3 delta = abs(1.0 / ray.dir);
     vec3 step = sign(ray.dir);
     vec3 side_dist = (step * (cell - start_pos) + (step * 0.5) + 0.5) * delta_dist;
-    vec3 mask;
+    vec3 mask = get_mask(side_dist);
 
     return DDA(start_pos, delta_dist, delta, step, side_dist, mask, lower_bound, upper_bound, false);
 }
@@ -40,17 +44,17 @@ DDA step_DDA(in DDA dda, in uint steps) {
                 dda.pos += dda.mask * dda.step;
             }
 
-            dda.mask = vec3(lessThanEqual(dda.side_dist.xyz, min(dda.side_dist.yzx, dda.side_dist.zxy)));
+            dda.mask = get_mask(dda.side_dist);
             dda.side_dist += dda.mask * dda.delta_dist;
             dda.pos += dda.mask * dda.step;
         }
 
-        dda.mask = vec3(lessThanEqual(dda.side_dist.xyz, min(dda.side_dist.yzx, dda.side_dist.zxy)));
+        dda.mask = get_mask(dda.side_dist);
         dda.side_dist += dda.mask * dda.delta_dist;
         dda.pos += dda.mask * dda.step;
     }
 
-    dda.mask = vec3(lessThanEqual(dda.side_dist.xyz, min(dda.side_dist.yzx, dda.side_dist.zxy)));
+    dda.mask = get_mask(dda.side_dist);
     dda.side_dist += dda.mask * dda.delta_dist;
     dda.pos += dda.mask * dda.step;
 
