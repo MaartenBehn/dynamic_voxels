@@ -17,6 +17,7 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 #define USE_DDA_INCREASE false
 
 #define RENDER_DDA_STEPS false
+#define RENDER_DISTANCE false
 
 #define MAX_DDA_STEPS 500
 #define MAX_DEPTH 300
@@ -82,8 +83,8 @@ void main () {
 
         uint interval_counter = 0;
         uint dda_step_counter = 0;
-        bool hit = false;
-        while (interval_counter < list.len && !hit && dda_step_counter < MAX_DDA_STEPS) {
+        uint material = 0;
+        while (interval_counter < list.len && material == 0 && dda_step_counter < MAX_DDA_STEPS) {
 
             float t_start = list.intervals[interval_counter].t_min + EPSILON;
             vec3 start_pos = get_ray_pos(ray, t_start);
@@ -91,11 +92,16 @@ void main () {
             DDA dda = init_DDA(ray, start_pos, aabb.min, aabb.max, 1.0);
 
             while (dda_step_counter < MAX_DDA_STEPS) {
-                hit = cgs_tree_at_pos(dda.cell);
+                material = cgs_tree_at_pos(dda.cell);
 
-                if (hit) {
-                    float current_t = get_DDA_t(dda) + t_start;
-                    color = vec4(get_debug_color_gradient_from_float(current_t / MAX_DEPTH), 1.0);
+                if (material != 0) {
+                    if (RENDER_DISTANCE) {
+                        float current_t = get_DDA_t(dda) + t_start;
+                        color = vec4(get_debug_color_gradient_from_float(current_t / MAX_DEPTH), 1.0);
+                    } else {
+                        color = COLOR_BUFFER[material];
+                    }
+
                     break;
                 }
 
@@ -121,13 +127,13 @@ void main () {
 
     if (USE_AABB_BASED_SCALE) {
         uint dda_step_counter = 0;
-        bool hit = false;
+        uint material = 0;
 
         float interval_t = 0;
         Interval interval;
         AABB aabb;
         float scale = 1.0;
-        while (!hit && cgs_tree_next_interval(ray, interval_t, interval, aabb) && dda_step_counter < MAX_DDA_STEPS) {
+        while (material == 0 && cgs_tree_next_interval(ray, interval_t, interval, aabb) && dda_step_counter < MAX_DDA_STEPS) {
 
             float t_start = max(interval.t_min, 0) + EPSILON;
             vec3 start_pos = get_ray_pos(ray, t_start);
@@ -143,11 +149,16 @@ void main () {
             DDA dda = init_DDA(ray, start_pos, aabb.min, aabb.max, scale);
 
             while (dda_step_counter < MAX_DDA_STEPS) {
-                hit = cgs_tree_at_pos(dda.cell);
+                material = cgs_tree_at_pos(dda.cell);
 
-                if (hit) {
-                    float current_t = get_DDA_t(dda) + t_start;
-                    color = vec4(get_debug_color_gradient_from_float(current_t / MAX_DEPTH), 1.0);
+                if (material != 0) {
+                    if (RENDER_DISTANCE) {
+                        float current_t = get_DDA_t(dda) + t_start;
+                        color = vec4(get_debug_color_gradient_from_float(current_t / MAX_DEPTH), 1.0);
+                    } else {
+                        color = COLOR_BUFFER[material];
+                    }
+
                     break;
                 }
 
@@ -173,13 +184,13 @@ void main () {
 
     if (USE_DDA_INCREASE) {
         uint dda_step_counter = 0;
-        bool hit = false;
+        uint material = 0;
 
         float interval_t = 0;
         Interval interval;
         AABB aabb;
         float scale = 1.0;
-        while (!hit && cgs_tree_next_interval(ray, interval_t, interval, aabb) && dda_step_counter < MAX_DDA_STEPS) {
+        while (material == 0 && cgs_tree_next_interval(ray, interval_t, interval, aabb) && dda_step_counter < MAX_DDA_STEPS) {
 
             float t_start = max(interval.t_min, 0) + EPSILON;
             vec3 start_pos = get_ray_pos(ray, t_start);
@@ -187,11 +198,16 @@ void main () {
             DDA_INC dda = init_DDA_INC(ray, start_pos, aabb.min, aabb.max, scale);
 
             while (dda_step_counter < MAX_DDA_STEPS) {
-                hit = cgs_tree_at_pos(dda.cell);
+                material = cgs_tree_at_pos(dda.cell);
 
-                if (hit) {
-                    float current_t = get_DDA_INC_t(dda) + t_start;
-                    color = vec4(get_debug_color_gradient_from_float(current_t / MAX_DEPTH), 1.0);
+                if (material != 0) {
+                    if (RENDER_DISTANCE) {
+                        float current_t = get_DDA_INC_t(dda) + t_start;
+                        color = vec4(get_debug_color_gradient_from_float(current_t / MAX_DEPTH), 1.0);
+                    } else {
+                        color = COLOR_BUFFER[material];
+                    }
+
                     break;
                 }
 

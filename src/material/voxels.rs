@@ -34,7 +34,7 @@ impl VoxelField {
                     let dist = (center - pos.as_vec3()).length();
 
                     if dist < radius {
-                        self.data[index] = 1;
+                        self.data[index] = 2;
                     } else {
                         self.data[index] = 0;
                     }

@@ -168,28 +168,38 @@ bool exits_cgs_object(vec3 pos, CGSObject object, uint type) {
     return false;
 }
 
-bool cgs_bool_operation(bool exits_1, bool exits_2, uint operation) {
+uint cgs_material_operation(uint material_1, uint material_2, uint operation) {
     if (operation == CGS_CHILD_TYPE_UNION) {
-        return exits_1 || exits_2;
+        if (material_1 != 0) {
+            return material_1;
+        }
+
+        if (material_2 != 0) {
+            return material_2;
+        }
     }
 
     if (operation == CGS_CHILD_TYPE_REMOVE) {
-        return exits_1 && !exits_2;
+        if (material_1 != 0 && material_2 == 0) {
+            return material_1;
+        }
     }
 
     if (operation == CGS_CHILD_TYPE_INTERSECT) {
-        return exits_1 && exits_2;
+        if (material_1 != 0 && material_2 != 0 && material_2 == 0) {
+            return material_1;
+        }
     }
 
-    return false;
+    return 0;
 }
 
-bool cgs_tree_at_pos(vec3 pos) {
+uint cgs_tree_at_pos(vec3 pos) {
     PROFILE("cgs_tree_at_pos");
     int stack_len = 0;
     uint stack[MAX_CGS_TREE_DEPTH];
     uint operation_stack[MAX_CGS_TREE_DEPTH + 1];
-    bool exits_1_stack[MAX_CGS_TREE_DEPTH + 1];
+    uint material_1_stack[MAX_CGS_TREE_DEPTH + 1];
     operation_stack[0] = CGS_CHILD_TYPE_UNION;
 
     bool is_left = false;
@@ -199,8 +209,8 @@ bool cgs_tree_at_pos(vec3 pos) {
     uint current = 0;
     CGSChild child;
     AABB aabb;
-    bool exits_2 = false;
-    bool exits = false;
+    uint material_2 = 0;
+    uint material = 0;
 
     uint i = 0;
 
@@ -209,9 +219,9 @@ bool cgs_tree_at_pos(vec3 pos) {
 
         if (perform) {
             uint operation = operation_stack[stack_len];
-            bool exits_1 = exits_1_stack[stack_len];
+            uint material_1 = material_1_stack[stack_len];
 
-            exits = cgs_bool_operation(exits_1, exits_2, operation);
+            material = cgs_material_operation(material_1, material_2, operation);
 
             if (stack_len <= 0) {
                 if (is_left) {
@@ -224,12 +234,12 @@ bool cgs_tree_at_pos(vec3 pos) {
                 current = stack[stack_len];
 
                 if (is_left) {
-                    exits_1_stack[stack_len] = exits;
+                    material_1_stack[stack_len] = material;
 
                     perform = false;
                     go_right = true;
                 } else {
-                    exits_2 = exits;
+                    material_2 = material;
                 }
             }
 
@@ -241,10 +251,10 @@ bool cgs_tree_at_pos(vec3 pos) {
 
         if (USE_AABB && !pos_in_aabb(pos, aabb.min, aabb.max)) {
             if (!go_right) {
-                exits_1_stack[stack_len] = false;;
+                material_1_stack[stack_len] = 0;;
                 go_right = true;
             } else {
-                exits_2 = false;
+                material_2 = 0;
                 perform = true;
             }
         } else {
@@ -266,13 +276,12 @@ bool cgs_tree_at_pos(vec3 pos) {
                 VoxelField voxle_filed = get_voxel_field(child.pointer);
                 uint index = get_voxel_field_index(pos, aabb);
                 uint voxel_value = get_voxel_value(voxle_filed.start, index);
-                bool hit = voxel_value != uint(0);
 
                 if (!go_right) {
-                    exits_1_stack[stack_len] = hit;
+                    material_1_stack[stack_len] = voxel_value;
                     go_right = true;
                 } else {
-                    exits_2 = hit;
+                    material_2 = voxel_value;
                     perform = true;
                 }
             } else {
@@ -281,17 +290,17 @@ bool cgs_tree_at_pos(vec3 pos) {
 
 
                 if (!go_right) {
-                    exits_1_stack[stack_len] = hit;
+                    material_1_stack[stack_len] = uint(hit);
                     go_right = true;
                 } else {
-                    exits_2 = hit;
+                    material_2 = uint(hit);
                     perform = true;
                 }
             }
         }
     }
 
-    return exits;
+    return material;
 }
 
 struct IntervalList {

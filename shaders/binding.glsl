@@ -32,4 +32,11 @@ layout(binding = 3, std430) buffer Material {
 
 #define MATERIAL_BUFFER material_buffer.data
 
+#define MAX_COLOR_BUFFER_SIZE 256
+layout(binding = 4) uniform ColorBuffer {
+    vec4[MAX_COLOR_BUFFER_SIZE] data;
+} color_buffer;
+
+#define COLOR_BUFFER color_buffer.data
+
 #endif // _BINDING_GLSL_

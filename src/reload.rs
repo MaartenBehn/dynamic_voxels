@@ -5,6 +5,7 @@ mod aabb;
 mod buddy_controller;
 mod material;
 mod util;
+mod color;
 
 use std::time::{Duration, Instant};
 use log::debug;
@@ -20,6 +21,7 @@ use glsl_compiler::glsl;
 use octa_force::puffin_egui::puffin;
 use crate::cgs_tree::controller::CSGController;
 use crate::cgs_tree::tree::{CSGTree, VOXEL_SIZE};
+use crate::color::ColorController;
 use crate::material::controller::MaterialController;
 use crate::material::voxels::VoxelField;
 use crate::profiler::ShaderProfiler;
@@ -32,6 +34,7 @@ pub struct RenderState {
     pub csg_controller: CSGController,
     pub material_controller: MaterialController,
     pub voxel_field: VoxelField,
+    pub color_controller: ColorController,
     pub renderer: Renderer,
     pub profiler: Option<ShaderProfiler>,
 }
@@ -69,6 +72,8 @@ pub fn new_render_state(engine: &mut Engine, ) -> OctaResult<RenderState> {
     voxel_field.set_example_sphere();
     material_controller.allocate_voxel_field(&mut voxel_field)?;
     material_controller.push_voxel_field(&voxel_field)?;
+    
+    let color_controller = ColorController::new(&engine.context)?;
 
     let profiler = if engine.context.shader_clock {
         Some(ShaderProfiler::new(&engine.context, engine.swapchain.format, engine.swapchain.size, engine.num_frames, profile_scopes, &mut gui.renderer)?)
@@ -76,13 +81,22 @@ pub fn new_render_state(engine: &mut Engine, ) -> OctaResult<RenderState> {
         None
     };
     
-    let renderer = Renderer::new(&engine.context, engine.swapchain.size, engine.num_frames, &csg_controller, &material_controller, &profiler, shader_bin)?;
+    let renderer = Renderer::new(
+        &engine.context, 
+        engine.swapchain.size, 
+        engine.num_frames, 
+        &csg_controller, 
+        &material_controller, 
+        &color_controller, 
+        &profiler, 
+        shader_bin)?;
 
     Ok(RenderState {
         gui,
         csg_controller,
         material_controller,
         voxel_field,
+        color_controller,
         renderer,
         profiler,
     })
@@ -121,7 +135,7 @@ pub fn update(render_state: &mut RenderState, logic_state: &mut LogicState, engi
 
     let time = logic_state.start_time.elapsed();
 
-    logic_state.cgs_tree.set_example_tree(time.as_secs_f32());
+    logic_state.cgs_tree.set_example_tree_with_aabb_field(time.as_secs_f32());
     logic_state.cgs_tree.set_all_aabbs();
     logic_state.cgs_tree.make_data();
     render_state.csg_controller.set_data(&logic_state.cgs_tree.data)?;
