@@ -14,7 +14,7 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
 #define USE_INTERVAL_LIST false
 #define USE_AABB_BASED_SCALE true
-#define USE_CONTINUS_SCALE false
+#define USE_DDA_INCREASE false
 
 #define RENDER_DDA_STEPS false
 
@@ -91,7 +91,7 @@ void main () {
             DDA dda = init_DDA(ray, start_pos, aabb.min, aabb.max, 1.0);
 
             while (dda_step_counter < MAX_DDA_STEPS) {
-                hit = cgs_tree_at_pos(floor(dda.pos));
+                hit = cgs_tree_at_pos(dda.cell);
 
                 if (hit) {
                     float current_t = get_DDA_t(dda) + t_start;
@@ -115,9 +115,11 @@ void main () {
             interval_counter += 1;
         }
 
+        imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
+        return;
+    }
 
-    } else {
-
+    if (USE_AABB_BASED_SCALE) {
         uint dda_step_counter = 0;
         bool hit = false;
 
@@ -130,39 +132,23 @@ void main () {
             float t_start = max(interval.t_min, 0) + EPSILON;
             vec3 start_pos = get_ray_pos(ray, t_start);
 
-            if (USE_AABB_BASED_SCALE) {
-                if (interval.t_min < 0) {
-                    scale = 1;
-                } else {
-                    vec3 aabb_closest_point = min(abs(ray.pos - aabb.min), abs(ray.pos - aabb.max));
-                    float dist_to_aabb = length(aabb_closest_point);
-                    scale = clamp(exp2(floor(dist_to_aabb / 50.0)), 1, 16);
-                }
+            if (interval.t_min < 0) {
+                scale = 1;
+            } else {
+                vec3 aabb_closest_point = min(abs(ray.pos - aabb.min), abs(ray.pos - aabb.max));
+                float dist_to_aabb = length(aabb_closest_point);
+                scale = clamp(exp2(floor(dist_to_aabb / 50.0)), 1, 16);
             }
 
             DDA dda = init_DDA(ray, start_pos, aabb.min, aabb.max, scale);
 
             while (dda_step_counter < MAX_DDA_STEPS) {
-
-                vec3 voxel_pos = floor(dda.pos / scale) * scale;
-                hit = cgs_tree_at_pos(voxel_pos);
+                hit = cgs_tree_at_pos(dda.cell);
 
                 if (hit) {
                     float current_t = get_DDA_t(dda) + t_start;
                     color = vec4(get_debug_color_gradient_from_float(current_t / MAX_DEPTH), 1.0);
                     break;
-                }
-
-                if (USE_CONTINUS_SCALE) {
-                    float dist_to_voxel = distance(voxel_pos, ray.pos);
-                    scale = clamp(exp2(floor(dist_to_voxel / 20.0)), 1, 16);
-
-                    /*
-                    vec3 new_pos = floor(dda.pos / new_scale) * new_scale;
-                    if (new_pos == voxel_pos) {
-                        scale = new_scale;
-                    }
-                    */
                 }
 
                 dda = step_DDA(dda);
@@ -180,10 +166,54 @@ void main () {
 
             interval_t = interval.t_max + EPSILON;
         }
+
+        imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
+        return;
     }
 
+    if (USE_DDA_INCREASE) {
+        uint dda_step_counter = 0;
+        bool hit = false;
 
-    imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
+        float interval_t = 0;
+        Interval interval;
+        AABB aabb;
+        float scale = 1.0;
+        while (!hit && cgs_tree_next_interval(ray, interval_t, interval, aabb) && dda_step_counter < MAX_DDA_STEPS) {
+
+            float t_start = max(interval.t_min, 0) + EPSILON;
+            vec3 start_pos = get_ray_pos(ray, t_start);
+
+            DDA_INC dda = init_DDA_INC(ray, start_pos, aabb.min, aabb.max, scale);
+
+            while (dda_step_counter < MAX_DDA_STEPS) {
+                hit = cgs_tree_at_pos(dda.cell);
+
+                if (hit) {
+                    float current_t = get_DDA_INC_t(dda) + t_start;
+                    color = vec4(get_debug_color_gradient_from_float(current_t / MAX_DEPTH), 1.0);
+                    break;
+                }
+
+                dda = step_DDA(dda);
+
+                if (dda.out_of_bounds) {
+                    break;
+                }
+
+                dda_step_counter += 1;
+            }
+
+            if (RENDER_DDA_STEPS) {
+                color = vec4(get_debug_color_gradient_from_float(float(dda_step_counter) / MAX_DDA_STEPS), 1.0);
+            }
+
+            interval_t = interval.t_max + EPSILON;
+        }
+
+        imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
+        return;
+    }
 }
 
 

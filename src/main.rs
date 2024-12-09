@@ -19,7 +19,7 @@ fn main() {
             compute_rendering: EngineFeatureValue::Needed,
             validation_layers: EngineFeatureValue::Needed,
             shader_debug_printing: EngineFeatureValue::Needed,
-            shader_debug_clock: if USE_PROFILE {EngineFeatureValue::Wanted} else {EngineFeatureValue::NotUsed},
+            shader_debug_clock: if USE_PROFILE {EngineFeatureValue::Needed} else {EngineFeatureValue::NotUsed},
             GL_EXT_scalar_block_layout: EngineFeatureValue::Needed,
             hot_reload_config: Some(HotReloadConfig{
                 lib_dir: "target/debug".to_string(),

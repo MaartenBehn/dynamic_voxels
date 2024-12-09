@@ -375,7 +375,7 @@ void cgs_tree_interval_list(Ray ray, out IntervalList list) {
             } else {
                 stack[stack_len] = child.pointer;
                 stack[stack_len + 1] = child.pointer + 1;
-                stack_len += 1;
+                stack_len += 2;
             }
         }
     }
@@ -420,7 +420,7 @@ bool cgs_tree_next_interval(Ray ray, float current_t, out Interval interval, out
                 } else {
                     stack[stack_len] = child.pointer;
                     stack[stack_len + 1] = child.pointer + 1;
-                    stack_len += 1;
+                    stack_len += 2;
                 }
             }
         }

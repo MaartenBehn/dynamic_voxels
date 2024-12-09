@@ -70,7 +70,7 @@ impl CSGTree {
             CSGNode::new(CSGNodeData::Sphere(Mat4::from_scale_rotation_translation(
                 (vec3(2.0, 1.0, 3.0) + simple_easing::cubic_in_out(frac_2) * 2.0) * VOXEL_SIZE,
                 Quat::from_euler(EulerRot::XYZ, 0.0,0.0,0.0),
-                vec3(2.0 + frac_3, 1.0 + frac_2, 0.0)  * VOXEL_SIZE
+                vec3(2.0 + frac_3, 1.0 + frac_2 * 10.0, 0.0)  * VOXEL_SIZE
             ), MATERIAL_NONE)),
 
             CSGNode::new(CSGNodeData::Sphere(Mat4::from_scale_rotation_translation(
@@ -152,10 +152,14 @@ impl CSGTree {
 
         let node = self.nodes[i].to_owned();
         match node.data {
-            CSGNodeData::Union(child1, child2)
-            | CSGNodeData::Remove(child1, child2)
-            | CSGNodeData::Intersect(child1, child2) => {
-                self.nodes[i].aabb = self.nodes[child1].aabb.merge(self.nodes[child2].aabb);
+            CSGNodeData::Union(child1, child2) => {
+                self.nodes[i].aabb = self.nodes[child1].aabb.union(self.nodes[child2].aabb);
+            }
+            CSGNodeData::Remove(child1, child2) => {
+                self.nodes[i].aabb = self.nodes[child1].aabb;
+            }
+            CSGNodeData::Intersect(child1, child2) => {
+                self.nodes[i].aabb = self.nodes[child1].aabb.intersect(self.nodes[child2].aabb);
             }
             _ => {panic!("propergate_aabb_change can only be called for Union, Remove or Intersect")}
         }

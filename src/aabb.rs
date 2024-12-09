@@ -48,10 +48,17 @@ impl AABB {
         }
     }
 
-    pub fn merge(self, other: AABB) -> AABB {
+    pub fn union(self, other: AABB) -> AABB {
         AABB {
             min: self.min.min(other.min),
             max: self.max.max(other.max),
+        }
+    }
+
+    pub fn intersect(self, other: AABB) -> AABB {
+        AABB {
+            min: self.min.max(other.min),
+            max: self.max.min(other.max),
         }
     }
 }
