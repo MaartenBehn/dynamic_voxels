@@ -13,6 +13,8 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 #define RENDER_INTERVALS_LAYER 1
 
 #define USE_INTERVAL_LIST false
+#define USE_AABB_BASED_SCALE true
+#define USE_CONTINUS_SCALE false
 
 #define RENDER_DDA_STEPS false
 
@@ -122,21 +124,45 @@ void main () {
         float interval_t = 0;
         Interval interval;
         AABB aabb;
-        float scale = 8.0;
+        float scale = 1.0;
         while (!hit && cgs_tree_next_interval(ray, interval_t, interval, aabb) && dda_step_counter < MAX_DDA_STEPS) {
 
             float t_start = max(interval.t_min, 0) + EPSILON;
             vec3 start_pos = get_ray_pos(ray, t_start);
-            scale = clamp(floor(t_start / 50.0), 1, 16);
+
+            if (USE_AABB_BASED_SCALE) {
+                if (interval.t_min < 0) {
+                    scale = 1;
+                } else {
+                    vec3 aabb_closest_point = min(abs(ray.pos - aabb.min), abs(ray.pos - aabb.max));
+                    float dist_to_aabb = length(aabb_closest_point);
+                    scale = clamp(exp2(floor(dist_to_aabb / 50.0)), 1, 16);
+                }
+            }
+
             DDA dda = init_DDA(ray, start_pos, aabb.min, aabb.max, scale);
 
             while (dda_step_counter < MAX_DDA_STEPS) {
-                hit = cgs_tree_at_pos(floor(dda.pos / scale) * scale);
+
+                vec3 voxel_pos = floor(dda.pos / scale) * scale;
+                hit = cgs_tree_at_pos(voxel_pos);
 
                 if (hit) {
                     float current_t = get_DDA_t(dda) + t_start;
                     color = vec4(get_debug_color_gradient_from_float(current_t / MAX_DEPTH), 1.0);
                     break;
+                }
+
+                if (USE_CONTINUS_SCALE) {
+                    float dist_to_voxel = distance(voxel_pos, ray.pos);
+                    scale = clamp(exp2(floor(dist_to_voxel / 20.0)), 1, 16);
+
+                    /*
+                    vec3 new_pos = floor(dda.pos / new_scale) * new_scale;
+                    if (new_pos == voxel_pos) {
+                        scale = new_scale;
+                    }
+                    */
                 }
 
                 dda = step_DDA(dda);

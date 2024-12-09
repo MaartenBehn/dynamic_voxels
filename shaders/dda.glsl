@@ -12,6 +12,7 @@ struct DDA {
     vec3 lower_bound;
     vec3 upper_bound;
     bool out_of_bounds;
+    float scale;
 };
 
 vec3 get_mask(vec3 side_dist) {
@@ -25,15 +26,15 @@ DDA init_DDA(in Ray ray, in vec3 start_pos, in vec3 lower_bound, in vec3 upper_b
     vec3 side_dist = (step * (cell - start_pos) + (step * 0.5) + 0.5) * delta_dist;
     vec3 mask = get_mask(side_dist);
 
-    return DDA(start_pos, delta_dist * scale, step * scale, side_dist, mask, lower_bound, upper_bound, false);
+    return DDA(start_pos, delta_dist, step, side_dist, mask, lower_bound, upper_bound, false, scale);
 }
 
 DDA step_DDA(in DDA dda) {
     PROFILE("step_DDA");
 
     dda.mask = get_mask(dda.side_dist);
-    dda.side_dist += dda.mask * dda.delta_dist;
-    dda.pos += dda.mask * dda.step;
+    dda.side_dist += dda.mask * dda.delta_dist * dda.scale;
+    dda.pos += dda.mask * dda.step * dda.scale;
 
     dda.out_of_bounds =
       (dda.mask.x != 0 && (dda.pos.x < dda.lower_bound.x || dda.pos.x > dda.upper_bound.x)
