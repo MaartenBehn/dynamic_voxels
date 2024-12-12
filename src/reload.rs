@@ -15,6 +15,7 @@ use crate::material::controller::MaterialController;
 use crate::material::voxels::VoxelField;
 use crate::profiler::ShaderProfiler;
 use crate::render::Renderer;
+use cgs_tree::tree::AABB_PADDING;
 use glsl_compiler::glsl;
 use log::debug;
 use octa_force::camera::Camera;
@@ -178,7 +179,7 @@ pub fn update(
     logic_state
         .cgs_tree
         .set_example_tree_with_aabb_field(time.as_secs_f32());
-    logic_state.cgs_tree.set_all_aabbs();
+    logic_state.cgs_tree.set_all_aabbs(AABB_PADDING);
     logic_state.cgs_tree.make_data();
     render_state
         .csg_controller

@@ -14,7 +14,7 @@ const CGS_CHILD_TYPE_VOXEL: u32 = 4;
 const CGS_CHILD_TYPE_BOX: u32 = 5;
 const CGS_CHILD_TYPE_SPHERE: u32 = 6;
 
-const AABB_PADDING: f32 = 10.0;
+pub const AABB_PADDING: f32 = 10.0;
 pub const VOXEL_SIZE: f32 = 10.0;
 pub type Material = usize;
 pub const MATERIAL_NONE: usize = usize::MAX;
@@ -140,7 +140,7 @@ impl CSGTree {
         ];
     }
 
-    pub fn set_all_aabbs(&mut self) {
+    pub fn set_all_aabbs(&mut self, padding: f32) {
         #[cfg(debug_assertions)]
         puffin::profile_function!();
 
@@ -148,7 +148,7 @@ impl CSGTree {
         for (i, node) in self.nodes.iter_mut().enumerate() {
             match node.data {
                 CSGNodeData::Box(..) | CSGNodeData::Sphere(..) => {
-                    Self::set_leaf_aabb(node);
+                    Self::set_leaf_aabb(node, padding);
                     propergate_ids.push(i);
                 }
                 _ => {}
@@ -205,10 +205,10 @@ impl CSGTree {
             .collect()
     }
 
-    pub fn set_leaf_aabb(node: &mut CSGNode) {
+    pub fn set_leaf_aabb(node: &mut CSGNode, padding: f32) {
         match node.data {
-            CSGNodeData::Box(mat, ..) => node.aabb = AABB::from_box(&mat, AABB_PADDING),
-            CSGNodeData::Sphere(mat, ..) => node.aabb = AABB::from_sphere(&mat, AABB_PADDING),
+            CSGNodeData::Box(mat, ..) => node.aabb = AABB::from_box(&mat, padding),
+            CSGNodeData::Sphere(mat, ..) => node.aabb = AABB::from_sphere(&mat, padding),
             _ => {
                 panic!("set_leaf_aabb can only be called for Box or Sphere")
             }

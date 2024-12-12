@@ -2,8 +2,7 @@ use crate::{
     aabb::AABB,
     cgs_tree::tree::{CSGNode, CSGNodeData, CSGTree, MATERIAL_NONE},
 };
-use ::octa_force::glam::Mat4;
-use octa_force::glam::{ivec3, vec3, vec4, Vec3, Vec4Swizzles};
+use octa_force::glam::{ivec3, vec3, vec4, Mat4, Quat, Vec3, Vec4Swizzles};
 
 use super::controller::WFCController;
 
@@ -16,7 +15,7 @@ pub enum WFCNode {
     Pos(Vec3),
 
     Box {
-        mat: Mat4,
+        pipe_volume: usize,
         max_pipe_nodes: usize,
         min_pipe_nodes: usize,
 
@@ -79,19 +78,13 @@ impl WFCController {
                     "PipeNode box_index needs to be a index of a Box"
                 );
 
-                let mat = match box_node {
-                    WFCNode::Box { mat, .. } => mat,
+                let volume_index = match box_node {
+                    WFCNode::Box { pipe_volume, .. } => *pipe_volume,
                     _ => unreachable!(),
                 };
 
-                let mut csg = CSGTree::new();
-                csg.nodes = vec![CSGNode::new(CSGNodeData::Box(*mat, MATERIAL_NONE))];
-                csg.set_all_aabbs();
-
-                let pos_index = self.add_node(WFCNode::Volume(csg));
-
                 match &mut self.nodes[index] {
-                    WFCNode::PipeNode { pos_index: pos, .. } => *pos = pos_index,
+                    WFCNode::PipeNode { pos_index: pos, .. } => *pos = volume_index,
                     _ => unreachable!(),
                 }
             }
@@ -126,10 +119,26 @@ impl WFCController {
 
                     return;
                 }
+                let new_pos = new_pos.unwrap();
 
-                self.nodes[pos_index] = WFCNode::None;
+                match &mut self.nodes[pos_index] {
+                    WFCNode::Volume(csg) => {
+                        let mut tree = CSGTree::new();
+                        tree.nodes.push(CSGNode::new(CSGNodeData::Sphere(
+                            Mat4::from_scale_rotation_translation(
+                                Vec3::ONE * 0.01,
+                                Quat::from_euler(octa_force::glam::EulerRot::XYZ, 0.0, 0.0, 0.0),
+                                new_pos,
+                            ),
+                            MATERIAL_NONE,
+                        )));
+                        csg.append_tree_with_remove(tree);
+                        csg.set_all_aabbs(0.0);
+                    }
+                    _ => unreachable!(),
+                }
 
-                let pos_index = self.add_node(WFCNode::Pos(new_pos.unwrap()));
+                let pos_index = self.add_node(WFCNode::Pos(new_pos));
 
                 match &mut self.nodes[index] {
                     WFCNode::PipeNode { pos_index: pos, .. } => *pos = pos_index,
@@ -145,12 +154,13 @@ impl CSGTree {
     pub fn find_valid_pos(&self, grid_size: f32) -> Option<Vec3> {
         let aabb = &self.nodes[0].aabb;
 
-        let min = (aabb.min * grid_size).as_ivec3();
-        let max = (aabb.max * grid_size).as_ivec3();
+        let min = (aabb.min / grid_size).as_ivec3();
+        let max = (aabb.max / grid_size).as_ivec3();
         for x in min.x..=max.x {
             for y in min.y..=max.y {
                 for z in min.z..max.z {
-                    let pos = ivec3(x, y, z).as_vec3() / grid_size;
+                    let pos = ivec3(x, y, z).as_vec3() * grid_size;
+
                     if self.at_pos(pos) {
                         return Some(pos);
                     }
@@ -179,7 +189,7 @@ impl CSGTree {
                 self.at_pos_internal(pos, c1) && self.at_pos_internal(pos, c2)
             }
             CSGNodeData::Box(mat, _) => {
-                let pos = mat.mul_vec4(vec4(pos.x, pos.y, pos.z, 1.0)).xyz();
+                let pos = mat.inverse().mul_vec4(vec4(pos.x, pos.y, pos.z, 1.0)).xyz();
 
                 let aabb = AABB {
                     min: vec3(-0.5, -0.5, -0.5),
@@ -189,12 +199,38 @@ impl CSGTree {
                 aabb.pos_in_aabb(pos)
             }
             CSGNodeData::Sphere(mat, _) => {
-                let pos = mat.mul_vec4(vec4(pos.x, pos.y, pos.z, 1.0)).xyz();
+                let pos = mat.inverse().mul_vec4(vec4(pos.x, pos.y, pos.z, 1.0)).xyz();
 
                 pos_in_sphere(pos, vec3(0.0, 0.0, 0.0), 1.0)
             }
             CSGNodeData::VoxelVolume(_) => todo!(),
         }
+    }
+
+    pub fn append_tree_with_remove(&mut self, mut tree: CSGTree) {
+        self.insert_node_before(CSGNode::new(CSGNodeData::Remove(1, self.nodes.len() + 1)));
+
+        tree.shift_node_pointers(self.nodes.len());
+
+        self.nodes.append(&mut tree.nodes);
+    }
+    pub fn shift_node_pointers(&mut self, ammount: usize) {
+        for i in 0..self.nodes.len() {
+            match &mut self.nodes[i].data {
+                CSGNodeData::Union(c1, c2)
+                | CSGNodeData::Remove(c1, c2)
+                | CSGNodeData::Intersect(c1, c2) => {
+                    *c1 += ammount;
+                    *c2 += ammount;
+                }
+                _ => {}
+            }
+        }
+    }
+    pub fn insert_node_before(&mut self, node: CSGNode) {
+        self.shift_node_pointers(1);
+
+        self.nodes.insert(0, node);
     }
 }
 
