@@ -1,3 +1,7 @@
+use crate::cgs_tree::controller::CSGController;
+use crate::color::ColorController;
+use crate::material::controller::MaterialController;
+use crate::profiler::ShaderProfiler;
 use octa_force::anyhow::Result;
 use octa_force::camera::Camera;
 use octa_force::glam::{UVec2, Vec3};
@@ -11,10 +15,6 @@ use octa_force::vulkan::{
 use octa_force::ImageAndView;
 use std::mem::size_of;
 use std::time::Duration;
-use crate::cgs_tree::controller::CSGController;
-use crate::color::ColorController;
-use crate::material::controller::MaterialController;
-use crate::profiler::{ShaderProfiler};
 
 const RENDER_DISPATCH_GROUP_SIZE_X: u32 = 32;
 const RENDER_DISPATCH_GROUP_SIZE_Y: u32 = 32;
@@ -45,7 +45,6 @@ pub struct RenderBuffer {
     fill3: f32,
 }
 
-
 impl Renderer {
     pub fn new(
         context: &Context,
@@ -64,7 +63,6 @@ impl Renderer {
             MemoryLocation::CpuToGpu,
             size_of::<RenderBuffer>() as _,
         )?;
-
 
         let descriptor_pool = context.create_descriptor_pool(
             num_frames as u32,
@@ -91,7 +89,6 @@ impl Renderer {
                 },
             ],
         )?;
-
 
         let mut descriptor_layout_bindings = vec![
             vk::DescriptorSetLayoutBinding {
@@ -132,10 +129,12 @@ impl Renderer {
         ];
 
         if profiler.is_some() {
-            descriptor_layout_bindings.extend_from_slice(&profiler.as_ref().unwrap().descriptor_layout_bindings());
+            descriptor_layout_bindings
+                .extend_from_slice(&profiler.as_ref().unwrap().descriptor_layout_bindings());
         }
 
-        let descriptor_layout = context.create_descriptor_set_layout(&descriptor_layout_bindings)?;
+        let descriptor_layout =
+            context.create_descriptor_set_layout(&descriptor_layout_bindings)?;
 
         let mut descriptor_sets = Vec::new();
         for i in 0..num_frames {
@@ -176,7 +175,8 @@ impl Renderer {
             ];
 
             if profiler.is_some() {
-                write_descriptor_sets.extend_from_slice(&profiler.as_ref().unwrap().write_descriptor_sets());
+                write_descriptor_sets
+                    .extend_from_slice(&profiler.as_ref().unwrap().write_descriptor_sets());
             }
 
             descriptor_set.update(&write_descriptor_sets);
@@ -192,7 +192,6 @@ impl Renderer {
                 shader_source: shader_bin,
             },
         )?;
-
 
         Ok(Renderer {
             storage_images,
@@ -282,3 +281,4 @@ impl RenderBuffer {
         }
     }
 }
+

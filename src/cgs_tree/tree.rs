@@ -1,19 +1,18 @@
-
-use std::{slice};
-use std::f32::consts::PI;
+use crate::aabb::AABB;
+use crate::cgs_tree::controller::MAX_CGS_TREE_DATA_SIZE;
 use octa_force::glam::{uvec3, vec3, EulerRot, Mat4, Quat, UVec3, Vec3};
 use octa_force::log::{error, info};
 use octa_force::puffin_egui::puffin;
-use crate::aabb::AABB;
-use crate::cgs_tree::controller::MAX_CGS_TREE_DATA_SIZE;
+use std::f32::consts::PI;
+use std::slice;
 
-const CGS_CHILD_TYPE_NONE: u32 =  0;
-const CGS_CHILD_TYPE_UNION: u32 =  1;
-const CGS_CHILD_TYPE_REMOVE: u32 =  2;
-const CGS_CHILD_TYPE_INTERSECT: u32 =  3;
-const CGS_CHILD_TYPE_VOXEL: u32 =  4;
-const CGS_CHILD_TYPE_BOX: u32 =  5;
-const CGS_CHILD_TYPE_SPHERE: u32 =  6;
+const CGS_CHILD_TYPE_NONE: u32 = 0;
+const CGS_CHILD_TYPE_UNION: u32 = 1;
+const CGS_CHILD_TYPE_REMOVE: u32 = 2;
+const CGS_CHILD_TYPE_INTERSECT: u32 = 3;
+const CGS_CHILD_TYPE_VOXEL: u32 = 4;
+const CGS_CHILD_TYPE_BOX: u32 = 5;
+const CGS_CHILD_TYPE_SPHERE: u32 = 6;
 
 const AABB_PADDING: f32 = 10.0;
 pub const VOXEL_SIZE: f32 = 10.0;
@@ -23,7 +22,7 @@ pub const MATERIAL_NONE: usize = usize::MAX;
 #[derive(Clone, Debug)]
 pub struct CSGNode {
     data: CSGNodeData,
-    aabb: AABB
+    aabb: AABB,
 }
 
 #[derive(Clone, Debug)]
@@ -33,7 +32,7 @@ pub enum CSGNodeData {
     Intersect(usize, usize),
     Box(Mat4, Material),
     Sphere(Mat4, Material),
-    VoxelVolume(Material)
+    VoxelVolume(Material),
 }
 
 #[derive(Clone)]
@@ -60,27 +59,37 @@ impl CSGTree {
         self.nodes = vec![
             CSGNode::new(CSGNodeData::Union(1, 4)),
             CSGNode::new(CSGNodeData::Remove(2, 3)),
-
-            CSGNode::new(CSGNodeData::Box(Mat4::from_scale_rotation_translation(
-                (vec3(2.0, 5.0 , 7.0) + simple_easing::expo_in_out(frac)) * VOXEL_SIZE,
-                Quat::from_euler(EulerRot::XYZ, (time * 0.1) % (2.0 * PI),(time * 0.11) % (2.0 * PI),0.0),
-                vec3(3.0, 3.0, 0.0)  * VOXEL_SIZE
-            ), MATERIAL_NONE)),
-
-            CSGNode::new(CSGNodeData::Sphere(Mat4::from_scale_rotation_translation(
-                (vec3(2.0, 1.0, 3.0) + simple_easing::cubic_in_out(frac_2) * 2.0) * VOXEL_SIZE,
-                Quat::from_euler(EulerRot::XYZ, 0.0,0.0,0.0),
-                vec3(2.0 + frac_3, 1.0 + frac_2 * 10.0, 0.0)  * VOXEL_SIZE
-            ), MATERIAL_NONE)),
-
-            CSGNode::new(CSGNodeData::Sphere(Mat4::from_scale_rotation_translation(
-                (vec3(3.0, 3.0, 1.0) + simple_easing::back_in_out(frac) * 10.0) * VOXEL_SIZE,
-                Quat::from_euler(EulerRot::XYZ, 0.0,0.0,0.0),
-                vec3(10.0 + frac * 30.0, 10.0 + frac_3 * 100.0, 0.0) * VOXEL_SIZE
-            ), MATERIAL_NONE)),
+            CSGNode::new(CSGNodeData::Box(
+                Mat4::from_scale_rotation_translation(
+                    (vec3(2.0, 5.0, 7.0) + simple_easing::expo_in_out(frac)) * VOXEL_SIZE,
+                    Quat::from_euler(
+                        EulerRot::XYZ,
+                        (time * 0.1) % (2.0 * PI),
+                        (time * 0.11) % (2.0 * PI),
+                        0.0,
+                    ),
+                    vec3(3.0, 3.0, 0.0) * VOXEL_SIZE,
+                ),
+                MATERIAL_NONE,
+            )),
+            CSGNode::new(CSGNodeData::Sphere(
+                Mat4::from_scale_rotation_translation(
+                    (vec3(2.0, 1.0, 3.0) + simple_easing::cubic_in_out(frac_2) * 2.0) * VOXEL_SIZE,
+                    Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, 0.0),
+                    vec3(2.0 + frac_3, 1.0 + frac_2 * 10.0, 0.0) * VOXEL_SIZE,
+                ),
+                MATERIAL_NONE,
+            )),
+            CSGNode::new(CSGNodeData::Sphere(
+                Mat4::from_scale_rotation_translation(
+                    (vec3(3.0, 3.0, 1.0) + simple_easing::back_in_out(frac) * 10.0) * VOXEL_SIZE,
+                    Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, 0.0),
+                    vec3(10.0 + frac * 30.0, 10.0 + frac_3 * 100.0, 0.0) * VOXEL_SIZE,
+                ),
+                MATERIAL_NONE,
+            )),
         ];
-        
-        
+
         /*
         self.nodes = vec![
             CSGNode::Union(1, 2, Material::None, AABB::default()),
@@ -97,7 +106,7 @@ impl CSGTree {
                 vec3(0.0, 0.0, 0.0)
             ), AABB::default()),
         ];
-        
+
          */
     }
 
@@ -108,20 +117,29 @@ impl CSGTree {
 
         self.nodes = vec![
             CSGNode::new(CSGNodeData::Union(1, 2)),
-
-            CSGNode::new(CSGNodeData::Box(Mat4::from_scale_rotation_translation(
-                (vec3(2.0, 5.0 , 7.0) + simple_easing::expo_in_out(frac)) * VOXEL_SIZE,
-                Quat::from_euler(EulerRot::XYZ, (time * 0.1) % (2.0 * PI),(time * 0.11) % (2.0 * PI),0.0),
-                vec3(10.0, 10.0, 0.0) * VOXEL_SIZE
-            ), MATERIAL_NONE)),
-            
-            CSGNode::new_with_aabb(CSGNodeData::VoxelVolume(0), AABB {
-                min: Vec3::ZERO,
-                max: Vec3::ONE * 16.0,
-            })
+            CSGNode::new(CSGNodeData::Box(
+                Mat4::from_scale_rotation_translation(
+                    (vec3(2.0, 5.0, 7.0) + simple_easing::expo_in_out(frac)) * VOXEL_SIZE,
+                    Quat::from_euler(
+                        EulerRot::XYZ,
+                        (time * 0.1) % (2.0 * PI),
+                        (time * 0.11) % (2.0 * PI),
+                        0.0,
+                    ),
+                    vec3(10.0, 10.0, 0.0) * VOXEL_SIZE,
+                ),
+                MATERIAL_NONE,
+            )),
+            CSGNode::new_with_aabb(
+                CSGNodeData::VoxelVolume(0),
+                AABB {
+                    min: Vec3::ZERO,
+                    max: Vec3::ONE * 16.0,
+                },
+            ),
         ];
     }
-    
+
     pub fn set_all_aabbs(&mut self) {
         #[cfg(debug_assertions)]
         puffin::profile_function!();
@@ -149,7 +167,6 @@ impl CSGTree {
     }
 
     pub fn propergate_aabb_change(&mut self, i: usize) {
-
         let node = self.nodes[i].to_owned();
         match node.data {
             CSGNodeData::Union(child1, child2) => {
@@ -161,12 +178,15 @@ impl CSGTree {
             CSGNodeData::Intersect(child1, child2) => {
                 self.nodes[i].aabb = self.nodes[child1].aabb.intersect(self.nodes[child2].aabb);
             }
-            _ => {panic!("propergate_aabb_change can only be called for Union, Remove or Intersect")}
+            _ => {
+                panic!("propergate_aabb_change can only be called for Union, Remove or Intersect")
+            }
         }
     }
 
     pub fn get_id_parents(&self, ids: &[usize]) -> Vec<usize> {
-        self.nodes.iter()
+        self.nodes
+            .iter()
             .enumerate()
             .filter_map(|(i, node)| {
                 match node.data {
@@ -187,9 +207,11 @@ impl CSGTree {
 
     pub fn set_leaf_aabb(node: &mut CSGNode) {
         match node.data {
-            CSGNodeData::Box(mat, ..) => { node.aabb = AABB::from_box(&mat, AABB_PADDING) }
-            CSGNodeData::Sphere(mat, ..) => { node.aabb = AABB::from_sphere(&mat, AABB_PADDING) }
-            _ => {panic!("set_leaf_aabb can only be called for Box or Sphere")}
+            CSGNodeData::Box(mat, ..) => node.aabb = AABB::from_box(&mat, AABB_PADDING),
+            CSGNodeData::Sphere(mat, ..) => node.aabb = AABB::from_sphere(&mat, AABB_PADDING),
+            _ => {
+                panic!("set_leaf_aabb can only be called for Box or Sphere")
+            }
         }
     }
 
@@ -200,7 +222,11 @@ impl CSGTree {
         let (data, _) = self.add_data(0, vec![]);
 
         if data.len() > MAX_CGS_TREE_DATA_SIZE {
-            error!("CGS Tree Data to large: {} of {}", data.len(), MAX_CGS_TREE_DATA_SIZE)
+            error!(
+                "CGS Tree Data to large: {} of {}",
+                data.len(),
+                MAX_CGS_TREE_DATA_SIZE
+            )
         }
 
         self.data = data;
@@ -213,19 +239,18 @@ impl CSGTree {
         data.extend_from_slice(any_as_u32_slice(&node.aabb));
 
         let t = match node.data {
-            CSGNodeData::Union(..) => { CGS_CHILD_TYPE_UNION }
-            CSGNodeData::Remove(..) => { CGS_CHILD_TYPE_REMOVE }
-            CSGNodeData::Intersect(..) => { CGS_CHILD_TYPE_INTERSECT }
-            CSGNodeData::Box(..) => { CGS_CHILD_TYPE_BOX }
-            CSGNodeData::Sphere(..) => { CGS_CHILD_TYPE_SPHERE },
-            CSGNodeData::VoxelVolume(..) => { CGS_CHILD_TYPE_VOXEL }
+            CSGNodeData::Union(..) => CGS_CHILD_TYPE_UNION,
+            CSGNodeData::Remove(..) => CGS_CHILD_TYPE_REMOVE,
+            CSGNodeData::Intersect(..) => CGS_CHILD_TYPE_INTERSECT,
+            CSGNodeData::Box(..) => CGS_CHILD_TYPE_BOX,
+            CSGNodeData::Sphere(..) => CGS_CHILD_TYPE_SPHERE,
+            CSGNodeData::VoxelVolume(..) => CGS_CHILD_TYPE_VOXEL,
         };
 
         match node.data {
             CSGNodeData::Union(child1, child2)
             | CSGNodeData::Remove(child1, child2)
-            | CSGNodeData::Intersect(child1, child2)
-            => {
+            | CSGNodeData::Intersect(child1, child2) => {
                 data.push(0);
                 data.push(0);
 
@@ -235,7 +260,7 @@ impl CSGTree {
             CSGNodeData::Box(transform, mat) | CSGNodeData::Sphere(transform, mat) => {
                 data.extend_from_slice(any_as_u32_slice(&transform.inverse()));
                 data[index + 21] = mat as u32;
-            },
+            }
             CSGNodeData::VoxelVolume(mat) => {
                 data.push(mat as u32);
             }
@@ -250,16 +275,10 @@ impl CSGTree {
 }
 
 fn any_as_u32_slice<T: Sized>(p: &T) -> &[u32] {
-    unsafe {
-        slice::from_raw_parts(
-            (p as *const T) as *const u32,
-            size_of::<T>() / 4,
-        )
-    }
+    unsafe { slice::from_raw_parts((p as *const T) as *const u32, size_of::<T>() / 4) }
 }
 
 impl CSGNode {
-
     pub fn new(data: CSGNodeData) -> CSGNode {
         CSGNode {
             data,
@@ -268,9 +287,7 @@ impl CSGNode {
     }
 
     pub fn new_with_aabb(data: CSGNodeData, aabb: AABB) -> CSGNode {
-        CSGNode {
-            data,
-            aabb,
-        }
+        CSGNode { data, aabb }
     }
 }
+

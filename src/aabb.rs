@@ -1,6 +1,5 @@
 use octa_force::glam::{vec3, vec4, Mat4, Vec3, Vec4Swizzles};
 
-
 #[derive(Copy, Clone, Debug)]
 pub struct AABB {
     pub min: Vec3,
@@ -11,13 +10,13 @@ impl AABB {
     pub fn from_box(mat: &Mat4, padding: f32) -> AABB {
         let corners = [
             vec4(-0.5, -0.5, -0.5, 1.0),
-            vec4(-0.5, -0.5,  0.5, 1.0),
-            vec4(-0.5,  0.5, -0.5, 1.0),
-            vec4(-0.5,  0.5,  0.5, 1.0),
-            vec4( 0.5, -0.5, -0.5, 1.0),
-            vec4( 0.5, -0.5,  0.5, 1.0),
-            vec4( 0.5,  0.5, -0.5, 1.0),
-            vec4( 0.5,  0.5,  0.5, 1.0),
+            vec4(-0.5, -0.5, 0.5, 1.0),
+            vec4(-0.5, 0.5, -0.5, 1.0),
+            vec4(-0.5, 0.5, 0.5, 1.0),
+            vec4(0.5, -0.5, -0.5, 1.0),
+            vec4(0.5, -0.5, 0.5, 1.0),
+            vec4(0.5, 0.5, -0.5, 1.0),
+            vec4(0.5, 0.5, 0.5, 1.0),
         ];
 
         let mut min = vec3(f32::INFINITY, f32::INFINITY, f32::INFINITY);
@@ -39,7 +38,8 @@ impl AABB {
         let a = vec3(
             f32::sqrt(mat.x_axis.x.powf(2.0) + mat.x_axis.y.powf(2.0) + mat.x_axis.z.powf(2.0)),
             f32::sqrt(mat.y_axis.x.powf(2.0) + mat.y_axis.y.powf(2.0) + mat.y_axis.z.powf(2.0)),
-            f32::sqrt(mat.z_axis.x.powf(2.0) + mat.z_axis.y.powf(2.0) + mat.z_axis.z.powf(2.0)));
+            f32::sqrt(mat.z_axis.x.powf(2.0) + mat.z_axis.y.powf(2.0) + mat.z_axis.z.powf(2.0)),
+        );
         let b = vec3(mat.w_axis.x, mat.w_axis.y, mat.w_axis.z);
 
         AABB {
@@ -71,3 +71,4 @@ impl Default for AABB {
         }
     }
 }
+

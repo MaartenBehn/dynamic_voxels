@@ -1,11 +1,11 @@
-use octa_force::OctaResult;
 use octa_force::vulkan::ash::vk;
-use octa_force::vulkan::{Buffer, Context};
 use octa_force::vulkan::gpu_allocator::MemoryLocation;
+use octa_force::vulkan::{Buffer, Context};
+use octa_force::OctaResult;
 
 pub const MAX_CGS_TREE_DATA_SIZE: usize = 100;
 pub struct CSGController {
-    pub buffer: Buffer
+    pub buffer: Buffer,
 }
 
 impl CSGController {
@@ -15,13 +15,12 @@ impl CSGController {
             MemoryLocation::CpuToGpu,
             (size_of::<u32>() * MAX_CGS_TREE_DATA_SIZE) as _,
         )?;
-        
-        Ok(CSGController {
-            buffer,
-        })
+
+        Ok(CSGController { buffer })
     }
 
     pub fn set_data(&self, data: &[u32]) -> OctaResult<()> {
         self.buffer.copy_data_to_buffer(data)
     }
 }
+
