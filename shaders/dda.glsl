@@ -29,16 +29,14 @@ DDA init_DDA(in Ray ray, in vec3 start_pos, in vec3 lower_bound, in vec3 upper_b
 }
 
 DDA step_DDA(in DDA dda) {
-    PROFILE("step_DDA");
-
     dda.mask = get_mask(dda.side_dist);
     dda.side_dist += dda.mask * dda.delta_dist;
     dda.cell += dda.mask * dda.step;
 
     dda.out_of_bounds =
-      (dda.mask.x != 0 && (dda.cell.x < dda.lower_bound.x || dda.cell.x > dda.upper_bound.x)
-    || dda.mask.y != 0 && (dda.cell.y < dda.lower_bound.y || dda.cell.y > dda.upper_bound.y)
-    || dda.mask.z != 0 && (dda.cell.z < dda.lower_bound.z || dda.cell.z > dda.upper_bound.z));
+        (dda.mask.x != 0 && (dda.cell.x < dda.lower_bound.x || dda.cell.x > dda.upper_bound.x)
+            || dda.mask.y != 0 && (dda.cell.y < dda.lower_bound.y || dda.cell.y > dda.upper_bound.y)
+            || dda.mask.z != 0 && (dda.cell.z < dda.lower_bound.z || dda.cell.z > dda.upper_bound.z));
 
     return dda;
 }
@@ -71,7 +69,6 @@ DDA_INC init_DDA_INC(in Ray ray, in vec3 start_pos, in vec3 lower_bound, in vec3
 }
 
 DDA_INC step_DDA(in DDA_INC dda) {
-
     float new_scale = dda.scale * dda.scale;
     if ((dda.cell / new_scale) == vec3(0)) {
         dda.scale = new_scale;
@@ -82,9 +79,9 @@ DDA_INC step_DDA(in DDA_INC dda) {
     dda.cell += dda.mask * dda.step * dda.scale;
 
     dda.out_of_bounds =
-    (dda.mask.x != 0 && (dda.cell.x < dda.lower_bound.x || dda.cell.x > dda.upper_bound.x)
-    || dda.mask.y != 0 && (dda.cell.y < dda.lower_bound.y || dda.cell.y > dda.upper_bound.y)
-    || dda.mask.z != 0 && (dda.cell.z < dda.lower_bound.z || dda.cell.z > dda.upper_bound.z));
+        (dda.mask.x != 0 && (dda.cell.x < dda.lower_bound.x || dda.cell.x > dda.upper_bound.x)
+            || dda.mask.y != 0 && (dda.cell.y < dda.lower_bound.y || dda.cell.y > dda.upper_bound.y)
+            || dda.mask.z != 0 && (dda.cell.z < dda.lower_bound.z || dda.cell.z > dda.upper_bound.z));
 
     return dda;
 }
@@ -95,3 +92,4 @@ float get_DDA_INC_t(in DDA_INC dda) {
 }
 
 #endif // __DDA_GLSL__
+

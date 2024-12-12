@@ -137,6 +137,12 @@ pub fn new_logic_state(
 
     dbg!(&wfc_controller);
 
+    for i in 0..wfc_controller.nodes.len() {
+        wfc_controller.collapse(i);
+    }
+
+    dbg!(&wfc_controller);
+
     log::info!("Creating Camera");
     let mut camera = Camera::base(engine.swapchain.size.as_vec2());
 
@@ -182,10 +188,13 @@ pub fn update(
     render_state
         .renderer
         .update(&logic_state.camera, engine.swapchain.size, time)?;
-    debug!(
-        "Pos: {:?} Dir: {:?}",
-        logic_state.camera.position, logic_state.camera.direction
-    );
+    /*
+        debug!(
+            "Pos: {:?} Dir: {:?}",
+            logic_state.camera.position, logic_state.camera.direction
+        );
+
+    */
 
     if render_state.profiler.is_some() {
         render_state

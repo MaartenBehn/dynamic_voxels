@@ -21,8 +21,8 @@ pub const MATERIAL_NONE: usize = usize::MAX;
 
 #[derive(Clone, Debug)]
 pub struct CSGNode {
-    data: CSGNodeData,
-    aabb: AABB,
+    pub data: CSGNodeData,
+    pub aabb: AABB,
 }
 
 #[derive(Clone, Debug)]
@@ -271,6 +271,12 @@ impl CSGTree {
 
     fn node_data(pointer: usize, t: u32) -> u32 {
         ((pointer as u32) << 3) + t
+    }
+}
+
+impl Default for CSGTree {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

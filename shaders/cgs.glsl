@@ -12,7 +12,6 @@
 #define ONLY_RENDER_CGS false
 #define USE_AABB true
 
-
 #define CGS_CHILD_TYPE_NONE 0
 #define CGS_CHILD_TYPE_UNION 1
 #define CGS_CHILD_TYPE_REMOVE 2
@@ -46,35 +45,28 @@ struct VoxelField {
     uint start;
 };
 
-
 AABB get_aabb(uint index) {
-    PROFILE("get_aabb");
-
-    vec3 min = vec3(uintBitsToFloat(CSG_TREE[index    ]), uintBitsToFloat(CSG_TREE[index + 1]), uintBitsToFloat(CSG_TREE[index + 2]));
+    vec3 min = vec3(uintBitsToFloat(CSG_TREE[index]), uintBitsToFloat(CSG_TREE[index + 1]), uintBitsToFloat(CSG_TREE[index + 2]));
     vec3 max = vec3(uintBitsToFloat(CSG_TREE[index + 3]), uintBitsToFloat(CSG_TREE[index + 4]), uintBitsToFloat(CSG_TREE[index + 5]));
 
     return AABB(min, max);
 }
 
 CGSChild get_csg_tree_child(uint index) {
-    PROFILE("get_csg_tree_child");
-
     uint data = CSG_TREE[index + 6];
-    uint pointer = data >> 3;      // 29 Bit
-    uint type = data & uint(7);    //  3 Bit
+    uint pointer = data >> 3; // 29 Bit
+    uint type = data & uint(7); //  3 Bit
 
     return CGSChild(pointer, type);
 }
 
 CGSObject get_csg_tree_object(uint index) {
-    PROFILE("get_csg_tree_object");
-
     mat4 transform = mat4(
-        uintBitsToFloat(CSG_TREE[index     + 6]), uintBitsToFloat(CSG_TREE[index + 4 + 6]), uintBitsToFloat(CSG_TREE[index +  8 + 6]), uintBitsToFloat(CSG_TREE[index +  12 + 6]),
-        uintBitsToFloat(CSG_TREE[index + 1 + 6]), uintBitsToFloat(CSG_TREE[index + 5 + 6]), uintBitsToFloat(CSG_TREE[index +  9 + 6]), uintBitsToFloat(CSG_TREE[index +  13 + 6]),
-        uintBitsToFloat(CSG_TREE[index + 2 + 6]), uintBitsToFloat(CSG_TREE[index + 6 + 6]), uintBitsToFloat(CSG_TREE[index + 10 + 6]), uintBitsToFloat(CSG_TREE[index +  14 + 6]),
-        0.0, 0.0, 0.0, 1.0
-    );
+            uintBitsToFloat(CSG_TREE[index + 6]), uintBitsToFloat(CSG_TREE[index + 4 + 6]), uintBitsToFloat(CSG_TREE[index + 8 + 6]), uintBitsToFloat(CSG_TREE[index + 12 + 6]),
+            uintBitsToFloat(CSG_TREE[index + 1 + 6]), uintBitsToFloat(CSG_TREE[index + 5 + 6]), uintBitsToFloat(CSG_TREE[index + 9 + 6]), uintBitsToFloat(CSG_TREE[index + 13 + 6]),
+            uintBitsToFloat(CSG_TREE[index + 2 + 6]), uintBitsToFloat(CSG_TREE[index + 6 + 6]), uintBitsToFloat(CSG_TREE[index + 10 + 6]), uintBitsToFloat(CSG_TREE[index + 14 + 6]),
+            0.0, 0.0, 0.0, 1.0
+        );
     vec3 data = vec3(uintBitsToFloat(CSG_TREE[index + 3 + 6]), uintBitsToFloat(CSG_TREE[index + 7 + 6]), uintBitsToFloat(CSG_TREE[index + 11 + 6]));
     uint material = CSG_TREE[index + 15 + 6];
 
@@ -82,10 +74,8 @@ CGSObject get_csg_tree_object(uint index) {
 }
 
 VoxelField get_voxel_field(uint index) {
-    PROFILE("get_voxel_field");
-
     uint start = CSG_TREE[index + 6];
-    
+
     return VoxelField(start);
 }
 
@@ -98,20 +88,19 @@ uint get_voxel_field_index(vec3 pos, AABB aabb) {
 }
 
 uint get_voxel_value(uint start, uint index) {
-    uint buffer_index = index >> 2;         // Upper bist (= index / 4)
-    uint shift = (index & uint(3)) << 3;    // Lower 2 bits * 8 (= (index % 4) * 8;
+    uint buffer_index = index >> 2; // Upper bist (= index / 4)
+    uint shift = (index & uint(3)) << 3; // Lower 2 bits * 8 (= (index % 4) * 8;
 
     return (MATERIAL_BUFFER[start + buffer_index] >> shift) & 255;
 }
 
 CGSObject get_test_box(float time, vec3 pos) {
-    PROFILE("get_test_box");
     float scale = 1.0 + ease_cubic_in_out(ease_loop(time_mod(time, 1.0))) * 2.0;
 
     mat4 rot_mat = mat4_rotate_xyz(vec3(
-        time_mod_rot(time, 0.2),
-        time_mod_rot(time, 1.0),
-        time_mod_rot(time, 0.4)));
+                time_mod_rot(time, 0.2),
+                time_mod_rot(time, 1.0),
+                time_mod_rot(time, 0.4)));
 
     mat4 mat = inverse(mat4_scale(vec3(scale, 2.0, 1.5)) * rot_mat * mat4_pos(pos));
 
@@ -119,7 +108,6 @@ CGSObject get_test_box(float time, vec3 pos) {
 }
 
 CGSObject get_test_sphere(float time, vec3 pos) {
-    PROFILE("get_test_sphere");
     float scale = 1.0 + ease_cubic_in_out(ease_loop(time_mod(time, 1.0))) * 0.1;
 
     mat4 mat = inverse(mat4_scale(vec3(scale, 2.0, 3.0)) * mat4_pos(pos));
@@ -135,7 +123,7 @@ bool ray_hits_cgs_object(Ray ray, CGSObject object, uint type, out Interval inte
     Ray model_space_ray = ray_to_model_space(ray, object.transform);
 
     if (type == CGS_CHILD_TYPE_BOX) {
-       return ray_aabb_intersect(model_space_ray, vec3(-0.5), vec3(0.5), intervall);
+        return ray_aabb_intersect(model_space_ray, vec3(-0.5), vec3(0.5), intervall);
     } else if (type == CGS_CHILD_TYPE_SPHERE) {
         return ray_sphere_intersect(model_space_ray, intervall);
     }
@@ -145,8 +133,8 @@ bool ray_hits_cgs_object(Ray ray, CGSObject object, uint type, out Interval inte
 
 bool pos_in_aabb(vec3 pos, vec3 min, vec3 max) {
     return min.x <= pos.x && pos.x <= max.x &&
-    min.y <= pos.y && pos.y <= max.y &&
-    min.z <= pos.z && pos.z <= max.z;
+        min.y <= pos.y && pos.y <= max.y &&
+        min.z <= pos.z && pos.z <= max.z;
 }
 
 bool pos_in_sphere(vec3 pos, vec3 s_pos, float radius) {
@@ -154,13 +142,10 @@ bool pos_in_sphere(vec3 pos, vec3 s_pos, float radius) {
 }
 
 bool exits_cgs_object(vec3 pos, CGSObject object, uint type) {
-    PROFILE("exits_cgs_object");
-
     pos = (vec4(pos, 1.0) * object.transform).xyz;
 
     if (type == CGS_CHILD_TYPE_BOX) {
         return pos_in_aabb(pos, vec3(-0.5), vec3(0.5));
-
     } else if (type == CGS_CHILD_TYPE_SPHERE) {
         return length(pos) < 1.0;
     }
@@ -195,7 +180,6 @@ uint cgs_material_operation(uint material_1, uint material_2, uint operation) {
 }
 
 uint cgs_tree_at_pos(vec3 pos) {
-    PROFILE("cgs_tree_at_pos");
     int stack_len = 0;
     uint stack[MAX_CGS_TREE_DEPTH];
     uint operation_stack[MAX_CGS_TREE_DEPTH + 1];
@@ -251,7 +235,8 @@ uint cgs_tree_at_pos(vec3 pos) {
 
         if (USE_AABB && !pos_in_aabb(pos, aabb.min, aabb.max)) {
             if (!go_right) {
-                material_1_stack[stack_len] = 0;;
+                material_1_stack[stack_len] = 0;
+                ;
                 go_right = true;
             } else {
                 material_2 = 0;
@@ -270,9 +255,7 @@ uint cgs_tree_at_pos(vec3 pos) {
                     is_left = false;
                     go_right = false;
                 }
-
             } else if (child.type == CGS_CHILD_TYPE_VOXEL) {
-
                 VoxelField voxle_filed = get_voxel_field(child.pointer);
                 uint index = get_voxel_field_index(pos, aabb);
                 uint voxel_value = get_voxel_value(voxle_filed.start, index);
@@ -287,7 +270,6 @@ uint cgs_tree_at_pos(vec3 pos) {
             } else {
                 CGSObject object = get_csg_tree_object(child.pointer);
                 bool hit = exits_cgs_object(pos, object, child.type);
-
 
                 if (!go_right) {
                     material_1_stack[stack_len] = uint(hit);
@@ -336,7 +318,6 @@ int binary_search_interval_list(IntervalList list, float t)
 }
 
 IntervalList insert_into_list(IntervalList list, Interval interval, AABB aabb) {
-
     uint index = binary_search_interval_list(list, interval.t_min);
 
     for (uint i = list.len; i > index; i--) {
@@ -352,8 +333,6 @@ IntervalList insert_into_list(IntervalList list, Interval interval, AABB aabb) {
 }
 
 void cgs_tree_interval_list(Ray ray, out IntervalList list) {
-    PROFILE("cgs_tree_interval_list");
-
     list.len = 0;
 
     AABB aabb = get_aabb(0);
@@ -378,7 +357,6 @@ void cgs_tree_interval_list(Ray ray, out IntervalList list) {
         aabb = get_aabb(child.pointer);
 
         if (ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
-
             if (child.type > CGS_CHILD_TYPE_MAX_NODE) {
                 list = insert_into_list(list, interval, aabb);
             } else {
@@ -391,8 +369,6 @@ void cgs_tree_interval_list(Ray ray, out IntervalList list) {
 }
 
 bool cgs_tree_next_interval(Ray ray, float current_t, out Interval interval, out AABB aabb) {
-    PROFILE("cgs_tree_interval_list");
-
     aabb = get_aabb(0);
     if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
         return false;
@@ -417,7 +393,6 @@ bool cgs_tree_next_interval(Ray ray, float current_t, out Interval interval, out
 
         Interval new_interval;
         if (ray_aabb_intersect(ray, new_aabb.min, new_aabb.max, new_interval)) {
-
             if (new_interval.t_max > current_t) {
                 if (child.type > CGS_CHILD_TYPE_MAX_NODE) {
                     if (interval.t_min > new_interval.t_min) {
@@ -439,3 +414,4 @@ bool cgs_tree_next_interval(Ray ray, float current_t, out Interval interval, out
 }
 
 #endif // _CGS_GLSL_
+

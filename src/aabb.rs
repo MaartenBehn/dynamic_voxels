@@ -61,6 +61,15 @@ impl AABB {
             max: self.max.min(other.max),
         }
     }
+
+    pub fn pos_in_aabb(self, pos: Vec3) -> bool {
+        return self.min.x <= pos.x
+            && pos.x <= self.max.x
+            && self.min.y <= pos.y
+            && pos.y <= self.max.y
+            && self.min.z <= pos.z
+            && pos.z <= self.max.z;
+    }
 }
 
 impl Default for AABB {
@@ -71,4 +80,3 @@ impl Default for AABB {
         }
     }
 }
-
