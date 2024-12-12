@@ -6,6 +6,7 @@ mod material;
 mod profiler;
 mod render;
 mod util;
+mod wfc;
 
 use crate::cgs_tree::controller::CSGController;
 use crate::cgs_tree::tree::{CSGTree, VOXEL_SIZE};
@@ -26,6 +27,7 @@ use octa_force::puffin_egui::puffin;
 use octa_force::vulkan::ash::vk::AttachmentLoadOp;
 use octa_force::{egui, log, Engine, OctaResult};
 use std::time::{Duration, Instant};
+use wfc::controller::WFCController;
 
 pub const USE_PROFILE: bool = false;
 
@@ -43,6 +45,7 @@ pub struct LogicState {
     pub camera: Camera,
     pub start_time: Instant,
     pub cgs_tree: CSGTree,
+    pub wfc_controller: WFCController,
 }
 
 #[no_mangle]
@@ -128,6 +131,12 @@ pub fn new_logic_state(
     let mut cgs_tree = CSGTree::new();
     render_state.csg_controller.set_data(&cgs_tree.data)?;
 
+    let mut wfc_controller = WFCController::new();
+
+    wfc_controller.set_example();
+
+    dbg!(&wfc_controller);
+
     log::info!("Creating Camera");
     let mut camera = Camera::base(engine.swapchain.size.as_vec2());
 
@@ -143,6 +152,7 @@ pub fn new_logic_state(
         camera,
         start_time: Instant::now(),
         cgs_tree,
+        wfc_controller,
     })
 }
 
@@ -271,4 +281,3 @@ pub fn on_recreate_swapchain(
 
     Ok(())
 }
-

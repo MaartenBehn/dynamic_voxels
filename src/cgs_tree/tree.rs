@@ -35,7 +35,7 @@ pub enum CSGNodeData {
     VoxelVolume(Material),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CSGTree {
     pub data: Vec<u32>,
     pub nodes: Vec<CSGNode>,
@@ -290,4 +290,3 @@ impl CSGNode {
         CSGNode { data, aabb }
     }
 }
-
