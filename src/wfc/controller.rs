@@ -19,6 +19,8 @@ impl WFCController {
     }
 
     pub fn set_example(&mut self) {
+        self.nodes = vec![];
+
         let mut csg = CSGTree::new();
         csg.nodes = vec![CSGNode::new(CSGNodeData::Box(
             Mat4::default(),

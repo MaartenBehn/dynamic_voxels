@@ -1,6 +1,6 @@
 use crate::{
     aabb::AABB,
-    cgs_tree::tree::{CSGNode, CSGNodeData, CSGTree, MATERIAL_NONE},
+    cgs_tree::tree::{CSGNode, CSGNodeData, CSGTree, MATERIAL_NONE, VOXEL_SIZE},
 };
 use octa_force::glam::{ivec3, vec3, vec4, Mat4, Quat, Vec3, Vec4Swizzles};
 
@@ -183,7 +183,7 @@ impl WFCController {
                         let mut tree = CSGTree::new();
                         tree.nodes.push(CSGNode::new(CSGNodeData::Sphere(
                             Mat4::from_scale_rotation_translation(
-                                Vec3::ONE * 0.01,
+                                Vec3::ONE * 0.1,
                                 Quat::from_euler(octa_force::glam::EulerRot::XYZ, 0.0, 0.0, 0.0),
                                 new_pos,
                             ),
@@ -205,6 +205,58 @@ impl WFCController {
                 true
             }
             _ => true,
+        }
+    }
+
+    pub fn make_cgs(&self, index: usize) -> CSGTree {
+        let node = &self.nodes[index];
+
+        match node {
+            WFCNode::Box {
+                num_pipe_node_index,
+                ..
+            } => {
+                let pipe_nodes_tree = self.make_cgs(*num_pipe_node_index);
+
+                pipe_nodes_tree
+            }
+            WFCNode::NumPipeNodes {
+                pipe_node_indecies, ..
+            } => {
+                let mut tree = None;
+                for pipe_node_index in pipe_node_indecies {
+                    let sub_tree = self.make_cgs(*pipe_node_index);
+
+                    if tree.is_none() {
+                        tree = Some(sub_tree);
+                    } else {
+                        tree.as_mut().unwrap().append_tree_with_union(sub_tree);
+                    }
+                }
+
+                tree.unwrap()
+            }
+            WFCNode::PipeNode { pos_index, .. } => {
+                let pos_node = &self.nodes[*pos_index];
+
+                let pos = match pos_node {
+                    WFCNode::Pos(pos) => *pos,
+                    _ => unreachable!(),
+                };
+
+                let mut tree = CSGTree::new();
+                tree.nodes.push(CSGNode::new(CSGNodeData::Sphere(
+                    Mat4::from_scale_rotation_translation(
+                        Vec3::ONE * 0.01 * VOXEL_SIZE,
+                        Quat::from_euler(octa_force::glam::EulerRot::XYZ, 0.0, 0.0, 0.0),
+                        pos * VOXEL_SIZE,
+                    ),
+                    1,
+                )));
+
+                tree
+            }
+            _ => unreachable!(),
         }
     }
 }
@@ -261,6 +313,15 @@ impl CSGTree {
 
         self.nodes.append(&mut tree.nodes);
     }
+
+    pub fn append_tree_with_union(&mut self, mut tree: CSGTree) {
+        self.insert_node_before(CSGNode::new(CSGNodeData::Union(1, self.nodes.len() + 1)));
+
+        tree.shift_node_pointers(self.nodes.len());
+
+        self.nodes.append(&mut tree.nodes);
+    }
+
     pub fn shift_node_pointers(&mut self, ammount: usize) {
         for i in 0..self.nodes.len() {
             match &mut self.nodes[i].data {

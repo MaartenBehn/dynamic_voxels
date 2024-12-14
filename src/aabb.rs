@@ -1,7 +1,10 @@
 use std::iter;
 
+use feistel_permutation_rs::{DefaultBuildHasher, Permutation};
 use gcd::Gcd;
 use octa_force::glam::{ivec3, vec3, vec4, Mat4, Vec3, Vec4Swizzles};
+
+use crate::util::{to_3d, to_3d_i};
 
 #[derive(Copy, Clone, Debug)]
 pub struct AABB {
@@ -83,62 +86,17 @@ impl AABB {
             .map(move |((x, y), z)| ivec3(x, y, z).as_vec3() * step)
     }
 
-    // https://www.geeksforgeeks.org/check-number-divisible-prime-divisors-another-number/
-    fn is_divisable_by_prime_factors(x: u32, y: u32) -> bool {
-        if y == 1 {
-            return true;
-        }
-
-        let z = x.gcd(y);
-
-        if z == 1 {
-            return false;
-        }
-
-        Self::is_divisable_by_prime_factors(x, y / 2)
-    }
-
-    pub fn find_a(m: u32) -> u32 {
-        let mut a_s = vec![];
-        for i in 0..m {
-            if Self::is_divisable_by_prime_factors(i, m) && (m % 4 == 0) == (i % 4 == 0) {
-                a_s.push(i + 1);
-            }
-        }
-
-        dbg!(&a_s);
-
-        *a_s.last().unwrap()
-    }
-
     pub fn get_random_sampled_positions(self, step: f32) -> impl IntoIterator<Item = Vec3> {
-        /*
         let min = (self.min / step).as_ivec3();
         let max = (self.max / step).as_ivec3();
         let size = max - min;
-        let m = size.element_product() as u32;
+        let n = size.element_product();
 
+        let seed = fastrand::u64(0..1000);
+        let perm = Permutation::new(n as _, seed, DefaultBuildHasher::new());
 
-                // https://en.wikipedia.org/wiki/Linear_congruential_generator
-                let a = Self::find_a(m);
-                let c = 1;
-                let mut x = 0;
-
-                let iter = (0..m).scan(x, |x, _| {
-                    *x = (a * *x + c) % m;
-                    Some(*x)
-                });
-
-                for i in iter {
-                    dbg!(i);
-                }
-        */
-
-        let mut positions: Vec<_> = self.get_sampled_positions(step).into_iter().collect();
-
-        fastrand::shuffle(&mut positions);
-
-        positions
+        perm.into_iter()
+            .map(move |i| (to_3d_i(i as usize, size) + min).as_vec3() * step)
     }
 }
 

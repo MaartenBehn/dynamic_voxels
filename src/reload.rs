@@ -45,7 +45,6 @@ pub struct RenderState {
 pub struct LogicState {
     pub camera: Camera,
     pub start_time: Instant,
-    pub cgs_tree: CSGTree,
     pub wfc_controller: WFCController,
 }
 
@@ -129,26 +128,27 @@ pub fn new_logic_state(
     #[cfg(debug_assertions)]
     puffin::profile_function!();
 
-    let mut cgs_tree = CSGTree::new();
-    render_state.csg_controller.set_data(&cgs_tree.data)?;
-
     let mut wfc_controller = WFCController::new();
 
     wfc_controller.set_example();
-
-    dbg!(&wfc_controller);
 
     wfc_controller.collapse(wfc_controller.root_index);
 
     dbg!(&wfc_controller);
 
+    let mut tree = wfc_controller.make_cgs(wfc_controller.root_index);
+    tree.set_all_aabbs(2.0);
+    tree.make_data();
+
+    render_state.csg_controller.set_data(&tree.data)?;
+
     log::info!("Creating Camera");
     let mut camera = Camera::base(engine.swapchain.size.as_vec2());
 
-    camera.position = Vec3::new(-37.049347, -44.29117, 6.102236);
-    //camera.position = Vec3::new(1.0, -100.0, 1.0);
-    //camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
-    camera.direction = Vec3::new(0.7462443, -0.059647024, -0.6629945).normalize();
+    camera.position = Vec3::new(1.0, -10.0, 1.0);
+    camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
+    // camera.position = Vec3::new(-37.049347, -44.29117, 6.102236);
+    // camera.direction = Vec3::new(0.7462443, -0.059647024, -0.6629945).normalize();
     camera.speed = 10.0 * VOXEL_SIZE;
     camera.z_far = 100.0;
     camera.up = vec3(0.0, 0.0, 1.0);
@@ -156,7 +156,6 @@ pub fn new_logic_state(
     Ok(LogicState {
         camera,
         start_time: Instant::now(),
-        cgs_tree,
         wfc_controller,
     })
 }
@@ -174,14 +173,21 @@ pub fn update(
 
     let time = logic_state.start_time.elapsed();
 
-    logic_state
-        .cgs_tree
-        .set_example_tree_with_aabb_field(time.as_secs_f32());
-    logic_state.cgs_tree.set_all_aabbs(AABB_PADDING);
-    logic_state.cgs_tree.make_data();
-    render_state
-        .csg_controller
-        .set_data(&logic_state.cgs_tree.data)?;
+    if engine.controls.q {
+        logic_state.wfc_controller.set_example();
+
+        logic_state
+            .wfc_controller
+            .collapse(logic_state.wfc_controller.root_index);
+
+        let mut tree = logic_state
+            .wfc_controller
+            .make_cgs(logic_state.wfc_controller.root_index);
+        tree.set_all_aabbs(2.0);
+        tree.make_data();
+
+        render_state.csg_controller.set_data(&tree.data)?;
+    }
 
     logic_state.camera.update(&engine.controls, delta_time);
     render_state
