@@ -7,11 +7,15 @@ use super::node::WFCNode;
 #[derive(Clone, Debug)]
 pub struct WFCController {
     pub nodes: Vec<WFCNode>,
+    pub root_index: usize,
 }
 
 impl WFCController {
     pub fn new() -> Self {
-        WFCController { nodes: vec![] }
+        WFCController {
+            nodes: vec![],
+            root_index: 0,
+        }
     }
 
     pub fn set_example(&mut self) {
@@ -22,13 +26,17 @@ impl WFCController {
         ))];
         csg.set_all_aabbs(0.0);
 
+        csg.nodes[0].aabb.get_random_sampled_positions(0.1);
+
         self.add_node(WFCNode::Volume(csg));
         self.add_node(WFCNode::Box {
             max_pipe_nodes: 5,
             min_pipe_nodes: 1,
-            num_pipe_node: 0,
-            pipe_volume: 0,
+            num_pipe_node_index: 0,
+            pipe_volume_index: 0,
         });
+
+        self.root_index = 1;
     }
 
     pub fn add_node(&mut self, node: WFCNode) -> usize {

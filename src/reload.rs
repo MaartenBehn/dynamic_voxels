@@ -138,9 +138,7 @@ pub fn new_logic_state(
 
     dbg!(&wfc_controller);
 
-    for i in 0..wfc_controller.nodes.len() {
-        wfc_controller.collapse(i);
-    }
+    wfc_controller.collapse(wfc_controller.root_index);
 
     dbg!(&wfc_controller);
 

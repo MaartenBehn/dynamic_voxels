@@ -15,23 +15,23 @@ pub enum WFCNode {
     Pos(Vec3),
 
     Box {
-        pipe_volume: usize,
+        pipe_volume_index: usize,
         max_pipe_nodes: usize,
         min_pipe_nodes: usize,
 
-        num_pipe_node: usize,
+        num_pipe_node_index: usize,
     },
     NumPipeNodes {
         box_index: usize,
         num: Vec<usize>,
+        pipe_node_indecies: Vec<usize>,
     },
     PipeNode {
         box_index: usize,
         nr: usize,
-        pipe_connect_1: Vec<usize>,
-        pipe_connect_2: Vec<usize>,
+        pipe_connect_1_index: Vec<usize>,
+        pipe_connect_2_index: Vec<usize>,
         pos_index: usize,
-        valid: bool,
     },
 }
 
@@ -40,10 +40,9 @@ impl WFCNode {
         WFCNode::PipeNode {
             box_index,
             nr: index,
-            pipe_connect_1: vec![],
-            pipe_connect_2: vec![],
+            pipe_connect_1_index: vec![],
+            pipe_connect_2_index: vec![],
             pos_index: 0,
-            valid: true,
         }
     }
 }
@@ -58,17 +57,36 @@ impl WFCController {
                 min_pipe_nodes,
                 ..
             } => {
-                self.add_node(WFCNode::NumPipeNodes {
+                let i = self.add_node(WFCNode::NumPipeNodes {
                     box_index: index,
                     num: (*min_pipe_nodes..=*max_pipe_nodes).collect(),
+                    pipe_node_indecies: vec![],
                 });
+
+                match &mut self.nodes[index] {
+                    WFCNode::Box {
+                        num_pipe_node_index,
+                        ..
+                    } => {
+                        *num_pipe_node_index = i;
+                    }
+                    _ => unreachable!(),
+                }
             }
-            WFCNode::NumPipeNodes { box_index, num } => {
+            WFCNode::NumPipeNodes { box_index, num, .. } => {
                 let max = *num.last().unwrap_or(&0);
 
                 let box_index = *box_index;
                 for i in 0..max {
-                    self.add_node(WFCNode::new_pipe_node(i, box_index));
+                    let pipe_index = self.add_node(WFCNode::new_pipe_node(i, box_index));
+                    match &mut self.nodes[index] {
+                        WFCNode::NumPipeNodes {
+                            pipe_node_indecies, ..
+                        } => {
+                            pipe_node_indecies.push(pipe_index);
+                        }
+                        _ => unreachable!(),
+                    }
                 }
             }
             WFCNode::PipeNode { box_index, .. } => {
@@ -79,7 +97,10 @@ impl WFCController {
                 );
 
                 let volume_index = match box_node {
-                    WFCNode::Box { pipe_volume, .. } => *pipe_volume,
+                    WFCNode::Box {
+                        pipe_volume_index: pipe_volume,
+                        ..
+                    } => *pipe_volume,
                     _ => unreachable!(),
                 };
 
@@ -92,12 +113,53 @@ impl WFCController {
         }
     }
 
-    pub fn collapse(&mut self, index: usize) {
+    pub fn collapse(&mut self, index: usize) -> bool {
         let node = &self.nodes[index];
 
         match node {
-            WFCNode::Box { .. } => {}
-            WFCNode::NumPipeNodes { .. } => {}
+            WFCNode::Box {
+                num_pipe_node_index,
+                ..
+            } => {
+                self.collapse(*num_pipe_node_index);
+
+                true
+            }
+
+            WFCNode::NumPipeNodes {
+                pipe_node_indecies,
+                num,
+                ..
+            } => {
+                let min = num.first().copied();
+                let mut valid_indexies = vec![];
+
+                for pipe_node_index in pipe_node_indecies.to_owned() {
+                    let valid = self.collapse(pipe_node_index);
+
+                    if valid {
+                        valid_indexies.push(pipe_node_index);
+                    }
+                }
+
+                if min.is_none() || valid_indexies.len() < min.unwrap() {
+                    return false;
+                }
+
+                match &mut self.nodes[index] {
+                    WFCNode::NumPipeNodes {
+                        num,
+                        pipe_node_indecies,
+                        ..
+                    } => {
+                        *num = vec![valid_indexies.len()];
+                        *pipe_node_indecies = valid_indexies;
+                    }
+                    _ => unreachable!(),
+                }
+
+                true
+            }
             WFCNode::PipeNode { pos_index, .. } => {
                 let pos_index = *pos_index;
                 let pos_node = &self.nodes[pos_index];
@@ -112,12 +174,7 @@ impl WFCController {
                 };
 
                 if new_pos.is_none() {
-                    match &mut self.nodes[index] {
-                        WFCNode::PipeNode { valid, .. } => *valid = false,
-                        _ => unreachable!(),
-                    }
-
-                    return;
+                    return false;
                 }
                 let new_pos = new_pos.unwrap();
 
@@ -144,8 +201,10 @@ impl WFCController {
                     WFCNode::PipeNode { pos_index: pos, .. } => *pos = pos_index,
                     _ => unreachable!(),
                 }
+
+                true
             }
-            _ => {}
+            _ => true,
         }
     }
 }
@@ -154,21 +213,9 @@ impl CSGTree {
     pub fn find_valid_pos(&self, grid_size: f32) -> Option<Vec3> {
         let aabb = &self.nodes[0].aabb;
 
-        let min = (aabb.min / grid_size).as_ivec3();
-        let max = (aabb.max / grid_size).as_ivec3();
-        for x in min.x..=max.x {
-            for y in min.y..=max.y {
-                for z in min.z..max.z {
-                    let pos = ivec3(x, y, z).as_vec3() * grid_size;
-
-                    if self.at_pos(pos) {
-                        return Some(pos);
-                    }
-                }
-            }
-        }
-
-        None
+        aabb.get_random_sampled_positions(grid_size)
+            .into_iter()
+            .find(|&pos| self.at_pos(pos))
     }
 
     pub fn at_pos(&self, pos: Vec3) -> bool {
