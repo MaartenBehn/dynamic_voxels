@@ -28,7 +28,7 @@ use octa_force::puffin_egui::puffin;
 use octa_force::vulkan::ash::vk::AttachmentLoadOp;
 use octa_force::{egui, log, Engine, OctaResult};
 use std::time::{Duration, Instant};
-use wfc::controller::WFCController;
+// use wfc::controller::WFCController;
 
 pub const USE_PROFILE: bool = false;
 
@@ -45,7 +45,7 @@ pub struct RenderState {
 pub struct LogicState {
     pub camera: Camera,
     pub start_time: Instant,
-    pub wfc_controller: WFCController,
+    //    pub wfc_controller: WFCController,
 }
 
 #[no_mangle]
@@ -128,19 +128,21 @@ pub fn new_logic_state(
     #[cfg(debug_assertions)]
     puffin::profile_function!();
 
+    /*
     let mut wfc_controller = WFCController::new();
 
-    wfc_controller.set_example();
+        wfc_controller.set_example();
 
-    wfc_controller.collapse(wfc_controller.root_index);
+        wfc_controller.collapse(wfc_controller.root_index);
 
-    dbg!(&wfc_controller);
+        dbg!(&wfc_controller);
 
-    let mut tree = wfc_controller.make_cgs(wfc_controller.root_index);
-    tree.set_all_aabbs(2.0);
-    tree.make_data();
+        let mut tree = wfc_controller.make_cgs(wfc_controller.root_index);
+        tree.set_all_aabbs(2.0);
+        tree.make_data();
 
-    render_state.csg_controller.set_data(&tree.data)?;
+        render_state.csg_controller.set_data(&tree.data)?;
+    */
 
     log::info!("Creating Camera");
     let mut camera = Camera::base(engine.swapchain.size.as_vec2());
@@ -156,7 +158,7 @@ pub fn new_logic_state(
     Ok(LogicState {
         camera,
         start_time: Instant::now(),
-        wfc_controller,
+        //   wfc_controller,
     })
 }
 
@@ -173,21 +175,24 @@ pub fn update(
 
     let time = logic_state.start_time.elapsed();
 
-    if engine.controls.q {
-        logic_state.wfc_controller.set_example();
+    /*
+        if engine.controls.q {
+            logic_state.wfc_controller.set_example();
 
-        logic_state
-            .wfc_controller
-            .collapse(logic_state.wfc_controller.root_index);
 
-        let mut tree = logic_state
-            .wfc_controller
-            .make_cgs(logic_state.wfc_controller.root_index);
-        tree.set_all_aabbs(2.0);
-        tree.make_data();
+            logic_state
+                .wfc_controller
+                .collapse(logic_state.wfc_controller.root_index);
 
-        render_state.csg_controller.set_data(&tree.data)?;
-    }
+            let mut tree = logic_state
+                .wfc_controller
+                .make_cgs(logic_state.wfc_controller.root_index);
+            tree.set_all_aabbs(2.0);
+            tree.make_data();
+
+            render_state.csg_controller.set_data(&tree.data)?;
+        }
+    */
 
     logic_state.camera.update(&engine.controls, delta_time);
     render_state
