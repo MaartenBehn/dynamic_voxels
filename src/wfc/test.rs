@@ -27,7 +27,7 @@ pub fn test_builder() {
         .node((), |b| {
             b.identifier(2)
                 .number_range(1..=2, |b| {
-                    b.defines(NumberRangeDefinesType::Amount { of_node: 5 })
+                    b.defines(NumberRangeDefinesType::Link { to_node: 2 })
                         .identifier(6)
                 })
                 .on_collapse_modify_volume_with_pos_attribute(4, 7, |mut csg, pos| {
@@ -45,8 +45,7 @@ pub fn test_builder() {
                     csg.set_all_aabbs(0.0);
                     csg
                 })
-        })
-        .node((), |b| b.identifier(5));
+        });
 
     dbg!(&wfc_builder);
 

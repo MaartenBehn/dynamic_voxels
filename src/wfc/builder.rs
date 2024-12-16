@@ -18,7 +18,7 @@ pub struct UserNodeTemplate<U> {
     pub identifier: Option<NodeIdentifier>,
     pub data: U,
     pub children: Vec<NodeIdentifier>,
-    pub on_collapse: Vec<Action>,
+    pub on_collapse: Vec<ActionTemplate>,
 }
 
 #[derive(Debug, Clone)]
@@ -46,6 +46,7 @@ pub struct WFCUserNodeBuilder<U> {
 pub enum NumberRangeDefinesType {
     None,
     Amount { of_node: NodeIdentifier },
+    Link { to_node: NodeIdentifier },
 }
 
 #[derive(Debug, Clone)]
@@ -72,7 +73,7 @@ pub struct VolumeBuilder {
 }
 
 #[derive(Debug, Clone)]
-pub enum Action {
+pub enum ActionTemplate {
     TransformNumberSet {
         identifier: NodeIdentifier,
         func: fn(Vec<i32>) -> Vec<i32>,
@@ -88,7 +89,7 @@ pub enum Action {
     },
 }
 
-impl<U: ToOwned<Owned = U>> WFCBuilder<U> {
+impl<U: Clone> WFCBuilder<U> {
     pub fn new() -> WFCBuilder<U> {
         WFCBuilder {
             user_nodes: vec![],
@@ -195,7 +196,7 @@ impl<U> WFCUserNodeBuilder<U> {
     ) -> Self {
         self.node
             .on_collapse
-            .push(Action::TransformVolumeWithPosAttribute {
+            .push(ActionTemplate::TransformVolumeWithPosAttribute {
                 func,
                 volume_identifier,
                 attribute_identifier,
