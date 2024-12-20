@@ -9,8 +9,8 @@ path = "src/reload.rs"
 crate-type = ["rlib", "dylib"]
 
 [dependencies]
-# octa-force = { path = "../octa-force-rs" }
-octa-force = { version = "0.2.3", git = "https://github.com/MaartenBehn/octa-force-rs" }
+octa-force = { path = "../octa-force-rs" }
+# octa-force = { version = "0.2.3", git = "https://github.com/MaartenBehn/octa-force-rs" }
 fastrand = "2.2.0"
 # glsl_compiler = { path = "../glsl_compiler" }
 glsl_compiler = { version = "0.1.3", git = "https://github.com/MaartenBehn/glsl_compiler" }
@@ -18,3 +18,7 @@ simple-easing = "1.0.1"
 simple-log = "2.1.1"
 gcd = "2.3.0"
 feistel-permutation-rs = { git="https://github.com/MaartenBehn/permutation-rs.git", version = "0.1.2"}
+
+petgraph = "0.6.5"
+egui_graphs = "0.21.1"
+fdg = { git = "https://github.com/grantshandy/fdg" }

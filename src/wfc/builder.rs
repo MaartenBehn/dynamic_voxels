@@ -2,8 +2,9 @@ use octa_force::glam::Vec3;
 
 use crate::cgs_tree::tree::{CSGNode, CSGNodeData, CSGTree};
 
-use super::base_node::WFC;
-use std::ops::RangeBounds;
+use std::{ops::RangeBounds, usize};
+
+use super::node::WFC;
 
 pub type NodeIdentifier = usize;
 
@@ -32,8 +33,11 @@ pub enum BaseNodeTemplate {
     Volume {
         identifier: Option<NodeIdentifier>,
         csg: CSGTree,
-        defines: VolumeDefinesType,
     },
+    VolumeChild {
+        identifier: Option<NodeIdentifier>,
+        parent_identifier: NodeIdentifier,
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -55,21 +59,17 @@ pub struct NumberRangeBuilder {
     pub defines: NumberRangeDefinesType,
 }
 
-#[derive(Debug, Clone)]
-pub enum VolumeDefinesType {
-    None,
-    Attribute {
-        of_node: NodeIdentifier,
-
-        identifier: NodeIdentifier,
-    },
-}
 
 #[derive(Debug, Clone)]
 pub struct VolumeBuilder {
     pub identifier: Option<NodeIdentifier>,
     pub csg: Option<CSGTree>,
-    pub defines: VolumeDefinesType,
+}
+
+#[derive(Debug, Clone)]
+pub struct PosBuilder {
+    pub identifier: Option<NodeIdentifier>,
+    pub parent_identifier: Option<usize>,
 }
 
 #[derive(Debug, Clone)]
@@ -178,12 +178,27 @@ impl<U> WFCUserNodeBuilder<U> {
         let volume = BaseNodeTemplate::Volume {
             identifier: volume_builder.identifier,
             csg: volume_builder.csg.unwrap(),
-            defines: volume_builder.defines,
         };
 
         self.base_nodes_templates.push(volume);
 
         self.node.children.push(volume_builder.identifier.unwrap());
+
+        self
+    }
+    
+    pub fn pos(mut self, pos_options: fn(b: PosBuilder) -> PosBuilder) -> Self {
+        let mut pos_builder = PosBuilder::new();
+        pos_builder = pos_options(pos_builder);
+
+        let pos = BaseNodeTemplate::VolumeChild {
+            identifier: pos_builder.identifier,
+            parent_identifier: pos_builder.parent_identifier.unwrap(),
+        };
+
+        self.base_nodes_templates.push(pos);
+
+        self.node.children.push(pos_builder.identifier.unwrap());
 
         self
     }
@@ -240,7 +255,6 @@ impl VolumeBuilder {
         VolumeBuilder {
             identifier: None,
             csg: None,
-            defines: VolumeDefinesType::None,
         }
     }
 
@@ -249,21 +263,36 @@ impl VolumeBuilder {
         self
     }
 
-    pub fn tree(mut self, tree: CSGTree) -> Self {
-        self.csg = Some(tree);
+    pub fn csg_tree(mut self, csg: CSGTree) -> Self {
+        self.csg = Some(csg);
         self
     }
 
     pub fn csg_node(self, node: CSGNodeData) -> Self {
-        let mut tree = CSGTree::new();
-        tree.nodes = vec![CSGNode::new(node)];
-        tree.set_all_aabbs(0.0);
+        let mut csg = CSGTree::new();
+        csg.nodes = vec![CSGNode::new(node)];
+        csg.set_all_aabbs(0.0);
 
-        self.tree(tree)
+        self.csg_tree(csg)
     }
 
-    pub fn defines(mut self, defines: VolumeDefinesType) -> Self {
-        self.defines = defines;
+}
+
+impl PosBuilder {
+    pub fn new() -> Self {
+        PosBuilder {
+            identifier: None,
+            parent_identifier: None,
+        }
+    }
+
+    pub fn identifier(mut self, identifier: NodeIdentifier) -> Self {
+        self.identifier = Some(identifier);
+        self
+    }
+
+    pub fn in_volume(mut self, identifier: NodeIdentifier) -> Self {
+        self.parent_identifier = Some(identifier);
         self
     }
 }

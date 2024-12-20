@@ -15,20 +15,22 @@ use crate::material::controller::MaterialController;
 use crate::material::voxels::VoxelField;
 use crate::profiler::ShaderProfiler;
 use crate::render::Renderer;
-use cgs_tree::tree::AABB_PADDING;
+use cgs_tree::tree::{CSGNode, CSGNodeData, AABB_PADDING, MATERIAL_NONE};
 use glsl_compiler::glsl;
 use log::debug;
 use octa_force::camera::Camera;
 use octa_force::egui_winit::winit::event::WindowEvent;
-use octa_force::glam::{vec3, Vec3};
+use octa_force::glam::{vec3, Mat4, Quat, Vec3};
 use octa_force::gui::Gui;
 use octa_force::log::Log;
 use octa_force::logger::setup_logger;
 use octa_force::puffin_egui::puffin;
 use octa_force::vulkan::ash::vk::AttachmentLoadOp;
 use octa_force::{egui, log, Engine, OctaResult};
+use wfc::builder::{NumberRangeDefinesType, WFCBuilder};
+use wfc::node::WFC;
+use wfc::renderer::renderer::WFCRenderer;
 use std::time::{Duration, Instant};
-// use wfc::controller::WFCController;
 
 pub const USE_PROFILE: bool = false;
 
@@ -40,12 +42,13 @@ pub struct RenderState {
     pub color_controller: ColorController,
     pub renderer: Renderer,
     pub profiler: Option<ShaderProfiler>,
+    pub wfc_renderer: WFCRenderer
 }
 
 pub struct LogicState {
     pub camera: Camera,
     pub start_time: Instant,
-    //    pub wfc_controller: WFCController,
+    pub wfc: WFC<()>,
 }
 
 #[no_mangle]
@@ -109,6 +112,8 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
         shader_bin,
     )?;
 
+    let wfc_renderer = WFCRenderer::new();
+
     Ok(RenderState {
         gui,
         csg_controller,
@@ -117,6 +122,7 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
         color_controller,
         renderer,
         profiler,
+        wfc_renderer,
     })
 }
 
@@ -126,23 +132,7 @@ pub fn new_logic_state(
     engine: &mut Engine,
 ) -> OctaResult<LogicState> {
     #[cfg(debug_assertions)]
-    puffin::profile_function!();
-
-    /*
-    let mut wfc_controller = WFCController::new();
-
-        wfc_controller.set_example();
-
-        wfc_controller.collapse(wfc_controller.root_index);
-
-        dbg!(&wfc_controller);
-
-        let mut tree = wfc_controller.make_cgs(wfc_controller.root_index);
-        tree.set_all_aabbs(2.0);
-        tree.make_data();
-
-        render_state.csg_controller.set_data(&tree.data)?;
-    */
+    puffin::profile_function!(); 
 
     log::info!("Creating Camera");
     let mut camera = Camera::base(engine.swapchain.size.as_vec2());
@@ -155,10 +145,64 @@ pub fn new_logic_state(
     camera.z_far = 100.0;
     camera.up = vec3(0.0, 0.0, 1.0);
 
+
+
+
+    let wfc_builder = WFCBuilder::new()
+        .node((), |b| {
+            b.number_range(0..=5, |b| {
+                b.defines(NumberRangeDefinesType::Amount { of_node: 2 })
+                    .identifier(1)
+            })
+            .volume(|b| {
+                b.identifier(4)
+                    .csg_node(CSGNodeData::Box(Mat4::default(), MATERIAL_NONE))
+                })
+            .identifier(0)
+        })
+        .node((), |b| {
+            b.identifier(2)
+                .number_range(1..=2, |b| {
+                    b.defines(NumberRangeDefinesType::Link { to_node: 2 })
+                        .identifier(6)
+                })
+                .pos(|b| {
+                    b.in_volume(4).identifier(7)
+                })
+                .on_collapse_modify_volume_with_pos_attribute(4, 7, |mut csg, pos| {
+                    let mut tree = CSGTree::new();
+                    tree.nodes.push(CSGNode::new(CSGNodeData::Sphere(
+                        Mat4::from_scale_rotation_translation(
+                            Vec3::ONE * 0.1,
+                            Quat::from_euler(octa_force::glam::EulerRot::XYZ, 0.0, 0.0, 0.0),
+                            pos,
+                        ),
+                        MATERIAL_NONE,
+                    )));
+
+                    csg.append_tree_with_remove(tree);
+                    csg.set_all_aabbs(0.0);
+                    csg
+                })
+        });
+
+    dbg!(&wfc_builder);
+
+    let mut wfc = wfc_builder.build();
+
+    dbg!(&wfc);
+
+    wfc.collapse(0);
+
+    dbg!(&wfc);
+
+    render_state.wfc_renderer.set_wfc(&wfc); 
+
+
     Ok(LogicState {
         camera,
         start_time: Instant::now(),
-        //   wfc_controller,
+        wfc
     })
 }
 
@@ -175,36 +219,10 @@ pub fn update(
 
     let time = logic_state.start_time.elapsed();
 
-    /*
-        if engine.controls.q {
-            logic_state.wfc_controller.set_example();
-
-
-            logic_state
-                .wfc_controller
-                .collapse(logic_state.wfc_controller.root_index);
-
-            let mut tree = logic_state
-                .wfc_controller
-                .make_cgs(logic_state.wfc_controller.root_index);
-            tree.set_all_aabbs(2.0);
-            tree.make_data();
-
-            render_state.csg_controller.set_data(&tree.data)?;
-        }
-    */
-
     logic_state.camera.update(&engine.controls, delta_time);
     render_state
         .renderer
-        .update(&logic_state.camera, engine.swapchain.size, time)?;
-    /*
-        debug!(
-            "Pos: {:?} Dir: {:?}",
-            logic_state.camera.position, logic_state.camera.direction
-        );
-
-    */
+        .update(&logic_state.camera, engine.swapchain.size, time)?; 
 
     if render_state.profiler.is_some() {
         render_state
@@ -213,6 +231,9 @@ pub fn update(
             .unwrap()
             .update(frame_index, &engine.context)?;
     }
+
+    render_state.wfc_renderer.update();
+
 
     Ok(())
 }
@@ -254,6 +275,8 @@ pub fn record_render_commands(
                     .unwrap()
                     .gui_windows(ctx, engine.controls.mouse_left);
             }
+
+            render_state.wfc_renderer.gui_windows(ctx);
         },
     )?;
 
