@@ -1,28 +1,3 @@
-pub struct SettingsGraph {
-    pub count_node: usize,
-    pub count_edge: usize,
-}
-
-impl Default for SettingsGraph {
-    fn default() -> Self {
-        Self {
-            count_node: 25,
-            count_edge: 50,
-        }
-    }
-}
-
-#[derive(Default)]
-pub struct SettingsInteraction {
-    pub dragging_enabled: bool,
-    pub node_clicking_enabled: bool,
-    pub node_selection_enabled: bool,
-    pub node_selection_multi_enabled: bool,
-    pub edge_clicking_enabled: bool,
-    pub edge_selection_enabled: bool,
-    pub edge_selection_multi_enabled: bool,
-}
-
 pub struct SettingsNavigation {
     pub fit_to_screen_enabled: bool,
     pub zoom_and_pan_enabled: bool,
@@ -39,23 +14,34 @@ impl Default for SettingsNavigation {
     }
 }
 
-#[derive(Default)]
-pub struct SettingsStyle {
-    pub labels_always: bool,
-}
 
-pub struct SettingsSimulation {
+
+pub struct ForceSettings {
     pub dt: f32,
     pub cooloff_factor: f32,
     pub scale: f32,
 }
 
-impl Default for SettingsSimulation {
+impl Default for ForceSettings {
     fn default() -> Self {
         Self {
             dt: 0.03,
-            cooloff_factor: 0.85,
-            scale: 100.,
+            cooloff_factor: 0.80,
+            scale: 400.,
+        }
+    }
+}
+
+pub struct SimulationSettings {
+    pub center_force: f32,
+    pub running: bool,
+}
+
+impl Default for SimulationSettings {
+    fn default() -> Self {
+        Self { 
+            center_force: 0.01, 
+            running: true,
         }
     }
 }

@@ -35,6 +35,22 @@ impl WFCRenderer {
         }
 
         self.g = Graph::from(&g);
+
+        for (i, node) in wfc.nodes.iter().enumerate() {
+            
+            let label = match node {
+                Node::None => "None".to_owned(),
+                Node::Number { val } => format!("Number: {val}"),
+                Node::NumberSet { vals, r#type, children } => format!("NumberSet: {:?} {vals:?}", r#type),
+                Node::Pos { pos } => format!("Pos: [{:0.2}, {:0.2}]", pos.x, pos.y),
+                Node::Volume { csg, children } => "Volume".to_owned(),
+                Node::VolumeChild { parent, children } => format!("VolumeChild {parent}"),
+                Node::User { data, attributes, on_collapse } => format!("User"),
+            }; 
+
+            self.g.node_mut(NodeIndex::new(i)).unwrap().set_label(label);
+        }
+
         self.reset();
     }
 }

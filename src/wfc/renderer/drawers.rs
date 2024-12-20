@@ -127,6 +127,7 @@ pub fn draw_simulation_config_sliders(
         };
     });
 
+    
     if delta_dt != 0. || delta_cooloff_factor != 0. || delta_scale != 0. {
         on_change(delta_dt, delta_cooloff_factor, delta_scale);
     }
