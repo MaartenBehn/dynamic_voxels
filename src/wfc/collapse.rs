@@ -10,8 +10,14 @@ use super::node::{Node, NumberSetType, WFC};
 impl<U: Clone> WFC<U> {
 
     pub fn collapse(&mut self, index: usize) -> bool {
-        let node = &self.nodes[index];
+        
+        let valid = self.collapse_node(index);
 
+        if !valid {
+            return false;
+        }
+
+        let node = &self.nodes[index];
         match node {
             Node::None => panic!("When collapsing there shouldn't be any None Nodes"),
             Node::Number { .. } => {},
@@ -73,7 +79,7 @@ impl<U: Clone> WFC<U> {
             },
         }       
 
-        self.collapse_node(index)
+        return true;
     }
     
     pub fn collapse_node(&mut self, index: usize) -> bool {

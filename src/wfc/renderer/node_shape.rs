@@ -65,7 +65,7 @@ impl<N: Clone, E: Clone, Ty: EdgeType, Ix: IndexType> DisplayNode<N, E, Ty, Ix>
             f.layout_no_wrap(
                 self.label_text.clone(),
                 FontId::new(circle_radius, FontFamily::Monospace),
-                Color32::WHITE,
+                Color32::GREEN,
             )
         });
 
@@ -75,7 +75,7 @@ impl<N: Clone, E: Clone, Ty: EdgeType, Ix: IndexType> DisplayNode<N, E, Ty, Ix>
             circle_center.y - circle_radius * 2.,
         );
 
-        let label_shape = TextShape::new(label_pos, galley, Color32::WHITE);
+        let label_shape = TextShape::new(label_pos, galley, color);
         res.push(label_shape.into());
 
         res
