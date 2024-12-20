@@ -7,6 +7,7 @@ use std::{ops::RangeBounds, usize};
 use super::node::WFC;
 
 pub type NodeIdentifier = usize;
+pub const NodeIdentifierNone: NodeIdentifier = NodeIdentifier::MAX;
 
 #[derive(Debug, Clone)]
 pub struct WFCBuilder<U> {

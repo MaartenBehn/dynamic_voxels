@@ -64,18 +64,19 @@ pub enum Action {
 #[derive(Debug, Clone)]
 pub struct WFC<U: Clone> {
     pub nodes: Vec<Node<U>>,
-    pub node_identifier: Vec<Option<NodeIdentifier>>
+    pub node_identifier: Vec<Option<NodeIdentifier>>,
+    pub link_data: Vec<NodeIdentifier>,
 }
 
 impl<U: Clone> WFC<U>{
     pub(crate) fn new(builder: &WFCBuilder<U>) -> Self {
         let mut wfc = WFC { 
             nodes: vec![],
-            node_identifier: vec![], 
+            node_identifier: vec![],
+            link_data: vec![], 
         };
 
-        wfc.add_user_node(builder, 0);
-        wfc.link_nodes(builder);
+        wfc.build_user_node(builder, 0);
 
         wfc
     }

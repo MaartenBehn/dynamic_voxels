@@ -150,7 +150,7 @@ pub fn new_logic_state(
 
     let wfc_builder = WFCBuilder::new()
         .node((), |b| {
-            b.number_range(0..=5, |b| {
+            b.number_range(2..=5, |b| {
                 b.defines(NumberRangeDefinesType::Amount { of_node: 2 })
                     .identifier(1)
             })
@@ -189,10 +189,6 @@ pub fn new_logic_state(
     dbg!(&wfc_builder);
 
     let mut wfc = wfc_builder.build();
-
-    dbg!(&wfc);
-
-    wfc.collapse(0);
 
     dbg!(&wfc);
 
