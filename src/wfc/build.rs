@@ -202,93 +202,95 @@ impl<U: Clone> WFC<U> {
         let node = &self.nodes[index];
 
         match node {
-                Node::NumberSet { r#type, children , vals } => {
-                    match r#type {
-                        NumberSetType::Link => {
-                            if !children.is_empty() {
-                                return true;
-                            }
-
-                            let vals_min = vals[0] as usize;
-
-                            let identifier = self.link_data[index];
-                            
-                            let mut add_counter = 0;
-                            for (test_index, test_identifier) in self.node_identifier.iter().enumerate() {
-                                if Some(identifier) == *test_identifier {
-                                    let test_node = &self.nodes[test_index];
-
-                                    match test_node {
-                                        Node::User { attributes, .. } => {
-                                            if attributes.contains(&index) {
-                                                continue;
-                                            }
-                                        },
-                                        _ => {}
-                                    }
-
-
-                                    match &mut self.nodes[index] {
-                                        Node::NumberSet { children, .. } => {
-                                            children.push(test_index);
-                                            add_counter += 1;
-                                        }
-                                        _ => unreachable!()
-                                    }
-                                } 
-                            }
-                            
-                            // There are not enought children for a single val.
-                            if vals_min > add_counter {
-                                return false;
-                            }
-
-                            match &mut self.nodes[index] {
-                                Node::NumberSet { vals, .. } => {
-                                    *vals = vals.to_owned()
-                                        .into_iter()
-                                        .filter(|val| *val as usize <= add_counter)
-                                        .collect();
-                                },
-                                _ => unreachable!()
-                            }
-                        },
-                        _ => {}
-                    }
-                },
-                Node::VolumeChild { parent, .. } => {
-                    if *parent != usize::MAX {
-                        return true;
-                    }
-                        
-                    let identifier = self.link_data[index];
-                    
-                    dbg!(identifier);
-
-                    for (test_index, test_identifier) in self.node_identifier.iter().enumerate() {
-                        if Some(identifier) == *test_identifier {
-                            match &mut self.nodes[test_index] {
-                                Node::Volume { children, .. } 
-                                | Node::VolumeChild { children, .. }=> {
-                                    children.push(index);
-                                },
-                                _ => panic!("Volume Parent Identifier must be Volume"),
-                            }
-                            
-                            // Set parent to the parent node index we found!
-                            match &mut self.nodes[index] {
-                                Node::VolumeChild { parent, .. } => {
-                                    *parent = test_index;
-                                },
-                                _ => unreachable!(),
-                            }
-
-                            break;
+            Node::NumberSet { r#type, children , vals } => {
+                match r#type {
+                    NumberSetType::Link => {
+                        if !children.is_empty() {
+                            return true;
                         }
-                    }                         
-                },
-                _ => {}
-            }
+
+                        let vals_min = vals[0] as usize;
+
+                        let identifier = self.link_data[index];
+                            
+                        let mut add_counter = 0;
+                        for (test_index, test_identifier) in self.node_identifier.iter().enumerate() {
+                            if Some(identifier) == *test_identifier {
+                                let test_node = &self.nodes[test_index];
+
+                                match test_node {
+                                    Node::User { attributes, .. } => {
+                                        if attributes.contains(&index) {
+                                            continue;
+                                        }
+                                    },
+                                    _ => {}
+                                }
+
+
+                                match &mut self.nodes[index] {
+                                    Node::NumberSet { children, .. } => {
+                                        children.push(test_index);
+                                        add_counter += 1;
+                                    }
+                                    _ => unreachable!()
+                                }
+                            } 
+                        }
+                        
+                        // There are not enought children for a single val.
+                        if vals_min > add_counter {
+                            return false;
+                        }
+                        
+                        // Delete all vals that are to large for the amount of possible
+                        // children.
+                        match &mut self.nodes[index] {
+                            Node::NumberSet { vals, .. } => {
+                                *vals = vals.to_owned()
+                                    .into_iter()
+                                    .filter(|val| *val as usize <= add_counter)
+                                    .collect();
+                            },
+                            _ => unreachable!()
+                        }
+                    },
+                    _ => {}
+                }
+            },
+            Node::VolumeChild { parent, .. } => {
+                if *parent != usize::MAX {
+                    return true;
+                }
+                    
+                let identifier = self.link_data[index];
+                
+                dbg!(identifier);
+
+                for (test_index, test_identifier) in self.node_identifier.iter().enumerate() {
+                    if Some(identifier) == *test_identifier {
+                        match &mut self.nodes[test_index] {
+                            Node::Volume { children, .. } 
+                            | Node::VolumeChild { children, .. }=> {
+                                children.push(index);
+                            },
+                            _ => panic!("Volume Parent Identifier must be Volume"),
+                        }
+                        
+                        // Set parent to the parent node index we found!
+                        match &mut self.nodes[index] {
+                            Node::VolumeChild { parent, .. } => {
+                                *parent = test_index;
+                            },
+                            _ => unreachable!(),
+                        }
+
+                        break;
+                    }
+                }                         
+            },
+            _ => {}
+        }
 
         true
     }
