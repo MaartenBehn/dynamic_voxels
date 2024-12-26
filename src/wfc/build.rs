@@ -66,6 +66,7 @@ impl<U: Clone> WFC<U> {
         let node = Node::User {
             data: node_template.data.to_owned(),
             attributes: children,
+            on_show: node_template.on_show,
         }; 
 
         self.nodes[index] = node;
@@ -380,7 +381,7 @@ impl<U: Clone> WFC<U> {
             },
             Node::User { attributes, .. } => {
                 for attribute in attributes.to_owned().into_iter() {
-                    let valid = self.collapse(attribute);
+                    let valid = self.build_collapse(attribute);
                             
                     if !valid {
                         return false;

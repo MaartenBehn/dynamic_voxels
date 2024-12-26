@@ -28,7 +28,7 @@ use octa_force::puffin_egui::puffin;
 use octa_force::vulkan::ash::vk::AttachmentLoadOp;
 use octa_force::{egui, log, Engine, OctaResult};
 use wfc::builder::{NumberRangeDefinesType, WFCBuilder};
-use wfc::node::WFC;
+use wfc::node::{Node, WFC};
 use wfc::renderer::renderer::WFCRenderer;
 use std::time::{Duration, Instant};
 
@@ -147,39 +147,75 @@ pub fn new_logic_state(
 
 
     let wfc_builder = WFCBuilder::new()
+        
         .node((), |b| {
-            b.number_range(2..=5, |b| {
-                b.defines(NumberRangeDefinesType::Amount { of_node: 2 })
-                    .identifier(1)
-            })
-            .volume(|b| {
-                b.identifier(4)
-                    .csg_node(CSGNodeData::Box(Mat4::default(), MATERIAL_NONE))
+            b
+                .identifier(0)
+                
+                .number_range(2..=5, |b| {
+                    b
+                        .identifier(1)
+                        .defines(NumberRangeDefinesType::Amount { of_node: 2 })
                 })
-            .identifier(0)
-        })
-        .node((), |b| {
-            b.identifier(2)
-                .number_range(1..=2, |b| {
-                    b.defines(NumberRangeDefinesType::Link { to_node: 2 })
-                        .identifier(6)
+            
+                .volume(|b| {
+                    b.identifier(4)
+                        .csg_node(CSGNodeData::Box(Mat4::default(), MATERIAL_NONE))
                 })
-                .pos(|b| {
-                    b.in_volume(4).identifier(7)
-                    .on_collapse(|csg, pos| {
-                        let mut tree = CSGTree::new();
-                        tree.nodes.push(CSGNode::new(CSGNodeData::Sphere(
-                            Mat4::from_scale_rotation_translation(
-                                Vec3::ONE * 0.1,
-                                Quat::from_euler(octa_force::glam::EulerRot::XYZ, 0.0, 0.0, 0.0),
-                                pos,
-                            ),
-                            MATERIAL_NONE,
-                        )));
 
-                        csg.append_tree_with_remove(tree);
-                        csg.set_all_aabbs(0.0);
-                    })
+        })
+
+        .node((), |b| {
+            b
+                .identifier(2)
+
+                .number_range(1..=2, |b| {
+                    b
+                        .identifier(6)
+                        .defines(NumberRangeDefinesType::Link { to_node: 2 })
+                })
+
+                .pos(|b| {
+                    b
+                        .identifier(7)
+                        .in_volume(4)
+                        .on_collapse(|csg, pos| {
+                            let mut tree = CSGTree::new();
+                            tree.nodes.push(CSGNode::new(CSGNodeData::Sphere(
+                                Mat4::from_scale_rotation_translation(
+                                    Vec3::ONE * 0.1,
+                                    Quat::from_euler(octa_force::glam::EulerRot::XYZ, 0.0, 0.0, 0.0),
+                                    pos,
+                                ),
+                                MATERIAL_NONE,
+                            )));
+
+                            csg.append_tree_with_remove(tree);
+                            csg.set_all_aabbs(0.0);
+                        })
+                })
+
+                .on_show(|wfc, index, csg| {
+                    for child_index in wfc.get_children_with_identifier(index, 7) {
+                        match &wfc.nodes[child_index] {
+                            Node::Pos { pos} => {
+
+                                let mut tree = CSGTree::new();
+                                tree.nodes.push(CSGNode::new(CSGNodeData::Sphere(
+                                    Mat4::from_scale_rotation_translation(
+                                        Vec3::ONE * 0.1 * VOXEL_SIZE,
+                                        Quat::from_euler(octa_force::glam::EulerRot::XYZ, 0.0, 0.0, 0.0),
+                                        *pos * VOXEL_SIZE,
+                                    ),
+                                    1,
+                                )));
+
+                                csg.append_tree_with_union(tree);
+                                csg.set_all_aabbs(2.0);
+                            },
+                            _ => unreachable!()
+                        }
+                    }
                 })
         });
 
@@ -189,8 +225,16 @@ pub fn new_logic_state(
 
     dbg!(&wfc);
 
-    render_state.wfc_renderer.set_wfc(&wfc); 
+    render_state.wfc_renderer.set_wfc(&wfc);
 
+
+    let mut tree = CSGTree::new();
+    wfc.show(&mut tree);
+    tree.make_data();
+
+    dbg!(&tree);
+
+    render_state.csg_controller.set_data(&tree.data);
 
     Ok(LogicState {
         camera,

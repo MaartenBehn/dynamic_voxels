@@ -25,7 +25,7 @@ impl WFCRenderer {
                 },
                 Node::Volume { .. } => {},
                 Node::VolumeChild { .. } => {},
-                Node::User { data, attributes } => {
+                Node::User { attributes, .. } => {
                     for attribute in attributes {
                         g.add_edge(NodeIndex::from(i as u32), NodeIndex::from(*attribute as u32), ()); 
                     }

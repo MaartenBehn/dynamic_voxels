@@ -10,16 +10,17 @@ pub type NodeIdentifier = usize;
 pub const NodeIdentifierNone: NodeIdentifier = NodeIdentifier::MAX;
 
 #[derive(Debug, Clone)]
-pub struct WFCBuilder<U> {
+pub struct WFCBuilder<U: Clone> {
     pub user_nodes: Vec<UserNodeTemplate<U>>,
     pub base_nodes: Vec<BaseNodeTemplate>,
 }
 
 #[derive(Debug, Clone)]
-pub struct UserNodeTemplate<U> {
+pub struct UserNodeTemplate<U: Clone> {
     pub identifier: Option<NodeIdentifier>,
     pub data: U,
     pub children: Vec<NodeIdentifier>,
+    pub on_show: fn(&mut WFC<U>, usize, &mut CSGTree), 
 }
 
 #[derive(Debug, Clone)]
@@ -42,7 +43,7 @@ pub enum BaseNodeTemplate {
 }
 
 #[derive(Debug, Clone)]
-pub struct WFCUserNodeBuilder<U> {
+pub struct WFCUserNodeBuilder<U: Clone> {
     pub node: UserNodeTemplate<U>,
     pub base_nodes_templates: Vec<BaseNodeTemplate>,
 }
@@ -100,7 +101,7 @@ impl<U: Clone> WFCBuilder<U> {
     }
 }
 
-impl<U> WFCUserNodeBuilder<U> {
+impl<U: Clone> WFCUserNodeBuilder<U> {
     fn new(data: U) -> Self {
         WFCUserNodeBuilder {
             node: UserNodeTemplate::new(data),
@@ -128,14 +129,7 @@ impl<U> WFCUserNodeBuilder<U> {
             std::ops::Bound::Included(&num) => num + 1,
             std::ops::Bound::Excluded(&num) => num,
             std::ops::Bound::Unbounded => panic!("Range can not be unbounded"),
-        };
-
-        /*
-                let mut vals = vec![];
-                for i in start_bound..end_bound {
-                    vals.push(i);
-                }
-        */
+        }; 
 
         let mut number_set_builder = NumberRangeBuilder::new();
         number_set_builder = number_set_options(number_set_builder);
@@ -188,14 +182,20 @@ impl<U> WFCUserNodeBuilder<U> {
 
         self
     }
+
+    pub fn on_show(mut self, on_show: fn(&mut WFC<U>, usize, &mut CSGTree)) -> Self {
+        self.node.on_show = on_show;
+        self
+    }
 }
 
-impl<U> UserNodeTemplate<U> {
+impl<U: Clone> UserNodeTemplate<U> {
     fn new(data: U) -> UserNodeTemplate<U> {
         UserNodeTemplate {
             data,
             identifier: None,
             children: vec![],
+            on_show: |_, _, _| {},
         }
     }
 }

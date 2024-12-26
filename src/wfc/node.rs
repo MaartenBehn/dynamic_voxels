@@ -1,3 +1,5 @@
+use std::{iter, usize};
+
 use octa_force::glam::Vec3;
 
 use crate::cgs_tree::tree::CSGTree;
@@ -34,6 +36,7 @@ pub enum Node<U: Clone> {
     User {
         data: U,
         attributes: Vec<usize>,
+        on_show: fn(&mut WFC<U>, usize, &mut CSGTree), 
     },
 }
 
@@ -60,208 +63,61 @@ impl<U: Clone> WFC<U>{
         };
 
         wfc.build_user_node(builder, 0);
-
         wfc
     }
 
-    pub fn add_user_node_by_identifier(&mut self, builder: &WFCBuilder<U>, identifier: NodeIdentifier) -> usize {
-        let index = builder
-            .get_index_of_user_node_identifier(identifier)
-            .expect(&format!("Identifier {identifier} must be User Node"));               
-        
-
-        self.add_user_node(builder, index)
-
+    pub fn show(&mut self, csg: &mut CSGTree) {
+        self.show_node(csg, 0);
     }
 
-    pub fn add_user_node(&mut self, builder: &WFCBuilder<U>, index: usize) -> usize {
-        let node_template = &builder.user_nodes[index];
+    fn show_node(&mut self, csg: &mut CSGTree, index: usize) {
+        match &self.nodes[index] {
+            Node::NumberSet { r#type, children, .. } => {
+                match r#type {
+                    NumberSetType::Amount => {
+                        let children = children.to_owned();
 
-        let index = self.nodes.len();
-        self.nodes.push(Node::None);
-        self.node_identifier.push(node_template.identifier);
-
-        
-        let mut children = vec![];
-        for child in node_template.children.iter() {
-
-            let res = self.add_base_node_by_identifier(builder, *child);
-            children.push(res);
-        }
-
-        let node = Node::User {
-            data: node_template.data.to_owned(),
-            attributes: children,
-        }; 
-
-        self.nodes[index] = node;
-
-        index
-    }
-    
-    pub fn add_base_node_by_identifier(&mut self, builder: &WFCBuilder<U>, identifier: NodeIdentifier) -> usize {
-        let index = builder
-            .get_index_of_base_node_identifier(identifier)
-            .expect(&format!("Identifier {identifier} must be Base Node"));
-                        
-        self.add_base_node(builder, index)
-    }
-
-    pub fn add_base_node(&mut self, builder: &WFCBuilder<U>, index: usize) -> usize {
-
-        let node_template = &builder.base_nodes[index];
-        match node_template {
-            BaseNodeTemplate::NumberRange {
-                identifier,
-                min,
-                max,
-                defines,
-            } => {
-
-                let index = self.nodes.len();
-                self.nodes.push(Node::None);
-                self.node_identifier.push(identifier.to_owned());
-
-
-                let mut vals = vec![];
-
-                for i in *min..*max {
-                    vals.push(i);
+                        for child in children {
+                            self.show_node(csg, child);
+                        }
+                    },
+                    _ => {}
                 }
-
-                let mut children = vec![];
-
-                let r#type = match *defines {
-                    NumberRangeDefinesType::None => {
-                        NumberSetType::None
-                    }
-                    NumberRangeDefinesType::Amount { of_node } => {
-                        for i in 0..*max {
-                            let res = self.add_user_node_by_identifier(builder, of_node);
-                            children.push(res);
-                        }
-                        NumberSetType::Amount
-                    }
-                    NumberRangeDefinesType::Link { to_node } => {
-                        children.push(to_node);
-                        NumberSetType::Link
-                    }
-                };
-
-                let node = Node::NumberSet { vals, children, r#type };
-
-                self.nodes[index] = node;
-
-                index
-            }
-            BaseNodeTemplate::Volume { identifier, csg,  .. } => {
-
-                let index = self.nodes.len();
-                self.nodes.push(Node::None);
-                self.node_identifier.push(identifier.to_owned());
-
-                let mut children = vec![]; 
-
-                let node = Node::Volume {
-                    csg: csg.to_owned(),
-                    children,
-                };
-
-                self.nodes[index] = node;
-                index
-            }
-            BaseNodeTemplate::VolumeChild { identifier, parent_identifier, on_collapse } => {
-                
-                let mut children = vec![]; 
-
-                let node = Node::VolumeChild {
-                    parent: *parent_identifier,
-                    children,
-                    on_collapse: *on_collapse,
-                };
-
-                let index = self.nodes.len();
-                self.nodes.push(node);
-                self.node_identifier.push(identifier.to_owned());
-                index
             },
+            Node::User { data, attributes, on_show } => {
+                let attributes = attributes.to_owned();
+
+                on_show(self, index, csg);
+
+                for attribute in attributes {
+                    self.show_node(csg, attribute);
+                }
+            },
+            _ => {}
         }
     }
 
-    pub fn link_nodes(&mut self, builder: &WFCBuilder<U>) {
-        
-        for (i, node) in self.nodes.to_owned().iter().enumerate() {
-            
-            match node {
-                Node::NumberSet { r#type, children , .. } => {
-                    match r#type {
-                        NumberSetType::Link => {
-                            let identifier = children[0];
-
-                            match &mut self.nodes[i] {
-                                Node::NumberSet { children, .. } => {
-                                    children.clear();
-                                }
-                                _ => unreachable!()
-                            }
-
-                            for (test_index, test_identifier) in self.node_identifier.iter().enumerate() {
-                                if Some(identifier) == *test_identifier {
-                                    let test_node = &self.nodes[test_index];
-
-                                    match test_node {
-                                        Node::User { attributes, .. } => {
-                                            if attributes.contains(&i) {
-                                                continue;
-                                            }
-                                        },
-                                        _ => {}
-                                    }
-
-
-                                    match &mut self.nodes[i] {
-                                     Node::NumberSet { children, .. } => {
-                                        children.push(test_index);
-                                        }
-                                        _ => unreachable!()
-                                    }
-                                } 
-                            }
-                        },
-                        _ => {}
-                    }
-                },
-                Node::VolumeChild { parent, .. } => {
-                    for (test_index, test_identifier) in self.node_identifier.iter().enumerate() {
-                        if Some(*parent) == *test_identifier {
-                            match &mut self.nodes[test_index] {
-                                Node::Volume { children, .. } 
-                                | Node::VolumeChild { children, .. }=> {
-                                    children.push(i);
-                                },
-                                _ => panic!("Volume Parent Identifier must be Volume"),
-                            }
-                            
-                            // Set parent to the parent node index we found!
-                            match &mut self.nodes[i] {
-                                Node::VolumeChild { parent, .. } => {
-                                    *parent = test_index;
-                                },
-                                _ => unreachable!(),
-                            }
-
-                            break;
-                        }
-                    }                         
-                },
-                _ => {}
-            }
+    pub fn get_children_with_identifier(&mut self, index: usize, identifier: NodeIdentifier) -> Vec<usize> {
+        let empty = vec![];
+        match &self.nodes[index] {
+            Node::None => panic!("get children none should never be none"),
+            Node::Number { .. } 
+             | Node::Pos { .. } => &empty,
+            Node::NumberSet { children, .. }
+             | Node::Volume { children, .. }
+             | Node::VolumeChild { children, .. }
+             | Node::User { attributes: children, .. } => children,
         }
-
-    }
+            .iter()
+            .filter(|i| {
+                self.node_identifier[**i].unwrap_or(NodeIdentifier::MAX) == identifier
+            })
+            .map(|i| *i)
+            .collect()
+    } 
 }
 
-impl<U> WFCBuilder<U> {
+impl<U: Clone> WFCBuilder<U> {
     pub fn get_index_of_base_node_identifier(&self, identifier: NodeIdentifier) -> Option<usize> {
         for (i, node) in self.base_nodes.iter().enumerate() {
             match node {
