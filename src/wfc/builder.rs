@@ -20,7 +20,6 @@ pub struct UserNodeTemplate<U> {
     pub identifier: Option<NodeIdentifier>,
     pub data: U,
     pub children: Vec<NodeIdentifier>,
-    pub on_collapse: Vec<ActionTemplate>,
 }
 
 #[derive(Debug, Clone)]
@@ -38,6 +37,7 @@ pub enum BaseNodeTemplate {
     VolumeChild {
         identifier: Option<NodeIdentifier>,
         parent_identifier: NodeIdentifier,
+        on_collapse: fn(&mut CSGTree, Vec3),
     }
 }
 
@@ -71,23 +71,7 @@ pub struct VolumeBuilder {
 pub struct PosBuilder {
     pub identifier: Option<NodeIdentifier>,
     pub parent_identifier: Option<usize>,
-}
-
-#[derive(Debug, Clone)]
-pub enum ActionTemplate {
-    TransformNumberSet {
-        identifier: NodeIdentifier,
-        func: fn(Vec<i32>) -> Vec<i32>,
-    },
-    TransformVolume {
-        identifier: NodeIdentifier,
-        func: fn(CSGTree) -> CSGTree,
-    },
-    TransformVolumeWithPosAttribute {
-        volume_identifier: NodeIdentifier,
-        attribute_identifier: NodeIdentifier,
-        func: fn(CSGTree, Vec3) -> CSGTree,
-    },
+    pub on_collapse: fn(&mut CSGTree, Vec3),
 }
 
 impl<U: Clone> WFCBuilder<U> {
@@ -195,28 +179,13 @@ impl<U> WFCUserNodeBuilder<U> {
         let pos = BaseNodeTemplate::VolumeChild {
             identifier: pos_builder.identifier,
             parent_identifier: pos_builder.parent_identifier.unwrap(),
+            on_collapse: pos_builder.on_collapse,
         };
 
         self.base_nodes_templates.push(pos);
 
         self.node.children.push(pos_builder.identifier.unwrap());
 
-        self
-    }
-
-    pub fn on_collapse_modify_volume_with_pos_attribute(
-        mut self,
-        volume_identifier: NodeIdentifier,
-        attribute_identifier: NodeIdentifier,
-        func: fn(CSGTree, Vec3) -> CSGTree,
-    ) -> Self {
-        self.node
-            .on_collapse
-            .push(ActionTemplate::TransformVolumeWithPosAttribute {
-                func,
-                volume_identifier,
-                attribute_identifier,
-            });
         self
     }
 }
@@ -227,7 +196,6 @@ impl<U> UserNodeTemplate<U> {
             data,
             identifier: None,
             children: vec![],
-            on_collapse: vec![],
         }
     }
 }
@@ -284,6 +252,7 @@ impl PosBuilder {
         PosBuilder {
             identifier: None,
             parent_identifier: None,
+            on_collapse: |_, _| {},
         }
     }
 
@@ -294,6 +263,11 @@ impl PosBuilder {
 
     pub fn in_volume(mut self, identifier: NodeIdentifier) -> Self {
         self.parent_identifier = Some(identifier);
+        self
+    }
+
+    pub fn on_collapse(mut self, on_collapse: fn(&mut CSGTree, Vec3)) -> Self {
+        self.on_collapse = on_collapse;
         self
     }
 }

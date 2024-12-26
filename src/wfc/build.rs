@@ -66,7 +66,6 @@ impl<U: Clone> WFC<U> {
         let node = Node::User {
             data: node_template.data.to_owned(),
             attributes: children,
-            on_collapse: vec![],
         }; 
 
         self.nodes[index] = node;
@@ -143,12 +142,13 @@ impl<U: Clone> WFC<U> {
 
                 (index, true)
             },
-            BaseNodeTemplate::VolumeChild { identifier, parent_identifier } => {
+            BaseNodeTemplate::VolumeChild { identifier, parent_identifier, on_collapse } => {
                 let mut children = vec![]; 
 
                 let node = Node::VolumeChild {
                     parent: usize::MAX,
                     children,
+                    on_collapse: *on_collapse,
                 };
 
                 let index = self.nodes.len();
@@ -353,9 +353,10 @@ impl<U: Clone> WFC<U> {
                 }
             },
             Node::Pos { .. } => {},
-            Node::Volume { csg, children } => {},
-            Node::VolumeChild { parent, .. } => {
+            Node::Volume { .. } => {},
+            Node::VolumeChild { parent, on_collapse, .. } => {
                 let parent_index = *parent;
+                let on_collapse = *on_collapse;
 
                 let parent_node = &mut self.nodes[parent_index];                
 
@@ -368,19 +369,8 @@ impl<U: Clone> WFC<U> {
                         }
                         let pos = pos.unwrap();
 
-                        // Later belongs in user func
-                        let mut tree = CSGTree::new();
-                        tree.nodes.push(CSGNode::new(CSGNodeData::Sphere(
-                            Mat4::from_scale_rotation_translation(
-                                Vec3::ONE * 0.1,
-                                octa_force::glam::Quat::from_euler(octa_force::glam::EulerRot::XYZ, 0.0, 0.0, 0.0),
-                                pos,
-                            ),
-                            MATERIAL_NONE,
-                        )));
-                        csg.append_tree_with_remove(tree);
-                        csg.set_all_aabbs(0.0);
-                        
+                        on_collapse(csg, pos);
+                                                
                         pos
                     },
                     _ => panic!("VolumeChild parent mus be index of Volume.")

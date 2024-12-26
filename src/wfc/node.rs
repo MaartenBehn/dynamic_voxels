@@ -3,7 +3,7 @@ use octa_force::glam::Vec3;
 use crate::cgs_tree::tree::CSGTree;
 
 use super::builder::{
-    ActionTemplate, BaseNodeTemplate, NodeIdentifier, NumberRangeDefinesType, UserNodeTemplate, WFCBuilder,
+    BaseNodeTemplate, NodeIdentifier, NumberRangeDefinesType, UserNodeTemplate, WFCBuilder,
 };
 
 #[derive(Debug, Clone)]
@@ -28,12 +28,12 @@ pub enum Node<U: Clone> {
     VolumeChild {
         parent: usize,
         children: Vec<usize>,
+        on_collapse: fn(&mut CSGTree, Vec3),
     },
 
     User {
         data: U,
         attributes: Vec<usize>,
-        on_collapse: Vec<Action>
     },
 }
 
@@ -42,23 +42,6 @@ pub enum NumberSetType {
     None,
     Amount, 
     Link,
-}
-
-#[derive(Debug, Clone)]
-pub enum Action {
-    TransformNumberSet {
-        index: usize,
-        func: fn(Vec<i32>) -> Vec<i32>,
-    },
-    TransformVolume {
-        index: usize,
-        func: fn(CSGTree) -> CSGTree,
-    },
-    TransformVolumeWithPosAttribute {
-        volume_index: usize,
-        attribute_index: usize,
-        func: fn(CSGTree, Vec3) -> CSGTree,
-    },
 }
 
 #[derive(Debug, Clone)]
@@ -109,7 +92,6 @@ impl<U: Clone> WFC<U>{
         let node = Node::User {
             data: node_template.data.to_owned(),
             attributes: children,
-            on_collapse: vec![],
         }; 
 
         self.nodes[index] = node;
@@ -188,13 +170,14 @@ impl<U: Clone> WFC<U>{
                 self.nodes[index] = node;
                 index
             }
-            BaseNodeTemplate::VolumeChild { identifier, parent_identifier } => {
+            BaseNodeTemplate::VolumeChild { identifier, parent_identifier, on_collapse } => {
                 
                 let mut children = vec![]; 
 
                 let node = Node::VolumeChild {
                     parent: *parent_identifier,
                     children,
+                    on_collapse: *on_collapse,
                 };
 
                 let index = self.nodes.len();

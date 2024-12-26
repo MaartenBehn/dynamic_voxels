@@ -2,14 +2,13 @@ use std::time::Instant;
 
 use egui_graphs::{DefaultEdgeShape, DefaultNodeShape, Edge, Graph, GraphView, Node};
 use fdg::{fruchterman_reingold::{FruchtermanReingold, FruchtermanReingoldConfiguration}, nalgebra::{Const, OPoint}, Force, ForceGraph};
-use octa_force::egui::{self, vec2, CollapsingHeader, Context, Pos2, ScrollArea, Ui, Vec2};
+use octa_force::{controls::Controls, egui::{self, vec2, CollapsingHeader, Context, Pos2, ScrollArea, Ui, Vec2}};
 use petgraph::{csr::DefaultIx, graph::{EdgeIndex, NodeIndex}, visit::GraphRef, Directed};
 
 use super::{drawers::{draw_counts_sliders, draw_section_debug, draw_simulation_config_sliders, draw_start_reset_buttons, ValuesConfigButtonsStartReset, ValuesConfigSlidersGraph, ValuesConfigSlidersSimulation, ValuesSectionDebug}, node_shape::NodeShape, settings::{ForceSettings, SettingsNavigation, SimulationSettings}};
 
-
-
 const EVENTS_LIMIT: usize = 100;
+const SHOW_COOLDOWN: f32 = 0.1;
 
 pub struct WFCRenderer {
     pub g: Graph<(), (), Directed, DefaultIx, NodeShape, DefaultEdgeShape>,
@@ -23,9 +22,11 @@ pub struct WFCRenderer {
 
     last_events: Vec<String>,
 
-
     pan: [f32; 2],
     zoom: f32,
+
+    show: bool,
+    last_button_click: Instant,
 }
 
 impl WFCRenderer {
@@ -60,14 +61,22 @@ impl WFCRenderer {
 
             pan: [0., 0.],
             zoom: 0.,
+
+            show: false,
+            last_button_click: Instant::now(),
         }
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self, controls: &Controls) {
+        if controls.f2 && self.last_button_click.elapsed().as_secs_f32() > SHOW_COOLDOWN {
+            self.show = !self.show;
+            self.last_button_click = Instant::now();
+        } 
+
         if !self.simulation_settings.running {
             return;
         }
-        
+
         self.sim.node_weights_mut().for_each(|node| {
             let g_node = self.g.g.node_weight_mut(node.0.id()).unwrap();
             if g_node.dragged() {
@@ -81,12 +90,12 @@ impl WFCRenderer {
                 node.1.y = pos.y - force.y;
             }
 
-       });
+        });
 
         self.force.apply(&mut self.sim);
 
         self.g.g.node_weights_mut().for_each(|node| {
-            let sim_computed_point: OPoint<f32, Const<2>> =
+        let sim_computed_point: OPoint<f32, Const<2>> =
                 self.sim.node_weight(node.id()).unwrap().1;
             node.set_location(Pos2::new(
                 sim_computed_point.coords.x,
@@ -153,14 +162,8 @@ impl WFCRenderer {
 
                 ui.add_space(5.);
 
-                 if ui
-                    .checkbox(
-                        &mut self.settings_navigation.zoom_and_pan_enabled,
-                        "zoom and pan",
-                    )
-                    .changed()
-                    && self.settings_navigation.zoom_and_pan_enabled
-                {
+                if ui.checkbox(&mut self.settings_navigation.zoom_and_pan_enabled,"zoom and pan",)
+                    .changed() && self.settings_navigation.zoom_and_pan_enabled {
                     self.settings_navigation.fit_to_screen_enabled = false
                 };
             });
@@ -223,6 +226,9 @@ impl WFCRenderer {
 
     
     pub fn gui_windows(&mut self, ctx: &Context) {
+        if !self.show {
+            return;
+        }
 
         egui::SidePanel::right("right_panel")
             .min_width(250.)

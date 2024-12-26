@@ -146,8 +146,6 @@ pub fn new_logic_state(
     camera.up = vec3(0.0, 0.0, 1.0);
 
 
-
-
     let wfc_builder = WFCBuilder::new()
         .node((), |b| {
             b.number_range(2..=5, |b| {
@@ -168,21 +166,20 @@ pub fn new_logic_state(
                 })
                 .pos(|b| {
                     b.in_volume(4).identifier(7)
-                })
-                .on_collapse_modify_volume_with_pos_attribute(4, 7, |mut csg, pos| {
-                    let mut tree = CSGTree::new();
-                    tree.nodes.push(CSGNode::new(CSGNodeData::Sphere(
-                        Mat4::from_scale_rotation_translation(
-                            Vec3::ONE * 0.1,
-                            Quat::from_euler(octa_force::glam::EulerRot::XYZ, 0.0, 0.0, 0.0),
-                            pos,
-                        ),
-                        MATERIAL_NONE,
-                    )));
+                    .on_collapse(|csg, pos| {
+                        let mut tree = CSGTree::new();
+                        tree.nodes.push(CSGNode::new(CSGNodeData::Sphere(
+                            Mat4::from_scale_rotation_translation(
+                                Vec3::ONE * 0.1,
+                                Quat::from_euler(octa_force::glam::EulerRot::XYZ, 0.0, 0.0, 0.0),
+                                pos,
+                            ),
+                            MATERIAL_NONE,
+                        )));
 
-                    csg.append_tree_with_remove(tree);
-                    csg.set_all_aabbs(0.0);
-                    csg
+                        csg.append_tree_with_remove(tree);
+                        csg.set_all_aabbs(0.0);
+                    })
                 })
         });
 
@@ -228,7 +225,8 @@ pub fn update(
             .update(frame_index, &engine.context)?;
     }
 
-    render_state.wfc_renderer.update();
+        
+    render_state.wfc_renderer.update(&engine.controls);
 
 
     Ok(())
