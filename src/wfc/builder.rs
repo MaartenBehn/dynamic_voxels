@@ -2,7 +2,7 @@ use octa_force::glam::Vec3;
 
 use crate::cgs_tree::tree::{CSGNode, CSGNodeData, CSGTree};
 
-use std::{ops::RangeBounds, usize};
+use std::{marker::PhantomData, ops::RangeBounds, usize};
 
 use super::node::WFC;
 
@@ -12,47 +12,42 @@ pub const NodeIdentifierNone: NodeIdentifier = NodeIdentifier::MAX;
 #[derive(Debug, Clone)]
 pub struct WFCBuilder<U: Clone> {
     pub user_nodes: Vec<UserNodeTemplate<U>>,
-    pub base_nodes: Vec<BaseNodeTemplate>,
+    pub base_nodes: Vec<BaseNodeTemplate<U>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct UserNodeTemplate<U: Clone> {
+    pub phantom: PhantomData<U>,
+
     pub identifier: Option<NodeIdentifier>,
-    pub data: U,
     pub children: Vec<NodeIdentifier>,
-    pub on_show: fn(&mut WFC<U>, usize, &mut CSGTree), 
+    pub on_generate: fn(&mut WFC<U>, &mut U),
 }
 
 #[derive(Debug, Clone)]
-pub enum BaseNodeTemplate {
+pub enum BaseNodeTemplate<U: Clone> {
     NumberRange {
         identifier: Option<NodeIdentifier>,
         min: i32,
         max: i32,
         defines: NumberRangeDefinesType,
-    },
-    Volume {
+    }, 
+    Pos {
         identifier: Option<NodeIdentifier>,
-        csg: CSGTree,
+        on_collapse: fn(&mut WFC<U>, &mut U) -> (Vec3, bool),
     },
-    VolumeChild {
-        identifier: Option<NodeIdentifier>,
-        parent_identifier: NodeIdentifier,
-        on_collapse: fn(&mut CSGTree, Vec3),
-    }
 }
 
 #[derive(Debug, Clone)]
 pub struct WFCUserNodeBuilder<U: Clone> {
     pub node: UserNodeTemplate<U>,
-    pub base_nodes_templates: Vec<BaseNodeTemplate>,
+    pub base_nodes_templates: Vec<BaseNodeTemplate<U>>,
 }
 
 #[derive(Debug, Clone)]
 pub enum NumberRangeDefinesType {
     None,
     Amount { of_node: NodeIdentifier },
-    Link { to_node: NodeIdentifier },
 }
 
 #[derive(Debug, Clone)]
@@ -61,19 +56,12 @@ pub struct NumberRangeBuilder {
     pub defines: NumberRangeDefinesType,
 }
 
-
 #[derive(Debug, Clone)]
-pub struct VolumeBuilder {
+pub struct PosBuilder<U: Clone> {
     pub identifier: Option<NodeIdentifier>,
-    pub csg: Option<CSGTree>,
+    pub on_collapse: fn(&mut WFC<U>, &mut U) -> (Vec3, bool),
 }
 
-#[derive(Debug, Clone)]
-pub struct PosBuilder {
-    pub identifier: Option<NodeIdentifier>,
-    pub parent_identifier: Option<usize>,
-    pub on_collapse: fn(&mut CSGTree, Vec3),
-}
 
 impl<U: Clone> WFCBuilder<U> {
     pub fn new() -> WFCBuilder<U> {
@@ -85,10 +73,9 @@ impl<U: Clone> WFCBuilder<U> {
 
     pub fn node(
         mut self,
-        data: U,
         build_node: fn(builder: WFCUserNodeBuilder<U>) -> WFCUserNodeBuilder<U>,
     ) -> WFCBuilder<U> {
-        let mut builder = WFCUserNodeBuilder::new(data);
+        let mut builder = WFCUserNodeBuilder::new();
         builder = build_node(builder);
 
         self.user_nodes.push(builder.node);
@@ -96,15 +83,15 @@ impl<U: Clone> WFCBuilder<U> {
         self
     }
 
-    pub fn build(&self) -> WFC<U> {
-        WFC::new(self)
+    pub fn build(&self, user_data: &mut U) -> WFC<U> {
+        WFC::new(self, user_data)
     }
 }
 
 impl<U: Clone> WFCUserNodeBuilder<U> {
-    fn new(data: U) -> Self {
+    fn new() -> Self {
         WFCUserNodeBuilder {
-            node: UserNodeTemplate::new(data),
+            node: UserNodeTemplate::new(),
             base_nodes_templates: vec![],
         }
     }
@@ -129,7 +116,7 @@ impl<U: Clone> WFCUserNodeBuilder<U> {
             std::ops::Bound::Included(&num) => num + 1,
             std::ops::Bound::Excluded(&num) => num,
             std::ops::Bound::Unbounded => panic!("Range can not be unbounded"),
-        }; 
+        };
 
         let mut number_set_builder = NumberRangeBuilder::new();
         number_set_builder = number_set_options(number_set_builder);
@@ -150,52 +137,37 @@ impl<U: Clone> WFCUserNodeBuilder<U> {
         self
     }
 
-    pub fn volume(mut self, volume_options: fn(b: VolumeBuilder) -> VolumeBuilder) -> Self {
-        let mut volume_builder = VolumeBuilder::new();
-        volume_builder = volume_options(volume_builder);
+    pub fn pos(
+        mut self,
+        pos_options: fn(b: PosBuilder<U>) -> PosBuilder<U>,
+    ) -> Self {
 
-        let volume = BaseNodeTemplate::Volume {
-            identifier: volume_builder.identifier,
-            csg: volume_builder.csg.unwrap(),
-        };
-
-        self.base_nodes_templates.push(volume);
-
-        self.node.children.push(volume_builder.identifier.unwrap());
-
-        self
-    }
-    
-    pub fn pos(mut self, pos_options: fn(b: PosBuilder) -> PosBuilder) -> Self {
         let mut pos_builder = PosBuilder::new();
         pos_builder = pos_options(pos_builder);
 
-        let pos = BaseNodeTemplate::VolumeChild {
+        let pos = BaseNodeTemplate::Pos {
             identifier: pos_builder.identifier,
-            parent_identifier: pos_builder.parent_identifier.unwrap(),
-            on_collapse: pos_builder.on_collapse,
+            on_collapse: pos_builder.on_collapse, 
         };
 
         self.base_nodes_templates.push(pos);
 
-        self.node.children.push(pos_builder.identifier.unwrap());
-
         self
     }
 
-    pub fn on_show(mut self, on_show: fn(&mut WFC<U>, usize, &mut CSGTree)) -> Self {
-        self.node.on_show = on_show;
+    pub fn on_generate(mut self, on_generate: fn(&mut WFC<U>, &mut U)) -> Self {
+        self.node.on_generate = on_generate;
         self
     }
 }
 
 impl<U: Clone> UserNodeTemplate<U> {
-    fn new(data: U) -> UserNodeTemplate<U> {
+    fn new() -> UserNodeTemplate<U> {
         UserNodeTemplate {
-            data,
             identifier: None,
             children: vec![],
-            on_show: |_, _, _| {},
+            on_generate: |_, _| {},
+            phantom: PhantomData,
         }
     }
 }
@@ -219,54 +191,20 @@ impl NumberRangeBuilder {
     }
 }
 
-impl VolumeBuilder {
-    pub fn new() -> Self {
-        VolumeBuilder {
-            identifier: None,
-            csg: None,
-        }
-    }
-
-    pub fn identifier(mut self, identifier: NodeIdentifier) -> Self {
-        self.identifier = Some(identifier);
-        self
-    }
-
-    pub fn csg_tree(mut self, csg: CSGTree) -> Self {
-        self.csg = Some(csg);
-        self
-    }
-
-    pub fn csg_node(self, node: CSGNodeData) -> Self {
-        let mut csg = CSGTree::new();
-        csg.nodes = vec![CSGNode::new(node)];
-        csg.set_all_aabbs(0.0);
-
-        self.csg_tree(csg)
-    }
-
-}
-
-impl PosBuilder {
+impl<U: Clone> PosBuilder<U> {
     pub fn new() -> Self {
         PosBuilder {
             identifier: None,
-            parent_identifier: None,
-            on_collapse: |_, _| {},
+            on_collapse: |_, _| { panic!("Pos has no collapse implementation!") }
         }
     }
 
     pub fn identifier(mut self, identifier: NodeIdentifier) -> Self {
         self.identifier = Some(identifier);
         self
-    }
+    } 
 
-    pub fn in_volume(mut self, identifier: NodeIdentifier) -> Self {
-        self.parent_identifier = Some(identifier);
-        self
-    }
-
-    pub fn on_collapse(mut self, on_collapse: fn(&mut CSGTree, Vec3)) -> Self {
+    pub fn on_collapse(mut self, on_collapse: fn(&mut WFC<U>, &mut U) -> (Vec3, bool)) -> Self {
         self.on_collapse = on_collapse;
         self
     }

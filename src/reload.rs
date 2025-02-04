@@ -144,77 +144,38 @@ pub fn new_logic_state(
     camera.up = vec3(0.0, 0.0, 1.0);
 
     let wfc_builder = WFCBuilder::new()
-        .node((), |b| {
+        .node(|b| {
             b.identifier(0)
+                // Number of fence posts
                 .number_range(2..=5, |b| {
                     b.identifier(1)
-                        .defines(NumberRangeDefinesType::Amount { of_node: 2 })
+                        .defines(NumberRangeDefinesType::Amount { of_node: 10 })
                 })
-                .volume(|b| {
-                    b.identifier(4)
-                        .csg_node(CSGNodeData::Box(Mat4::default(), MATERIAL_NONE))
+                // Hight of Fence posts
+                .number_range(80..=100, |b| {
+                    b.identifier(3)
                 })
         })
-        .node((), |b| {
-            b.identifier(2)
-                .number_range(1..=2, |b| {
-                    b.identifier(6)
-                        .defines(NumberRangeDefinesType::Link { to_node: 2 })
-                })
+        .node( |b| {
+            b.identifier(10)
                 .pos(|b| {
-                    b.identifier(7).in_volume(4).on_collapse(|csg, pos| {
-                        let mut tree = CSGTree::new();
-                        tree.nodes.push(CSGNode::new(CSGNodeData::Sphere(
-                            Mat4::from_scale_rotation_translation(
-                                Vec3::ONE * 0.1,
-                                Quat::from_euler(octa_force::glam::EulerRot::XYZ, 0.0, 0.0, 0.0),
-                                pos,
-                            ),
-                            MATERIAL_NONE,
-                        )));
-
-                        csg.append_tree_with_remove(tree);
-                        csg.set_all_aabbs(0.0);
-                    })
+                    b.identifier(11)
+                        .on_collapse(|wfc, user_data| {
+                            (vec3(0.0, 0.0, 0.0), true)
+                        })
                 })
-                .on_show(|wfc, index, csg| {
-                    for child_index in wfc.get_children_with_identifier(index, 7) {
-                        match &wfc.nodes[child_index] {
-                            Node::Pos { pos } => {
-                                let mut tree = CSGTree::new();
-                                tree.nodes.push(CSGNode::new(CSGNodeData::Sphere(
-                                    Mat4::from_scale_rotation_translation(
-                                        Vec3::ONE * 0.1 * VOXEL_SIZE,
-                                        Quat::from_euler(
-                                            octa_force::glam::EulerRot::XYZ,
-                                            0.0,
-                                            0.0,
-                                            0.0,
-                                        ),
-                                        *pos * VOXEL_SIZE,
-                                    ),
-                                    1,
-                                )));
-
-                                csg.append_tree_with_union(tree);
-                                csg.set_all_aabbs(2.0);
-                            }
-                            _ => unreachable!(),
-                        }
-                    }
-                })
-        });
+            });
 
     dbg!(&wfc_builder);
 
-    let mut wfc = wfc_builder.build();
+    let mut wfc = wfc_builder.build(&mut ());
 
     dbg!(&wfc);
 
     render_state.wfc_renderer.set_wfc(&wfc);
 
     let mut tree = CSGTree::new();
-    wfc.show(&mut tree);
+    wfc.show(&mut ());
     let data = tree.make_data();
 
     dbg!(&tree);

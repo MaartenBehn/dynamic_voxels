@@ -23,8 +23,6 @@ impl WFCRenderer {
                     }
 
                 },
-                Node::Volume { .. } => {},
-                Node::VolumeChild { .. } => {},
                 Node::User { attributes, .. } => {
                     for attribute in attributes {
                         g.add_edge(NodeIndex::from(i as u32), NodeIndex::from(*attribute as u32), ()); 
@@ -40,11 +38,8 @@ impl WFCRenderer {
             
             let label = match node {
                 Node::None => "None".to_owned(),
-                Node::Number { val } => format!("Number: {val}"),
                 Node::NumberSet { vals, r#type, .. } => format!("NumberSet: {:?} {vals:?}", r#type),
-                Node::Pos { pos } => format!("Pos: [{:0.2}, {:0.2}]", pos.x, pos.y),
-                Node::Volume { csg, children } => "Volume".to_owned(),
-                Node::VolumeChild { parent, .. } => format!("VolumeChild {parent}"),
+                Node::Pos { pos, on_collapse } => format!("Pos: [{:0.2}, {:0.2}]", pos.x, pos.y),
                 Node::User { .. } => format!("User"),
             }; 
 
