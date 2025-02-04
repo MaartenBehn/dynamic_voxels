@@ -4,7 +4,7 @@ use feistel_permutation_rs::{DefaultBuildHasher, Permutation};
 use gcd::Gcd;
 use octa_force::glam::{ivec3, vec3, vec4, Mat4, Vec3, Vec4Swizzles};
 
-use crate::util::{to_3d, to_3d_i};
+use crate::util::to_3d_i;
 
 #[derive(Copy, Clone, Debug)]
 pub struct AABB {
@@ -33,6 +33,8 @@ impl AABB {
             min = min.min(transformed_corner);
             max = max.max(transformed_corner);
         }
+
+        
 
         AABB {
             min: min - padding,

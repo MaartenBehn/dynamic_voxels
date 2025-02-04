@@ -1,4 +1,5 @@
-use crate::cgs_tree::controller::CSGController;
+pub mod tree_data;
+
 use crate::color::ColorController;
 use crate::material::controller::MaterialController;
 use crate::profiler::ShaderProfiler;
@@ -15,6 +16,8 @@ use octa_force::vulkan::{
 use octa_force::ImageAndView;
 use std::mem::size_of;
 use std::time::Duration;
+
+use super::controller::CSGController;
 
 const RENDER_DISPATCH_GROUP_SIZE_X: u32 = 32;
 const RENDER_DISPATCH_GROUP_SIZE_Y: u32 = 32;
@@ -281,4 +284,3 @@ impl RenderBuffer {
         }
     }
 }
-

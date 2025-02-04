@@ -54,6 +54,7 @@ pkgs.mkShell rec {
     graphviz.out
     watchexec
     renderdoc
+    python3
 
     pkgs-fix.cudaPackages.nsight_systems
   ];
