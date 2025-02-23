@@ -1,108 +1,149 @@
+use feistel_permutation_rs::{DefaultBuildHasher, Permutation};
 use octa_force::glam::Vec3;
 
 use crate::cgs_tree::tree::{CSGNode, CSGNodeData, CSGTree};
 
-use std::{marker::PhantomData, ops::RangeBounds, usize};
+use std::{fmt::Debug, marker::PhantomData, ops::RangeBounds, usize};
 
-use super::node::WFC;
+use super::collapse::{Attribute, CollapseFuncData, Node};
 
-pub type NodeIdentifier = usize;
-pub const NodeIdentifierNone: NodeIdentifier = NodeIdentifier::MAX;
+pub type Identifier = usize;
+pub const NodeIdentifierNone: Identifier = Identifier::MAX;
 
 #[derive(Debug, Clone)]
-pub struct WFCBuilder<U: Clone> {
-    pub user_nodes: Vec<UserNodeTemplate<U>>,
-    pub base_nodes: Vec<BaseNodeTemplate<U>>,
+pub struct WFCBuilder<U: Clone + Debug> {
+    pub nodes: Vec<NodeTemplate<U>>,
+    pub attributes: Vec<AttributeTemplate<U>>,
 }
 
 #[derive(Debug, Clone)]
-pub struct UserNodeTemplate<U: Clone> {
-    pub phantom: PhantomData<U>,
-
-    pub identifier: Option<NodeIdentifier>,
-    pub children: Vec<NodeIdentifier>,
-    pub on_generate: fn(&mut WFC<U>, &mut U),
+pub struct NodeTemplate<U: Clone + Debug> {
+    pub identifier: Option<Identifier>,
+    pub name: String, 
+    pub attributes: Vec<Identifier>,
+    pub user_data: Option<U>,
 }
 
 #[derive(Debug, Clone)]
-pub enum BaseNodeTemplate<U: Clone> {
+pub enum AttributeTemplateValue<U: Clone + Debug> {
     NumberRange {
-        identifier: Option<NodeIdentifier>,
         min: i32,
         max: i32,
         defines: NumberRangeDefinesType,
     }, 
     Pos {
-        identifier: Option<NodeIdentifier>,
-        on_collapse: fn(&mut WFC<U>, &mut U) -> (Vec3, bool),
+        collapse: fn(d: CollapseFuncData<U>) -> Option<Vec3>,
     },
 }
 
 #[derive(Debug, Clone)]
-pub struct WFCUserNodeBuilder<U: Clone> {
-    pub node: UserNodeTemplate<U>,
-    pub base_nodes_templates: Vec<BaseNodeTemplate<U>>,
+pub struct AttributeTemplate<U: Clone + Debug> {
+    pub identifier: Identifier,
+    pub permutation: Permutation<DefaultBuildHasher>,
+    pub value: AttributeTemplateValue<U>,
+}
+
+#[derive(Debug, Clone)]
+pub struct WFCNodeBuilder<U: Clone + Debug> {
+    pub identifier: Option<Identifier>,
+    pub name: String, 
+    pub attributes: Vec<AttributeTemplate<U>>,
+    pub user_data: Option<U>,
 }
 
 #[derive(Debug, Clone)]
 pub enum NumberRangeDefinesType {
     None,
-    Amount { of_node: NodeIdentifier },
+    Amount { of_node: Identifier },
 }
 
 #[derive(Debug, Clone)]
 pub struct NumberRangeBuilder {
-    pub identifier: Option<NodeIdentifier>,
     pub defines: NumberRangeDefinesType,
 }
 
 #[derive(Debug, Clone)]
-pub struct PosBuilder<U: Clone> {
-    pub identifier: Option<NodeIdentifier>,
-    pub on_collapse: fn(&mut WFC<U>, &mut U) -> (Vec3, bool),
+pub struct PosBuilder {
 }
 
 
-impl<U: Clone> WFCBuilder<U> {
+impl<U: Clone + Debug> WFCBuilder<U> {
     pub fn new() -> WFCBuilder<U> {
         WFCBuilder {
-            user_nodes: vec![],
-            base_nodes: vec![],
+            nodes: vec![],
+            attributes: vec![],
         }
     }
 
     pub fn node(
         mut self,
-        build_node: fn(builder: WFCUserNodeBuilder<U>) -> WFCUserNodeBuilder<U>,
+        build_node: fn(builder: WFCNodeBuilder<U>) -> WFCNodeBuilder<U>,
     ) -> WFCBuilder<U> {
-        let mut builder = WFCUserNodeBuilder::new();
+        let mut builder = WFCNodeBuilder::new();
         builder = build_node(builder);
 
-        self.user_nodes.push(builder.node);
-        self.base_nodes.append(&mut builder.base_nodes_templates);
-        self
-    }
+        builder.attributes.sort_by(|a, b| {
+             
+            let get_value = |x: &AttributeTemplate<U>| {
+                match &x.value {
+                    AttributeTemplateValue::NumberRange { defines, .. } => {
+                        match defines {
+                            NumberRangeDefinesType::None => 1,
+                            NumberRangeDefinesType::Amount { .. } => 2,
+                        } 
+                    },
+                    _ => 1,
+                }
+            };
 
-    pub fn build(&self, user_data: &mut U) -> WFC<U> {
-        WFC::new(self, user_data)
-    }
+            get_value(a).cmp(&get_value(b))
+        });
+
+        self.nodes.push(NodeTemplate {
+            identifier: builder.identifier,
+            name: builder.name,
+            attributes: builder.attributes.iter()
+                .map(|n| {
+                    n.identifier
+                })
+                .collect(),
+            user_data: builder.user_data,
+        });
+
+        self.attributes.append(&mut builder.attributes);
+        self
+    } 
 }
 
-impl<U: Clone> WFCUserNodeBuilder<U> {
+impl<U: Clone + Debug> WFCNodeBuilder<U> {
     fn new() -> Self {
-        WFCUserNodeBuilder {
-            node: UserNodeTemplate::new(),
-            base_nodes_templates: vec![],
+        WFCNodeBuilder {
+            attributes: vec![],
+            identifier: None,
+            name: "".to_string(),
+            user_data: None,
         }
     }
 
-    pub fn identifier(mut self, identifier: NodeIdentifier) -> Self {
-        self.node.identifier = Some(identifier);
+    pub fn identifier(mut self, identifier: Identifier) -> Self {
+        self.identifier = Some(identifier);
         self
     }
 
+    pub fn name(mut self, name: String) -> Self {
+        self.name = name;
+        self
+    }
+
+    pub fn user_data(mut self, user_data: U) -> Self {
+        self.user_data = Some(user_data);
+        self
+    }
+
+
     pub fn number_range<R: RangeBounds<i32>>(
         mut self,
+        identifier: Identifier,
         range: R,
         number_set_options: fn(b: NumberRangeBuilder) -> NumberRangeBuilder,
     ) -> Self {
@@ -121,68 +162,53 @@ impl<U: Clone> WFCUserNodeBuilder<U> {
         let mut number_set_builder = NumberRangeBuilder::new();
         number_set_builder = number_set_options(number_set_builder);
 
-        let number_range = BaseNodeTemplate::NumberRange {
-            defines: number_set_builder.defines,
-            min: start_bound,
-            max: end_bound,
-            identifier: number_set_builder.identifier,
+        let seed = fastrand::u64(0..1000);
+        let number_range = AttributeTemplate {
+            value: AttributeTemplateValue::NumberRange {
+                defines: number_set_builder.defines,
+                min: start_bound,
+                max: end_bound,
+            },
+            identifier,
+            permutation: Permutation::new((end_bound - start_bound) as _, seed, DefaultBuildHasher::new())
         };
 
-        self.base_nodes_templates.push(number_range);
-
-        self.node
-            .children
-            .push(number_set_builder.identifier.unwrap());
-
+        self.attributes.push(number_range);
+ 
         self
     }
 
     pub fn pos(
         mut self,
-        pos_options: fn(b: PosBuilder<U>) -> PosBuilder<U>,
+        identifier: Identifier,
+        num_collapses: usize,
+        collapse: fn(d: CollapseFuncData<U>) -> Option<Vec3>,
+        pos_options: fn(b: PosBuilder) -> PosBuilder,
     ) -> Self {
 
         let mut pos_builder = PosBuilder::new();
         pos_builder = pos_options(pos_builder);
 
-        let pos = BaseNodeTemplate::Pos {
-            identifier: pos_builder.identifier,
-            on_collapse: pos_builder.on_collapse, 
+        let seed = fastrand::u64(0..1000);
+        let pos = AttributeTemplate {
+            value: AttributeTemplateValue::Pos { 
+                collapse  
+            },
+            identifier,
+            permutation: Permutation::new(num_collapses as _, seed, DefaultBuildHasher::new())
         };
 
-        self.base_nodes_templates.push(pos);
+        self.attributes.push(pos);
 
         self
-    }
-
-    pub fn on_generate(mut self, on_generate: fn(&mut WFC<U>, &mut U)) -> Self {
-        self.node.on_generate = on_generate;
-        self
-    }
-}
-
-impl<U: Clone> UserNodeTemplate<U> {
-    fn new() -> UserNodeTemplate<U> {
-        UserNodeTemplate {
-            identifier: None,
-            children: vec![],
-            on_generate: |_, _| {},
-            phantom: PhantomData,
-        }
-    }
+    } 
 }
 
 impl NumberRangeBuilder {
     pub fn new() -> Self {
         NumberRangeBuilder {
             defines: NumberRangeDefinesType::None,
-            identifier: None,
         }
-    }
-
-    pub fn identifier(mut self, identifier: NodeIdentifier) -> Self {
-        self.identifier = Some(identifier);
-        self
     }
 
     pub fn defines(mut self, defines: NumberRangeDefinesType) -> Self {
@@ -191,21 +217,9 @@ impl NumberRangeBuilder {
     }
 }
 
-impl<U: Clone> PosBuilder<U> {
+impl PosBuilder {
     pub fn new() -> Self {
         PosBuilder {
-            identifier: None,
-            on_collapse: |_, _| { panic!("Pos has no collapse implementation!") }
         }
-    }
-
-    pub fn identifier(mut self, identifier: NodeIdentifier) -> Self {
-        self.identifier = Some(identifier);
-        self
-    } 
-
-    pub fn on_collapse(mut self, on_collapse: fn(&mut WFC<U>, &mut U) -> (Vec3, bool)) -> Self {
-        self.on_collapse = on_collapse;
-        self
-    }
+    }  
 }

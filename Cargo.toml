@@ -17,7 +17,7 @@ glsl_compiler = { version = "0.1.3", git = "https://github.com/MaartenBehn/glsl_
 simple-easing = "1.0.1"
 simple-log = "2.1.1"
 gcd = "2.3.0"
-feistel-permutation-rs = { git="https://github.com/MaartenBehn/permutation-rs.git", version = "0.1.2"}
+feistel-permutation-rs = { git="https://github.com/MaartenBehn/permutation-rs.git", version = "0.1.5"}
 
 petgraph = "0.6.5"
 egui_graphs = "0.21.1"

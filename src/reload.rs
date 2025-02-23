@@ -15,6 +15,7 @@ use crate::material::voxels::VoxelField;
 use crate::profiler::ShaderProfiler;
 use cgs_tree::renderer::Renderer;
 use cgs_tree::tree::{CSGNode, CSGNodeData, MATERIAL_NONE};
+use egui_graphs::Node;
 use glsl_compiler::glsl;
 use octa_force::camera::Camera;
 use octa_force::egui_winit::winit::event::WindowEvent;
@@ -24,10 +25,13 @@ use octa_force::log::Log;
 use octa_force::logger::setup_logger;
 use octa_force::puffin_egui::puffin;
 use octa_force::vulkan::ash::vk::AttachmentLoadOp;
+use octa_force::vulkan::Fence;
 use octa_force::{log, Engine, OctaResult};
+use wfc::collapse::AttributeValue;
+use std::f32::consts::PI;
 use std::time::{Duration, Instant};
+use std::usize;
 use wfc::builder::{NumberRangeDefinesType, WFCBuilder};
-use wfc::node::{Node, WFC};
 use wfc::renderer::renderer::WFCRenderer;
 
 pub const USE_PROFILE: bool = false;
@@ -46,7 +50,6 @@ pub struct RenderState {
 pub struct LogicState {
     pub camera: Camera,
     pub start_time: Instant,
-    pub wfc: WFC<()>,
 }
 
 #[no_mangle]
@@ -124,6 +127,14 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
     })
 }
 
+#[derive(Debug, Clone)]
+pub struct FenceData {
+    pub center_pos: Vec3,
+    pub radius: f32,
+    pub post_distance: f32,
+}
+
+
 #[no_mangle]
 pub fn new_logic_state(
     render_state: &mut RenderState,
@@ -143,49 +154,65 @@ pub fn new_logic_state(
     camera.z_far = 100.0;
     camera.up = vec3(0.0, 0.0, 1.0);
 
+
     let wfc_builder = WFCBuilder::new()
         .node(|b| {
-            b.identifier(0)
+            b.identifier(0).name("Fence".to_owned())
+                .user_data(FenceData {
+                    center_pos: vec3(1.0, 1.0, 0.0),
+                    radius: 5.0,
+                    post_distance: 1.0,
+                })
                 // Number of fence posts
-                .number_range(2..=5, |b| {
-                    b.identifier(1)
-                        .defines(NumberRangeDefinesType::Amount { of_node: 10 })
+                .number_range(1, 2..=5, |b| {
+                    b.defines(NumberRangeDefinesType::Amount { of_node: 10 })
                 })
                 // Hight of Fence posts
-                .number_range(80..=100, |b| {
-                    b.identifier(3)
+                .number_range(3, 80..=100, |b| {
+                    b
                 })
         })
-        .node( |b| {
-            b.identifier(10)
-                .pos(|b| {
-                    b.identifier(11)
-                        .on_collapse(|wfc, user_data| {
-                            (vec3(0.0, 0.0, 0.0), true)
-                        })
+        .node( |b| { // Fence Post
+            b.identifier(10).name("Fence Post".to_owned())
+                .pos(11, 
+                10,
+                |d | {
+                    let node = d.get_node_with_identifier(0).unwrap();
+                    let user_data = &node.user_data.as_ref().unwrap();
+
+                    let last_post = d.get_attribute_with_identifier(11, 1);
+                    if last_post.is_none() {
+                        Some(vec3(
+                            user_data.radius * f32::cos((2.0 * PI / 10.0) * (d.value as f32)) + user_data.center_pos.x,
+                            user_data.radius * f32::sin((2.0 * PI / 10.0) * (d.value as f32)) + user_data.center_pos.y,
+                            0.0))
+                    } else {
+                        let last_pos = if let AttributeValue::Pos(val) = last_post.unwrap().value { val } else { unreachable!() };
+                        let pos = vec3(
+                            user_data.post_distance * f32::cos((2.0 * PI / 10.0) * (d.value as f32)) + last_pos.x,
+                            user_data.post_distance * f32::sin((2.0 * PI / 10.0) * (d.value as f32)) + last_pos.y,
+                            0.0);
+                        
+                        if pos.distance(user_data.center_pos) < user_data.radius {
+                            Some(pos)
+                        } else {
+                            None
+                        }
+                    }
+                },
+                |b| {
+                    b
                 })
             });
 
     dbg!(&wfc_builder);
 
-    let mut wfc = wfc_builder.build(&mut ());
+    wfc_builder.collapse();
 
-    dbg!(&wfc);
-
-    render_state.wfc_renderer.set_wfc(&wfc);
-
-    let mut tree = CSGTree::new();
-    wfc.show(&mut ());
-    let data = tree.make_data();
-
-    dbg!(&tree);
-
-    render_state.csg_controller.set_data(&data);
 
     Ok(LogicState {
         camera,
         start_time: Instant::now(),
-        wfc,
     })
 }
 
