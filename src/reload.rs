@@ -67,9 +67,9 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
 
     let (shader_bin, profile_scopes): (&[u8], &[&str]) =
         if USE_PROFILE && engine.context.shader_clock {
-            glsl! {type = Compute, profile, file = "shaders/trace_ray.comp"}
+            glsl! {type = Compute, profile, file = "shaders/trace_ray.glsl"}
         } else {
-            glsl! {type = Compute, file = "shaders/trace_ray.comp"}
+            glsl! {type = Compute, file = "shaders/trace_ray.glsl"}
         };
 
     let mut gui = Gui::new(
