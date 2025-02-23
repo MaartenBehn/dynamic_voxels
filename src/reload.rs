@@ -28,6 +28,7 @@ use octa_force::vulkan::ash::vk::AttachmentLoadOp;
 use octa_force::vulkan::Fence;
 use octa_force::{log, Engine, OctaResult};
 use wfc::collapse::AttributeValue;
+use wfc::func_data::FuncData;
 use std::f32::consts::PI;
 use std::time::{Duration, Instant};
 use std::usize;
@@ -134,6 +135,11 @@ pub struct FenceData {
     pub post_distance: f32,
 }
 
+#[derive(Debug, Clone)]
+pub struct FenceCSG {
+    pub cgs: CSGTree,
+}
+
 
 #[no_mangle]
 pub fn new_logic_state(
@@ -155,16 +161,16 @@ pub fn new_logic_state(
     camera.up = vec3(0.0, 0.0, 1.0);
 
 
-    let wfc_builder = WFCBuilder::new()
+    let wfc_builder: WFCBuilder<FenceData, FenceCSG> = WFCBuilder::new()
         .node(|b| {
             b.identifier(0).name("Fence".to_owned())
                 .user_data(FenceData {
                     center_pos: vec3(1.0, 1.0, 0.0),
-                    radius: 5.0,
-                    post_distance: 1.0,
+                    radius: 10.0,
+                    post_distance: 5.0,
                 })
                 // Number of fence posts
-                .number_range(1, 2..=5, |b| {
+                .number_range(1, 5..=10, |b| {
                     b.defines(NumberRangeDefinesType::Amount { of_node: 10 })
                 })
                 // Hight of Fence posts
@@ -183,14 +189,14 @@ pub fn new_logic_state(
                     let last_post = d.get_attribute_with_identifier(11, 1);
                     if last_post.is_none() {
                         Some(vec3(
-                            user_data.radius * f32::cos((2.0 * PI / 10.0) * (d.value as f32)) + user_data.center_pos.x,
-                            user_data.radius * f32::sin((2.0 * PI / 10.0) * (d.value as f32)) + user_data.center_pos.y,
+                            user_data.radius * f32::cos((2.0 * PI / 10.0) * (d.get_value() as f32)) + user_data.center_pos.x,
+                            user_data.radius * f32::sin((2.0 * PI / 10.0) * (d.get_value() as f32)) + user_data.center_pos.y,
                             0.0))
                     } else {
                         let last_pos = if let AttributeValue::Pos(val) = last_post.unwrap().value { val } else { unreachable!() };
                         let pos = vec3(
-                            user_data.post_distance * f32::cos((2.0 * PI / 10.0) * (d.value as f32)) + last_pos.x,
-                            user_data.post_distance * f32::sin((2.0 * PI / 10.0) * (d.value as f32)) + last_pos.y,
+                            user_data.post_distance * f32::cos((2.0 * PI / 10.0) * (d.get_value() as f32)) + last_pos.x,
+                            user_data.post_distance * f32::sin((2.0 * PI / 10.0) * (d.get_value() as f32)) + last_pos.y,
                             0.0);
                         
                         if pos.distance(user_data.center_pos) < user_data.radius {
@@ -203,12 +209,43 @@ pub fn new_logic_state(
                 |b| {
                     b
                 })
+                .build(|mut d| {
+                    let pos_attribute = d.get_current_node_attribute_with_identifier(11).unwrap();
+
+                    let pos = if let AttributeValue::Pos(val) = pos_attribute.value { val } else { unreachable!() }; 
+                    
+                    let csg = &mut d.get_build_data_mut().cgs;
+
+                    let csg_node = CSGNode::new(CSGNodeData::Box(
+                        Mat4::from_translation(pos),
+                        MATERIAL_NONE,
+                    ));
+
+                    if csg.nodes.is_empty() {
+                        csg.nodes.push(csg_node);
+                        return;
+                    }
+
+                    let mut tree = CSGTree::new();
+                    tree.nodes.push(csg_node);
+                    csg.append_tree_with_union(tree);
+
+
+
+
+                })
             });
 
     dbg!(&wfc_builder);
 
-    wfc_builder.collapse();
+    let mut fenceCSG = FenceCSG {
+        cgs: CSGTree::new()
+    };
 
+    wfc_builder.collapse(&mut fenceCSG);
+
+    fenceCSG.cgs.set_all_aabbs(1.0);
+    render_state.csg_controller.set_data(&fenceCSG.cgs.make_data());
 
     Ok(LogicState {
         camera,

@@ -5,6 +5,8 @@ use fdg::nalgebra::base;
 use feistel_permutation_rs::{DefaultBuildHasher, OwnedPermutationIterator, Permutation, PermutationIterator};
 use octa_force::{glam::{vec3, IVec3, Vec3}, log::debug};
 
+use crate::wfc::func_data::{BuildFuncData, CollapseFuncData};
+
 use super::builder::{AttributeTemplate, AttributeTemplateValue, Identifier, NodeTemplate, NumberRangeDefinesType, WFCBuilder};
 
 #[derive(Debug, Clone)]
@@ -17,6 +19,7 @@ pub enum AttributeValue {
 #[derive(Debug, Clone)]
 pub struct Attribute {
     pub template_index: usize,
+    pub node_index: usize,
     pub value: AttributeValue,
     pub perm_counter: usize,
 }
@@ -25,26 +28,21 @@ pub struct Attribute {
 pub struct Node<U: Clone + Debug> {
     pub template_index: usize,
     pub attributes: Vec<usize>,
-    pub user_data: Option<U>
-}
-
-#[derive(Debug, Clone)]
-pub struct CollapseFuncData<'a, U: Clone + Debug> {
-    pub nodes: &'a[Node<U>],
-    pub attributes: &'a[Attribute],
-    pub builder: &'a WFCBuilder<U>,
-    pub value: usize,
+    pub user_data: Option<U>,
+    pub children: Vec<usize>,
 }
 
 
-impl<U: Clone + Debug> WFCBuilder<U> {
-    pub fn collapse(self) {
+
+impl<U: Clone + Debug, B: Clone + Debug> WFCBuilder<U, B> {
+    pub fn collapse(self, build_data: &mut B) {
 
         let root_node_template = &self.nodes[0];
         let root_node = Node { 
             attributes: vec![], 
             template_index: 0,
             user_data: root_node_template.user_data.to_owned(),
+            children: vec![],
         };
 
         let mut nodes = vec![root_node];
@@ -90,21 +88,19 @@ impl<U: Clone + Debug> WFCBuilder<U> {
                                     template_index: node_template_index,
                                     attributes: vec![],
                                     user_data: node_template.user_data.to_owned(),
+                                    children: vec![],
                                 };
 
                                 let node_index = nodes.len();
                                 nodes.push(node);
                                 pending_nodes.push(node_index);
+
+                                nodes[attribute.node_index].children.push(node_index);
                             }
                         }
                     },
                     AttributeTemplateValue::Pos { collapse, ..  } => {
-                        let pos = collapse(CollapseFuncData{
-                            nodes: &nodes, 
-                            attributes: &attributes, 
-                            builder: &self,
-                            value: value as _,
-                        });
+                        let pos = collapse(CollapseFuncData::new(&mut nodes, &attributes, &self, value as _));
                         
                         if pos.is_none() {
                             debug!("Pos is none");
@@ -130,6 +126,7 @@ impl<U: Clone + Debug> WFCBuilder<U> {
                         template_index: attribute_template_index,
                         value: AttributeValue::None,
                         perm_counter: 0,
+                        node_index: current_node_index,
                     };                 
 
                     let attribute_index = attributes.len();
@@ -145,12 +142,36 @@ impl<U: Clone + Debug> WFCBuilder<U> {
             }
         }
 
-        dbg!(nodes);
-        dbg!(attributes);
+        dbg!(&nodes);
+        dbg!(&attributes);
+
+        pending_nodes.push(0);
+
+        loop {
+            if let Some(current_node_index) = pending_nodes.pop() {
+                let node = &mut nodes[current_node_index];
+                let node_template = &self.nodes[node.template_index];
+                
+                for &child_index in node.children.iter() {
+                    pending_nodes.push(child_index);
+                }
+
+                (node_template.build)(BuildFuncData::new(&mut nodes, &attributes, &self, current_node_index, build_data));
+
+
+                                
+            } else {
+                break;
+            }
+
+        }
+
+        dbg!(&build_data);
+
     }
 }
 
-impl<U: Clone + Debug> WFCBuilder<U> {
+impl<U: Clone + Debug, B: Clone + Debug> WFCBuilder<U, B> {
     pub fn get_node_index_by_identifier(&self, identifier: Identifier) -> usize {
         self.nodes.iter().position(|n| n.identifier == Some(identifier)).expect("No Node with Identifier {Identifier} found.")
     }
@@ -159,31 +180,4 @@ impl<U: Clone + Debug> WFCBuilder<U> {
     }
 }
 
-impl<'a, U: Clone + Debug> CollapseFuncData<'a, U> {
-    pub fn get_node_with_identifier(&self, identifer: Identifier) -> Option<&Node<U>> {
-        for node in self.nodes.iter().rev() {
-            let template_node = &self.builder.nodes[node.template_index];
-            if template_node.identifier == Some(identifer) {
-                return Some(node);
-            }
-        }
 
-        None
-    }
-
-    pub fn get_attribute_with_identifier(&self, identifer: Identifier, mut skip: usize) -> Option<&Attribute> {
-        for attribute in self.attributes.iter().rev() {
-            let template_attribute = &self.builder.attributes[attribute.template_index];
-            if template_attribute.identifier == identifer {
-                if skip > 0 {
-                    skip -= 1;
-                } else {
-                    return Some(attribute);
-                }
-            }
-        }
-
-        None
-    }
-
-}

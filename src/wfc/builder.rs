@@ -5,50 +5,52 @@ use crate::cgs_tree::tree::{CSGNode, CSGNodeData, CSGTree};
 
 use std::{fmt::Debug, marker::PhantomData, ops::RangeBounds, usize};
 
-use super::collapse::{Attribute, CollapseFuncData, Node};
+use super::{collapse::{Attribute, Node}, func_data::{BuildFuncData, CollapseFuncData}};
 
 pub type Identifier = usize;
 pub const NodeIdentifierNone: Identifier = Identifier::MAX;
 
 #[derive(Debug, Clone)]
-pub struct WFCBuilder<U: Clone + Debug> {
-    pub nodes: Vec<NodeTemplate<U>>,
-    pub attributes: Vec<AttributeTemplate<U>>,
+pub struct WFCBuilder<U: Clone + Debug, B: Clone + Debug> {
+    pub nodes: Vec<NodeTemplate<U, B>>,
+    pub attributes: Vec<AttributeTemplate<U, B>>,
 }
 
 #[derive(Debug, Clone)]
-pub struct NodeTemplate<U: Clone + Debug> {
+pub struct NodeTemplate<U: Clone + Debug, B: Clone + Debug> {
     pub identifier: Option<Identifier>,
     pub name: String, 
     pub attributes: Vec<Identifier>,
     pub user_data: Option<U>,
+    pub build: fn(d: BuildFuncData<U, B>) 
 }
 
 #[derive(Debug, Clone)]
-pub enum AttributeTemplateValue<U: Clone + Debug> {
+pub enum AttributeTemplateValue<U: Clone + Debug, B: Clone + Debug> {
     NumberRange {
         min: i32,
         max: i32,
         defines: NumberRangeDefinesType,
     }, 
     Pos {
-        collapse: fn(d: CollapseFuncData<U>) -> Option<Vec3>,
+        collapse: fn(d: CollapseFuncData<U, B>) -> Option<Vec3>,
     },
 }
 
 #[derive(Debug, Clone)]
-pub struct AttributeTemplate<U: Clone + Debug> {
+pub struct AttributeTemplate<U: Clone + Debug, B: Clone + Debug> {
     pub identifier: Identifier,
     pub permutation: Permutation<DefaultBuildHasher>,
-    pub value: AttributeTemplateValue<U>,
+    pub value: AttributeTemplateValue<U, B>,
 }
 
 #[derive(Debug, Clone)]
-pub struct WFCNodeBuilder<U: Clone + Debug> {
+pub struct WFCNodeBuilder<U: Clone + Debug, B: Clone + Debug> {
     pub identifier: Option<Identifier>,
     pub name: String, 
-    pub attributes: Vec<AttributeTemplate<U>>,
+    pub attributes: Vec<AttributeTemplate<U, B>>,
     pub user_data: Option<U>,
+    pub build: fn(d: BuildFuncData<U, B>) 
 }
 
 #[derive(Debug, Clone)]
@@ -67,8 +69,8 @@ pub struct PosBuilder {
 }
 
 
-impl<U: Clone + Debug> WFCBuilder<U> {
-    pub fn new() -> WFCBuilder<U> {
+impl<U: Clone + Debug, B: Clone + Debug> WFCBuilder<U, B> {
+    pub fn new() -> WFCBuilder<U, B> {
         WFCBuilder {
             nodes: vec![],
             attributes: vec![],
@@ -77,14 +79,14 @@ impl<U: Clone + Debug> WFCBuilder<U> {
 
     pub fn node(
         mut self,
-        build_node: fn(builder: WFCNodeBuilder<U>) -> WFCNodeBuilder<U>,
-    ) -> WFCBuilder<U> {
+        build_node: fn(builder: WFCNodeBuilder<U, B>) -> WFCNodeBuilder<U, B>,
+    ) -> WFCBuilder<U, B> {
         let mut builder = WFCNodeBuilder::new();
         builder = build_node(builder);
 
         builder.attributes.sort_by(|a, b| {
              
-            let get_value = |x: &AttributeTemplate<U>| {
+            let get_value = |x: &AttributeTemplate<U, B>| {
                 match &x.value {
                     AttributeTemplateValue::NumberRange { defines, .. } => {
                         match defines {
@@ -108,6 +110,7 @@ impl<U: Clone + Debug> WFCBuilder<U> {
                 })
                 .collect(),
             user_data: builder.user_data,
+            build: builder.build,
         });
 
         self.attributes.append(&mut builder.attributes);
@@ -115,13 +118,14 @@ impl<U: Clone + Debug> WFCBuilder<U> {
     } 
 }
 
-impl<U: Clone + Debug> WFCNodeBuilder<U> {
+impl<U: Clone + Debug, B: Clone + Debug> WFCNodeBuilder<U, B> {
     fn new() -> Self {
         WFCNodeBuilder {
             attributes: vec![],
             identifier: None,
             name: "".to_string(),
             user_data: None,
+            build: |_| {},
         }
     }
 
@@ -140,6 +144,10 @@ impl<U: Clone + Debug> WFCNodeBuilder<U> {
         self
     }
 
+    pub fn build(mut self, build: fn(d: BuildFuncData<U, B>)) -> Self {
+        self.build = build;
+        self
+    }
 
     pub fn number_range<R: RangeBounds<i32>>(
         mut self,
@@ -182,7 +190,7 @@ impl<U: Clone + Debug> WFCNodeBuilder<U> {
         mut self,
         identifier: Identifier,
         num_collapses: usize,
-        collapse: fn(d: CollapseFuncData<U>) -> Option<Vec3>,
+        collapse: fn(d: CollapseFuncData<U, B>) -> Option<Vec3>,
         pos_options: fn(b: PosBuilder) -> PosBuilder,
     ) -> Self {
 

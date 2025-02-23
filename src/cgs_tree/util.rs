@@ -57,7 +57,7 @@ impl CSGTree {
         self.nodes.append(&mut tree.nodes);
     }
 
-    pub fn append_tree_with_union(&mut self, mut tree: CSGTree) {
+    pub fn append_tree_with_union(&mut self, mut tree: CSGTree) { 
         self.insert_node_before(CSGNode::new(CSGNodeData::Union(1, self.nodes.len() + 1)));
 
         tree.shift_node_pointers(self.nodes.len());
