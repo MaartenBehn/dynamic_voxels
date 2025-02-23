@@ -246,6 +246,7 @@ pub fn new_logic_state(
 
     fenceCSG.cgs.set_all_aabbs(1.0);
     render_state.csg_controller.set_data(&fenceCSG.cgs.make_data());
+ 
 
     Ok(LogicState {
         camera,
@@ -265,6 +266,13 @@ pub fn update(
     puffin::profile_function!();
 
     let time = logic_state.start_time.elapsed();
+
+
+    let mut tree = CSGTree::new();
+    tree.set_example_tree(time.as_secs_f32());
+    tree.set_all_aabbs(1.0);
+    render_state.csg_controller.set_data(&tree.make_data());
+
 
     logic_state.camera.update(&engine.controls, delta_time);
     render_state
