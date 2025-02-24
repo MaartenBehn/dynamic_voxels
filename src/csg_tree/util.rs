@@ -83,6 +83,27 @@ impl CSGTree {
 
         self.nodes.insert(0, node);
     }
+
+    pub fn get_id_parents(&self, ids: &[usize]) -> Vec<usize> {
+        self.nodes
+            .iter()
+            .enumerate()
+            .filter_map(|(i, node)| {
+                match node.data {
+                    CSGNodeData::Union(child1, child2)
+                    | CSGNodeData::Remove(child1, child2)
+                    | CSGNodeData::Intersect(child1, child2) => {
+                        if ids.contains(&child1) || ids.contains(&child2) {
+                            return Some(i);
+                        }
+                    }
+                    _ => {}
+                }
+
+                None
+            })
+            .collect()
+    }
 }
 
 fn pos_in_sphere(pos: Vec3, s_pos: Vec3, radius: f32) -> bool {

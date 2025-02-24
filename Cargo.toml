@@ -3,6 +3,9 @@ name = "dynamic_voxels"
 version = "0.1.0"
 edition = "2021"
 
+[lints.rust]
+unused = "allow"
+
 [lib]
 name = "reload"
 path = "src/reload.rs"

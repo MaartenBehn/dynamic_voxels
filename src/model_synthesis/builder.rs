@@ -1,19 +1,19 @@
 use feistel_permutation_rs::{DefaultBuildHasher, Permutation};
 use octa_force::glam::Vec3;
 
-use crate::cgs_tree::tree::{CSGNode, CSGNodeData, CSGTree};
+use crate::csg_tree::tree::{CSGNode, CSGNodeData, CSGTree};
 
 use std::{fmt::Debug, marker::PhantomData, ops::RangeBounds, usize};
 
-use super::{collapse::{Attribute, Node}, func_data::{BuildFuncData, CollapseFuncData}};
+use super::{collapse::{Node}, func_data::{BuildFuncData}};
 
 pub type Identifier = usize;
-pub const NodeIdentifierNone: Identifier = Identifier::MAX;
+pub const NODE_IDENTIFIER_NONE: Identifier = Identifier::MAX;
 
 #[derive(Debug, Clone)]
 pub struct WFCBuilder<U: Clone + Debug, B: Clone + Debug> {
     pub nodes: Vec<NodeTemplate<U, B>>,
-    pub attributes: Vec<AttributeTemplate<U, B>>,
+    pub attributes: Vec<AttributeTemplate>,
 }
 
 #[derive(Debug, Clone)]
@@ -26,29 +26,28 @@ pub struct NodeTemplate<U: Clone + Debug, B: Clone + Debug> {
 }
 
 #[derive(Debug, Clone)]
-pub enum AttributeTemplateValue<U: Clone + Debug, B: Clone + Debug> {
+pub enum AttributeTemplateValue {
     NumberRange {
         min: i32,
         max: i32,
         defines: NumberRangeDefinesType,
     }, 
     Pos {
-        collapse: fn(d: CollapseFuncData<U, B>) -> Option<Vec3>,
     },
 }
 
 #[derive(Debug, Clone)]
-pub struct AttributeTemplate<U: Clone + Debug, B: Clone + Debug> {
+pub struct AttributeTemplate {
     pub identifier: Identifier,
     pub permutation: Permutation<DefaultBuildHasher>,
-    pub value: AttributeTemplateValue<U, B>,
+    pub value: AttributeTemplateValue,
 }
 
 #[derive(Debug, Clone)]
 pub struct WFCNodeBuilder<U: Clone + Debug, B: Clone + Debug> {
     pub identifier: Option<Identifier>,
     pub name: String, 
-    pub attributes: Vec<AttributeTemplate<U, B>>,
+    pub attributes: Vec<AttributeTemplate>,
     pub user_data: Option<U>,
     pub build: fn(d: BuildFuncData<U, B>) 
 }
@@ -86,7 +85,7 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCBuilder<U, B> {
 
         builder.attributes.sort_by(|a, b| {
              
-            let get_value = |x: &AttributeTemplate<U, B>| {
+            let get_value = |x: &AttributeTemplate| {
                 match &x.value {
                     AttributeTemplateValue::NumberRange { defines, .. } => {
                         match defines {
@@ -190,7 +189,6 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCNodeBuilder<U, B> {
         mut self,
         identifier: Identifier,
         num_collapses: usize,
-        collapse: fn(d: CollapseFuncData<U, B>) -> Option<Vec3>,
         pos_options: fn(b: PosBuilder) -> PosBuilder,
     ) -> Self {
 
@@ -200,7 +198,6 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCNodeBuilder<U, B> {
         let seed = fastrand::u64(0..1000);
         let pos = AttributeTemplate {
             value: AttributeTemplateValue::Pos { 
-                collapse  
             },
             identifier,
             permutation: Permutation::new(num_collapses as _, seed, DefaultBuildHasher::new())
@@ -228,6 +225,29 @@ impl NumberRangeBuilder {
 impl PosBuilder {
     pub fn new() -> Self {
         PosBuilder {
+        }
+    }  
+}
+
+impl AttributeTemplateValue {
+    pub fn get_number_min(&self) -> i32 {
+        match self {
+            AttributeTemplateValue::NumberRange { min, .. } => *min,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn get_number_max(&self) -> i32 {
+        match self {
+            AttributeTemplateValue::NumberRange { max, .. } => *max,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn get_number_defines(&self) -> &NumberRangeDefinesType {
+        match self {
+            AttributeTemplateValue::NumberRange { defines, .. } => defines,
+            _ => unreachable!(),
         }
     }  
 }

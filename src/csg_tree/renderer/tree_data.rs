@@ -2,9 +2,9 @@ use core::slice;
 
 use octa_force::{log::error, puffin_egui::puffin};
 
-use crate::cgs_tree::{
+use crate::csg_tree::{
     controller::MAX_CGS_TREE_DATA_SIZE,
-    tree::{CSGNodeData, CSGTree},
+    tree::{CSGNodeData, CSGTree, AABB_PADDING},
 };
 
 const CGS_CHILD_TYPE_NONE: u32 = 0;
@@ -19,6 +19,8 @@ impl CSGTree {
     pub fn make_data(&mut self) -> Vec<u32> {
         #[cfg(debug_assertions)]
         puffin::profile_function!();
+
+        self.set_all_aabbs(AABB_PADDING);
 
         let (data, _) = self.add_data(0, vec![]);
 

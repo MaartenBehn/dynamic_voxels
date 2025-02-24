@@ -1,20 +1,20 @@
 mod aabb;
 mod buddy_controller;
-mod cgs_tree;
+mod csg_tree;
 mod color;
 mod material;
 mod profiler;
 mod util;
-mod wfc;
+mod model_synthesis;
 
-use crate::cgs_tree::controller::CSGController;
-use crate::cgs_tree::tree::{CSGTree, VOXEL_SIZE};
+use crate::csg_tree::controller::CSGController;
+use crate::csg_tree::tree::{CSGTree, VOXEL_SIZE};
 use crate::color::ColorController;
 use crate::material::controller::MaterialController;
 use crate::material::voxels::VoxelField;
 use crate::profiler::ShaderProfiler;
-use cgs_tree::renderer::Renderer;
-use cgs_tree::tree::{CSGNode, CSGNodeData, MATERIAL_NONE};
+use csg_tree::renderer::Renderer;
+use csg_tree::tree::{CSGNode, CSGNodeData, MATERIAL_NONE};
 use egui_graphs::Node;
 use glsl_compiler::glsl;
 use octa_force::camera::Camera;
@@ -27,13 +27,11 @@ use octa_force::puffin_egui::puffin;
 use octa_force::vulkan::ash::vk::AttachmentLoadOp;
 use octa_force::vulkan::Fence;
 use octa_force::{log, Engine, OctaResult};
-use wfc::collapse::AttributeValue;
-use wfc::func_data::FuncData;
+use model_synthesis::func_data::FuncData;
 use std::f32::consts::PI;
 use std::time::{Duration, Instant};
-use std::usize;
-use wfc::builder::{NumberRangeDefinesType, WFCBuilder};
-use wfc::renderer::renderer::WFCRenderer;
+use model_synthesis::builder::{NumberRangeDefinesType, WFCBuilder};
+use model_synthesis::renderer::renderer::WFCRenderer;
 
 pub const USE_PROFILE: bool = false;
 
@@ -137,7 +135,7 @@ pub struct FenceData {
 
 #[derive(Debug, Clone)]
 pub struct FenceCSG {
-    pub cgs: CSGTree,
+    pub csg: CSGTree,
 }
 
 
@@ -182,39 +180,13 @@ pub fn new_logic_state(
             b.identifier(10).name("Fence Post".to_owned())
                 .pos(11, 
                 10,
-                |d | {
-                    let node = d.get_node_with_identifier(0).unwrap();
-                    let user_data = &node.user_data.as_ref().unwrap();
-
-                    let last_post = d.get_attribute_with_identifier(11, 1);
-                    if last_post.is_none() {
-                        Some(vec3(
-                            user_data.radius * f32::cos((2.0 * PI / 10.0) * (d.get_value() as f32)) + user_data.center_pos.x,
-                            user_data.radius * f32::sin((2.0 * PI / 10.0) * (d.get_value() as f32)) + user_data.center_pos.y,
-                            0.0))
-                    } else {
-                        let last_pos = if let AttributeValue::Pos(val) = last_post.unwrap().value { val } else { unreachable!() };
-                        let pos = vec3(
-                            user_data.post_distance * f32::cos((2.0 * PI / 10.0) * (d.get_value() as f32)) + last_pos.x,
-                            user_data.post_distance * f32::sin((2.0 * PI / 10.0) * (d.get_value() as f32)) + last_pos.y,
-                            0.0);
-                        
-                        if pos.distance(user_data.center_pos) < user_data.radius {
-                            Some(pos)
-                        } else {
-                            None
-                        }
-                    }
-                },
                 |b| {
                     b
                 })
                 .build(|mut d| {
-                    let pos_attribute = d.get_current_node_attribute_with_identifier(11).unwrap();
+                    let pos = d.get_current_node_pos_attribute_with_identifier(11).unwrap().value;
 
-                    let pos = if let AttributeValue::Pos(val) = pos_attribute.value { val } else { unreachable!() }; 
-                    
-                    let csg = &mut d.get_build_data_mut().cgs;
+                    let csg = &mut d.get_build_data_mut().csg;
 
                     let csg_node = CSGNode::new(CSGNodeData::Box(
                         Mat4::from_translation(pos),
@@ -226,26 +198,21 @@ pub fn new_logic_state(
                         return;
                     }
 
-                    let mut tree = CSGTree::new();
-                    tree.nodes.push(csg_node);
+                    let mut tree = CSGTree::from_node(csg_node);
                     csg.append_tree_with_union(tree);
-
-
-
 
                 })
             });
 
     dbg!(&wfc_builder);
 
-    let mut fenceCSG = FenceCSG {
-        cgs: CSGTree::new()
+    let mut fence_csg = FenceCSG {
+        csg: CSGTree::default()
     };
 
-    wfc_builder.collapse(&mut fenceCSG);
+    wfc_builder.collapse(&mut fence_csg);
 
-    fenceCSG.cgs.set_all_aabbs(1.0);
-    render_state.csg_controller.set_data(&fenceCSG.cgs.make_data());
+    render_state.csg_controller.set_data(&fence_csg.csg.make_data());
  
 
     Ok(LogicState {
@@ -268,10 +235,8 @@ pub fn update(
     let time = logic_state.start_time.elapsed();
 
 
-    let mut tree = CSGTree::new();
-    tree.set_example_tree(time.as_secs_f32());
-    tree.set_all_aabbs(1.0);
-    render_state.csg_controller.set_data(&tree.make_data());
+    //let mut tree = CSGTree::new_example_tree(time.as_secs_f32());
+    //render_state.csg_controller.set_data(&tree.make_data());
 
 
     logic_state.camera.update(&engine.controls, delta_time);

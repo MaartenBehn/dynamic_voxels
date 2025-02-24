@@ -1,4 +1,3 @@
-#![allow(warnings)]
 
 use octa_force::binding::r#trait::BindingTrait;
 use octa_force::egui_winit::winit::event::WindowEvent;

@@ -125,7 +125,7 @@ impl ShaderProfiler {
         )?;
 
         let main_scope = scopes.iter().position(|s| *s == "main").unwrap();
-        let scopes: Vec<String> = scopes.into_iter().map(|s| s.to_string()).collect();
+        let scopes: Vec<String> = scopes.iter().map(|s| s.to_string()).collect();
 
         let (sample_res, sample_multiplication_factor) = Self::get_sample_res(res);
 
@@ -397,19 +397,19 @@ impl ShaderProfiler {
     }
 
     pub fn get_debug_color_gradient_from_float(x: f32) -> Vec4 {
-        let firstColor = vec4(0.0, 1.0, 0.0, 1.0); // green
-        let middleColor = vec4(0.0, 0.0, 1.0, 1.0); // blue
-        let endColor = vec4(1.0, 0.0, 0.0, 1.0); // red
+        let first_color = vec4(0.0, 1.0, 0.0, 1.0); // green
+        let middle_color = vec4(0.0, 0.0, 1.0, 1.0); // blue
+        let end_color = vec4(1.0, 0.0, 0.0, 1.0); // red
 
         if x == 0.0 {
-            return firstColor;
+            return first_color;
         }
 
         let h = 0.5; // adjust position of middleColor
         if x < h {
-            Vec4::lerp(firstColor, middleColor, x / h)
+            Vec4::lerp(first_color, middle_color, x / h)
         } else {
-            Vec4::lerp(middleColor, endColor, (x - h) / (1.0 - h))
+            Vec4::lerp(middle_color, end_color, (x - h) / (1.0 - h))
         }
     }
 
@@ -507,7 +507,7 @@ impl ShaderProfiler {
                     for (scope, name) in pixel.scope_data.iter().zip(self.scopes.iter()) {
                         body.row(30.0, |mut row| {
                             row.col(|ui| {
-                                ui.label(format!("{name}"));
+                                ui.label(name);
                             });
                             row.col(|ui| {
                                 ui.label(format!("{:.02}", scope.num_call_mean));

@@ -1,5 +1,5 @@
 use crate::aabb::AABB;
-use crate::cgs_tree::controller::MAX_CGS_TREE_DATA_SIZE;
+use crate::csg_tree::controller::MAX_CGS_TREE_DATA_SIZE;
 use octa_force::glam::{uvec3, vec3, EulerRot, Mat4, Quat, UVec3, Vec3};
 use octa_force::log::{error, info};
 use octa_force::puffin_egui::puffin;
@@ -32,21 +32,21 @@ pub struct CSGTree {
     pub nodes: Vec<CSGNode>,
 }
 
-impl CSGTree {
-    pub fn new() -> Self {
+impl CSGTree { 
+    pub fn from_node(node: CSGNode) -> Self {
         CSGTree {
-            nodes: vec![],
+            nodes: vec![node],
         }
     }
 
-    pub fn set_example_tree(&mut self, time: f32) {
+    pub fn new_example_tree(time: f32) -> Self {
         puffin::profile_function!();
 
         let frac = simple_easing::roundtrip((time * 0.1) % 1.0);
         let frac_2 = simple_easing::roundtrip((time * 0.2) % 1.0);
         let frac_3 = simple_easing::roundtrip((time * 0.01) % 1.0);
 
-        self.nodes = vec![
+        let nodes = vec![
             CSGNode::new(CSGNodeData::Union(1, 4)),
             CSGNode::new(CSGNodeData::Remove(2, 3)),
             CSGNode::new(CSGNodeData::Box(
@@ -98,14 +98,18 @@ impl CSGTree {
         ];
 
          */
+
+        CSGTree {
+            nodes,
+        }
     }
 
-    pub fn set_example_tree_with_aabb_field(&mut self, time: f32) {
+    pub fn new_example_tree_with_aabb_field(time: f32) -> Self {
         puffin::profile_function!();
 
         let frac = simple_easing::roundtrip((time * 0.1) % 1.0);
 
-        self.nodes = vec![
+        let nodes = vec![
             CSGNode::new(CSGNodeData::Union(1, 2)),
             CSGNode::new(CSGNodeData::Box(
                 Mat4::from_scale_rotation_translation(
@@ -128,87 +132,18 @@ impl CSGTree {
                 },
             ),
         ];
-    }
 
-    pub fn set_all_aabbs(&mut self, padding: f32) {
-        #[cfg(debug_assertions)]
-        puffin::profile_function!();
-
-        let mut propergate_ids = vec![];
-        for (i, node) in self.nodes.iter_mut().enumerate() {
-            match node.data {
-                CSGNodeData::Box(..) | CSGNodeData::Sphere(..) => {
-                    Self::set_leaf_aabb(node, padding);
-                    propergate_ids.push(i);
-                }
-                _ => {}
-            }
-        }
-
-        propergate_ids = self.get_id_parents(&propergate_ids);
-        while !propergate_ids.is_empty() {
-            for id in propergate_ids.iter() {
-                self.propergate_aabb_change(*id);
-                // debug!("{:?}", self.nodes[*id]);
-            }
-
-            propergate_ids = self.get_id_parents(&propergate_ids);
+        CSGTree {
+            nodes,
         }
     }
-
-    pub fn propergate_aabb_change(&mut self, i: usize) {
-        let node = self.nodes[i].to_owned();
-        match node.data {
-            CSGNodeData::Union(child1, child2) => {
-                self.nodes[i].aabb = self.nodes[child1].aabb.union(self.nodes[child2].aabb);
-            }
-            CSGNodeData::Remove(child1, child2) => {
-                self.nodes[i].aabb = self.nodes[child1].aabb;
-            }
-            CSGNodeData::Intersect(child1, child2) => {
-                self.nodes[i].aabb = self.nodes[child1].aabb.intersect(self.nodes[child2].aabb);
-            }
-            _ => {
-                panic!("propergate_aabb_change can only be called for Union, Remove or Intersect")
-            }
-        }
-    }
-
-    pub fn get_id_parents(&self, ids: &[usize]) -> Vec<usize> {
-        self.nodes
-            .iter()
-            .enumerate()
-            .filter_map(|(i, node)| {
-                match node.data {
-                    CSGNodeData::Union(child1, child2)
-                    | CSGNodeData::Remove(child1, child2)
-                    | CSGNodeData::Intersect(child1, child2) => {
-                        if ids.contains(&child1) || ids.contains(&child2) {
-                            return Some(i);
-                        }
-                    }
-                    _ => {}
-                }
-
-                None
-            })
-            .collect()
-    }
-
-    pub fn set_leaf_aabb(node: &mut CSGNode, padding: f32) {
-        match node.data {
-            CSGNodeData::Box(mat, ..) => node.aabb = AABB::from_box(&mat, padding),
-            CSGNodeData::Sphere(mat, ..) => node.aabb = AABB::from_sphere(&mat, padding),
-            _ => {
-                panic!("set_leaf_aabb can only be called for Box or Sphere")
-            }
-        }
-    } 
 }
 
 impl Default for CSGTree {
     fn default() -> Self {
-        Self::new()
+        CSGTree {
+            nodes: vec![],
+        }
     }
 }
 
