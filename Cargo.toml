@@ -23,8 +23,8 @@ gcd = "2.3.0"
 
 feistel-permutation-rs = { git="https://github.com/MaartenBehn/permutation-rs.git", version = "0.1.5"}
 kiddo = "5.0.3"
-fast_poisson = { path="../fast_poisson", features = ["single_precision"]}
-#fast_poisson = { git="https://github.com/MaartenBehn/fast_poisson.git", version = "1.0.2", features = ["single_precision"]}
+#fast_poisson = { path="../fast_poisson", features = ["single_precision"]}
+fast_poisson = { git="https://github.com/MaartenBehn/fast_poisson.git", version = "1.0.3", features = ["single_precision"]}
 
 petgraph = "0.6.5"
 egui_graphs = "0.21.1"
