@@ -369,6 +369,8 @@ void cgs_tree_interval_list(Ray ray, out IntervalList list) {
 }
 
 bool cgs_tree_next_interval(Ray ray, float current_t, out Interval interval, out AABB aabb) {
+    PROFILE("cgs_tree_next_interval");
+
     aabb = get_aabb(0);
     if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
         return false;

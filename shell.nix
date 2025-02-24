@@ -6,26 +6,22 @@ with builtins;
       config.allowUnfree = true;
     }
   ),
-  pkgs-fix ? (
+#  pkgs-fix ? (
+#   import (getFlake "/home/stroby/dev/nixpkgs") {
+#     config.allowUnfree = true;
+#     config.cudaSupport = true;
+#     }
+#   ),
+  pkgs-mcwitt ? (
     import (getFlake "github:mcwitt/nixpkgs/fix/nsight_systems") {
       config.allowUnfree = true;
       config.cudaSupport = true;
     }
   ),
+
   ...
 }:
 
-let
-  my-nsight_compute = pkgs-fix.cudaPackages.nsight_compute.overrideAttrs (oldAttrs: {
-    buildInputs = oldAttrs.buildInputs ++ [
-      pkgs-fix.rdma-core
-      pkgs-fix.ucx
-      pkgs-fix.e2fsprogs
-      pkgs-fix.gst_all_1.gst-plugins-base
-      pkgs-fix.qt6.qtwayland
-    ];
-  });
-in
 pkgs.mkShell rec {
 
   name = "dynamic_voxels";
@@ -55,8 +51,12 @@ pkgs.mkShell rec {
     watchexec
     renderdoc
     python3
+    quickemu
 
-    pkgs-fix.cudaPackages.nsight_systems
+
+    pkgs-mcwitt.cudaPackages.nsight_systems
+      # pkgs-fix.cudaPackages.nsight_compute
+      # my-nsight_compute 
   ];
 
   LD_LIBRARY_PATH =
