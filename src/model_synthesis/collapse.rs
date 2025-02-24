@@ -1,18 +1,19 @@
 use core::panic;
-use std::fmt::Debug;
+use std::{fmt::Debug, usize};
 
 use fdg::nalgebra::base;
 use feistel_permutation_rs::{DefaultBuildHasher, OwnedPermutationIterator, Permutation, PermutationIterator};
 use octa_force::{glam::{vec3, IVec3, Vec3}, log::debug};
 
-use crate::model_synthesis::func_data::{BuildFuncData};
+use crate::model_synthesis::{func_data::BuildFuncData, volume::PossibleVolume};
 
 use super::builder::{AttributeTemplate, AttributeTemplateValue, Identifier, NodeTemplate, NumberRangeDefinesType, WFCBuilder};
 
 #[derive(Debug, Clone)]
 pub struct Node<U: Clone + Debug> {
     pub template_index: usize,
-    pub attributes: Vec<usize>,
+    pub number_attributes: Vec<usize>,
+    pub pos_attributes: Vec<usize>,
     pub user_data: Option<U>,
     pub children: Vec<usize>,
 }
@@ -37,7 +38,8 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCBuilder<U, B> {
 
         let root_node_template = &self.nodes[0];
         let root_node = Node { 
-            attributes: vec![], 
+            number_attributes: vec![], 
+            pos_attributes: vec![], 
             template_index: 0,
             user_data: root_node_template.user_data.to_owned(),
             children: vec![],
@@ -46,10 +48,12 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCBuilder<U, B> {
         let mut nodes = vec![root_node];
         let mut number_attributes = vec![];
         let mut pos_attributes = vec![];
+        let mut possible_volumes = vec![];
 
         let mut pending_nodes = vec![0];
         let mut pending_number_attributes = vec![];
         let mut pending_pos_attributes = vec![];
+        let mut pending_possible_volumes: Vec<usize> = vec![];
 
         let mut current_template_node = 0;
         loop {
@@ -57,11 +61,11 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCBuilder<U, B> {
                 let attribute: &mut NumberAttribute = &mut number_attributes[current_attribute_index];
                 let attribute_template = &self.attributes[attribute.template_index];
                 
-                if attribute.perm_counter >= attribute_template.permutation.max() as _ {
+                if attribute.perm_counter >= attribute_template.value.get_number_permutation().max() as usize {
                     
                 }
 
-                let value = attribute_template.permutation.get(attribute.perm_counter as _);
+                let value = attribute_template.value.get_number_permutation().get(attribute.perm_counter as _);
                 attribute.perm_counter += 1;
 
                 debug!("Value: {value}");
@@ -76,7 +80,8 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCBuilder<U, B> {
 
                         let node = Node {
                             template_index: node_template_index,
-                            attributes: vec![],
+                            number_attributes: vec![], 
+                            pos_attributes: vec![],
                             user_data: node_template.user_data.to_owned(),
                             children: vec![],
                         };
@@ -91,6 +96,11 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCBuilder<U, B> {
                     
             } else if let Some(current_attribute_index) = pending_pos_attributes.pop() {
                 let attribute: &mut PosAttribute = &mut pos_attributes[current_attribute_index];
+                let attribute_template = &self.attributes[attribute.template_index];
+
+                
+            } else if let Some(current_attribute_index) = pending_possible_volumes.pop() {
+                let attribute: &mut PossibleVolume = &mut possible_volumes[current_attribute_index];
                 let attribute_template = &self.attributes[attribute.template_index];
 
                 
@@ -114,11 +124,11 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCBuilder<U, B> {
                             let attribute_index = number_attributes.len();
                             number_attributes.push(attribute);
 
-                            node.attributes.push(attribute_index);
+                            node.number_attributes.push(attribute_index);
                             pending_number_attributes.push(attribute_index);
 
                         },
-                        AttributeTemplateValue::Pos {  } => {
+                        AttributeTemplateValue::Pos { .. } => {
                             let attribute = PosAttribute {
                                 template_index: attribute_template_index,
                                 value: Default::default(),
@@ -128,7 +138,7 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCBuilder<U, B> {
                             let attribute_index = pos_attributes.len();
                             pos_attributes.push(attribute);
 
-                            node.attributes.push(attribute_index);
+                            node.pos_attributes.push(attribute_index);
                             pending_pos_attributes.push(attribute_index);
 
                         },

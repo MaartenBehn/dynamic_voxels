@@ -1,4 +1,4 @@
-use super::{builder::{Identifier, WFCBuilder}, collapse::{ Node, NumberAttribute, PosAttribute}};
+use super::{builder::{Identifier, WFCBuilder}, collapse::{ Node, NumberAttribute, PosAttribute}, volume::PossibleVolume};
 use std::fmt::Debug;
 
 pub trait FuncData<U: Clone + Debug, B: Clone + Debug> {
@@ -55,7 +55,7 @@ pub trait FuncData<U: Clone + Debug, B: Clone + Debug> {
     }
 
     fn get_child_number_attribute_with_identifier(&self, index: usize, identifer: Identifier) -> Option<&NumberAttribute> {
-        for &attribute_index in self.get_nodes()[index].attributes.iter() {
+        for &attribute_index in self.get_nodes()[index].number_attributes.iter() {
             let attribute = &self.get_number_attributes()[attribute_index];
             let attribute_template = &self.get_builder().attributes[attribute.template_index];
 
@@ -68,7 +68,7 @@ pub trait FuncData<U: Clone + Debug, B: Clone + Debug> {
     }
 
     fn get_child_pos_attribute_with_identifier(&self, index: usize, identifer: Identifier) -> Option<&PosAttribute> {
-        for &attribute_index in self.get_nodes()[index].attributes.iter() {
+        for &attribute_index in self.get_nodes()[index].pos_attributes.iter() {
             let attribute = &self.get_pos_attributes()[attribute_index];
             let attribute_template = &self.get_builder().attributes[attribute.template_index];
 
@@ -81,8 +81,63 @@ pub trait FuncData<U: Clone + Debug, B: Clone + Debug> {
     }
 }
 
+#[derive(Debug)]
+pub struct PosCollapseFuncData<'a, U: Clone + Debug, B: Clone + Debug> {
+    nodes: &'a mut [Node<U>],
+    number_attributes: &'a[NumberAttribute],
+    pos_attributes: &'a[PosAttribute],
+    possible_volumes: &'a[PossibleVolume],
+    builder: &'a WFCBuilder<U, B>,
+    current_node_index: usize,
+    from_volume: &'a PossibleVolume,
+}
 
 
+impl<'a, U: Clone + Debug, B: Clone + Debug> FuncData<U, B> for PosCollapseFuncData<'a, U, B> {
+    fn get_nodes(&self) -> &[Node<U>] { self.nodes }
+    fn get_number_attributes(&self) -> &[NumberAttribute] { self.number_attributes }
+    fn get_pos_attributes(&self) -> &[PosAttribute] { self.pos_attributes }
+    fn get_builder(&self) -> &WFCBuilder<U, B> { self.builder }
+    fn get_nodes_mut(&mut self) -> &mut[Node<U>] { self.nodes }
+}
+
+impl<'a, U: Clone + Debug, B: Clone + Debug> PosCollapseFuncData<'a, U, B> {
+    pub fn new(
+        nodes: &'a mut [Node<U>], 
+        number_attributes: &'a[NumberAttribute], 
+        pos_attributes: &'a[PosAttribute], 
+        possible_volumes: &'a[PossibleVolume], 
+        builder: &'a WFCBuilder<U, B>, 
+        current_node_index: usize, 
+        from_volume: &'a PossibleVolume,
+    ) -> Self {
+        Self {
+            nodes,
+            number_attributes,
+            pos_attributes,
+            possible_volumes,
+            builder,
+            current_node_index,
+            from_volume
+        }
+    }
+
+    pub fn get_current_node(&self) -> &Node<U> {
+        &self.nodes[self.current_node_index]
+    }
+
+    pub fn get_current_node_number_attribute_with_identifier(&self, identifer: Identifier) -> Option<&NumberAttribute> {
+        self.get_child_number_attribute_with_identifier(self.current_node_index, identifer)
+    }
+
+    pub fn get_current_node_pos_attribute_with_identifier(&self, identifer: Identifier) -> Option<&PosAttribute> {
+        self.get_child_pos_attribute_with_identifier(self.current_node_index, identifer)
+    }
+
+    pub fn get_current_user_data_mut(&mut self) -> Option<&mut U> {
+        self.get_node_user_data_mut(self.current_node_index)
+    }
+}
 
 #[derive(Debug)]
 pub struct BuildFuncData<'a, U: Clone + Debug, B: Clone + Debug> {
@@ -93,6 +148,7 @@ pub struct BuildFuncData<'a, U: Clone + Debug, B: Clone + Debug> {
     current_node_index: usize,
     build_data: &'a mut B,
 }
+
 
 impl<'a, U: Clone + Debug, B: Clone + Debug> FuncData<U, B> for BuildFuncData<'a, U, B> {
     fn get_nodes(&self) -> &[Node<U>] { self.nodes }

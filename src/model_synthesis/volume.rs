@@ -7,15 +7,15 @@ use octa_force::glam::{vec4, Mat4, Vec3, Vec4Swizzles};
 
 use crate::{csg_tree::tree::{CSGNode, CSGNodeData, CSGTree, MATERIAL_NONE}, util::to_3d};
 
-
-
+#[derive(Debug, Clone)]
 pub struct PossibleVolume {
-    kd_tree: KdTree<f32, 3>,
-    csg_tree: CSGTree,
+    pub template_index: usize,
+    pub kd_tree: KdTree<f32, 3>,
+    pub csg_tree: CSGTree,
 }
 
 impl PossibleVolume {
-    pub fn new(base_volume: CSGNode, point_distance: f32) -> Self {
+    pub fn new(template_index: usize, base_volume: CSGNode, point_distance: f32) -> Self {
 
         let mut poisson = Poisson::<3, Mat4>::new()
             .with_radius(point_distance);
@@ -47,6 +47,7 @@ impl PossibleVolume {
         };
 
         PossibleVolume {
+            template_index,
             kd_tree,
             csg_tree
         }

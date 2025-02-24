@@ -5,7 +5,7 @@ use crate::csg_tree::tree::{CSGNode, CSGNodeData, CSGTree};
 
 use std::{fmt::Debug, marker::PhantomData, ops::RangeBounds, usize};
 
-use super::{collapse::{Node}, func_data::{BuildFuncData}};
+use super::{collapse::Node, func_data::{BuildFuncData, PosCollapseFuncData}, volume::PossibleVolume};
 
 pub type Identifier = usize;
 pub const NODE_IDENTIFIER_NONE: Identifier = Identifier::MAX;
@@ -13,7 +13,7 @@ pub const NODE_IDENTIFIER_NONE: Identifier = Identifier::MAX;
 #[derive(Debug, Clone)]
 pub struct WFCBuilder<U: Clone + Debug, B: Clone + Debug> {
     pub nodes: Vec<NodeTemplate<U, B>>,
-    pub attributes: Vec<AttributeTemplate>,
+    pub attributes: Vec<AttributeTemplate<U, B>>,
 }
 
 #[derive(Debug, Clone)]
@@ -26,28 +26,30 @@ pub struct NodeTemplate<U: Clone + Debug, B: Clone + Debug> {
 }
 
 #[derive(Debug, Clone)]
-pub enum AttributeTemplateValue {
+pub enum AttributeTemplateValue<U: Clone + Debug, B: Clone + Debug> {
     NumberRange {
         min: i32,
         max: i32,
         defines: NumberRangeDefinesType,
+        permutation: Permutation<DefaultBuildHasher>,
     }, 
     Pos {
+        from_volume: Identifier,
+        on_collapse_changes_volume: fn(d: PosCollapseFuncData<U, B>)
     },
 }
 
 #[derive(Debug, Clone)]
-pub struct AttributeTemplate {
+pub struct AttributeTemplate<U: Clone + Debug, B: Clone + Debug> {
     pub identifier: Identifier,
-    pub permutation: Permutation<DefaultBuildHasher>,
-    pub value: AttributeTemplateValue,
+    pub value: AttributeTemplateValue<U, B>,
 }
 
 #[derive(Debug, Clone)]
 pub struct WFCNodeBuilder<U: Clone + Debug, B: Clone + Debug> {
     pub identifier: Option<Identifier>,
     pub name: String, 
-    pub attributes: Vec<AttributeTemplate>,
+    pub attributes: Vec<AttributeTemplate<U, B>>,
     pub user_data: Option<U>,
     pub build: fn(d: BuildFuncData<U, B>) 
 }
@@ -64,7 +66,8 @@ pub struct NumberRangeBuilder {
 }
 
 #[derive(Debug, Clone)]
-pub struct PosBuilder {
+pub struct PosBuilder<U: Clone + Debug, B: Clone + Debug> {
+    on_collapse_changes_volume: fn(d: PosCollapseFuncData<U, B>)
 }
 
 
@@ -85,7 +88,7 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCBuilder<U, B> {
 
         builder.attributes.sort_by(|a, b| {
              
-            let get_value = |x: &AttributeTemplate| {
+            let get_value = |x: &AttributeTemplate<U, B>| {
                 match &x.value {
                     AttributeTemplateValue::NumberRange { defines, .. } => {
                         match defines {
@@ -175,9 +178,9 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCNodeBuilder<U, B> {
                 defines: number_set_builder.defines,
                 min: start_bound,
                 max: end_bound,
+                permutation: Permutation::new((end_bound - start_bound) as _, seed, DefaultBuildHasher::new())
             },
             identifier,
-            permutation: Permutation::new((end_bound - start_bound) as _, seed, DefaultBuildHasher::new())
         };
 
         self.attributes.push(number_range);
@@ -188,8 +191,8 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCNodeBuilder<U, B> {
     pub fn pos(
         mut self,
         identifier: Identifier,
-        num_collapses: usize,
-        pos_options: fn(b: PosBuilder) -> PosBuilder,
+        from_volume: Identifier,
+        pos_options: fn(b: PosBuilder<U, B>) -> PosBuilder<U, B>,
     ) -> Self {
 
         let mut pos_builder = PosBuilder::new();
@@ -197,10 +200,11 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCNodeBuilder<U, B> {
 
         let seed = fastrand::u64(0..1000);
         let pos = AttributeTemplate {
-            value: AttributeTemplateValue::Pos { 
+            value: AttributeTemplateValue::Pos {
+                from_volume,
+                on_collapse_changes_volume: pos_builder.on_collapse_changes_volume,
             },
             identifier,
-            permutation: Permutation::new(num_collapses as _, seed, DefaultBuildHasher::new())
         };
 
         self.attributes.push(pos);
@@ -222,14 +226,20 @@ impl NumberRangeBuilder {
     }
 }
 
-impl PosBuilder {
+impl<U: Clone + Debug, B: Clone + Debug> PosBuilder<U, B> {
     pub fn new() -> Self {
         PosBuilder {
+            on_collapse_changes_volume: |_| {},
         }
     }  
+
+    pub fn on_collapse_changes_volume(mut self, func: fn(PosCollapseFuncData<U, B>)) -> Self {
+        self.on_collapse_changes_volume = func;
+        self
+    }
 }
 
-impl AttributeTemplateValue {
+impl <U: Clone + Debug, B: Clone + Debug> AttributeTemplateValue<U, B> {
     pub fn get_number_min(&self) -> i32 {
         match self {
             AttributeTemplateValue::NumberRange { min, .. } => *min,
@@ -250,4 +260,12 @@ impl AttributeTemplateValue {
             _ => unreachable!(),
         }
     }  
+
+    pub fn get_number_permutation(&self) -> &Permutation {
+        match self {
+            AttributeTemplateValue::NumberRange { permutation, .. } => permutation,
+            _ => unreachable!(),
+        }
+    }  
+
 }
