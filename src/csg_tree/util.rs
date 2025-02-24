@@ -46,6 +46,7 @@ impl CSGTree {
                 pos_in_sphere(pos, vec3(0.0, 0.0, 0.0), 1.0)
             }
             CSGNodeData::VoxelVolume(_) => todo!(),
+            CSGNodeData::All(_) => true,
         }
     }
 

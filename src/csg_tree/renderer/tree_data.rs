@@ -48,6 +48,7 @@ impl CSGTree {
             CSGNodeData::Box(..) => CGS_CHILD_TYPE_BOX,
             CSGNodeData::Sphere(..) => CGS_CHILD_TYPE_SPHERE,
             CSGNodeData::VoxelVolume(..) => CGS_CHILD_TYPE_VOXEL,
+            CSGNodeData::All(..) => unreachable!(),
         };
 
         match node.data {
@@ -67,6 +68,7 @@ impl CSGTree {
             CSGNodeData::VoxelVolume(mat) => {
                 data.push(mat as u32);
             }
+            CSGNodeData::All(..) => unreachable!(),
         };
 
         (data, Self::node_data(index, t))

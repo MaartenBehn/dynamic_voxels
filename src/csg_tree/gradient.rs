@@ -38,7 +38,8 @@ impl CSGTree {
 
                 get_gradient_of_unit_box(t_point.xyz())
             },
-            CSGNodeData::VoxelVolume(_) => vec3(0.0, 0.0, 0.0),
+            CSGNodeData::VoxelVolume(_)
+            | CSGNodeData::All(_) => vec3(0.0, 0.0, 0.0),
         }
     }
 }
@@ -62,11 +63,15 @@ pub fn get_gradient_of_uint_sphere(to_pos: Vec3) -> Vec3 {
 *          |
 *
 * From: https://github.com/MaartenBehn/distance3d/blob/master/distance3d/distance/_plane.py
+*    t = np.dot(plane_normal, point - plane_point)
+*    closest_point_plane = point - t * plane_normal
 **/
 pub fn get_gradient_of_unit_box(to_pos: Vec3) -> Vec3 {
-    let t = to_pos.dot(to_pos);
-    // let q = to_pos - t * to_pos;
+    let normal = to_pos.signum();
+
+    let t = normal.dot(to_pos);
+    // let q = to_pos - t * normal;
     // let v = q - to_pos;
     
-    -t * to_pos
+    -t * normal
 }

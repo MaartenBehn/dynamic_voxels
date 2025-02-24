@@ -24,6 +24,7 @@ pub enum CSGNodeData {
     Intersect(usize, usize),
     Box(Mat4, Material),
     Sphere(Mat4, Material),
+    All(Material),
     VoxelVolume(Material),
 }
 
