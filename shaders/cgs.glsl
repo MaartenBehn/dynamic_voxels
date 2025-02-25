@@ -147,7 +147,7 @@ bool exits_cgs_object(vec3 pos, CGSObject object, uint type) {
     if (type == CGS_CHILD_TYPE_BOX) {
         return pos_in_aabb(pos, vec3(-0.5), vec3(0.5));
     } else if (type == CGS_CHILD_TYPE_SPHERE) {
-        return length(pos) < 1.0;
+        return pos.dot(pos) < 1.0;
     }
 
     return false;
