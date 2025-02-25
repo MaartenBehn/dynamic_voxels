@@ -33,7 +33,7 @@ use std::time::{Duration, Instant};
 use model_synthesis::builder::{NumberRangeDefinesType, WFCBuilder};
 use model_synthesis::renderer::renderer::WFCRenderer;
 
-pub const USE_PROFILE: bool = true;
+pub const USE_PROFILE: bool = false;
 
 pub struct RenderState {
     pub gui: Gui,

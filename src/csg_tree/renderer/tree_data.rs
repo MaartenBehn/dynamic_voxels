@@ -75,7 +75,7 @@ impl CSGTree {
     }
 
     fn node_data(pointer: usize, t: u32) -> u32 {
-        ((pointer as u32) << 3) + t
+        ((pointer as u32) << 4) + t
     }
 }
 

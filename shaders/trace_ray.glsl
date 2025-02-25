@@ -16,7 +16,7 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 #define USE_AABB_BASED_SCALE true
 #define USE_DDA_INCREASE false
 
-#define RENDER_DDA_STEPS false
+#define RENDER_DDA_STEPS true
 #define RENDER_DISTANCE false
 
 #define MAX_DDA_STEPS 500

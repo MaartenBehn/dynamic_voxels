@@ -21,7 +21,7 @@
 #define CGS_CHILD_TYPE_BOX 5
 #define CGS_CHILD_TYPE_SPHERE 6
 
-#define MAX_CGS_TREE_DEPTH 10
+#define MAX_CGS_TREE_DEPTH 4
 #define MAX_CGS_RENDER_ITERATIONS 10
 #define MAX_INTERVAL_LIST 10
 
@@ -54,8 +54,8 @@ AABB get_aabb(uint index) {
 
 CGSChild get_csg_tree_child(uint index) {
     uint data = CSG_TREE[index + 6];
-    uint pointer = data >> 3; // 29 Bit
-    uint type = data & uint(7); //  3 Bit
+    uint pointer = data >> 4; // 28 Bit
+    uint type = data & uint(15); //  4 Bit
 
     return CGSChild(pointer, type);
 }
@@ -147,7 +147,7 @@ bool exits_cgs_object(vec3 pos, CGSObject object, uint type) {
     if (type == CGS_CHILD_TYPE_BOX) {
         return pos_in_aabb(pos, vec3(-0.5), vec3(0.5));
     } else if (type == CGS_CHILD_TYPE_SPHERE) {
-        return pos.dot(pos) < 1.0;
+        return dot(pos, pos) < 1.0;
     }
 
     return false;
@@ -180,8 +180,6 @@ uint cgs_material_operation(uint material_1, uint material_2, uint operation) {
 }
 
 uint cgs_tree_at_pos(vec3 pos) {
-    PROFILE("cgs_tree_at_pos");
-
     int stack_len = 0;
     uint stack[MAX_CGS_TREE_DEPTH];
     uint operation_stack[MAX_CGS_TREE_DEPTH + 1];
@@ -238,7 +236,6 @@ uint cgs_tree_at_pos(vec3 pos) {
         if (USE_AABB && !pos_in_aabb(pos, aabb.min, aabb.max)) {
             if (!go_right) {
                 material_1_stack[stack_len] = 0;
-                ;
                 go_right = true;
             } else {
                 material_2 = 0;
@@ -371,8 +368,6 @@ void cgs_tree_interval_list(Ray ray, out IntervalList list) {
 }
 
 bool cgs_tree_next_interval(Ray ray, float current_t, out Interval interval, out AABB aabb) {
-    PROFILE("cgs_tree_next_interval");
-
     aabb = get_aabb(0);
     if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
         return false;

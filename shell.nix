@@ -51,8 +51,6 @@ pkgs.mkShell rec {
     watchexec
     renderdoc
     python3
-    quickemu
-
 
     pkgs-mcwitt.cudaPackages.nsight_systems
       # pkgs-fix.cudaPackages.nsight_compute
