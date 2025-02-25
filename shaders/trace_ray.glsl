@@ -25,6 +25,7 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 #define TO_1D(pos, size) ((pos.z * size * size) + (pos.y * size) + pos.x)
 
 void main () {
+    PROFILE("main");
 
     Ray ray = init_ray(POS, DIR, gl_GlobalInvocationID.xy, RES);
 
@@ -133,6 +134,7 @@ void main () {
         AABB aabb;
         float scale = 1.0;
         while (material == 0 && cgs_tree_next_interval(ray, interval_t, interval, aabb) && dda_step_counter < MAX_DDA_STEPS) {
+            PROFILE("loop");
 
             float t_start = max(interval.t_min, 0) + EPSILON;
             vec3 start_pos = get_ray_pos(ray, t_start);

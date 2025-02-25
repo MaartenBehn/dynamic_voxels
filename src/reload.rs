@@ -33,7 +33,7 @@ use std::time::{Duration, Instant};
 use model_synthesis::builder::{NumberRangeDefinesType, WFCBuilder};
 use model_synthesis::renderer::renderer::WFCRenderer;
 
-pub const USE_PROFILE: bool = false;
+pub const USE_PROFILE: bool = true;
 
 pub struct RenderState {
     pub gui: Gui,
@@ -235,7 +235,7 @@ pub fn update(
     let time = logic_state.start_time.elapsed();
 
 
-    let mut tree = CSGTree::new_example_tree(time.as_secs_f32());
+    let mut tree = CSGTree::new_example_tree(1.0);
     render_state.csg_controller.set_data(&tree.make_data());
 
 

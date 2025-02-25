@@ -21,7 +21,7 @@
 #define CGS_CHILD_TYPE_BOX 5
 #define CGS_CHILD_TYPE_SPHERE 6
 
-#define MAX_CGS_TREE_DEPTH 4
+#define MAX_CGS_TREE_DEPTH 10
 #define MAX_CGS_RENDER_ITERATIONS 10
 #define MAX_INTERVAL_LIST 10
 
@@ -180,6 +180,8 @@ uint cgs_material_operation(uint material_1, uint material_2, uint operation) {
 }
 
 uint cgs_tree_at_pos(vec3 pos) {
+    PROFILE("cgs_tree_at_pos");
+
     int stack_len = 0;
     uint stack[MAX_CGS_TREE_DEPTH];
     uint operation_stack[MAX_CGS_TREE_DEPTH + 1];
@@ -369,6 +371,8 @@ void cgs_tree_interval_list(Ray ray, out IntervalList list) {
 }
 
 bool cgs_tree_next_interval(Ray ray, float current_t, out Interval interval, out AABB aabb) {
+    PROFILE("cgs_tree_next_interval");
+
     aabb = get_aabb(0);
     if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
         return false;

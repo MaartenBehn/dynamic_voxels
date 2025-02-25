@@ -19,6 +19,8 @@ vec3 get_mask(vec3 side_dist) {
 }
 
 DDA init_DDA(in Ray ray, in vec3 start_pos, in vec3 lower_bound, in vec3 upper_bound, in float scale) {
+    PROFILE("init_DDA");  
+
     vec3 cell = floor(start_pos / scale) * scale;
     vec3 delta_dist = abs(ray.odir);
     vec3 step = sign(ray.dir);
@@ -29,6 +31,8 @@ DDA init_DDA(in Ray ray, in vec3 start_pos, in vec3 lower_bound, in vec3 upper_b
 }
 
 DDA step_DDA(in DDA dda) {
+    PROFILE("step_DDA");  
+
     dda.mask = get_mask(dda.side_dist);
     dda.side_dist += dda.mask * dda.delta_dist;
     dda.cell += dda.mask * dda.step;

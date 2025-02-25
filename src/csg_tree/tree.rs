@@ -6,7 +6,7 @@ use octa_force::puffin_egui::puffin;
 use std::f32::consts::PI;
 use std::slice;
 
-pub const AABB_PADDING: f32 = 10.0;
+pub const AABB_PADDING: f32 = 0.0;
 pub const VOXEL_SIZE: f32 = 10.0;
 pub type Material = usize;
 pub const MATERIAL_NONE: usize = usize::MAX;
