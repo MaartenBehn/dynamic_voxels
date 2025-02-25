@@ -1,19 +1,20 @@
 use core::slice;
+use std::iter;
 
-use octa_force::{log::error, puffin_egui::puffin};
+use octa_force::{glam::Mat4, log::{debug, error, info}, puffin_egui::puffin};
 
 use crate::csg_tree::{
-    controller::MAX_CGS_TREE_DATA_SIZE,
+    controller::MAX_CSG_TREE_DATA_SIZE,
     tree::{CSGNodeData, CSGTree, AABB_PADDING},
 };
 
-const CGS_CHILD_TYPE_NONE: u32 = 0;
-const CGS_CHILD_TYPE_UNION: u32 = 1;
-const CGS_CHILD_TYPE_REMOVE: u32 = 2;
-const CGS_CHILD_TYPE_INTERSECT: u32 = 3;
-const CGS_CHILD_TYPE_VOXEL: u32 = 4;
-const CGS_CHILD_TYPE_BOX: u32 = 5;
-const CGS_CHILD_TYPE_SPHERE: u32 = 6;
+const CSG_CHILD_TYPE_NONE: u32 = 0;
+const CSG_CHILD_TYPE_UNION: u32 = 1;
+const CSG_CHILD_TYPE_REMOVE: u32 = 2;
+const CSG_CHILD_TYPE_INTERSECT: u32 = 3;
+const CSG_CHILD_TYPE_BOX: u32 = 4;
+const CSG_CHILD_TYPE_SPHERE: u32 = 5;
+const CSG_CHILD_TYPE_VOXEL_GRID: u32 = 6;
 
 impl CSGTree {
     pub fn make_data(&mut self) -> Vec<u32> {
@@ -24,11 +25,11 @@ impl CSGTree {
 
         let (data, _) = self.add_data(0, vec![]);
 
-        if data.len() > MAX_CGS_TREE_DATA_SIZE {
+        if data.len() > MAX_CSG_TREE_DATA_SIZE {
             error!(
-                "CGS Tree Data to large: {} of {}",
+                "CSG Tree Data to large: {} of {}",
                 data.len(),
-                MAX_CGS_TREE_DATA_SIZE
+                MAX_CSG_TREE_DATA_SIZE
             )
         }
 
@@ -42,31 +43,32 @@ impl CSGTree {
         data.extend_from_slice(any_as_u32_slice(&node.aabb));
 
         let t = match node.data {
-            CSGNodeData::Union(..) => CGS_CHILD_TYPE_UNION,
-            CSGNodeData::Remove(..) => CGS_CHILD_TYPE_REMOVE,
-            CSGNodeData::Intersect(..) => CGS_CHILD_TYPE_INTERSECT,
-            CSGNodeData::Box(..) => CGS_CHILD_TYPE_BOX,
-            CSGNodeData::Sphere(..) => CGS_CHILD_TYPE_SPHERE,
-            CSGNodeData::VoxelVolume(..) => CGS_CHILD_TYPE_VOXEL,
+            CSGNodeData::Union(..) => CSG_CHILD_TYPE_UNION,
+            CSGNodeData::Remove(..) => CSG_CHILD_TYPE_REMOVE,
+            CSGNodeData::Intersect(..) => CSG_CHILD_TYPE_INTERSECT,
+            CSGNodeData::Box(..) => CSG_CHILD_TYPE_BOX,
+            CSGNodeData::Sphere(..) => CSG_CHILD_TYPE_SPHERE,
+            CSGNodeData::VoxelGrid(..) => CSG_CHILD_TYPE_VOXEL_GRID,
             CSGNodeData::All(..) => unreachable!(),
         };
 
-        match node.data {
+        match &node.data {
             CSGNodeData::Union(child1, child2)
             | CSGNodeData::Remove(child1, child2)
             | CSGNodeData::Intersect(child1, child2) => {
                 data.push(0);
                 data.push(0);
 
-                (data, data[index + 6]) = self.add_data(child1, data);
-                (data, data[index + 7]) = self.add_data(child2, data);
+                (data, data[index + 6]) = self.add_data(*child1, data);
+                (data, data[index + 7]) = self.add_data(*child2, data);
             }
             CSGNodeData::Box(transform, mat) | CSGNodeData::Sphere(transform, mat) => {
-                data.extend_from_slice(any_as_u32_slice(&transform.inverse()));
-                data[index + 21] = mat as u32;
+                write_mat4(&mut data, &transform.inverse());
+                data.push(*mat as u32);
             }
-            CSGNodeData::VoxelVolume(mat) => {
-                data.push(mat as u32);
+            CSGNodeData::VoxelGrid(transform, grid) => {
+                write_mat4(&mut data, &transform.inverse());
+                data.extend_from_slice(u8_as_u32_slice(&grid.data));
             }
             CSGNodeData::All(..) => unreachable!(),
         };
@@ -79,6 +81,25 @@ impl CSGTree {
     }
 }
 
+fn write_mat4(data: &mut Vec<u32>, mat: &Mat4) {
+    data.extend(
+        any_as_u32_slice(&mat.to_cols_array())
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| *i != 3 && *i != 7 && *i != 11 && *i != 15 )
+            .map(|(_, &d)|d)
+    );
+}
+
 fn any_as_u32_slice<T: Sized>(p: &T) -> &[u32] {
     unsafe { slice::from_raw_parts((p as *const T) as *const u32, size_of::<T>() / 4) }
+}
+
+fn u8_as_u32_slice(p: &Vec<u8>) -> &[u32] {
+    unsafe { 
+        let (prefix, data, sufix) = p.align_to::<u32>();
+        assert!(prefix.is_empty());
+        assert!(sufix.is_empty());
+        data
+    }
 }

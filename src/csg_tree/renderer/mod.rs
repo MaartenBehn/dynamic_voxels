@@ -1,7 +1,6 @@
 pub mod tree_data;
 
 use crate::color::ColorController;
-use crate::material::controller::MaterialController;
 use crate::profiler::ShaderProfiler;
 use octa_force::anyhow::Result;
 use octa_force::camera::Camera;
@@ -54,7 +53,6 @@ impl Renderer {
         res: UVec2,
         num_frames: usize,
         csg_controller: &CSGController,
-        material_controller: &MaterialController,
         color_controller: &ColorController,
         profiler: &Option<ShaderProfiler>,
         shader_bin: &[u8],
@@ -80,10 +78,6 @@ impl Renderer {
                 },
                 vk::DescriptorPoolSize {
                     ty: vk::DescriptorType::UNIFORM_BUFFER,
-                    descriptor_count: num_frames as u32,
-                },
-                vk::DescriptorPoolSize {
-                    ty: vk::DescriptorType::STORAGE_BUFFER,
                     descriptor_count: num_frames as u32,
                 },
                 vk::DescriptorPoolSize {
@@ -117,13 +111,6 @@ impl Renderer {
             },
             vk::DescriptorSetLayoutBinding {
                 binding: 3,
-                descriptor_count: 1,
-                descriptor_type: vk::DescriptorType::STORAGE_BUFFER,
-                stage_flags: vk::ShaderStageFlags::COMPUTE,
-                ..Default::default()
-            },
-            vk::DescriptorSetLayoutBinding {
-                binding: 4,
                 descriptor_count: 1,
                 descriptor_type: vk::DescriptorType::UNIFORM_BUFFER,
                 stage_flags: vk::ShaderStageFlags::COMPUTE,
@@ -165,12 +152,6 @@ impl Renderer {
                 },
                 WriteDescriptorSet {
                     binding: 3,
-                    kind: WriteDescriptorSetKind::StorageBuffer {
-                        buffer: &material_controller.buffer,
-                    },
-                },
-                WriteDescriptorSet {
-                    binding: 4,
                     kind: WriteDescriptorSetKind::UniformBuffer {
                         buffer: &color_controller.buffer,
                     },

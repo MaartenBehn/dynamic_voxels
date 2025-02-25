@@ -1,5 +1,6 @@
 use crate::aabb::AABB;
-use crate::csg_tree::controller::MAX_CGS_TREE_DATA_SIZE;
+use crate::csg_tree::controller::MAX_CSG_TREE_DATA_SIZE;
+use crate::voxel::grid::VoxelGrid;
 use octa_force::glam::{uvec3, vec3, EulerRot, Mat4, Quat, UVec3, Vec3};
 use octa_force::log::{error, info};
 use octa_force::puffin_egui::puffin;
@@ -9,7 +10,8 @@ use std::slice;
 pub const AABB_PADDING: f32 = 0.0;
 pub const VOXEL_SIZE: f32 = 10.0;
 pub type Material = usize;
-pub const MATERIAL_NONE: usize = usize::MAX;
+pub const MATERIAL_NONE: usize = 0;
+pub const MATERIAL_BASE: usize = 1;
 
 #[derive(Clone, Debug)]
 pub struct CSGNode {
@@ -25,7 +27,7 @@ pub enum CSGNodeData {
     Box(Mat4, Material),
     Sphere(Mat4, Material),
     All(Material),
-    VoxelVolume(Material),
+    VoxelGrid(Mat4, VoxelGrid),
 }
 
 #[derive(Clone, Debug)]
@@ -61,7 +63,7 @@ impl CSGTree {
                     ),
                     vec3(3.0, 3.0, 0.0) * VOXEL_SIZE,
                 ),
-                MATERIAL_NONE,
+                MATERIAL_BASE,
             )),
             CSGNode::new(CSGNodeData::Sphere(
                 Mat4::from_scale_rotation_translation(
@@ -69,7 +71,7 @@ impl CSGTree {
                     Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, 0.0),
                     vec3(2.0 + frac_3, 1.0 + frac_2 * 10.0, 0.0) * VOXEL_SIZE,
                 ),
-                MATERIAL_NONE,
+                MATERIAL_BASE,
             )),
             CSGNode::new(CSGNodeData::Sphere(
                 Mat4::from_scale_rotation_translation(
@@ -77,7 +79,7 @@ impl CSGTree {
                     Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, 0.0),
                     vec3(10.0 + frac * 30.0, 10.0 + frac_3 * 100.0, 0.0) * VOXEL_SIZE,
                 ),
-                MATERIAL_NONE,
+                MATERIAL_BASE,
             )),
         ];
 
@@ -105,10 +107,13 @@ impl CSGTree {
         }
     }
 
-    pub fn new_example_tree_with_aabb_field(time: f32) -> Self {
+    pub fn new_example_tree_2(time: f32) -> Self {
         puffin::profile_function!();
 
         let frac = simple_easing::roundtrip((time * 0.1) % 1.0);
+
+        let mut grid = VoxelGrid::new(uvec3(16, 16, 16));
+        grid.set_example_sphere();
 
         let nodes = vec![
             CSGNode::new(CSGNodeData::Union(1, 2)),
@@ -123,15 +128,21 @@ impl CSGTree {
                     ),
                     vec3(10.0, 10.0, 0.0) * VOXEL_SIZE,
                 ),
-                MATERIAL_NONE,
+                MATERIAL_BASE,
             )),
-            CSGNode::new_with_aabb(
-                CSGNodeData::VoxelVolume(0),
-                AABB {
-                    min: Vec3::ZERO,
-                    max: Vec3::ONE * 16.0,
-                },
-            ),
+            CSGNode::new(CSGNodeData::VoxelGrid(
+                Mat4::from_scale_rotation_translation(
+                    vec3(1.0, 1.0, 1.0) * VOXEL_SIZE,
+                    Quat::from_euler(
+                        EulerRot::XYZ,
+                        (time * 0.1) % (2.0 * PI),
+                        (time * 0.11) % (2.0 * PI),
+                        0.0,
+                    ),
+                    vec3(0.0, 30.0, 0.0) * VOXEL_SIZE
+                ), 
+                grid,
+            )),
         ];
 
         CSGTree {

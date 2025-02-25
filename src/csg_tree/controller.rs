@@ -3,7 +3,7 @@ use octa_force::vulkan::gpu_allocator::MemoryLocation;
 use octa_force::vulkan::{Buffer, Context};
 use octa_force::OctaResult;
 
-pub const MAX_CGS_TREE_DATA_SIZE: usize = 300;
+pub const MAX_CSG_TREE_DATA_SIZE: usize = 2048;
 pub struct CSGController {
     pub buffer: Buffer,
 }
@@ -13,8 +13,9 @@ impl CSGController {
         let buffer = context.create_buffer(
             vk::BufferUsageFlags::UNIFORM_BUFFER,
             MemoryLocation::CpuToGpu,
-            (size_of::<u32>() * MAX_CGS_TREE_DATA_SIZE) as _,
+            (size_of::<u32>() * MAX_CSG_TREE_DATA_SIZE) as _,
         )?;
+        
 
         Ok(CSGController { buffer })
     }

@@ -38,7 +38,7 @@ impl CSGTree {
 
                 get_gradient_of_unit_box(t_point.xyz())
             },
-            CSGNodeData::VoxelVolume(_)
+            CSGNodeData::VoxelGrid(..)
             | CSGNodeData::All(_) => vec3(0.0, 0.0, 0.0),
         }
     }

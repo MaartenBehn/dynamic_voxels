@@ -151,9 +151,9 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCBuilder<U, B> {
             }
         }
 
-        dbg!(&nodes);
-        dbg!(&number_attributes);
-        dbg!(&pos_attributes);
+        //dbg!(&nodes);
+        //dbg!(&number_attributes);
+        //dbg!(&pos_attributes);
 
         pending_nodes.push(0);
 
@@ -176,7 +176,7 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCBuilder<U, B> {
 
         }
 
-        dbg!(&build_data);
+        //dbg!(&build_data);
 
     }
 }

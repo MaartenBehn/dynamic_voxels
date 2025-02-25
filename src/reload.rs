@@ -2,16 +2,14 @@ mod aabb;
 mod buddy_controller;
 mod csg_tree;
 mod color;
-mod material;
 mod profiler;
 mod util;
 mod model_synthesis;
+mod voxel;
 
 use crate::csg_tree::controller::CSGController;
 use crate::csg_tree::tree::{CSGTree, VOXEL_SIZE};
 use crate::color::ColorController;
-use crate::material::controller::MaterialController;
-use crate::material::voxels::VoxelField;
 use crate::profiler::ShaderProfiler;
 use csg_tree::renderer::Renderer;
 use csg_tree::tree::{CSGNode, CSGNodeData, MATERIAL_NONE};
@@ -38,8 +36,6 @@ pub const USE_PROFILE: bool = false;
 pub struct RenderState {
     pub gui: Gui,
     pub csg_controller: CSGController,
-    pub material_controller: MaterialController,
-    pub voxel_field: VoxelField,
     pub color_controller: ColorController,
     pub renderer: Renderer,
     pub profiler: Option<ShaderProfiler>,
@@ -79,12 +75,7 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
     )?;
 
     let csg_controller = CSGController::new(&engine.context)?;
-    let mut material_controller = MaterialController::new(&engine.context)?;
 
-    let mut voxel_field = VoxelField::new(16);
-    voxel_field.set_example_sphere();
-    material_controller.allocate_voxel_field(&mut voxel_field)?;
-    material_controller.push_voxel_field(&voxel_field)?;
 
     let color_controller = ColorController::new(&engine.context)?;
 
@@ -106,7 +97,6 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
         engine.swapchain.size,
         engine.num_frames,
         &csg_controller,
-        &material_controller,
         &color_controller,
         &profiler,
         shader_bin,
@@ -117,8 +107,6 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
     Ok(RenderState {
         gui,
         csg_controller,
-        material_controller,
-        voxel_field,
         color_controller,
         renderer,
         profiler,
@@ -204,7 +192,7 @@ pub fn new_logic_state(
                 })
             });
 
-    dbg!(&wfc_builder);
+    //dbg!(&wfc_builder);
 
     let mut fence_csg = FenceCSG {
         csg: CSGTree::default()
@@ -235,7 +223,7 @@ pub fn update(
     let time = logic_state.start_time.elapsed();
 
 
-    let mut tree = CSGTree::new_example_tree(1.0);
+    let mut tree = CSGTree::new_example_tree_2(1.0);
     render_state.csg_controller.set_data(&tree.make_data());
 
 

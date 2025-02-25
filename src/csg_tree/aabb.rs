@@ -1,4 +1,4 @@
-use octa_force::puffin_egui::puffin;
+use octa_force::{glam::Mat4, puffin_egui::puffin};
 
 use crate::{aabb::AABB, csg_tree::tree::CSGNodeData};
 
@@ -12,9 +12,17 @@ impl CSGTree {
 
         let mut propergate_ids = vec![];
         for (i, node) in self.nodes.iter_mut().enumerate() {
-            match node.data {
-                CSGNodeData::Box(..) | CSGNodeData::Sphere(..) => {
-                    Self::set_leaf_aabb(node, padding);
+            match &node.data {
+                CSGNodeData::Box(mat, ..) => {
+                    node.aabb = AABB::from_box(mat, padding);
+                    propergate_ids.push(i);
+                },
+                CSGNodeData::Sphere(mat, ..) => {
+                    node.aabb = AABB::from_sphere(mat, padding);
+                    propergate_ids.push(i);
+                },
+                CSGNodeData::VoxelGrid(mat, grid) => {
+                    node.aabb = AABB::from_box(&mat.mul_mat4(&Mat4::from_scale(grid.size.as_vec3())), padding);
                     propergate_ids.push(i);
                 }
                 _ => {}
@@ -49,16 +57,5 @@ impl CSGTree {
             }
         }
     }
-
-    
-    pub fn set_leaf_aabb(node: &mut CSGNode, padding: f32) {
-        match node.data {
-            CSGNodeData::Box(mat, ..) => node.aabb = AABB::from_box(&mat, padding),
-            CSGNodeData::Sphere(mat, ..) => node.aabb = AABB::from_sphere(&mat, padding),
-            _ => {
-                panic!("set_leaf_aabb can only be called for Box or Sphere")
-            }
-        }
-    } 
 }
 

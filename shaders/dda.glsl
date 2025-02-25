@@ -2,6 +2,7 @@
 #define _DDA_GLSL_
 
 #include "ray.glsl"
+#include "aabb.glsl"
 
 struct DDA {
     vec3 cell;
@@ -19,7 +20,7 @@ vec3 get_mask(vec3 side_dist) {
 }
 
 DDA init_DDA(in Ray ray, in vec3 start_pos, in vec3 lower_bound, in vec3 upper_bound, in float scale) {
-    PROFILE("init_DDA");  
+    //PROFILE("init_DDA");  
 
     vec3 cell = floor(start_pos / scale) * scale;
     vec3 delta_dist = abs(ray.odir);
@@ -31,7 +32,7 @@ DDA init_DDA(in Ray ray, in vec3 start_pos, in vec3 lower_bound, in vec3 upper_b
 }
 
 DDA step_DDA(in DDA dda) {
-    PROFILE("step_DDA");  
+    //PROFILE("step_DDA");  
 
     dda.mask = get_mask(dda.side_dist);
     dda.side_dist += dda.mask * dda.delta_dist;
@@ -93,6 +94,16 @@ DDA_INC step_DDA(in DDA_INC dda) {
 float get_DDA_INC_t(in DDA_INC dda) {
     vec3 side_dist = dda.mask * dda.side_dist;
     return side_dist.x + side_dist.y + side_dist.z;
+}
+
+float get_DDA_scale_from_AABB_dist(Ray ray, AABB aabb, float t_min) { 
+    if (t_min < 0) {
+        return 1;
+    }
+
+    vec3 aabb_closest_point = min(abs(ray.pos - aabb.min), abs(ray.pos - aabb.max));
+    float dist_to_aabb = length(aabb_closest_point);
+    return clamp(exp2(floor(dist_to_aabb / 50.0)), 1, 16);
 }
 
 #endif // __DDA_GLSL__

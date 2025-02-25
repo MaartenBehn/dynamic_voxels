@@ -18,7 +18,7 @@ layout(binding = 1, std430) uniform UniformBufferObject {
 #define RES vec2(RES_X, RES_Y)
 #define TIME render_buffer.data.x;
 
-#define MAX_CGS_TREE_SIZE 100
+#define MAX_CGS_TREE_SIZE 2048
 
 layout(binding = 2, std430) uniform CGSTree {
     uint[MAX_CGS_TREE_SIZE] data;
@@ -26,14 +26,8 @@ layout(binding = 2, std430) uniform CGSTree {
 
 #define CSG_TREE cgs_tree.data
 
-layout(binding = 3, std430) buffer Material {
-    uint[] data;
-} material_buffer;
-
-#define MATERIAL_BUFFER material_buffer.data
-
 #define MAX_COLOR_BUFFER_SIZE 256
-layout(binding = 4) uniform ColorBuffer {
+layout(binding = 3) uniform ColorBuffer {
     vec4[MAX_COLOR_BUFFER_SIZE] data;
 } color_buffer;
 

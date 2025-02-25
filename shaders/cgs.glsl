@@ -7,6 +7,7 @@
 #include "mat_helper.glsl"
 #include "debug.glsl"
 #include "dda.glsl"
+#include "aabb.glsl"
 
 #define ONLY_RENDER_AABB false
 #define ONLY_RENDER_CGS false
@@ -17,18 +18,16 @@
 #define CGS_CHILD_TYPE_REMOVE 2
 #define CGS_CHILD_TYPE_INTERSECT 3
 #define CGS_CHILD_TYPE_MAX_NODE 3
-#define CGS_CHILD_TYPE_VOXEL 4
-#define CGS_CHILD_TYPE_BOX 5
-#define CGS_CHILD_TYPE_SPHERE 6
+#define CGS_CHILD_TYPE_BOX 4
+#define CGS_CHILD_TYPE_SPHERE 5
+#define CGS_CHILD_TYPE_VOXEL_GIRD 6
 
 #define MAX_CGS_TREE_DEPTH 4
 #define MAX_CGS_RENDER_ITERATIONS 10
 #define MAX_INTERVAL_LIST 10
 
-struct AABB {
-    vec3 min;
-    vec3 max;
-};
+#define MATERIAL_NONE 0
+
 
 struct CGSChild {
     uint pointer;
@@ -37,12 +36,12 @@ struct CGSChild {
 
 struct CGSObject {
     mat4 transform;
-    vec3 data;
     uint material;
 };
 
-struct VoxelField {
-    uint start;
+struct VoxelGrid {
+    mat4 transform;
+    uvec3 size;
 };
 
 AABB get_aabb(uint index) {
@@ -60,38 +59,48 @@ CGSChild get_csg_tree_child(uint index) {
     return CGSChild(pointer, type);
 }
 
+mat4 get_mat4_form_csg_tree(uint index) {
+    return mat4(
+        uintBitsToFloat(CSG_TREE[index]), uintBitsToFloat(CSG_TREE[index + 3]), uintBitsToFloat(CSG_TREE[index + 6]), uintBitsToFloat(CSG_TREE[index + 9]),
+        uintBitsToFloat(CSG_TREE[index + 1]), uintBitsToFloat(CSG_TREE[index + 4]), uintBitsToFloat(CSG_TREE[index + 7]), uintBitsToFloat(CSG_TREE[index + 10]),
+        uintBitsToFloat(CSG_TREE[index + 2]), uintBitsToFloat(CSG_TREE[index + 5]), uintBitsToFloat(CSG_TREE[index + 8]), uintBitsToFloat(CSG_TREE[index + 11]),
+        0.0, 0.0, 0.0, 1.0
+    );
+}
+
 CGSObject get_csg_tree_object(uint index) {
-    mat4 transform = mat4(
-            uintBitsToFloat(CSG_TREE[index + 6]), uintBitsToFloat(CSG_TREE[index + 4 + 6]), uintBitsToFloat(CSG_TREE[index + 8 + 6]), uintBitsToFloat(CSG_TREE[index + 12 + 6]),
-            uintBitsToFloat(CSG_TREE[index + 1 + 6]), uintBitsToFloat(CSG_TREE[index + 5 + 6]), uintBitsToFloat(CSG_TREE[index + 9 + 6]), uintBitsToFloat(CSG_TREE[index + 13 + 6]),
-            uintBitsToFloat(CSG_TREE[index + 2 + 6]), uintBitsToFloat(CSG_TREE[index + 6 + 6]), uintBitsToFloat(CSG_TREE[index + 10 + 6]), uintBitsToFloat(CSG_TREE[index + 14 + 6]),
-            0.0, 0.0, 0.0, 1.0
-        );
-    vec3 data = vec3(uintBitsToFloat(CSG_TREE[index + 3 + 6]), uintBitsToFloat(CSG_TREE[index + 7 + 6]), uintBitsToFloat(CSG_TREE[index + 11 + 6]));
-    uint material = CSG_TREE[index + 15 + 6];
+    mat4 transform = get_mat4_form_csg_tree(index + 6);
 
-    return CGSObject(transform, data, material);
-}
+    uint material = CSG_TREE[index + 6 + 12];
 
-VoxelField get_voxel_field(uint index) {
-    uint start = CSG_TREE[index + 6];
-
-    return VoxelField(start);
-}
-
-uint get_voxel_field_index(vec3 pos, AABB aabb) {
-    uvec3 size = uvec3(round(aabb.max - aabb.min));
-    uvec3 pos_in_aabb = uvec3(floor(pos - aabb.min));
-
-    uint index = pos_in_aabb.x * size.y * size.z + pos_in_aabb.y * size.z + pos_in_aabb.z;
-    return index;
+    return CGSObject(transform, material);
 }
 
 uint get_voxel_value(uint start, uint index) {
     uint buffer_index = index >> 2; // Upper bist (= index / 4)
     uint shift = (index & uint(3)) << 3; // Lower 2 bits * 8 (= (index % 4) * 8;
 
-    return (MATERIAL_BUFFER[start + buffer_index] >> shift) & 255;
+    return (CSG_TREE[start + buffer_index] >> shift) & 255;
+}
+
+VoxelGrid get_voxel_grid(uint index) {
+    mat4 transform = get_mat4_form_csg_tree(index + 6); 
+    uvec3 size = uvec3(
+        CSG_TREE[index + 6 + 12],
+        CSG_TREE[index + 6 + 13],
+        CSG_TREE[index + 6 + 14]
+    );
+
+    return VoxelGrid(transform, size);
+}
+
+bool in_voxel_grid_bounds(VoxelGrid grid, uvec3 pos) {
+    return pos.x < 0 || pos.y < 0 || pos.y < 0 || pos.x >= grid.size.x || pos.y >= grid.size.y || pos.z >= grid.size.z;
+}
+
+uint get_voxel_grid_value(VoxelGrid grid, uvec3 pos, uint start) { 
+    uint index = pos.x * grid.size.y * grid.size.z + pos.y * grid.size.z + pos.z;
+    return get_voxel_value(start + 9, index);
 }
 
 CGSObject get_test_box(float time, vec3 pos) {
@@ -104,7 +113,7 @@ CGSObject get_test_box(float time, vec3 pos) {
 
     mat4 mat = inverse(mat4_scale(vec3(scale, 2.0, 1.5)) * rot_mat * mat4_pos(pos));
 
-    return CGSObject(mat, vec3(1.0), 0);
+    return CGSObject(mat, 1);
 }
 
 CGSObject get_test_sphere(float time, vec3 pos) {
@@ -112,11 +121,7 @@ CGSObject get_test_sphere(float time, vec3 pos) {
 
     mat4 mat = inverse(mat4_scale(vec3(scale, 2.0, 3.0)) * mat4_pos(pos));
 
-    return CGSObject(
-        mat,
-        vec3(0.0),
-        0
-    );
+    return CGSObject(mat, 1);
 }
 
 bool ray_hits_cgs_object(Ray ray, CGSObject object, uint type, out Interval intervall) {
@@ -254,10 +259,14 @@ uint cgs_tree_at_pos(vec3 pos) {
                     is_left = false;
                     go_right = false;
                 }
-            } else if (child.type == CGS_CHILD_TYPE_VOXEL) {
-                VoxelField voxle_filed = get_voxel_field(child.pointer);
-                uint index = get_voxel_field_index(pos, aabb);
-                uint voxel_value = get_voxel_value(voxle_filed.start, index);
+            } else if (child.type == CGS_CHILD_TYPE_VOXEL_GIRD) {
+                VoxelGrid voxel_grid = get_voxel_grid(child.pointer);
+                pos = (vec4(pos, 1.0) * voxel_grid.transform).xyz;
+                 
+                uint voxel_value = MATERIAL_NONE;
+                if (in_voxel_grid_bounds(voxel_grid, uvec3(pos))) {
+                    voxel_value = get_voxel_grid_value(voxel_grid, uvec3(pos), child.pointer);
+                }
 
                 if (!go_right) {
                     material_1_stack[stack_len] = voxel_value;
@@ -411,6 +420,5 @@ bool cgs_tree_next_interval(Ray ray, float current_t, out Interval interval, out
 
     return hit;
 }
-
 #endif // _CGS_GLSL_
 
