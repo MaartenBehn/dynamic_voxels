@@ -20,7 +20,7 @@ layout(binding = 1, std430) uniform UniformBufferObject {
 
 #define MAX_CGS_TREE_SIZE 2048
 
-layout(binding = 2, std430) uniform CGSTree {
+layout(binding = 2, std430) buffer CGSTree {
     uint[MAX_CGS_TREE_SIZE] data;
 } cgs_tree;
 

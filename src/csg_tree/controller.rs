@@ -11,7 +11,7 @@ pub struct CSGController {
 impl CSGController {
     pub fn new(context: &Context) -> OctaResult<Self> {
         let buffer = context.create_buffer(
-            vk::BufferUsageFlags::UNIFORM_BUFFER,
+            vk::BufferUsageFlags::STORAGE_BUFFER,
             MemoryLocation::CpuToGpu,
             (size_of::<u32>() * MAX_CSG_TREE_DATA_SIZE) as _,
         )?;

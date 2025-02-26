@@ -77,7 +77,7 @@ impl Renderer {
                     descriptor_count: num_frames as u32,
                 },
                 vk::DescriptorPoolSize {
-                    ty: vk::DescriptorType::UNIFORM_BUFFER,
+                    ty: vk::DescriptorType::STORAGE_BUFFER,
                     descriptor_count: num_frames as u32,
                 },
                 vk::DescriptorPoolSize {
@@ -105,7 +105,7 @@ impl Renderer {
             vk::DescriptorSetLayoutBinding {
                 binding: 2,
                 descriptor_count: 1,
-                descriptor_type: vk::DescriptorType::UNIFORM_BUFFER,
+                descriptor_type: vk::DescriptorType::STORAGE_BUFFER,
                 stage_flags: vk::ShaderStageFlags::COMPUTE,
                 ..Default::default()
             },
@@ -146,7 +146,7 @@ impl Renderer {
                 },
                 WriteDescriptorSet {
                     binding: 2,
-                    kind: WriteDescriptorSetKind::UniformBuffer {
+                    kind: WriteDescriptorSetKind::StorageBuffer {
                         buffer: &csg_controller.buffer,
                     },
                 },
