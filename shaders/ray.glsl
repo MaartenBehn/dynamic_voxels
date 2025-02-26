@@ -2,6 +2,7 @@
 #define _RAY_GLSL_
 
 #include "mat_helper.glsl"
+#include "interval.glsl"
 
 struct Ray {
     vec3 pos;
@@ -9,10 +10,7 @@ struct Ray {
     vec3 odir; // = 1 / dir
 };
 
-struct Interval {
-    float t_min;
-    float t_max;
-};
+
 
 Ray init_ray(vec3 pos, vec3 dir, vec2 coord, vec2 res) {
     vec2 uv = ((coord * 2 - res) / res.y) * vec2(-1);
@@ -28,9 +26,7 @@ Ray init_ray(vec3 pos, vec3 dir, vec2 coord, vec2 res) {
     return Ray(ro, rd, vec3(1) / rd);
 }
 
-Interval init_interval() {
-    return Interval(FLOAT_POS_INF, FLOAT_NEG_INF);
-}
+
 
 vec3 get_ray_pos(Ray ray, float t) {
     return ray.pos + ray.dir * t;

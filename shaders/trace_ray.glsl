@@ -8,17 +8,12 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 #include "dda.glsl"
 
 #define RENDER_TEST_OBJECT false
+#define RENDER_CSG_FULL_DDA true
 
-#define RENDER_INTERVALS false
-#define RENDER_INTERVALS_LAYER 1
+#define SHOW_DDA_STEPS true
+#define SHOW_DISTANCE false
 
-#define USE_INTERVAL_LIST false
-#define USE_AABB_BASED_SCALE false
-#define USE_DDA_INCREASE false
-#define USE_FULL_DDA_CSG true
-
-#define RENDER_DDA_STEPS true
-#define RENDER_DISTANCE false
+#define USE_AABB true
 
 #define MAX_DDA_STEPS 100
 #define MAX_DEPTH 300
@@ -45,188 +40,8 @@ void main () {
         imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
         return;
     }
-
-    if (RENDER_INTERVALS && USE_INTERVAL_LIST) {
-        IntervalList list;
-        cgs_tree_interval_list(ray, list);
-
-        if (list.len > RENDER_INTERVALS_LAYER) {
-            color = vec4(get_debug_color_gradient_from_float(list.intervals[RENDER_INTERVALS_LAYER].t_min / MAX_DEPTH), 1.0);
-        }
-
-        imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
-        return;
-    }
-
-    if (RENDER_INTERVALS && !USE_INTERVAL_LIST) {
-
-        float current_t = 0;
-        Interval interval;
-        AABB aabb;
-        for (uint i = 0; i <= RENDER_INTERVALS_LAYER; i++) {
-            if (cgs_tree_next_interval(ray, current_t, interval, aabb)) {
-                current_t = interval.t_max + EPSILON;
-            } else {
-                interval.t_min = 0;
-                break;
-            }
-        }
-
-        color = vec4(get_debug_color_gradient_from_float(interval.t_min / MAX_DEPTH), 1.0);
-
-        imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
-        return;
-    }
-
-    if (USE_INTERVAL_LIST) {
-        IntervalList list;
-        cgs_tree_interval_list(ray, list);
-
-        uint interval_counter = 0;
-        uint dda_step_counter = 0;
-        uint material = 0;
-        while (interval_counter < list.len && material == 0 && dda_step_counter < MAX_DDA_STEPS) {
-
-            float t_start = list.intervals[interval_counter].t_min + EPSILON;
-            vec3 start_pos = get_ray_pos(ray, t_start);
-            AABB aabb = list.aabbs[interval_counter];
-            DDA dda = init_DDA(ray, start_pos, aabb.min, aabb.max, 1.0);
-
-            while (dda_step_counter < MAX_DDA_STEPS) {
-                material = cgs_tree_at_pos(dda.cell);
-
-                if (material != 0) {
-                    if (RENDER_DISTANCE) {
-                        float current_t = get_DDA_t(dda) + t_start;
-                        color = vec4(get_debug_color_gradient_from_float(current_t / MAX_DEPTH), 1.0);
-                    } else {
-                        color = COLOR_BUFFER[material];
-                    }
-
-                    break;
-                }
-
-                dda = step_DDA(dda);
-
-                if (dda.out_of_bounds) {
-                    break;
-                }
-
-                dda_step_counter += 1;
-            }
-
-            if (RENDER_DDA_STEPS) {
-                color = vec4(get_debug_color_gradient_from_float(float(dda_step_counter) / MAX_DDA_STEPS), 1.0);
-            }
-
-            interval_counter += 1;
-        }
-
-        imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
-        return;
-    }
-
-    if (USE_AABB_BASED_SCALE) {
-        uint dda_step_counter = 0;
-        uint material = 0;
-
-        float interval_t = 0;
-        Interval interval;
-        AABB aabb;
-        while (material == 0 && cgs_tree_next_interval(ray, interval_t, interval, aabb) && dda_step_counter < MAX_DDA_STEPS) {
-            //PROFILE("loop");
-
-            float t_start = max(interval.t_min, 0) + EPSILON;
-            vec3 start_pos = get_ray_pos(ray, t_start);
-            
-            float scale = get_DDA_scale_from_AABB_dist(ray, aabb, interval.t_min);
-
-            DDA dda = init_DDA(ray, start_pos, aabb.min, aabb.max, scale);
-
-            while (dda_step_counter < MAX_DDA_STEPS) {
-                material = cgs_tree_at_pos(dda.cell);
-
-                if (material != 0) {
-                    if (RENDER_DISTANCE) {
-                        float current_t = get_DDA_t(dda) + t_start;
-                        color = vec4(get_debug_color_gradient_from_float(current_t / MAX_DEPTH), 1.0);
-                    } else {
-                        color = COLOR_BUFFER[material];
-                    }
-
-                    break;
-                }
-
-                dda = step_DDA(dda);
-
-                if (dda.out_of_bounds) {
-                    break;
-                }
-
-                dda_step_counter += 1;
-            }
-
-            if (RENDER_DDA_STEPS) {
-                color = vec4(get_debug_color_gradient_from_float(float(dda_step_counter) / MAX_DDA_STEPS), 1.0);
-            }
-
-            interval_t = interval.t_max + EPSILON;
-        }
-
-        imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
-        return;
-    }
-
-    if (USE_DDA_INCREASE) {
-        uint dda_step_counter = 0;
-        uint material = 0;
-
-        float interval_t = 0;
-        Interval interval;
-        AABB aabb;
-        float scale = 1.0;
-        while (material == 0 && cgs_tree_next_interval(ray, interval_t, interval, aabb) && dda_step_counter < MAX_DDA_STEPS) {
-
-            float t_start = max(interval.t_min, 0) + EPSILON;
-            vec3 start_pos = get_ray_pos(ray, t_start);
-
-            DDA_INC dda = init_DDA_INC(ray, start_pos, aabb.min, aabb.max, scale);
-
-            while (dda_step_counter < MAX_DDA_STEPS) {
-                material = cgs_tree_at_pos(dda.cell);
-
-                if (material != 0) {
-                    if (RENDER_DISTANCE) {
-                        float current_t = get_DDA_INC_t(dda) + t_start;
-                        color = vec4(get_debug_color_gradient_from_float(current_t / MAX_DEPTH), 1.0);
-                    } else {
-                        color = COLOR_BUFFER[material];
-                    }
-
-                    break;
-                }
-
-                dda = step_DDA(dda);
-
-                if (dda.out_of_bounds) {
-                    break;
-                }
-
-                dda_step_counter += 1;
-            }
-
-            if (RENDER_DDA_STEPS) {
-                color = vec4(get_debug_color_gradient_from_float(float(dda_step_counter) / MAX_DDA_STEPS), 1.0);
-            }
-
-            interval_t = interval.t_max + EPSILON;
-        }
-
-        imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
-        return;
-    }
       
-    if(USE_FULL_DDA_CSG) {
+    if(RENDER_CSG_FULL_DDA) {
 
         AABB aabb = get_aabb(0);
         Interval interval;
@@ -248,7 +63,7 @@ void main () {
             stack_len -= 1;
             CGSChild child = get_csg_tree_child(stack[stack_len]);
              
-            if (child.type == CGS_CHILD_TYPE_UNION ) {
+            if (child.type == CGS_CHILD_TYPE_UNION) {
                 if (USE_AABB) {
                     aabb = get_aabb(child.pointer);
                     if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
@@ -284,7 +99,7 @@ void main () {
                     uint material = get_voxel_grid_value(voxel_grid, uvec3(dda.cell - grid_min), child.pointer);
 
                     if (material != 0) {
-                        if (RENDER_DISTANCE) {
+                        if (SHOW_DISTANCE) {
                             float current_t = get_DDA_t(dda) + t_start;
                             color = vec4(get_debug_color_gradient_from_float(current_t / MAX_DEPTH), 1.0);
                         } else {
@@ -308,7 +123,7 @@ void main () {
             } 
         }
 
-        if (RENDER_DDA_STEPS) {
+        if (SHOW_DDA_STEPS) {
             color = vec4(get_debug_color_gradient_from_float(float(dda_step_counter) / MAX_DDA_STEPS), 1.0);
         }
 
