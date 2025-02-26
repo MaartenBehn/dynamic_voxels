@@ -118,6 +118,8 @@ impl CSGTree {
         let nodes = vec![
             CSGNode::new(CSGNodeData::Union(1, 2)),
             CSGNode::new(CSGNodeData::Box(
+                Mat4::IDENTITY,
+                /*
                 Mat4::from_scale_rotation_translation(
                     (vec3(2.0, 5.0, 7.0) + simple_easing::expo_in_out(frac)) * VOXEL_SIZE,
                     Quat::from_euler(
@@ -127,19 +129,20 @@ impl CSGTree {
                         0.0,
                     ),
                     vec3(10.0, 10.0, 0.0) * VOXEL_SIZE,
-                ),
+                )
+                */
                 MATERIAL_BASE,
             )),
             CSGNode::new(CSGNodeData::VoxelGrid(
-                Mat4::from_scale_rotation_translation(
-                    vec3(1.0, 1.0, 1.0) * VOXEL_SIZE,
+                 Mat4::from_scale_rotation_translation(
+                    vec3(1.0, 1.0, 1.0),
                     Quat::from_euler(
                         EulerRot::XYZ,
                         (time * 0.1) % (2.0 * PI),
                         (time * 0.11) % (2.0 * PI),
                         0.0,
                     ),
-                    vec3(0.0, 30.0, 0.0) * VOXEL_SIZE
+                    vec3(0.0, 0.0, 0.0),
                 ), 
                 grid,
             )),

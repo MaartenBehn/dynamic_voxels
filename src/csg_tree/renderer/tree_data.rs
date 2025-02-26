@@ -68,6 +68,9 @@ impl CSGTree {
             }
             CSGNodeData::VoxelGrid(transform, grid) => {
                 write_mat4(&mut data, &transform.inverse());
+                data.push(grid.size.x);
+                data.push(grid.size.y);
+                data.push(grid.size.z);
                 data.extend_from_slice(u8_as_u32_slice(&grid.data));
             }
             CSGNodeData::All(..) => unreachable!(),

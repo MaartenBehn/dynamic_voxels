@@ -4,7 +4,7 @@ use feistel_permutation_rs::{DefaultBuildHasher, Permutation};
 use gcd::Gcd;
 use octa_force::glam::{ivec3, vec3, vec4, Mat4, Vec3, Vec4Swizzles};
 
-use crate::util::to_3d_i;
+use crate::{util::to_3d_i, voxel::grid::VoxelGrid};
 
 #[derive(Copy, Clone, Debug)]
 pub struct AABB {
@@ -53,6 +53,36 @@ impl AABB {
         AABB {
             min: b - a - padding,
             max: b + a + padding,
+        }
+    }
+
+    pub fn from_voxel_gird(mat: &Mat4, grid: &VoxelGrid) -> AABB {
+
+        let size = vec4(grid.size.x as f32, grid.size.y as f32, grid.size.z as f32, 1.0);
+
+        let corners = [
+            vec4(-0.5, -0.5, -0.5, 1.0),
+            vec4(-0.5, -0.5, 0.5, 1.0),
+            vec4(-0.5, 0.5, -0.5, 1.0),
+            vec4(-0.5, 0.5, 0.5, 1.0),
+            vec4(0.5, -0.5, -0.5, 1.0),
+            vec4(0.5, -0.5, 0.5, 1.0),
+            vec4(0.5, 0.5, -0.5, 1.0),
+            vec4(0.5, 0.5, 0.5, 1.0),
+        ];
+
+        let mut min = vec3(f32::INFINITY, f32::INFINITY, f32::INFINITY);
+        let mut max = vec3(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY);
+        for corner in corners {
+            let transformed_corner = mat.mul_vec4(size * corner).xyz();
+
+            min = min.min(transformed_corner);
+            max = max.max(transformed_corner);
+        }
+
+        AABB {
+            min: min,
+            max: max,
         }
     }
 

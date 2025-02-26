@@ -223,7 +223,7 @@ pub fn update(
     let time = logic_state.start_time.elapsed();
 
 
-    let mut tree = CSGTree::new_example_tree_2(1.0);
+    let mut tree = CSGTree::new_example_tree_2(time.as_secs_f32());
     render_state.csg_controller.set_data(&tree.make_data());
 
 

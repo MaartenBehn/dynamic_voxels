@@ -22,7 +22,7 @@ impl CSGTree {
                     propergate_ids.push(i);
                 },
                 CSGNodeData::VoxelGrid(mat, grid) => {
-                    node.aabb = AABB::from_box(&mat.mul_mat4(&Mat4::from_scale(grid.size.as_vec3())), padding);
+                    node.aabb = AABB::from_voxel_gird(&mat, grid);
                     propergate_ids.push(i);
                 }
                 _ => {}

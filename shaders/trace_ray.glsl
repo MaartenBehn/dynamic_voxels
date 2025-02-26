@@ -20,7 +20,7 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 #define RENDER_DDA_STEPS true
 #define RENDER_DISTANCE false
 
-#define MAX_DDA_STEPS 500
+#define MAX_DDA_STEPS 100
 #define MAX_DEPTH 300
 #define EPSILON 0.0001
 #define TO_1D(pos, size) ((pos.z * size * size) + (pos.y * size) + pos.x)
@@ -265,21 +265,23 @@ void main () {
 
             } else if (child.type == CGS_CHILD_TYPE_VOXEL_GIRD) {
                 VoxelGrid voxel_grid = get_voxel_grid(child.pointer);
-                vec3 half_size = vec3(voxel_grid.size / 2);
+                vec3 half_size = vec3(voxel_grid.size) / 2;
+                vec3 grid_min = -half_size;
+                vec3 grid_max = half_size;
 
                 Ray dda_ray = ray_to_model_space(ray, voxel_grid.transform);
-                if (!ray_aabb_intersect(dda_ray, -half_size, half_size, interval)) {
+                if (!ray_aabb_intersect(dda_ray, grid_min, grid_max, interval)) {
                     continue;
                 }
 
                 float t_start = max(interval.t_min, 0) + EPSILON;
 
                 vec3 start_pos = get_ray_pos(dda_ray, t_start); 
-                DDA dda = init_DDA(ray, start_pos, -half_size, half_size, 1);
+                DDA dda = init_DDA(ray, start_pos, grid_min, grid_max, 1);
 
                 dda_step_counter = 0;
                 while (dda_step_counter < MAX_DDA_STEPS) { 
-                    uint material = get_voxel_grid_value(voxel_grid, uvec3(dda.cell), child.pointer);
+                    uint material = get_voxel_grid_value(voxel_grid, uvec3(dda.cell - grid_min), child.pointer);
 
                     if (material != 0) {
                         if (RENDER_DISTANCE) {

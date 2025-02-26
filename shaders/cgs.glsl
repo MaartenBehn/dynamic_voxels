@@ -100,7 +100,7 @@ bool in_voxel_grid_bounds(VoxelGrid grid, uvec3 pos) {
 
 uint get_voxel_grid_value(VoxelGrid grid, uvec3 pos, uint start) { 
     uint index = pos.x * grid.size.y * grid.size.z + pos.y * grid.size.z + pos.z;
-    return get_voxel_value(start + 9, index);
+    return get_voxel_value(start + 6 + 15, index);
 }
 
 CGSObject get_test_box(float time, vec3 pos) {
