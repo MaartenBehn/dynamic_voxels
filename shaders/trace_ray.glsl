@@ -247,7 +247,7 @@ void main () {
             
             stack_len -= 1;
             CGSChild child = get_csg_tree_child(stack[stack_len]);
- 
+             
             if (child.type == CGS_CHILD_TYPE_UNION ) {
                 if (USE_AABB) {
                     aabb = get_aabb(child.pointer);
@@ -277,7 +277,7 @@ void main () {
                 float t_start = max(interval.t_min, 0) + EPSILON;
 
                 vec3 start_pos = get_ray_pos(dda_ray, t_start); 
-                DDA dda = init_DDA(ray, start_pos, grid_min, grid_max, 1);
+                DDA dda = init_DDA(dda_ray, start_pos, grid_min, grid_max, 1);
 
                 dda_step_counter = 0;
                 while (dda_step_counter < MAX_DDA_STEPS) { 
@@ -311,7 +311,6 @@ void main () {
         if (RENDER_DDA_STEPS) {
             color = vec4(get_debug_color_gradient_from_float(float(dda_step_counter) / MAX_DDA_STEPS), 1.0);
         }
-
 
         imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
         return;

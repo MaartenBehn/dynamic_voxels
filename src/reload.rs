@@ -19,7 +19,7 @@ use octa_force::camera::Camera;
 use octa_force::egui_winit::winit::event::WindowEvent;
 use octa_force::glam::{vec3, Mat4, Quat, Vec3};
 use octa_force::gui::Gui;
-use octa_force::log::Log;
+use octa_force::log::{info, Log};
 use octa_force::logger::setup_logger;
 use octa_force::puffin_egui::puffin;
 use octa_force::vulkan::ash::vk::AttachmentLoadOp;
@@ -138,10 +138,10 @@ pub fn new_logic_state(
     log::info!("Creating Camera");
     let mut camera = Camera::base(engine.swapchain.size.as_vec2());
 
-    camera.position = Vec3::new(1.0, -10.0, 1.0);
+    // camera.position = Vec3::new(1.0, -10.0, 1.0);
+    // camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
+    camera.position = Vec3::new(1.3375386, -6.6246147, 1.0);
     camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
-    // camera.position = Vec3::new(-37.049347, -44.29117, 6.102236);
-    // camera.direction = Vec3::new(0.7462443, -0.059647024, -0.6629945).normalize();
     camera.speed = 10.0 * VOXEL_SIZE;
     camera.z_far = 100.0;
     camera.up = vec3(0.0, 0.0, 1.0);
@@ -228,6 +228,8 @@ pub fn update(
 
 
     logic_state.camera.update(&engine.controls, delta_time);
+    //info!("Camera Pos: {} Dir: {}", logic_state.camera.position, logic_state.camera.direction);
+
     render_state
         .renderer
         .update(&logic_state.camera, engine.swapchain.size, time)?;

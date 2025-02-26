@@ -261,11 +261,10 @@ uint cgs_tree_at_pos(vec3 pos) {
                 }
             } else if (child.type == CGS_CHILD_TYPE_VOXEL_GIRD) {
                 VoxelGrid voxel_grid = get_voxel_grid(child.pointer);
-                pos = (vec4(pos, 1.0) * voxel_grid.transform).xyz;
-                 
+                
                 uint voxel_value = MATERIAL_NONE;
                 if (in_voxel_grid_bounds(voxel_grid, uvec3(pos))) {
-                    voxel_value = get_voxel_grid_value(voxel_grid, uvec3(pos), child.pointer);
+                    voxel_value = get_voxel_grid_value(voxel_grid, uvec3(pos - voxel_grid.size / 2), child.pointer);
                 }
 
                 if (!go_right) {
