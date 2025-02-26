@@ -140,8 +140,8 @@ pub fn new_logic_state(
 
     // camera.position = Vec3::new(1.0, -10.0, 1.0);
     // camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
-    camera.position = Vec3::new(1.3375386, -6.6246147, 1.0);
-    camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
+    camera.position = Vec3::new(67.02305, 127.88921, 43.476604);
+    camera.direction = Vec3::new(0.79322153, -0.47346807, -0.38291982).normalize();
     camera.speed = 10.0 * VOXEL_SIZE;
     camera.z_far = 100.0;
     camera.up = vec3(0.0, 0.0, 1.0);
@@ -200,7 +200,10 @@ pub fn new_logic_state(
 
     wfc_builder.collapse(&mut fence_csg);
 
-    render_state.csg_controller.set_data(&fence_csg.csg.make_data());
+    //render_state.csg_controller.set_data(&fence_csg.csg.make_data());
+
+    let mut tree = CSGTree::new_example_tree_2(1.0);
+    render_state.csg_controller.set_data(&tree.make_data());
  
 
     Ok(LogicState {
@@ -220,15 +223,10 @@ pub fn update(
     #[cfg(debug_assertions)]
     puffin::profile_function!();
 
-    let time = logic_state.start_time.elapsed();
-
-
-    let mut tree = CSGTree::new_example_tree_2(time.as_secs_f32());
-    render_state.csg_controller.set_data(&tree.make_data());
-
+    let time = logic_state.start_time.elapsed(); 
 
     logic_state.camera.update(&engine.controls, delta_time);
-    //info!("Camera Pos: {} Dir: {}", logic_state.camera.position, logic_state.camera.direction);
+    // info!("Camera Pos: {} Dir: {}", logic_state.camera.position, logic_state.camera.direction);
 
     render_state
         .renderer

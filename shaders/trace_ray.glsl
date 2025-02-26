@@ -10,12 +10,12 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 #define RENDER_TEST_OBJECT false
 #define RENDER_CSG_FULL_DDA true
 
-#define SHOW_DDA_STEPS true
-#define SHOW_DISTANCE false
+#define SHOW_DDA_STEPS false
+#define SHOW_DISTANCE true
 
 #define USE_AABB true
 
-#define MAX_DDA_STEPS 100
+#define MAX_DDA_STEPS 500
 #define MAX_DEPTH 300
 #define EPSILON 0.0001
 #define TO_1D(pos, size) ((pos.z * size * size) + (pos.y * size) + pos.x)
@@ -54,6 +54,12 @@ void main () {
         stack[0] = 0;
         stack[1] = 1;
         int stack_len = 2;
+        float best_distance = FLOAT_POS_INF;
+        vec4 new_color;
+        float new_distance = FLOAT_POS_INF;
+        uint larges_dda_step_counter = 0;
+        uint smalest_dda_step_counter = 0;
+
 
         uint csg_step_counter = 0;
         uint dda_step_counter = 0;
@@ -84,27 +90,23 @@ void main () {
                 vec3 grid_min = -half_size;
                 vec3 grid_max = half_size;
 
-                Ray dda_ray = ray_to_model_space(ray, voxel_grid.transform);
-                if (!ray_aabb_intersect(dda_ray, grid_min, grid_max, interval)) {
+                Ray transformed_ray = ray_to_model_space(ray, voxel_grid.transform);
+                if (!ray_aabb_intersect(transformed_ray, grid_min, grid_max, interval)) {
                     continue;
                 }
 
                 float t_start = max(interval.t_min, 0) + EPSILON;
 
-                vec3 start_pos = get_ray_pos(dda_ray, t_start); 
-                DDA dda = init_DDA(dda_ray, start_pos, grid_min, grid_max, 1);
+                vec3 start_pos = get_ray_pos(transformed_ray, t_start); 
+                DDA dda = init_DDA(transformed_ray, start_pos, grid_min, grid_max, 1);
 
                 dda_step_counter = 0;
                 while (dda_step_counter < MAX_DDA_STEPS) { 
                     uint material = get_voxel_grid_value(voxel_grid, uvec3(dda.cell - grid_min), child.pointer);
 
                     if (material != 0) {
-                        if (SHOW_DISTANCE) {
-                            float current_t = get_DDA_t(dda) + t_start;
-                            color = vec4(get_debug_color_gradient_from_float(current_t / MAX_DEPTH), 1.0);
-                        } else {
-                            color = COLOR_BUFFER[material];
-                        }
+                        new_distance = get_DDA_t(dda) + t_start;
+                        new_color = COLOR_BUFFER[material];
                         break;
                     }
 
@@ -119,12 +121,47 @@ void main () {
 
             } else {
                 CGSObject object = get_csg_tree_object(child.pointer);
-                //bool hit = exits_cgs_object(pos, object, child.type);
-            } 
+                
+                aabb = get_aabb(child.pointer);
+                if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
+                    continue;
+                }
+
+                float t_start = max(interval.t_min, 0) + EPSILON;
+                vec3 start_pos = get_ray_pos(ray, t_start); 
+                DDA dda = init_DDA(ray, start_pos, aabb.min, aabb.max, 1);
+                
+                dda_step_counter = 0;
+                while (dda_step_counter < MAX_DDA_STEPS) { 
+                    if (exits_cgs_object(uvec3(dda.cell), object, child.type)) {
+                        new_distance = get_DDA_t(dda) + t_start;
+                        new_color = COLOR_BUFFER[object.material];
+                        break;
+                    }
+
+                    dda = step_DDA(dda);
+
+                    if (dda.out_of_bounds) {
+                        break;
+                    }
+
+                    dda_step_counter++;
+                }
+            }
+
+            if (best_distance > new_distance) {
+                color = new_color;
+                best_distance = new_distance;
+            }
+            larges_dda_step_counter = max(larges_dda_step_counter, dda_step_counter);
+            smalest_dda_step_counter = min(smalest_dda_step_counter, dda_step_counter);
         }
 
-        if (SHOW_DDA_STEPS) {
-            color = vec4(get_debug_color_gradient_from_float(float(dda_step_counter) / MAX_DDA_STEPS), 1.0);
+        
+        if (SHOW_DISTANCE) {
+            color = vec4(get_debug_color_gradient_from_float(best_distance / MAX_DEPTH), 1.0);
+        } else  if (SHOW_DDA_STEPS) {
+            color = vec4(get_debug_color_gradient_from_float(float(smalest_dda_step_counter) / MAX_DDA_STEPS), 1.0);
         }
 
         imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);

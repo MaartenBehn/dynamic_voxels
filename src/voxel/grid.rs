@@ -22,7 +22,7 @@ impl VoxelGrid {
 
     pub fn set_example_sphere(&mut self) {
         let center = self.size / 2;
-        let radius = 3.0;
+        let radius = (self.size.x as f32 / 2.0) - 5.0;
         for x in 0..self.size.x {
             for y in 0..self.size.y {
                 for z in 0..self.size.z {
