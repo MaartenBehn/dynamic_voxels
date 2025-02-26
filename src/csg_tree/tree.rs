@@ -112,7 +112,7 @@ impl CSGTree {
 
         let frac = simple_easing::roundtrip((time * 0.1) % 1.0);
 
-        let mut grid = VoxelGrid::new(uvec3(16, 16, 16));
+        let mut grid = VoxelGrid::new(uvec3(40, 40, 40));
         grid.set_example_sphere();
 
         let nodes = vec![
