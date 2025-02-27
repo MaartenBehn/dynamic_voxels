@@ -53,10 +53,10 @@ impl CSGTree {
                 self.nodes[i].aabb = AABB::from_sphere(&mat, padding);
                 changed_nodes.push(i);
             },
-            CSGNodeData::VoxelGrid(grid) => {
+            CSGNodeData::VoxelGrid(grid, pos) => {
                 self.nodes[i].aabb = AABB{
-                    min: (grid.size / 2).as_vec3() * -1.0,
-                    max: (grid.size / 2).as_vec3(),
+                    min: (grid.size / 2).as_vec3() * -1.0 + pos.as_vec3(),
+                    max: (grid.size / 2).as_vec3() + pos.as_vec3(),
                 };
                 changed_nodes.push(i);
             }

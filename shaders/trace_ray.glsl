@@ -92,23 +92,20 @@ void main () {
 
             } else if (child.type == CGS_CHILD_TYPE_VOXEL_GIRD) {
                 VoxelGrid voxel_grid = get_voxel_grid(child.pointer);
-                vec3 half_size = vec3(voxel_grid.size) / 2;
-                vec3 grid_min = -half_size;
-                vec3 grid_max = half_size;
 
                 Interval interval;
-                if (!ray_aabb_intersect(ray, grid_min, grid_max, interval)) {
+                if (!ray_aabb_intersect(ray, voxel_grid.aabb.min, voxel_grid.aabb.max, interval)) {
                     continue;
                 }
 
                 float t_start = max(interval.t_min, 0) + EPSILON;
 
                 vec3 start_pos = get_ray_pos(ray, t_start); 
-                DDA dda = init_DDA(ray, start_pos, grid_min, grid_max, 1);
+                DDA dda = init_DDA(ray, start_pos, voxel_grid.aabb.min, voxel_grid.aabb.max, 1);
 
                 dda_step_counter = 0;
                 while (dda_step_counter < MAX_DDA_STEPS) { 
-                    uint material = get_voxel_grid_value(voxel_grid, uvec3(dda.cell - grid_min), child.pointer);
+                    uint material = get_voxel_grid_value(voxel_grid, uvec3(dda.cell - voxel_grid.aabb.min), child.pointer);
 
                     if (material != 0) {
                         new_distance = get_DDA_t(dda) + t_start;

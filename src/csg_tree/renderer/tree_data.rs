@@ -1,6 +1,7 @@
 use core::slice;
 use std::iter;
 
+use fdg::nalgebra::min;
 use octa_force::{glam::Mat4, log::{debug, error, info}, puffin_egui::puffin};
 
 use crate::csg_tree::{
@@ -78,10 +79,12 @@ impl CSGTree {
                 write_mat4(&mut data, &transform.inverse());
                 data.push(*mat as u32);
             }
-            CSGNodeData::VoxelGrid(grid) => {
-                data.push(grid.size.x);
-                data.push(grid.size.y);
-                data.push(grid.size.z);
+            CSGNodeData::VoxelGrid(grid, pos) => {
+                let min = -(grid.size / 2).as_vec3() + pos.as_vec3();
+                let max = (grid.size / 2).as_vec3() + pos.as_vec3();
+
+                data.extend_from_slice(any_as_u32_slice(&min));
+                data.extend_from_slice(any_as_u32_slice(&max));
                 data.extend_from_slice(u8_as_u32_slice(&grid.data));
             }
             CSGNodeData::All(..) => unreachable!(),

@@ -25,6 +25,7 @@
 
 #define CSG_DATA_AABB_SIZE 6
 #define CSG_DATA_TRANSFORM_SIZE 12
+#define CSG_DATA_VOEXL_GIRD_SIZE 6
 
 #define MAX_CGS_TREE_DEPTH 4
 #define MAX_CGS_RENDER_ITERATIONS 10
@@ -47,6 +48,7 @@ struct CGSObject {
 };
 
 struct VoxelGrid {
+    AABB aabb;
     uvec3 size;
 };
 
@@ -95,22 +97,19 @@ uint get_voxel_value(uint start, uint index) {
 }
 
 VoxelGrid get_voxel_grid(uint index) {
-    uvec3 size = uvec3(
-        CSG_TREE[index + CSG_DATA_AABB_SIZE],
-        CSG_TREE[index + CSG_DATA_AABB_SIZE + 1],
-        CSG_TREE[index + CSG_DATA_AABB_SIZE + 2]
-    );
-
-    return VoxelGrid(size);
+    AABB aabb = get_aabb(index + CSG_DATA_AABB_SIZE);
+    uvec3 size = uvec3(round(aabb.max - aabb.min));
+    
+    return VoxelGrid(aabb, size);
 }
 
 bool in_voxel_grid_bounds(VoxelGrid grid, uvec3 pos) {
-    return pos.x < 0 || pos.y < 0 || pos.y < 0 || pos.x >= grid.size.x || pos.y >= grid.size.y || pos.z >= grid.size.z;
+    return pos_in_aabb(vec3(pos), grid.aabb.min, grid.aabb.max); 
 }
 
 uint get_voxel_grid_value(VoxelGrid grid, uvec3 pos, uint start) { 
     uint index = pos.x * grid.size.y * grid.size.z + pos.y * grid.size.z + pos.z;
-    return get_voxel_value(start + CSG_DATA_AABB_SIZE + 3, index);
+    return get_voxel_value(start + CSG_DATA_AABB_SIZE + CSG_DATA_VOEXL_GIRD_SIZE, index);
 }
 
 CGSObject get_test_box(float time, vec3 pos) {
@@ -144,12 +143,6 @@ bool ray_hits_cgs_object(Ray ray, CGSObject object, uint type, out Interval inte
     }
 
     return false;
-}
-
-bool pos_in_aabb(vec3 pos, vec3 min, vec3 max) {
-    return min.x <= pos.x && pos.x <= max.x &&
-        min.y <= pos.y && pos.y <= max.y &&
-        min.z <= pos.z && pos.z <= max.z;
 }
 
 bool pos_in_sphere(vec3 pos, vec3 s_pos, float radius) {

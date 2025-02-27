@@ -1,7 +1,7 @@
 use crate::aabb::AABB;
 use crate::csg_tree::controller::MAX_CSG_TREE_DATA_SIZE;
 use crate::voxel::grid::VoxelGrid;
-use octa_force::glam::{uvec3, vec3, EulerRot, Mat4, Quat, UVec3, Vec3};
+use octa_force::glam::{ivec3, uvec3, vec3, EulerRot, IVec3, Mat4, Quat, UVec3, Vec3};
 use octa_force::log::{error, info};
 use octa_force::puffin_egui::puffin;
 use std::f32::consts::PI;
@@ -30,7 +30,7 @@ pub enum CSGNodeData {
     Box(Mat4, Material),
     Sphere(Mat4, Material),
     All(Material),
-    VoxelGrid(VoxelGrid),
+    VoxelGrid(VoxelGrid, IVec3),
 }
 
 #[derive(Clone, Debug)]
@@ -147,7 +147,39 @@ impl CSGTree {
                 ),
                 MATERIAL_BASE,
             )),
-            CSGNode::new(CSGNodeData::VoxelGrid(grid)),
+            CSGNode::new(CSGNodeData::VoxelGrid(grid, ivec3(-10, -30, 2000))),
+        ];
+
+        let mut tree = CSGTree {
+            nodes,
+        };
+        tree.set_parents(0, CSG_PARENT_NONE);
+
+        tree
+    }
+
+    pub fn new_example_tree_large(time: f32) -> Self {
+        puffin::profile_function!();
+
+        let mut grid = VoxelGrid::new(uvec3(4, 4,4));
+        grid.set_example_sphere();
+
+        let nodes = vec![
+            CSGNode::new(CSGNodeData::Union(1, 2)),
+            CSGNode::new(CSGNodeData::Box(
+                Mat4::from_scale_rotation_translation(
+                    vec3(0.0, 0.0, 0.0) * VOXEL_SIZE,
+                    Quat::from_euler(
+                        EulerRot::XYZ,
+                        0.0,
+                        0.0,
+                        0.0,
+                    ),
+                    vec3(20.0, 10.0, 10.0) * VOXEL_SIZE,
+                ),
+                MATERIAL_BASE,
+            )),
+            CSGNode::new(CSGNodeData::VoxelGrid(grid, ivec3(-10, -30, 200))),
         ];
 
         let mut tree = CSGTree {
