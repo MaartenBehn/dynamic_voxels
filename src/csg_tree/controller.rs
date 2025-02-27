@@ -4,7 +4,7 @@ use octa_force::vulkan::gpu_allocator::MemoryLocation;
 use octa_force::vulkan::{Buffer, Context};
 use octa_force::OctaResult;
 
-pub const MAX_CSG_TREE_DATA_SIZE: usize = 4194352;
+pub const MAX_CSG_TREE_DATA_SIZE: usize = 4194360;
 pub struct CSGController {
     pub buffer: Buffer,
 }

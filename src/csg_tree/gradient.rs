@@ -28,6 +28,7 @@ impl CSGTree {
 
                 g1 * g2
             },
+            CSGNodeData::Mat(_, c1) => self.get_gradient_at_pos_internal(pos, c1),
             CSGNodeData::Box(mat, _) => {
                 let t_point = mat.inverse().mul_vec4(pos);
 
@@ -40,6 +41,7 @@ impl CSGTree {
             },
             CSGNodeData::VoxelGrid(..)
             | CSGNodeData::All(_) => vec3(0.0, 0.0, 0.0),
+
         }
     }
 }

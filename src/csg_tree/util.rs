@@ -20,7 +20,7 @@ impl CSGTree {
     fn at_pos_internal(&self, pos: Vec3, index: usize) -> bool {
         let node = &self.nodes[index];
 
-        match node.data {
+        match node.data { 
             CSGNodeData::Union(c1, c2) => {
                 self.at_pos_internal(pos, c1) || self.at_pos_internal(pos, c2)
             }
@@ -30,6 +30,7 @@ impl CSGTree {
             CSGNodeData::Intersect(c1, c2) => {
                 self.at_pos_internal(pos, c1) && self.at_pos_internal(pos, c2)
             }
+            CSGNodeData::Mat(_, c) => self.at_pos_internal(pos, c),
             CSGNodeData::Box(mat, _) => {
                 let pos = mat.inverse().mul_vec4(vec4(pos.x, pos.y, pos.z, 1.0)).xyz();
 

@@ -18,9 +18,13 @@
 #define CGS_CHILD_TYPE_REMOVE 2
 #define CGS_CHILD_TYPE_INTERSECT 3
 #define CGS_CHILD_TYPE_MAX_NODE 3
-#define CGS_CHILD_TYPE_BOX 4
-#define CGS_CHILD_TYPE_SPHERE 5
-#define CGS_CHILD_TYPE_VOXEL_GIRD 6
+#define CGS_CHILD_TYPE_TRANSFORM 4
+#define CGS_CHILD_TYPE_BOX 5
+#define CGS_CHILD_TYPE_SPHERE 6
+#define CGS_CHILD_TYPE_VOXEL_GIRD 7
+
+#define CSG_DATA_AABB_SIZE 6
+#define CSG_DATA_TRANSFORM_SIZE 12
 
 #define MAX_CGS_TREE_DEPTH 4
 #define MAX_CGS_RENDER_ITERATIONS 10
@@ -33,29 +37,32 @@ struct CGSChild {
     uint type;
 };
 
+struct CGSTransform {
+    mat4 transform;
+};
+
 struct CGSObject {
     mat4 transform;
     uint material;
 };
 
 struct VoxelGrid {
-    mat4 transform;
     uvec3 size;
 };
+
+CGSChild get_csg_tree_child(uint index) {
+    uint data = CSG_TREE[index];
+    uint pointer = data >> 4; // 28 Bit
+    uint type = data & uint(15); //  4 Bit
+
+    return CGSChild(pointer, type);
+}
 
 AABB get_aabb(uint index) {
     vec3 min = vec3(uintBitsToFloat(CSG_TREE[index]), uintBitsToFloat(CSG_TREE[index + 1]), uintBitsToFloat(CSG_TREE[index + 2]));
     vec3 max = vec3(uintBitsToFloat(CSG_TREE[index + 3]), uintBitsToFloat(CSG_TREE[index + 4]), uintBitsToFloat(CSG_TREE[index + 5]));
 
     return AABB(min, max);
-}
-
-CGSChild get_csg_tree_child(uint index) {
-    uint data = CSG_TREE[index + 6];
-    uint pointer = data >> 4; // 28 Bit
-    uint type = data & uint(15); //  4 Bit
-
-    return CGSChild(pointer, type);
 }
 
 mat4 get_mat4_form_csg_tree(uint index) {
@@ -67,10 +74,15 @@ mat4 get_mat4_form_csg_tree(uint index) {
     );
 }
 
-CGSObject get_csg_tree_object(uint index) {
-    mat4 transform = get_mat4_form_csg_tree(index + 6);
+CGSTransform get_csg_tree_transform(uint index) {
+    mat4 transform = get_mat4_form_csg_tree(index + CSG_DATA_AABB_SIZE);
 
-    uint material = CSG_TREE[index + 6 + 12];
+    return CGSTransform(transform);
+}
+
+CGSObject get_csg_tree_object(uint index) {
+    mat4 transform = get_mat4_form_csg_tree(index + CSG_DATA_AABB_SIZE);
+    uint material = CSG_TREE[index + CSG_DATA_AABB_SIZE + CSG_DATA_TRANSFORM_SIZE];
 
     return CGSObject(transform, material);
 }
@@ -83,14 +95,13 @@ uint get_voxel_value(uint start, uint index) {
 }
 
 VoxelGrid get_voxel_grid(uint index) {
-    mat4 transform = get_mat4_form_csg_tree(index + 6); 
     uvec3 size = uvec3(
-        CSG_TREE[index + 6 + 12],
-        CSG_TREE[index + 6 + 13],
-        CSG_TREE[index + 6 + 14]
+        CSG_TREE[index + CSG_DATA_AABB_SIZE],
+        CSG_TREE[index + CSG_DATA_AABB_SIZE + 1],
+        CSG_TREE[index + CSG_DATA_AABB_SIZE + 2]
     );
 
-    return VoxelGrid(transform, size);
+    return VoxelGrid(size);
 }
 
 bool in_voxel_grid_bounds(VoxelGrid grid, uvec3 pos) {
@@ -99,7 +110,7 @@ bool in_voxel_grid_bounds(VoxelGrid grid, uvec3 pos) {
 
 uint get_voxel_grid_value(VoxelGrid grid, uvec3 pos, uint start) { 
     uint index = pos.x * grid.size.y * grid.size.z + pos.y * grid.size.z + pos.z;
-    return get_voxel_value(start + 6 + 15, index);
+    return get_voxel_value(start + CSG_DATA_AABB_SIZE + 3, index);
 }
 
 CGSObject get_test_box(float time, vec3 pos) {
@@ -175,7 +186,7 @@ uint cgs_material_operation(uint material_1, uint material_2, uint operation) {
     }
 
     if (operation == CGS_CHILD_TYPE_INTERSECT) {
-        if (material_1 != 0 && material_2 != 0 && material_2 == 0) {
+        if (material_1 != 0 && material_2 != 0) {
             return material_1;
         }
     }

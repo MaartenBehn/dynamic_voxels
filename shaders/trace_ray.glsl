@@ -42,24 +42,18 @@ void main () {
     }
       
     if(RENDER_CSG_FULL_DDA) {
-
-        AABB aabb = get_aabb(0);
-        Interval interval;
-        if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
-            imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
-            return;
-        }
-
+ 
         uint stack[MAX_CGS_TREE_DEPTH];
         stack[0] = 0;
-        stack[1] = 1;
-        int stack_len = 2;
+        Ray ray_stack[MAX_CGS_TREE_DEPTH];
+        ray_stack[0] = ray;
+        int stack_len = 1;
+
         float best_distance = FLOAT_POS_INF;
         vec4 new_color;
         float new_distance = FLOAT_POS_INF;
         uint larges_dda_step_counter = 0;
         uint smalest_dda_step_counter = 0;
-
 
         uint csg_step_counter = 0;
         uint dda_step_counter = 0;
@@ -67,22 +61,34 @@ void main () {
             csg_step_counter++;
             
             stack_len -= 1;
+            ray = ray_stack[stack_len];
             CGSChild child = get_csg_tree_child(stack[stack_len]);
              
             if (child.type == CGS_CHILD_TYPE_UNION) {
                 if (USE_AABB) {
-                    aabb = get_aabb(child.pointer);
+                    AABB aabb = get_aabb(child.pointer);
+                    Interval interval;
                     if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
                         continue;
                     }
                 }
 
-                stack[stack_len] = child.pointer;
-                stack[stack_len + 1] = child.pointer + 1;
+                stack[stack_len] = child.pointer + CSG_DATA_AABB_SIZE;
+                stack[stack_len + 1] = child.pointer + CSG_DATA_AABB_SIZE + 1;
+                ray_stack[stack_len] = ray;
+                ray_stack[stack_len + 1] = ray;
                 stack_len += 2;
 
             } else if (child.type <= CGS_CHILD_TYPE_MAX_NODE) {
 
+
+            } else if (child.type == CGS_CHILD_TYPE_TRANSFORM) {
+                CGSTransform object = get_csg_tree_transform(child.pointer);
+                ray = ray_to_model_space(ray, object.transform);
+                
+                stack[stack_len] = child.pointer + CSG_DATA_AABB_SIZE + CSG_DATA_TRANSFORM_SIZE;
+                ray_stack[stack_len] = ray;
+                stack_len += 1;
 
             } else if (child.type == CGS_CHILD_TYPE_VOXEL_GIRD) {
                 VoxelGrid voxel_grid = get_voxel_grid(child.pointer);
@@ -90,15 +96,15 @@ void main () {
                 vec3 grid_min = -half_size;
                 vec3 grid_max = half_size;
 
-                Ray transformed_ray = ray_to_model_space(ray, voxel_grid.transform);
-                if (!ray_aabb_intersect(transformed_ray, grid_min, grid_max, interval)) {
+                Interval interval;
+                if (!ray_aabb_intersect(ray, grid_min, grid_max, interval)) {
                     continue;
                 }
 
                 float t_start = max(interval.t_min, 0) + EPSILON;
 
-                vec3 start_pos = get_ray_pos(transformed_ray, t_start); 
-                DDA dda = init_DDA(transformed_ray, start_pos, grid_min, grid_max, 1);
+                vec3 start_pos = get_ray_pos(ray, t_start); 
+                DDA dda = init_DDA(ray, start_pos, grid_min, grid_max, 1);
 
                 dda_step_counter = 0;
                 while (dda_step_counter < MAX_DDA_STEPS) { 
@@ -122,7 +128,8 @@ void main () {
             } else {
                 CGSObject object = get_csg_tree_object(child.pointer);
                 
-                aabb = get_aabb(child.pointer);
+                AABB aabb = get_aabb(child.pointer);
+                Interval interval;
                 if (!ray_aabb_intersect(ray, aabb.min, aabb.max, interval)) {
                     continue;
                 }
@@ -158,7 +165,7 @@ void main () {
         }
 
         
-        if (SHOW_DISTANCE) {
+        if (SHOW_DISTANCE && best_distance != FLOAT_POS_INF) {
             color = vec4(get_debug_color_gradient_from_float(best_distance / MAX_DEPTH), 1.0);
         } else  if (SHOW_DDA_STEPS) {
             color = vec4(get_debug_color_gradient_from_float(float(smalest_dda_step_counter) / MAX_DDA_STEPS), 1.0);
