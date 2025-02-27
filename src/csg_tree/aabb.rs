@@ -40,16 +40,16 @@ impl CSGTree {
                 self.set_primitive_aabbs(c2, base_mat, changed_nodes, padding);
             },
             CSGNodeData::Mat(mat, c1) => {
-                let mat = base_mat.mul_mat4(mat);
+                let mat = mat.mul_mat4(base_mat);
                 self.set_primitive_aabbs(*c1, &mat, changed_nodes, padding);
             },
             CSGNodeData::Box(mat, ..) => {
-                let mat = base_mat.mul_mat4(mat);
+                let mat = mat.mul_mat4(base_mat);
                 self.nodes[i].aabb = AABB::from_box(&mat, padding);
                 changed_nodes.push(i);
             },
             CSGNodeData::Sphere(mat, ..) => {
-                let mat = base_mat.mul_mat4(mat);
+                let mat = mat.mul_mat4(base_mat);
                 self.nodes[i].aabb = AABB::from_sphere(&mat, padding);
                 changed_nodes.push(i);
             },

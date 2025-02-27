@@ -122,7 +122,17 @@ impl CSGTree {
         grid.set_example_sphere();
 
         let nodes = vec![
-            CSGNode::new(CSGNodeData::Mat(Mat4::IDENTITY, 1)),
+            CSGNode::new(CSGNodeData::Mat(Mat4::from_scale_rotation_translation(
+                    vec3(1.0, 1.0, 1.0),
+                    Quat::from_euler(
+                        EulerRot::XYZ,
+                        (time * 0.3) % (2.0 * PI),
+                        (time * 0.5) % (2.0 * PI),
+                        0.0,
+                    ),
+                    vec3(0.0, 0.0, 0.0) * VOXEL_SIZE,
+                ),
+                1)),
             CSGNode::new(CSGNodeData::Union(2, 3)),
             CSGNode::new(CSGNodeData::Box(
                 Mat4::from_scale_rotation_translation(
