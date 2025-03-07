@@ -37,6 +37,9 @@ pub enum AttributeTemplateValue<U: Clone + Debug, B: Clone + Debug> {
         from_volume: Identifier,
         on_collapse_changes_volume: fn(d: PosCollapseFuncData<U, B>)
     },
+    Volume {
+        volume: PossibleVolume,
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -67,7 +70,7 @@ pub struct NumberRangeBuilder {
 
 #[derive(Debug, Clone)]
 pub struct PosBuilder<U: Clone + Debug, B: Clone + Debug> {
-    on_collapse_changes_volume: fn(d: PosCollapseFuncData<U, B>)
+    on_collapse: fn(d: PosCollapseFuncData<U, B>)
 }
 
 
@@ -202,7 +205,7 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCNodeBuilder<U, B> {
         let pos = AttributeTemplate {
             value: AttributeTemplateValue::Pos {
                 from_volume,
-                on_collapse_changes_volume: pos_builder.on_collapse_changes_volume,
+                on_collapse_changes_volume: pos_builder.on_collapse,
             },
             identifier,
         };
@@ -210,7 +213,25 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCNodeBuilder<U, B> {
         self.attributes.push(pos);
 
         self
-    } 
+    }
+
+    pub fn volume(
+        mut self, 
+        identifier: Identifier,
+        volume: CSGNode,
+        sample_distance: f32,
+    ) -> Self {
+        let volume = AttributeTemplate {
+            value: AttributeTemplateValue::Volume { 
+                volume: PossibleVolume::new(volume, sample_distance) 
+            },
+            identifier,
+        };
+
+        self.attributes.push(volume);
+
+        self
+    }
 }
 
 impl NumberRangeBuilder {
@@ -229,12 +250,12 @@ impl NumberRangeBuilder {
 impl<U: Clone + Debug, B: Clone + Debug> PosBuilder<U, B> {
     pub fn new() -> Self {
         PosBuilder {
-            on_collapse_changes_volume: |_| {},
+            on_collapse: |_| {},
         }
     }  
 
     pub fn on_collapse_changes_volume(mut self, func: fn(PosCollapseFuncData<U, B>)) -> Self {
-        self.on_collapse_changes_volume = func;
+        self.on_collapse = func;
         self
     }
 }
@@ -264,6 +285,13 @@ impl <U: Clone + Debug, B: Clone + Debug> AttributeTemplateValue<U, B> {
     pub fn get_number_permutation(&self) -> &Permutation {
         match self {
             AttributeTemplateValue::NumberRange { permutation, .. } => permutation,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn get_pos_from_volume(&self) -> &Identifier {
+        match self {
+            AttributeTemplateValue::Pos { from_volume, .. } => from_volume,
             _ => unreachable!(),
         }
     }  

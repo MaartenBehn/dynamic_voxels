@@ -19,7 +19,7 @@ use octa_force::camera::Camera;
 use octa_force::egui_winit::winit::event::WindowEvent;
 use octa_force::glam::{vec3, Mat4, Quat, Vec3};
 use octa_force::gui::Gui;
-use octa_force::log::{info, Log};
+use octa_force::log::{debug, info, Log};
 use octa_force::logger::setup_logger;
 use octa_force::puffin_egui::puffin;
 use octa_force::vulkan::ash::vk::AttachmentLoadOp;
@@ -52,6 +52,17 @@ pub fn init_hot_reload(logger: &'static dyn Log) -> OctaResult<()> {
     setup_logger(logger)?;
 
     Ok(())
+}
+
+#[derive(Debug, Clone)]
+pub struct FenceData {
+    pub pos: Vec3,
+    pub post_distance: f32,
+}
+
+#[derive(Debug, Clone)]
+pub struct FenceCSG {
+    pub csg: CSGTree,
 }
 
 #[no_mangle]
@@ -104,56 +115,13 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
 
     let wfc_renderer = WFCRenderer::new();
 
-    Ok(RenderState {
-        gui,
-        csg_controller,
-        color_controller,
-        renderer,
-        profiler,
-        wfc_renderer,
-    })
-}
-
-#[derive(Debug, Clone)]
-pub struct FenceData {
-    pub center_pos: Vec3,
-    pub radius: f32,
-    pub post_distance: f32,
-}
-
-#[derive(Debug, Clone)]
-pub struct FenceCSG {
-    pub csg: CSGTree,
-}
-
-
-#[no_mangle]
-pub fn new_logic_state(
-    render_state: &mut RenderState,
-    engine: &mut Engine,
-) -> OctaResult<LogicState> {
-    #[cfg(debug_assertions)]
-    puffin::profile_function!();
-
-    log::info!("Creating Camera");
-    let mut camera = Camera::base(engine.swapchain.size.as_vec2());
-
-    // camera.position = Vec3::new(1.0, -10.0, 1.0);
-    // camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
-    camera.position = Vec3::new(67.02305, 127.88921, 43.476604);
-    camera.direction = Vec3::new(0.79322153, -0.47346807, -0.38291982).normalize();
-    camera.speed = 10.0 * VOXEL_SIZE;
-    camera.z_far = 100.0;
-    camera.up = vec3(0.0, 0.0, 1.0);
-
-
     let wfc_builder: WFCBuilder<FenceData, FenceCSG> = WFCBuilder::new()
         .node(|b| {
             b.identifier(0).name("Fence".to_owned())
                 .user_data(FenceData {
-                    center_pos: vec3(1.0, 1.0, 0.0),
-                    radius: 10.0,
-                    post_distance: 5.0,
+                    pos: vec3(0.0, 0.0, 0.0),
+                    post_distance: 0.2,
+                    
                 })
                 // Number of fence posts
                 .number_range(1, 5..=10, |b| {
@@ -163,16 +131,25 @@ pub fn new_logic_state(
                 .number_range(3, 80..=100, |b| {
                     b
                 })
+                .volume(4, CSGNode::new(CSGNodeData::Sphere(Mat4::IDENTITY, MATERIAL_NONE)), 0.1)
         })
         .node( |b| { // Fence Post
             b.identifier(10).name("Fence Post".to_owned())
                 .pos(11, 
-                10,
+                4,
                 |b| {
-                    b
+                    b.on_collapse(|d| {
+                        let fence_user_data = d.get_node_user_data_mut_with_identifier(0).unwrap();
+                        
+                        let new_pos = d.from_volume.kd_tree.nearest_one(fence_user_data.pos);
+                            d.from_volume.kd_tree.get
+                        new_pos.
+
+
+                    })
                 })
                 .build(|mut d| {
-                    let pos = d.get_current_node_pos_attribute_with_identifier(11).unwrap().value;
+                    let pos = d.get_current_node_pos_attribute_with_identifier(11).unwrap().value * VOXEL_SIZE;
 
                     let csg = &mut d.get_build_data_mut().csg;
 
@@ -180,6 +157,7 @@ pub fn new_logic_state(
                         Mat4::from_translation(pos),
                         MATERIAL_NONE,
                     ));
+                    dbg!(pos);
 
                     if csg.nodes.is_empty() {
                         csg.nodes.push(csg_node);
@@ -202,9 +180,39 @@ pub fn new_logic_state(
 
     //render_state.csg_controller.set_data(&fence_csg.csg.make_data());
 
-    let mut tree = CSGTree::new_example_tree_2(1.0);
-    render_state.csg_controller.set_data(&tree.make_data());
- 
+    // let mut tree = CSGTree::new_example_tree_2(1.0);
+    csg_controller.set_data(&fence_csg.csg.make_data());
+
+
+    Ok(RenderState {
+        gui,
+        csg_controller,
+        color_controller,
+        renderer,
+        profiler,
+        wfc_renderer,
+    })
+}
+
+
+#[no_mangle]
+pub fn new_logic_state(
+    render_state: &mut RenderState,
+    engine: &mut Engine,
+) -> OctaResult<LogicState> {
+    #[cfg(debug_assertions)]
+    puffin::profile_function!();
+
+    log::info!("Creating Camera");
+    let mut camera = Camera::base(engine.swapchain.size.as_vec2());
+
+    camera.position = Vec3::new(1.0, -10.0, 1.0);
+    camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
+    // camera.position = Vec3::new(67.02305, 127.88921, 43.476604);
+    // camera.direction = Vec3::new(0.79322153, -0.47346807, -0.38291982).normalize();
+    camera.speed = 10.0 * VOXEL_SIZE;
+    camera.z_far = 100.0;
+    camera.up = vec3(0.0, 0.0, 1.0);
 
     Ok(LogicState {
         camera,

@@ -134,7 +134,7 @@ impl CSGTree {
                 ),
                 1)),
             CSGNode::new(CSGNodeData::Union(2, 3)),
-            CSGNode::new(CSGNodeData::Box(
+            CSGNode::new(CSGNodeData::Sphere(
                 Mat4::from_scale_rotation_translation(
                     (vec3(2.0, 5.0, 7.0) + simple_easing::expo_in_out(frac)) * VOXEL_SIZE,
                     Quat::from_euler(
@@ -147,7 +147,7 @@ impl CSGTree {
                 ),
                 MATERIAL_BASE,
             )),
-            CSGNode::new(CSGNodeData::VoxelGrid(grid, ivec3(-10, -30, 2000))),
+            CSGNode::new(CSGNodeData::VoxelGrid(grid, ivec3(-10, -30, 20))),
         ];
 
         let mut tree = CSGTree {

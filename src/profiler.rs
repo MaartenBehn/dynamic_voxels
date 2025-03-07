@@ -26,6 +26,8 @@ pub struct ShaderProfiler {
     scopes: Vec<String>,
     main_scope: usize,
 
+
+
     sample_res: UVec2,
     sample_multiplication_factor: u32,
     active_sample_pixel: UVec2,

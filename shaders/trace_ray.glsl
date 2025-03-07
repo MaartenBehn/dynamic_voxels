@@ -11,7 +11,7 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 #define RENDER_CSG_FULL_DDA true
 
 #define SHOW_DDA_STEPS false
-#define SHOW_DISTANCE true
+#define SHOW_DISTANCE false
 
 #define USE_AABB true
 

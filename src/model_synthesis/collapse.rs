@@ -3,9 +3,9 @@ use std::{fmt::Debug, usize};
 
 use fdg::nalgebra::base;
 use feistel_permutation_rs::{DefaultBuildHasher, OwnedPermutationIterator, Permutation, PermutationIterator};
-use octa_force::{glam::{vec3, IVec3, Vec3}, log::debug};
+use octa_force::{glam::{vec3, IVec3, Vec3}, log::{debug, error}};
 
-use crate::model_synthesis::{func_data::BuildFuncData, volume::PossibleVolume};
+use crate::{csg_tree::tree::CSGTree, model_synthesis::{func_data::BuildFuncData, volume::PossibleVolume}};
 
 use super::builder::{AttributeTemplate, AttributeTemplateValue, Identifier, NodeTemplate, NumberRangeDefinesType, WFCBuilder};
 
@@ -33,6 +33,14 @@ pub struct PosAttribute {
     pub value: Vec3,
 }
 
+#[derive(Debug, Clone)]
+pub struct VolumeAttribute {
+    pub template_index: usize,
+    pub node_index: usize,
+    pub identifier: Identifier,
+    pub value: PossibleVolume,
+}
+
 impl<U: Clone + Debug, B: Clone + Debug> WFCBuilder<U, B> {
     pub fn collapse(self, build_data: &mut B) {
 
@@ -48,12 +56,11 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCBuilder<U, B> {
         let mut nodes = vec![root_node];
         let mut number_attributes = vec![];
         let mut pos_attributes = vec![];
-        let mut possible_volumes = vec![];
+        let mut volume_attributes = vec![];
 
         let mut pending_nodes = vec![0];
         let mut pending_number_attributes = vec![];
         let mut pending_pos_attributes = vec![];
-        let mut pending_possible_volumes: Vec<usize> = vec![];
 
         let mut current_template_node = 0;
         loop {
@@ -62,7 +69,8 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCBuilder<U, B> {
                 let attribute_template = &self.attributes[attribute.template_index];
                 
                 if attribute.perm_counter >= attribute_template.value.get_number_permutation().max() as usize {
-                    
+                    error!("Number collapse failed"); 
+                    continue;
                 }
 
                 let value = attribute_template.value.get_number_permutation().get(attribute.perm_counter as _);
@@ -97,12 +105,19 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCBuilder<U, B> {
             } else if let Some(current_attribute_index) = pending_pos_attributes.pop() {
                 let attribute: &mut PosAttribute = &mut pos_attributes[current_attribute_index];
                 let attribute_template = &self.attributes[attribute.template_index];
+                let from_volume = *attribute_template.value.get_pos_from_volume();
 
-                
-            } else if let Some(current_attribute_index) = pending_possible_volumes.pop() {
-                let attribute: &mut PossibleVolume = &mut possible_volumes[current_attribute_index];
-                let attribute_template = &self.attributes[attribute.template_index];
+                let volume_attribute = volume_attributes.iter()
+                    .find(|a: &&VolumeAttribute | a.identifier == from_volume)
+                    .expect(&format!("Volume with identfier: {} not found.", from_volume));
 
+                let pos = volume_attribute.value.get_pos();
+                if pos.is_none() {
+                    error!("Pos collapse failed");
+                    continue;
+                }
+
+                attribute.value = pos.unwrap();
                 
             } else if let Some(current_node_index) = pending_nodes.pop() {
                 let node = &mut nodes[current_node_index];            
@@ -112,7 +127,7 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCBuilder<U, B> {
                     let attribute_template_index = self.get_attribute_index_by_identifier(*attribute_template_identifier);
                     let attribute_template = &self.attributes[attribute_template_index];
 
-                    match attribute_template.value {
+                    match &attribute_template.value {
                         AttributeTemplateValue::NumberRange { .. } => {
                             let attribute = NumberAttribute {
                                 template_index: attribute_template_index,
@@ -142,6 +157,17 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCBuilder<U, B> {
                             pending_pos_attributes.push(attribute_index);
 
                         },
+                        AttributeTemplateValue::Volume { volume, .. } => {
+                            let attribute = VolumeAttribute {
+                                template_index: attribute_template_index,
+                                node_index: current_node_index,
+                                identifier: *attribute_template_identifier,
+                                value: volume.clone(),
+                            };                 
+
+                            let attribute_index = pos_attributes.len();
+                            volume_attributes.push(attribute);
+                        }, 
                     }
                 }
 
