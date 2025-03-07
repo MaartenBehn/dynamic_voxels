@@ -108,7 +108,6 @@ impl CSGTree {
         let mut tree = CSGTree {
             nodes,
         };
-        tree.set_parents(0, CSG_PARENT_NONE);
 
         tree
     }
@@ -153,7 +152,6 @@ impl CSGTree {
         let mut tree = CSGTree {
             nodes,
         };
-        tree.set_parents(0, CSG_PARENT_NONE);
 
         tree
     }

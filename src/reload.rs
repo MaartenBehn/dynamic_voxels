@@ -15,20 +15,22 @@ use csg_tree::renderer::Renderer;
 use csg_tree::tree::{CSGNode, CSGNodeData, MATERIAL_NONE};
 use egui_graphs::Node;
 use glsl_compiler::glsl;
+use kiddo::SquaredEuclidean;
+use model_synthesis::collapse::CollapseOperation;
 use octa_force::camera::Camera;
 use octa_force::egui_winit::winit::event::WindowEvent;
 use octa_force::glam::{vec3, Mat4, Quat, Vec3};
 use octa_force::gui::Gui;
-use octa_force::log::{debug, info, Log};
+use octa_force::log::{debug, error, info, Log};
 use octa_force::logger::setup_logger;
 use octa_force::puffin_egui::puffin;
 use octa_force::vulkan::ash::vk::AttachmentLoadOp;
 use octa_force::vulkan::Fence;
 use octa_force::{log, Engine, OctaResult};
-use model_synthesis::func_data::FuncData;
 use std::f32::consts::PI;
 use std::time::{Duration, Instant};
-use model_synthesis::builder::{NumberRangeDefinesType, WFCBuilder};
+use std::usize;
+use model_synthesis::builder::{NumberRangeDefines, WFCBuilder, IT};
 use model_synthesis::renderer::renderer::WFCRenderer;
 
 pub const USE_PROFILE: bool = false;
@@ -54,16 +56,22 @@ pub fn init_hot_reload(logger: &'static dyn Log) -> OctaResult<()> {
     Ok(())
 }
 
-#[derive(Debug, Clone)]
-pub struct FenceData {
-    pub pos: Vec3,
-    pub post_distance: f32,
-}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Identifier {
+    Fence,
+    FencePost,
+    PlankSetting,
+    FencePlank,
 
-#[derive(Debug, Clone)]
-pub struct FenceCSG {
-    pub csg: CSGTree,
+    PostNumber,
+    PostHeight,
+    PostDistance,
+    PostPos,
+    PlankNumber,
+    PlankDistance,
 }
+impl IT for Identifier {}
+
 
 #[no_mangle]
 pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
@@ -113,76 +121,91 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
         shader_bin,
     )?;
 
+    // let mut tree = CSGTree::new_example_tree_2(1.0);
+    // csg_controller.set_data(&tree.make_data());
+
+
+    
     let wfc_renderer = WFCRenderer::new();
 
-    let wfc_builder: WFCBuilder<FenceData, FenceCSG> = WFCBuilder::new()
-        .node(|b| {
-            b.identifier(0).name("Fence".to_owned())
-                .user_data(FenceData {
-                    pos: vec3(0.0, 0.0, 0.0),
-                    post_distance: 0.2,
-                    
-                })
-                // Number of fence posts
-                .number_range(1, 5..=10, |b| {
-                    b.defines(NumberRangeDefinesType::Amount { of_node: 10 })
-                })
-                // Hight of Fence posts
-                .number_range(3, 80..=100, |b| {
-                    b
-                })
-                .volume(4, CSGNode::new(CSGNodeData::Sphere(Mat4::IDENTITY, MATERIAL_NONE)), 0.1)
+    let wfc_builder: WFCBuilder<Identifier> = WFCBuilder::new()
+        .node(Identifier::Fence, |b| {
+            b
+                .number_range(Identifier::PostHeight, 3..=8, NumberRangeDefines::None, false)
+                .number_range(Identifier::PostDistance, 2..=5, NumberRangeDefines::None, false)
+                .number_range(Identifier::PostNumber, 5..=10, NumberRangeDefines::Amount { of_node: Identifier::FencePost }, false)
+                .child(Identifier::PlankSetting)
         })
-        .node( |b| { // Fence Post
-            b.identifier(10).name("Fence Post".to_owned())
-                .pos(11, 
-                4,
-                |b| {
-                    b.on_collapse(|d| {
-                        let fence_user_data = d.get_node_user_data_mut_with_identifier(0).unwrap();
-                        
-                        let new_pos = d.from_volume.kd_tree.nearest_one(fence_user_data.pos);
-                            d.from_volume.kd_tree.get
-                        new_pos.
+        .node(Identifier::FencePost, |b| {
+            b.pos(Identifier::PostPos,false)
+            .use_build_hook()
+        })
+        .node(Identifier::PlankSetting, |b| {
+            b.number_range(Identifier::PlankNumber, 1..=4, NumberRangeDefines::Amount { of_node: Identifier::FencePlank }, false)
+                .number_range(Identifier::PlankDistance, 1..=3, NumberRangeDefines::None, false)
+        })
+        .node(Identifier::FencePlank, |b| {
+            b.use_build_hook()
+        });
+    
+    let mut pos = vec3(1.0, 1.0, 1.0);
+    let mut csg = CSGTree::default();
+
+    let mut collapser = wfc_builder.get_collaper();
+    while let Some((operation, collapser)) = collapser.next() {
+        match operation {
+            CollapseOperation::CollapsePos{ index  } => {
+                let dist = collapser.get_number_with_identifier(Identifier::PostDistance);
+
+                let pos_attribute = collapser.pos_attributes.get_mut(index).expect("Collapse: Pos Attribute not found!");
+                pos_attribute.value = pos;
+
+                pos += Vec3::X * dist as f32;
+            },
+            CollapseOperation::BuildNode{ index, identifier, .. } => {
+                if identifier != Identifier::FencePost {
+                    error!("Build hook on wrong type");
+                    continue;
+                }
+
+                let node = collapser.nodes
+                    .get(index)
+                    .expect("Build: Node not found!");
+
+                let pos_attribute = collapser.pos_attributes
+                    .get(node.pos_attributes[0])
+                    .expect("Build: Pos Attribute not found!");
+
+                let height = collapser.get_number_with_identifier(Identifier::PostHeight);
 
 
-                    })
-                })
-                .build(|mut d| {
-                    let pos = d.get_current_node_pos_attribute_with_identifier(11).unwrap().value * VOXEL_SIZE;
+                let pos = pos_attribute.value + Vec3::Z * (height as f32) * 0.5;
 
-                    let csg = &mut d.get_build_data_mut().csg;
+                let csg_node = CSGNode::new(CSGNodeData::Box(
+                    Mat4::from_scale_rotation_translation(
+                        vec3(0.5, 0.5, height as f32) * VOXEL_SIZE, 
+                        Quat::IDENTITY, 
+                        pos * VOXEL_SIZE
+                    ),
+                    1,
+                ));
+                debug!("{:?}: {}", identifier, pos);
 
-                    let csg_node = CSGNode::new(CSGNodeData::Box(
-                        Mat4::from_translation(pos),
-                        MATERIAL_NONE,
-                    ));
-                    dbg!(pos);
+                if csg.nodes.is_empty() {
+                    csg.nodes.push(csg_node);
+                    continue;
+                }
 
-                    if csg.nodes.is_empty() {
-                        csg.nodes.push(csg_node);
-                        return;
-                    }
+                let mut tree = CSGTree::from_node(csg_node);
+                csg.append_tree_with_union(tree);
+                
+            },
+            CollapseOperation::None => {},
+        } 
+    }
 
-                    let mut tree = CSGTree::from_node(csg_node);
-                    csg.append_tree_with_union(tree);
-
-                })
-            });
-
-    //dbg!(&wfc_builder);
-
-    let mut fence_csg = FenceCSG {
-        csg: CSGTree::default()
-    };
-
-    wfc_builder.collapse(&mut fence_csg);
-
-    //render_state.csg_controller.set_data(&fence_csg.csg.make_data());
-
-    // let mut tree = CSGTree::new_example_tree_2(1.0);
-    csg_controller.set_data(&fence_csg.csg.make_data());
-
+    csg_controller.set_data(&csg.make_data());
+    
 
     Ok(RenderState {
         gui,

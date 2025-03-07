@@ -6,7 +6,7 @@ use octa_force::{glam::Mat4, log::{debug, error, info}, puffin_egui::puffin};
 
 use crate::csg_tree::{
     controller::MAX_CSG_TREE_DATA_SIZE,
-    tree::{CSGNodeData, CSGTree, AABB_PADDING},
+    tree::{CSGNodeData, CSGTree, AABB_PADDING, CSG_PARENT_NONE},
 };
 
 const CSG_CHILD_TYPE_NONE: u32 = 0;
@@ -26,6 +26,7 @@ impl CSGTree {
         #[cfg(debug_assertions)]
         puffin::profile_function!();
 
+        self.set_parents(0, CSG_PARENT_NONE);
         self.set_all_aabbs(AABB_PADDING);
 
         let mut data = vec![0];

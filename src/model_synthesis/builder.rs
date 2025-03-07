@@ -5,37 +5,33 @@ use crate::csg_tree::tree::{CSGNode, CSGNodeData, CSGTree};
 
 use std::{fmt::Debug, marker::PhantomData, ops::RangeBounds, usize};
 
-use super::{collapse::Node, func_data::{BuildFuncData, PosCollapseFuncData}, volume::PossibleVolume};
+use super::{collapse::Node,  volume::PossibleVolume};
 
-pub type Identifier = usize;
-pub const NODE_IDENTIFIER_NONE: Identifier = Identifier::MAX;
+pub trait IT: Debug + Copy + Eq {}
 
 #[derive(Debug, Clone)]
-pub struct WFCBuilder<U: Clone + Debug, B: Clone + Debug> {
-    pub nodes: Vec<NodeTemplate<U, B>>,
-    pub attributes: Vec<AttributeTemplate<U, B>>,
+pub struct WFCBuilder<I: IT> {
+    pub nodes: Vec<NodeTemplate<I>>,
+    pub attributes: Vec<AttributeTemplate<I>>,
 }
 
 #[derive(Debug, Clone)]
-pub struct NodeTemplate<U: Clone + Debug, B: Clone + Debug> {
-    pub identifier: Option<Identifier>,
-    pub name: String, 
-    pub attributes: Vec<Identifier>,
-    pub user_data: Option<U>,
-    pub build: fn(d: BuildFuncData<U, B>) 
+pub struct NodeTemplate<I: IT> {
+    pub identifier: I,
+    pub attributes: Vec<I>,
+    pub build_hook: bool,
+    pub children: Vec<I>,
 }
 
 #[derive(Debug, Clone)]
-pub enum AttributeTemplateValue<U: Clone + Debug, B: Clone + Debug> {
+pub enum AttributeTemplateValue<I: IT> {
     NumberRange {
         min: i32,
         max: i32,
-        defines: NumberRangeDefinesType,
+        defines: NumberRangeDefines<I>,
         permutation: Permutation<DefaultBuildHasher>,
     }, 
     Pos {
-        from_volume: Identifier,
-        on_collapse_changes_volume: fn(d: PosCollapseFuncData<U, B>)
     },
     Volume {
         volume: PossibleVolume,
@@ -43,39 +39,27 @@ pub enum AttributeTemplateValue<U: Clone + Debug, B: Clone + Debug> {
 }
 
 #[derive(Debug, Clone)]
-pub struct AttributeTemplate<U: Clone + Debug, B: Clone + Debug> {
-    pub identifier: Identifier,
-    pub value: AttributeTemplateValue<U, B>,
+pub struct AttributeTemplate<I: IT> {
+    pub identifier: I,
+    pub value: AttributeTemplateValue<I>,
+    pub build_hook: bool,
 }
 
 #[derive(Debug, Clone)]
-pub struct WFCNodeBuilder<U: Clone + Debug, B: Clone + Debug> {
-    pub identifier: Option<Identifier>,
-    pub name: String, 
-    pub attributes: Vec<AttributeTemplate<U, B>>,
-    pub user_data: Option<U>,
-    pub build: fn(d: BuildFuncData<U, B>) 
+pub struct WFCNodeBuilder<I: IT> {
+    pub attributes: Vec<AttributeTemplate<I>>,
+    pub build_hook: bool,
+    pub children: Vec<I>,
 }
 
 #[derive(Debug, Clone)]
-pub enum NumberRangeDefinesType {
+pub enum NumberRangeDefines<I: IT> {
     None,
-    Amount { of_node: Identifier },
+    Amount { of_node: I },
 }
 
-#[derive(Debug, Clone)]
-pub struct NumberRangeBuilder {
-    pub defines: NumberRangeDefinesType,
-}
-
-#[derive(Debug, Clone)]
-pub struct PosBuilder<U: Clone + Debug, B: Clone + Debug> {
-    on_collapse: fn(d: PosCollapseFuncData<U, B>)
-}
-
-
-impl<U: Clone + Debug, B: Clone + Debug> WFCBuilder<U, B> {
-    pub fn new() -> WFCBuilder<U, B> {
+impl<I: IT> WFCBuilder<I> {
+    pub fn new() -> WFCBuilder<I> {
         WFCBuilder {
             nodes: vec![],
             attributes: vec![],
@@ -84,19 +68,20 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCBuilder<U, B> {
 
     pub fn node(
         mut self,
-        build_node: fn(builder: WFCNodeBuilder<U, B>) -> WFCNodeBuilder<U, B>,
-    ) -> WFCBuilder<U, B> {
+        identifier: I,
+        build_node: fn(builder: WFCNodeBuilder<I>) -> WFCNodeBuilder<I>,
+    ) -> WFCBuilder<I> {
         let mut builder = WFCNodeBuilder::new();
         builder = build_node(builder);
 
         builder.attributes.sort_by(|a, b| {
              
-            let get_value = |x: &AttributeTemplate<U, B>| {
+            let get_value = |x: &AttributeTemplate<I>| {
                 match &x.value {
                     AttributeTemplateValue::NumberRange { defines, .. } => {
                         match defines {
-                            NumberRangeDefinesType::None => 1,
-                            NumberRangeDefinesType::Amount { .. } => 2,
+                            NumberRangeDefines::None => 1,
+                            NumberRangeDefines::Amount { .. } => 2,
                         } 
                     },
                     _ => 1,
@@ -107,15 +92,14 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCBuilder<U, B> {
         });
 
         self.nodes.push(NodeTemplate {
-            identifier: builder.identifier,
-            name: builder.name,
+            identifier,
             attributes: builder.attributes.iter()
                 .map(|n| {
                     n.identifier
                 })
                 .collect(),
-            user_data: builder.user_data,
-            build: builder.build,
+            build_hook: builder.build_hook,
+            children: builder.children,
         });
 
         self.attributes.append(&mut builder.attributes);
@@ -123,42 +107,31 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCBuilder<U, B> {
     } 
 }
 
-impl<U: Clone + Debug, B: Clone + Debug> WFCNodeBuilder<U, B> {
+impl<I: IT> WFCNodeBuilder<I> {
     fn new() -> Self {
         WFCNodeBuilder {
             attributes: vec![],
-            identifier: None,
-            name: "".to_string(),
-            user_data: None,
-            build: |_| {},
+            build_hook: false,
+            children: vec![],
         }
     }
 
-    pub fn identifier(mut self, identifier: Identifier) -> Self {
-        self.identifier = Some(identifier);
+    pub fn use_build_hook(mut self) -> Self {
+        self.build_hook = true;
         self
     }
 
-    pub fn name(mut self, name: String) -> Self {
-        self.name = name;
+    pub fn child(mut self, identifier: I) -> Self {
+        self.children.push(identifier);
         self
     }
-
-    pub fn user_data(mut self, user_data: U) -> Self {
-        self.user_data = Some(user_data);
-        self
-    }
-
-    pub fn build(mut self, build: fn(d: BuildFuncData<U, B>)) -> Self {
-        self.build = build;
-        self
-    }
-
+ 
     pub fn number_range<R: RangeBounds<i32>>(
         mut self,
-        identifier: Identifier,
+        identifier: I,
         range: R,
-        number_set_options: fn(b: NumberRangeBuilder) -> NumberRangeBuilder,
+        defines: NumberRangeDefines<I>,
+        build_hook: bool,
     ) -> Self {
         let start_bound = match range.start_bound() {
             std::ops::Bound::Included(&num) => num,
@@ -172,18 +145,17 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCNodeBuilder<U, B> {
             std::ops::Bound::Unbounded => panic!("Range can not be unbounded"),
         };
 
-        let mut number_set_builder = NumberRangeBuilder::new();
-        number_set_builder = number_set_options(number_set_builder);
 
         let seed = fastrand::u64(0..1000);
         let number_range = AttributeTemplate {
             value: AttributeTemplateValue::NumberRange {
-                defines: number_set_builder.defines,
+                defines,
                 min: start_bound,
                 max: end_bound,
                 permutation: Permutation::new((end_bound - start_bound) as _, seed, DefaultBuildHasher::new())
             },
             identifier,
+            build_hook,
         };
 
         self.attributes.push(number_range);
@@ -193,21 +165,14 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCNodeBuilder<U, B> {
 
     pub fn pos(
         mut self,
-        identifier: Identifier,
-        from_volume: Identifier,
-        pos_options: fn(b: PosBuilder<U, B>) -> PosBuilder<U, B>,
+        identifier: I,
+        build_hook: bool,
     ) -> Self {
-
-        let mut pos_builder = PosBuilder::new();
-        pos_builder = pos_options(pos_builder);
-
         let seed = fastrand::u64(0..1000);
         let pos = AttributeTemplate {
-            value: AttributeTemplateValue::Pos {
-                from_volume,
-                on_collapse_changes_volume: pos_builder.on_collapse,
-            },
+            value: AttributeTemplateValue::Pos {},
             identifier,
+            build_hook,
         };
 
         self.attributes.push(pos);
@@ -217,15 +182,17 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCNodeBuilder<U, B> {
 
     pub fn volume(
         mut self, 
-        identifier: Identifier,
+        identifier: I,
         volume: CSGNode,
         sample_distance: f32,
+        build_hook: bool,
     ) -> Self {
         let volume = AttributeTemplate {
             value: AttributeTemplateValue::Volume { 
                 volume: PossibleVolume::new(volume, sample_distance) 
             },
             identifier,
+            build_hook,
         };
 
         self.attributes.push(volume);
@@ -234,33 +201,7 @@ impl<U: Clone + Debug, B: Clone + Debug> WFCNodeBuilder<U, B> {
     }
 }
 
-impl NumberRangeBuilder {
-    pub fn new() -> Self {
-        NumberRangeBuilder {
-            defines: NumberRangeDefinesType::None,
-        }
-    }
-
-    pub fn defines(mut self, defines: NumberRangeDefinesType) -> Self {
-        self.defines = defines;
-        self
-    }
-}
-
-impl<U: Clone + Debug, B: Clone + Debug> PosBuilder<U, B> {
-    pub fn new() -> Self {
-        PosBuilder {
-            on_collapse: |_| {},
-        }
-    }  
-
-    pub fn on_collapse_changes_volume(mut self, func: fn(PosCollapseFuncData<U, B>)) -> Self {
-        self.on_collapse = func;
-        self
-    }
-}
-
-impl <U: Clone + Debug, B: Clone + Debug> AttributeTemplateValue<U, B> {
+impl<I: IT> AttributeTemplateValue<I> {
     pub fn get_number_min(&self) -> i32 {
         match self {
             AttributeTemplateValue::NumberRange { min, .. } => *min,
@@ -275,7 +216,7 @@ impl <U: Clone + Debug, B: Clone + Debug> AttributeTemplateValue<U, B> {
         }
     }
 
-    pub fn get_number_defines(&self) -> &NumberRangeDefinesType {
+    pub fn get_number_defines(&self) -> &NumberRangeDefines<I> {
         match self {
             AttributeTemplateValue::NumberRange { defines, .. } => defines,
             _ => unreachable!(),
@@ -287,13 +228,5 @@ impl <U: Clone + Debug, B: Clone + Debug> AttributeTemplateValue<U, B> {
             AttributeTemplateValue::NumberRange { permutation, .. } => permutation,
             _ => unreachable!(),
         }
-    }
-
-    pub fn get_pos_from_volume(&self) -> &Identifier {
-        match self {
-            AttributeTemplateValue::Pos { from_volume, .. } => from_volume,
-            _ => unreachable!(),
-        }
-    }  
-
+    } 
 }

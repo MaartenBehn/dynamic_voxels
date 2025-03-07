@@ -7,10 +7,10 @@ use octa_force::glam::{vec3, vec4, Mat4, Vec3, Vec4Swizzles};
 
 use crate::{csg_tree::{self, tree::{CSGNode, CSGNodeData, CSGTree, MATERIAL_NONE}}, util::to_3d};
 
-use super::builder::Identifier;
 
 #[derive(Debug, Clone)]
 pub struct PossibleVolume {
+    pub points: Vec<Vec3>,
     pub kd_tree: KdTree<f32, 3>,
 }
 
@@ -22,20 +22,18 @@ impl PossibleVolume {
 
         let csg_tree = CSGTree::from_node(base_volume);
         poisson.set_validate(|p, csg_tree| { csg_tree.at_pos(Vec3::from_array(p)) }, csg_tree);
- 
-        let kd_tree = poisson.generate_kd_tree();
 
-        //dbg!(&kd_tree.iter().collect::<Vec<_>>());
-        
+        let (kd_tree, points) = poisson.iter()
+            .enumerate()
+            .fold((KdTree::new(), vec![]), |(mut tree, mut points), (i, p)| {
+                tree.add(&p, i as u64);
+                points.push(Vec3::from_array(p));
+                (tree, points)
+            });
+
         PossibleVolume {
+            points,
             kd_tree,
-        }
-    }
-
-    pub fn get_pos(&self) -> Option<Vec3> {
-        match self.kd_tree.iter().take().next() {
-            Some((_, p)) => Some(vec3(p[0], p[1], p[2])),
-            None => None,
         }
     }
 }

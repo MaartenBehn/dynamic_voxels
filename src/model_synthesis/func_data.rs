@@ -1,6 +1,9 @@
-use super::{builder::{Identifier, WFCBuilder}, collapse::{ Node, NumberAttribute, PosAttribute}, volume::PossibleVolume};
+use thunderdome::Arena;
+
+use super::{builder::{WFCBuilder}, collapse::{ Node, NumberAttribute, PosAttribute}, volume::PossibleVolume};
 use std::fmt::Debug;
 
+/*
 pub trait FuncData<U: Clone + Debug, B: Clone + Debug> {
 
     fn get_nodes(&self) -> &[Node<U>];
@@ -221,3 +224,4 @@ impl<'a, U: Clone + Debug, B: Clone + Debug> BuildFuncData<'a, U, B> {
         &mut self.build_data
     }
 }
+*/

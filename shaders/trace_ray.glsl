@@ -12,12 +12,17 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
 #define SHOW_DDA_STEPS false
 #define SHOW_DISTANCE false
+#define SHOW_CSG_STEPS false
 
 #define USE_AABB true
 
 #define MAX_DDA_STEPS 500
 #define MAX_DEPTH 300
 #define EPSILON 0.0001
+
+#define MAX_CGS_TREE_DEPTH 20
+#define MAX_CGS_RENDER_ITERATIONS 20
+
 #define TO_1D(pos, size) ((pos.z * size * size) + (pos.y * size) + pos.x)
 
 void main () {
@@ -166,6 +171,8 @@ void main () {
             color = vec4(get_debug_color_gradient_from_float(best_distance / MAX_DEPTH), 1.0);
         } else  if (SHOW_DDA_STEPS) {
             color = vec4(get_debug_color_gradient_from_float(float(smalest_dda_step_counter) / MAX_DDA_STEPS), 1.0);
+        } else  if (SHOW_CSG_STEPS) {
+            color = vec4(get_debug_color_gradient_from_float(float(csg_step_counter) / MAX_CGS_RENDER_ITERATIONS), 1.0);
         }
 
         imageStore(img, ivec2(gl_GlobalInvocationID.xy), color);
