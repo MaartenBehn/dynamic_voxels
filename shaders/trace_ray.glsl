@@ -21,7 +21,7 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 #define EPSILON 0.0001
 
 #define MAX_CGS_TREE_DEPTH 20
-#define MAX_CGS_RENDER_ITERATIONS 20
+#define MAX_CGS_RENDER_ITERATIONS 40
 
 #define TO_1D(pos, size) ((pos.z * size * size) + (pos.y * size) + pos.x)
 

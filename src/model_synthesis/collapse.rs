@@ -1,65 +1,57 @@
-use core::panic;
-use std::{fmt::Debug, marker::PhantomData, task::ready, usize};
+use core::{panic};
+use std::{collections::HashMap, fmt::Debug, marker::PhantomData, task::ready, usize};
 
 use fdg::nalgebra::base;
 use feistel_permutation_rs::{DefaultBuildHasher, OwnedPermutationIterator, Permutation, PermutationIterator};
-use octa_force::{glam::{vec3, IVec3, Vec3}, log::{debug, error}};
+use octa_force::{glam::{vec3, IVec3, Vec3}, log::{debug, error, info}};
 use thunderdome::{Arena, Index};
 
 use crate::{csg_tree::tree::CSGTree, model_synthesis::{volume::PossibleVolume}};
 
-use super::{builder::{AttributeTemplate, AttributeTemplateValue, NodeTemplate, NumberRangeDefines, WFCBuilder, IT}};
+use super::{builder::{NodeTemplateValue, NodeTemplate, WFCBuilder, IT}};
 
 #[derive(Debug, Clone)]
 pub struct Collapser<'a, I: IT> {
     builder: &'a WFCBuilder<I>,
-    pub nodes: Arena<Node>,
-    pending_nodes: Vec<Index>,
-
-    pub number_attributes: Arena<NumberAttribute<I>>,
-    pending_numbers: Vec<Index>,
-
-    pub pos_attributes: Arena<PosAttribute<I>>,
-    pending_pos: Vec<Index>,
-
-    pub volume_attributes: Arena<VolumeAttribute<I>>,
-
-    pending_build: Vec<(Index, I)>,
-}
-
-
-#[derive(Debug, Clone)]
-pub struct Node {
-    pub template_index: usize,
-    pub number_attributes: Vec<Index>,
-    pub pos_attributes: Vec<Index>,
-    pub volume_attributes: Vec<Index>,
-    pub children_nodes: Vec<Index>,
+    pub nodes: Arena<Node<I>>,
+    pending_collapse: Vec<Index>,
 }
 
 #[derive(Debug, Clone)]
-pub struct NumberAttribute<I> {
+pub struct Node<I: IT> {
     pub template_index: usize,
-    pub node_index: Index,
+    pub identfier: I,
+    pub children: Vec<Index>,
+    pub parent: Index,
+    pub depends: Vec<(I, Index)>,
+    pub data: NodeDataType,
+    pub next_reset: Index,
+}
+
+#[derive(Debug, Clone)]
+pub enum NodeDataType {
+    Number(NumberData),
+    Pos(PosData),
+    Volume(VolumeData),
+    Build,
+    None,
+}
+
+#[derive(Debug, Clone)]
+pub struct NumberData {
     pub value: i32,
     pub perm_counter: usize,
-    pub identfier: I,
 }
 
 #[derive(Debug, Clone)]
-pub struct PosAttribute<I> {
-    pub template_index: usize,
-    pub node_index: Index,
+pub struct PosData {
     pub value: Vec3,
-    pub identfier: I,
+    pub collapsed: bool,
 }
 
 #[derive(Debug, Clone)]
-pub struct VolumeAttribute<I> {
-    pub template_index: usize,
-    pub node_index: Index,
+pub struct VolumeData {
     pub value: PossibleVolume,
-    pub identfier: I,
 }
 
 pub enum CollapseOperation<I> {
@@ -76,143 +68,61 @@ pub enum CollapseOperation<I> {
 impl<'a, I: IT> Collapser<'a, I> {
     pub fn next(&mut self) -> Option<(CollapseOperation<I>, &mut Collapser<'a, I>)> {
 
-        if let Some(current_attribute_index) = self.pending_numbers.pop() {
-            let attribute = self.number_attributes.get_mut(current_attribute_index).expect("Pending Number Attribute was not in Arena!");
-            let attribute_template = &self.builder.attributes[attribute.template_index];
+         if let Some(node_index) = self.pending_collapse.pop() {
+            let node = &mut self.nodes[node_index];
+
+            if let NodeDataType::Pos(pos_data) = &mut node.data {
+                if !pos_data.collapsed {
+
+                    pos_data.collapsed = true;
+                    self.pending_collapse.push(node_index);
+                    return Some((CollapseOperation::CollapsePos { 
+                        index: node_index
+                    }, self));
+                }
+            }
             
-            if attribute.perm_counter >= attribute_template.value.get_number_permutation().max() as usize {
-                error!("Number collapse failed"); 
-                return None;
+
+            if let NodeDataType::Build = node.data {
+                return Some((CollapseOperation::BuildNode { 
+                    index: node_index, 
+                    identifier: node.identfier,
+                }, self));
             }
 
-            let value = attribute_template.value.get_number_permutation().get(attribute.perm_counter as _);
-            attribute.perm_counter += 1;
-
-            attribute.value = value as i32 + attribute_template.value.get_number_min();
-            debug!("{:?}: {}", attribute.identfier, attribute.value);
-
-            if let NumberRangeDefines::Amount { of_node, .. } = attribute_template.value.get_number_defines() {
-                 
-                for i in 0..attribute.value {
-                    let node_template_index = self.builder.get_node_index_by_identifier(*of_node);
-                    let node_template = &self.builder.nodes[node_template_index];
-
-                    let node_index = self.nodes.insert(Node {
-                        template_index: node_template_index,
-                        number_attributes: vec![], 
-                        pos_attributes: vec![],
-                        volume_attributes: vec![],
-                        children_nodes: vec![],
-                    });
-
-                    self.pending_nodes.push(node_index);
-
-                    if node_template.build_hook {
-                        self.pending_build.push((node_index, *of_node));
-                    }
-
-                    self.nodes.get_mut(attribute.node_index)
-                        .expect("Attribute Parent not in Arena!")
-                        .children_nodes
-                        .push(node_index);
-                }
-            }
+            let node_template = &self.builder.nodes[node.template_index];
+            if let NodeTemplateValue::NumberRange { min, max, permutation  } = &node_template.value {
                 
-        } else if let Some(current_attribute_index) = self.pending_pos.pop() {
-            let attribute = self.pos_attributes.get_mut(current_attribute_index).expect("Pending Pos Attribute was not in Arena!");
-            let attribute_template = &self.builder.attributes[attribute.template_index];
-                        
-            return Some((CollapseOperation::CollapsePos { 
-                index: current_attribute_index
-            }, self));
+                let node = &mut self.nodes[node_index];
+                let number_value = node.data.get_number_mut();
 
-        } else if let Some(current_node_index) = self.pending_nodes.pop() {
-            let node = self.nodes.get_mut(current_node_index).expect("Pending Node was not in Arena!");
-            let template_node = &self.builder.nodes[node.template_index];
+                if number_value.perm_counter >= permutation.max() as usize {
+                    info!("{:?} Resetting Number faild", node_index);
 
-            for attribute_template_identifier in template_node.attributes.iter() {
-                let attribute_template_index = self.builder.get_attribute_index_by_identifier(*attribute_template_identifier);
-                let attribute_template = &self.builder.attributes[attribute_template_index];
+                    number_value.perm_counter = 0;
+                    self.pending_collapse.push(node_index);
 
-                let attribute_index = match &attribute_template.value {
-                    AttributeTemplateValue::NumberRange { .. } => {
-                        let attribute_index = self.number_attributes.insert(NumberAttribute {
-                            template_index: attribute_template_index,
-                            value: 0,
-                            perm_counter: 0,
-                            node_index: current_node_index,
-                            identfier: *attribute_template_identifier,
-                        });
-
-                        node.number_attributes.push(attribute_index);
-                        self.pending_numbers.push(attribute_index);
-
-                        attribute_index
-                    },
-                    AttributeTemplateValue::Pos { .. } => {
-                        let attribute_index = self.pos_attributes.insert(PosAttribute {
-                            template_index: attribute_template_index,
-                            value: Default::default(),
-                            node_index: current_node_index,
-                            identfier: *attribute_template_identifier,
-                        });                 
-                        
-                        node.pos_attributes.push(attribute_index);
-                        self.pending_pos.push(attribute_index);
-
-                        attribute_index
-                    },
-                    AttributeTemplateValue::Volume { volume, .. } => {
-                        let attribute_index = self.volume_attributes.insert(VolumeAttribute {
-                            template_index: attribute_template_index,
-                            node_index: current_node_index,
-                            value: volume.clone(),
-                            identfier: *attribute_template_identifier,
-                        });
-
-                        node.volume_attributes.push(attribute_index);
-
-                        attribute_index
-                    },
-                };
-
-                if attribute_template.build_hook {
-                    self.pending_build.push((attribute_index, attribute_template.identifier));
+                    let next_reset = node.next_reset;
+                    self.reset_node(next_reset); 
+                    return Some((CollapseOperation::None, self));
                 }
 
-            }
+                let value = permutation.get(number_value.perm_counter as _) as i32 + *min;
+                number_value.perm_counter += 1;
 
-            for child in template_node.children.iter() {
-                let node_template_index = self.builder.get_node_index_by_identifier(*child);
-                let node_template = &self.builder.nodes[node_template_index];
+                number_value.value = value;
+                info!("{:?} {:?}: {}", node_index, node.identfier, number_value.value);
 
-                let node_index = self.nodes.insert(Node {
-                    template_index: node_template_index,
-                    number_attributes: vec![], 
-                    pos_attributes: vec![],
-                    volume_attributes: vec![],
-                    children_nodes: vec![],
-                });
-
-                self.pending_nodes.push(node_index);
-
-                if node_template.build_hook {
-                    self.pending_build.push((node_index, *child));
+                let collapse_len = self.pending_collapse.len();
+                for child_identifier in node_template.children.iter() { 
+                    for i in 0..value {
+                        self.add_child(*child_identifier, node_index, collapse_len);
+                    }
                 }
 
-                self.nodes.get_mut(current_node_index)
-                    .expect("Pending Node was not in Arena!")
-                    .children_nodes
-                    .push(node_index);
+            } else {
+                self.add_children(node_index, node_template);
             } 
-
-        } else if let Some((index, identifier)) = self.pending_build.pop() {
-            return Some((CollapseOperation::BuildNode { 
-                index, 
-                identifier,
-            }, self));
-
-
         } else {
             return None;
         }
@@ -220,54 +130,223 @@ impl<'a, I: IT> Collapser<'a, I> {
         Some((CollapseOperation::None, self)) 
     }
 
-    pub fn get_number_with_identifier(&self, identifier: I) -> i32 {
-        self.number_attributes.iter()
-            .find(|(_, n)| n.identfier == identifier)
-            .expect(&format!("Did not find Number Attribute {:?}", identifier))
-            .1.value
+    fn add_children(&mut self, node_index: Index, node_template: &NodeTemplate<I>) {
+        let collapse_len = self.pending_collapse.len();
+        for child_identifier in node_template.children.iter() {
+            self.add_child(*child_identifier, node_index, collapse_len);
+        } 
     }
+
+    fn add_child(&mut self, child_identifier: I, node_index: Index, insert_collpase_at: usize) {
+        let new_node_template_index = self.builder.get_node_index_by_identifier(child_identifier);
+        
+        let index = self.add_node(new_node_template_index, node_index, insert_collpase_at);
+        self.nodes[node_index].children.push(index);
+    }
+
+    pub fn add_node(&mut self, new_node_template_index: usize, parent: Index, insert_collpase_at: usize) -> Index {
+        let new_node_template = &self.builder.nodes[new_node_template_index];
+
+        let data = match &new_node_template.value {
+            NodeTemplateValue::Groupe { .. } => {
+                NodeDataType::None
+            },
+            NodeTemplateValue::NumberRange { .. } => {
+                NodeDataType::Number(NumberData {
+                    value: 0,
+                    perm_counter: 0,
+                })
+            },
+            NodeTemplateValue::Pos { .. } => {
+                NodeDataType::Pos(PosData {
+                    value: Vec3::ZERO,
+                    collapsed: false,
+                })
+            },
+            NodeTemplateValue::Volume { volume, .. } => {
+                NodeDataType::Volume(VolumeData {
+                    value: volume.to_owned(),
+                })
+            },
+            NodeTemplateValue::BuildHook { .. } => {
+                NodeDataType::Build
+            },
+        };
+
+        let depends = new_node_template.depends.iter().map(|i| {
+            (*i, self.search_for_dependency(parent, *i))
+        }).collect();
+
+        let new_node = Node {
+            template_index: new_node_template_index,
+            identfier: new_node_template.identifier,
+            children: vec![],
+            parent,
+            depends,
+            data,
+            next_reset: parent,
+        };
+
+        let new_index = self.nodes.insert(new_node);
+
+        self.pending_collapse.insert(insert_collpase_at, new_index);
+
+
+        info!("{:?} Created: {:?}", new_index, new_node_template.identifier);
+
+        new_index
+    }
+
+    pub fn search_for_dependency(&self, mut index: Index, identifier: I) -> Index {
+        let mut last_index = Index::DANGLING;
+        while index != Index::DANGLING {
+            let node = self.nodes.get(index).expect("In dependecy search: Parent Index was not valid!");
+            if node.identfier == identifier {
+                return index;
+            }
+
+            let child_index = node.children.iter()
+                .filter(|i| **i != last_index)
+                .find(|i| {
+                    let child_node = self.nodes.get(**i).expect("Child Index not in Arena!");
+                    child_node.identfier == identifier
+                });
+        
+            if let Some(child_index) = child_index {
+                return *child_index;
+            } else {
+                last_index = index;
+                index = node.parent;
+            }
+        }
+
+        panic!("Hit root in dependecy search for {:?}", identifier);
+    }
+    
+    pub fn get_number(&self, index: Index) -> i32 {
+        match &self.nodes.get(index).expect("Number by index not found").data {
+            NodeDataType::Number(d) => d.value,
+            _ => panic!("Number by index is not of Type Number")
+        }
+    }
+
+    pub fn get_pos(&self, index: Index) -> Vec3 {
+        match &self.nodes.get(index).expect("Pos by index not found").data {
+            NodeDataType::Pos(d) => d.value,
+            _ => panic!("Pos by index is not of Type Pos")
+        }
+    }
+
+
+    pub fn get_pos_mut(&mut self, index: Index) -> &mut Vec3 {
+        match &mut self.nodes.get_mut(index).expect("Pos by index not found").data {
+            NodeDataType::Pos(d) => &mut d.value,
+            _ => panic!("Pos by index is not of Type Pos")
+        }
+    }
+
+    fn get_dependend_indecies_with_index(&self, index: Index) -> &[(I, Index)] {
+        &self.nodes.get(index).expect("Node by index not found").depends
+    }
+
+    fn get_dependend_index(&self, index: Index, identifier: I) -> Index {
+        let depends = self.get_dependend_indecies_with_index(index);
+        depends.iter().find(|(i, _)| *i == identifier).expect(&format!("Node has no depends {:?}", identifier)).1
+    }
+
+
+    pub fn get_dependend_number(&self, index: Index, identifier: I) -> i32 {
+        let index = self.get_dependend_index(index, identifier);
+        self.get_number(index)
+    }
+
+    pub fn get_dependend_pos(&self, index: Index, identifier: I) -> Vec3 {
+        let index = self.get_dependend_index(index, identifier);
+        self.get_pos(index)
+    }
+
+    pub fn get_dependend_pos_mut(&mut self, index: Index, identifier: I) -> &mut Vec3 {
+        let index = self.get_dependend_index(index, identifier);
+        self.get_pos_mut(index)
+    }
+
+    pub fn pos_collapse_failed(&mut self, index: Index) {
+
+    }
+
+    pub fn build_failed(&mut self, index: Index) {
+        info!("{:?} Build of faild", index);
+        let node = self.nodes.get(index).expect("Reset Index not valid!");
+
+        self.pending_collapse.push(index);
+         
+        let parent = node.parent;
+        let mut last = Index::DANGLING;
+        for (_, i) in node.depends.to_owned() {
+            if last == Index::DANGLING {
+                self.reset_node(i);
+            } else {
+                self.set_next_reset(last, i); 
+            }
+
+            last = i;
+        }
+        self.set_next_reset(last, parent);
+    }
+
+    fn reset_node(&mut self, index: Index) {
+        info!("{:?} Reset Node", index);
+
+        let node = self.nodes.get(index).expect("Reset Index not valid!");
+        
+        self.delete_children(index);
+
+        self.pending_collapse.push(index);
+    }
+
+    fn delete_children(&mut self, index: Index) {
+        let node = self.nodes.get(index).expect("Reset Index not valid!");
+
+        for child in node.children.to_owned() {
+            self.delete_children(child);
+            self.nodes.remove(child);
+        }
+    }
+
+    fn set_next_reset(&mut self, index: Index, set_to: Index) {
+        let node = self.nodes.get_mut(index).expect("Reset Index not valid!");
+        node.next_reset = set_to;
+    }
+
 }
 
+
+impl NodeDataType {
+    pub fn get_number_mut(&mut self) -> &mut NumberData {
+        match self {
+            NodeDataType::Number(d) => d,
+            _ => unreachable!()
+        }
+    } 
+}
 
 
 impl<I: IT> WFCBuilder<I> {
     pub fn get_collaper(&self) -> Collapser<I> {
-        let mut nodes = Arena::new();
-        let root_index = nodes.insert(Node {
-            template_index: 0,
-            number_attributes: vec![],
-            pos_attributes: vec![],
-            volume_attributes: vec![],
-            children_nodes: vec![],
-        });
-
-        let mut pending_build = vec![];
-        let root_node = &self.nodes[0];
-        if root_node.build_hook {
-            pending_build.push((root_index, root_node.identifier));
-        }
-
-        Collapser{
+        let mut collapser = Collapser{
             builder: self,
-            nodes,
-            number_attributes: Arena::new(),
-            pos_attributes: Arena::new(),
-            volume_attributes: Arena::new(),
-            pending_nodes: vec![root_index],
-            pending_numbers: vec![],
-            pending_pos: vec![],
-            pending_build,
-        }
+            nodes: Arena::new(),
+            pending_collapse: vec![],
+        };
+
+        collapser.add_node(0, Index::DANGLING, 0);
+        collapser
     }
 }
 
 impl<I: IT> WFCBuilder<I> {
     pub fn get_node_index_by_identifier(&self, identifier: I) -> usize {
-        self.nodes.iter().position(|n| n.identifier == identifier).expect("No Node with Identifier {Identifier} found.")
-    }
-    pub fn get_attribute_index_by_identifier(&self, identifier: I) -> usize {
-        self.attributes.iter().position(|n| n.identifier == identifier).expect("No Attribute with Identifier {Identifier} found.")
+        self.nodes.iter().position(|n| n.identifier == identifier).expect(&format!("No Node with Identifier {:?} found.", identifier))
     }
 }
-
 

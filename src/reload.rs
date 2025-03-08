@@ -30,7 +30,7 @@ use octa_force::{log, Engine, OctaResult};
 use std::f32::consts::PI;
 use std::time::{Duration, Instant};
 use std::usize;
-use model_synthesis::builder::{NumberRangeDefines, WFCBuilder, IT};
+use model_synthesis::builder::{WFCBuilder, IT};
 use model_synthesis::renderer::renderer::WFCRenderer;
 
 pub const USE_PROFILE: bool = false;
@@ -61,7 +61,7 @@ pub enum Identifier {
     Fence,
     FencePost,
     PlankSetting,
-    FencePlank,
+    FencePlanks,
 
     PostNumber,
     PostHeight,
@@ -123,82 +123,129 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
 
     // let mut tree = CSGTree::new_example_tree_2(1.0);
     // csg_controller.set_data(&tree.make_data());
-
-
-    
+ 
     let wfc_renderer = WFCRenderer::new();
 
     let wfc_builder: WFCBuilder<Identifier> = WFCBuilder::new()
-        .node(Identifier::Fence, |b| {
-            b
-                .number_range(Identifier::PostHeight, 3..=8, NumberRangeDefines::None, false)
-                .number_range(Identifier::PostDistance, 2..=5, NumberRangeDefines::None, false)
-                .number_range(Identifier::PostNumber, 5..=10, NumberRangeDefines::Amount { of_node: Identifier::FencePost }, false)
-                .child(Identifier::PlankSetting)
+        .groupe(Identifier::Fence, |b| {b
+            .child(Identifier::PostHeight)
+            .child(Identifier::PostDistance)
+            .child(Identifier::PostNumber)
+            .child(Identifier::PlankNumber)
+            .child(Identifier::PlankDistance)
+            .child(Identifier::FencePlanks)
         })
-        .node(Identifier::FencePost, |b| {
-            b.pos(Identifier::PostPos,false)
-            .use_build_hook()
+
+        .number_range(Identifier::PostHeight, 3..=8, |b|{b})
+
+        .number_range(Identifier::PostDistance, 2..=5, |b|{b})
+
+        .number_range(Identifier::PostNumber, 5..=10, |b|{b
+            .child(Identifier::PostPos)
         })
-        .node(Identifier::PlankSetting, |b| {
-            b.number_range(Identifier::PlankNumber, 1..=4, NumberRangeDefines::Amount { of_node: Identifier::FencePlank }, false)
-                .number_range(Identifier::PlankDistance, 1..=3, NumberRangeDefines::None, false)
+
+        .pos(Identifier::PostPos, |b| {b
+            .depends(Identifier::PostHeight)
+            .depends(Identifier::PostDistance)
+            .child(Identifier::FencePost)
         })
-        .node(Identifier::FencePlank, |b| {
-            b.use_build_hook()
+
+        .build(Identifier::FencePost, |b| {b
+            .depends(Identifier::PostHeight)
+            .depends(Identifier::PostDistance)
+            .depends(Identifier::PostPos)
+        })
+
+        .number_range(Identifier::PlankNumber, 3..=4, |b|{b})
+        .number_range(Identifier::PlankDistance, 2..=3, |b|{b})
+
+        .build(Identifier::FencePlanks, |b|{b
+            .depends(Identifier::PlankNumber)
+            .depends(Identifier::PlankDistance)
+            .depends(Identifier::PostHeight)
+            .depends(Identifier::PostDistance)
         });
-    
+
+            
     let mut pos = vec3(1.0, 1.0, 1.0);
+    let start_pos = pos;
     let mut csg = CSGTree::default();
 
     let mut collapser = wfc_builder.get_collaper();
     while let Some((operation, collapser)) = collapser.next() {
         match operation {
             CollapseOperation::CollapsePos{ index  } => {
-                let dist = collapser.get_number_with_identifier(Identifier::PostDistance);
+                let dist = collapser.get_dependend_number(index, Identifier::PostDistance);
 
-                let pos_attribute = collapser.pos_attributes.get_mut(index).expect("Collapse: Pos Attribute not found!");
-                pos_attribute.value = pos;
+                let pos_data = collapser.get_pos_mut(index);
+                *pos_data = pos;
+
+                info!("{:?} Pos: {}", index, pos);
 
                 pos += Vec3::X * dist as f32;
             },
             CollapseOperation::BuildNode{ index, identifier, .. } => {
-                if identifier != Identifier::FencePost {
-                    error!("Build hook on wrong type");
-                    continue;
+                match identifier {
+                    Identifier::FencePost => {
+                        let height = collapser.get_dependend_number(index, Identifier::PostHeight);
+                        let distance = collapser.get_dependend_number(index, Identifier::PostDistance);
+                        let pos_value = collapser.get_dependend_pos(index, Identifier::PostPos);
+
+                        let pos = pos_value + Vec3::Z * (height as f32) * 0.5;
+
+                        let csg_node = CSGNode::new(CSGNodeData::Box(
+                            Mat4::from_scale_rotation_translation(
+                                vec3(0.5, 0.5, height as f32) * VOXEL_SIZE, 
+                                Quat::IDENTITY, 
+                                pos * VOXEL_SIZE
+                            ),
+                            1,
+                        ));
+                        info!("{:?} Build: {:?}: {}", index, identifier, pos);
+
+                        if csg.nodes.is_empty() {
+                            csg.nodes.push(csg_node);
+                            continue;
+                        }
+
+                        let mut tree = CSGTree::from_node(csg_node);
+                        csg.append_tree_with_union(tree);
+                    }
+                    Identifier::FencePlanks => {
+                        let plank_number = collapser.get_dependend_number(index, Identifier::PlankNumber);
+                        let plank_distance = collapser.get_dependend_number(index, Identifier::PlankDistance);
+                        let fence_height = collapser.get_dependend_number(index, Identifier::PostHeight);
+                        let post_distance = collapser.get_dependend_number(index, Identifier::PostDistance);
+
+                        if plank_number * plank_distance > fence_height {
+                            collapser.build_failed(index);
+                            continue;
+                        } 
+                        
+                        let pos = pos - Vec3::X * post_distance as f32;
+                        let plank_size = pos - start_pos;
+                        let mut plank_pos = start_pos + plank_size * vec3(0.5, 1.0, 1.0);
+                        let plank_scale = vec3(plank_size.x, 0.2, 0.2);
+                        
+                        for _ in 0..plank_number {
+                            plank_pos += Vec3::Z * plank_distance as f32;
+
+                            let mut tree = CSGTree::from_node(CSGNode::new(CSGNodeData::Box(
+                                Mat4::from_scale_rotation_translation(
+                                    plank_scale * VOXEL_SIZE, 
+                                    Quat::IDENTITY, 
+                                    plank_pos * VOXEL_SIZE
+                                ),
+                                1,
+                            )));
+                            csg.append_tree_with_union(tree);
+                        } 
+                    }
+                    _ => error!("Build hook on wrong type")
                 }
 
-                let node = collapser.nodes
-                    .get(index)
-                    .expect("Build: Node not found!");
 
-                let pos_attribute = collapser.pos_attributes
-                    .get(node.pos_attributes[0])
-                    .expect("Build: Pos Attribute not found!");
-
-                let height = collapser.get_number_with_identifier(Identifier::PostHeight);
-
-
-                let pos = pos_attribute.value + Vec3::Z * (height as f32) * 0.5;
-
-                let csg_node = CSGNode::new(CSGNodeData::Box(
-                    Mat4::from_scale_rotation_translation(
-                        vec3(0.5, 0.5, height as f32) * VOXEL_SIZE, 
-                        Quat::IDENTITY, 
-                        pos * VOXEL_SIZE
-                    ),
-                    1,
-                ));
-                debug!("{:?}: {}", identifier, pos);
-
-                if csg.nodes.is_empty() {
-                    csg.nodes.push(csg_node);
-                    continue;
-                }
-
-                let mut tree = CSGTree::from_node(csg_node);
-                csg.append_tree_with_union(tree);
-                
+                             
             },
             CollapseOperation::None => {},
         } 

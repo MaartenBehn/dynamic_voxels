@@ -12,127 +12,98 @@ pub trait IT: Debug + Copy + Eq {}
 #[derive(Debug, Clone)]
 pub struct WFCBuilder<I: IT> {
     pub nodes: Vec<NodeTemplate<I>>,
-    pub attributes: Vec<AttributeTemplate<I>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct NodeTemplate<I: IT> {
     pub identifier: I,
-    pub attributes: Vec<I>,
-    pub build_hook: bool,
-    pub children: Vec<I>,
+    pub value: NodeTemplateValue,
+    pub depends: Vec<I>,
+    pub children: Vec<I>
 }
 
 #[derive(Debug, Clone)]
-pub enum AttributeTemplateValue<I: IT> {
+pub enum NodeTemplateValue {
+    Groupe {},
     NumberRange {
         min: i32,
         max: i32,
-        defines: NumberRangeDefines<I>,
         permutation: Permutation<DefaultBuildHasher>,
     }, 
-    Pos {
-    },
+    Pos {},
     Volume {
         volume: PossibleVolume,
-    }
+    },
+    BuildHook {}
 }
 
 #[derive(Debug, Clone)]
-pub struct AttributeTemplate<I: IT> {
-    pub identifier: I,
-    pub value: AttributeTemplateValue<I>,
-    pub build_hook: bool,
-}
-
-#[derive(Debug, Clone)]
-pub struct WFCNodeBuilder<I: IT> {
-    pub attributes: Vec<AttributeTemplate<I>>,
-    pub build_hook: bool,
+pub struct GroupeBuilder<I: IT> {
     pub children: Vec<I>,
+    pub depends: Vec<I>,
 }
 
 #[derive(Debug, Clone)]
-pub enum NumberRangeDefines<I: IT> {
-    None,
-    Amount { of_node: I },
+pub struct NumberBuilder<I: IT> {
+    pub children: Vec<I>,
+    pub depends: Vec<I>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PosBuilder<I: IT> {
+    pub children: Vec<I>,
+    pub depends: Vec<I>,
+}
+
+#[derive(Debug, Clone)]
+pub struct BuildHookBuilder<I: IT> {
+    pub depends: Vec<I>,
 }
 
 impl<I: IT> WFCBuilder<I> {
     pub fn new() -> WFCBuilder<I> {
         WFCBuilder {
             nodes: vec![],
-            attributes: vec![],
         }
     }
 
-    pub fn node(
+    pub fn groupe(
         mut self,
         identifier: I,
-        build_node: fn(builder: WFCNodeBuilder<I>) -> WFCNodeBuilder<I>,
-    ) -> WFCBuilder<I> {
-        let mut builder = WFCNodeBuilder::new();
-        builder = build_node(builder);
-
-        builder.attributes.sort_by(|a, b| {
-             
-            let get_value = |x: &AttributeTemplate<I>| {
-                match &x.value {
-                    AttributeTemplateValue::NumberRange { defines, .. } => {
-                        match defines {
-                            NumberRangeDefines::None => 1,
-                            NumberRangeDefines::Amount { .. } => 2,
-                        } 
-                    },
-                    _ => 1,
-                }
-            };
-
-            get_value(a).cmp(&get_value(b))
-        });
-
-        self.nodes.push(NodeTemplate {
-            identifier,
-            attributes: builder.attributes.iter()
-                .map(|n| {
-                    n.identifier
-                })
-                .collect(),
-            build_hook: builder.build_hook,
-            children: builder.children,
-        });
-
-        self.attributes.append(&mut builder.attributes);
-        self
-    } 
-}
-
-impl<I: IT> WFCNodeBuilder<I> {
-    fn new() -> Self {
-        WFCNodeBuilder {
-            attributes: vec![],
-            build_hook: false,
+        b: fn(GroupeBuilder<I>) -> GroupeBuilder<I>
+    ) -> Self {
+        let mut builder = GroupeBuilder {
             children: vec![],
-        }
-    }
+            depends: vec![],
+        };
 
-    pub fn use_build_hook(mut self) -> Self {
-        self.build_hook = true;
+        builder = b(builder);
+
+        let node = NodeTemplate {
+            value: NodeTemplateValue::Groupe {},
+            identifier,
+            depends: builder.depends,
+            children: builder.children
+        };
+
+        self.nodes.push(node);
+        
         self
     }
 
-    pub fn child(mut self, identifier: I) -> Self {
-        self.children.push(identifier);
-        self
-    }
- 
     pub fn number_range<R: RangeBounds<i32>>(
         mut self,
         identifier: I,
         range: R,
-        defines: NumberRangeDefines<I>,
-        build_hook: bool,
+        b: fn(NumberBuilder<I>) -> NumberBuilder<I>
     ) -> Self {
+        let mut builder = NumberBuilder {
+            children: vec![],
+            depends: vec![],
+        };
+
+        builder = b(builder);
+
         let start_bound = match range.start_bound() {
             std::ops::Bound::Included(&num) => num,
             std::ops::Bound::Excluded(&num) => num + 1,
@@ -147,35 +118,42 @@ impl<I: IT> WFCNodeBuilder<I> {
 
 
         let seed = fastrand::u64(0..1000);
-        let number_range = AttributeTemplate {
-            value: AttributeTemplateValue::NumberRange {
-                defines,
+        let node = NodeTemplate {
+            value: NodeTemplateValue::NumberRange {
                 min: start_bound,
                 max: end_bound,
                 permutation: Permutation::new((end_bound - start_bound) as _, seed, DefaultBuildHasher::new())
             },
             identifier,
-            build_hook,
+            depends: builder.depends,
+            children: builder.children,
         };
 
-        self.attributes.push(number_range);
- 
+        self.nodes.push(node);
+        
         self
     }
 
     pub fn pos(
         mut self,
         identifier: I,
-        build_hook: bool,
+        b: fn(PosBuilder<I>) -> PosBuilder<I>
     ) -> Self {
-        let seed = fastrand::u64(0..1000);
-        let pos = AttributeTemplate {
-            value: AttributeTemplateValue::Pos {},
+        
+        let mut builder = PosBuilder{
+            children: vec![],
+            depends: vec![],
+        };
+        builder = b(builder);
+
+        let node = NodeTemplate {
+            value: NodeTemplateValue::Pos {},
             identifier,
-            build_hook,
+            depends: builder.depends,
+            children: builder.children
         };
 
-        self.attributes.push(pos);
+        self.nodes.push(node);
 
         self
     }
@@ -185,47 +163,110 @@ impl<I: IT> WFCNodeBuilder<I> {
         identifier: I,
         volume: CSGNode,
         sample_distance: f32,
-        build_hook: bool,
     ) -> Self {
-        let volume = AttributeTemplate {
-            value: AttributeTemplateValue::Volume { 
+        let node = NodeTemplate {
+            value: NodeTemplateValue::Volume { 
                 volume: PossibleVolume::new(volume, sample_distance) 
             },
             identifier,
-            build_hook,
+            depends: vec![],
+            children: vec![],
         };
 
-        self.attributes.push(volume);
+        self.nodes.push(node);
+
+        self
+    }
+
+    pub fn build(
+        mut self, 
+        identifier: I,
+        b: fn(BuildHookBuilder<I>) -> BuildHookBuilder<I>
+    ) -> Self {
+
+        let mut builder = BuildHookBuilder{
+            depends: vec![],
+        };
+        builder = b(builder);
+
+        let node = NodeTemplate {
+            value: NodeTemplateValue::BuildHook {  },
+            identifier,
+            depends: builder.depends,
+            children: vec![],
+        };
+
+        self.nodes.push(node);
 
         self
     }
 }
 
-impl<I: IT> AttributeTemplateValue<I> {
+impl<I: IT> GroupeBuilder<I> {
+
+    pub fn child(mut self, identifier: I) -> Self {
+        self.children.push(identifier);
+        self
+    }
+
+    pub fn depends(mut self, identifier: I) -> Self {
+        self.depends.push(identifier);
+        self
+    } 
+}
+
+impl<I: IT> NumberBuilder<I> {
+
+    pub fn child(mut self, identifier: I) -> Self {
+        self.children.push(identifier);
+        self
+    }
+
+    pub fn depends(mut self, identifier: I) -> Self {
+        self.depends.push(identifier);
+        self
+    } 
+}
+
+impl<I: IT> PosBuilder<I> {
+    
+    pub fn child(mut self, identifier: I) -> Self {
+        self.children.push(identifier);
+        self
+    }
+
+    pub fn depends(mut self, identifier: I) -> Self {
+        self.depends.push(identifier);
+        self
+    } 
+}
+
+impl<I: IT> BuildHookBuilder<I> {
+    
+    pub fn depends(mut self, identifier: I) -> Self {
+        self.depends.push(identifier);
+        self
+    } 
+}
+
+impl NodeTemplateValue {
     pub fn get_number_min(&self) -> i32 {
         match self {
-            AttributeTemplateValue::NumberRange { min, .. } => *min,
+            NodeTemplateValue::NumberRange { min, .. } => *min,
             _ => unreachable!(),
         }
     }
 
     pub fn get_number_max(&self) -> i32 {
         match self {
-            AttributeTemplateValue::NumberRange { max, .. } => *max,
+            NodeTemplateValue::NumberRange { max, .. } => *max,
             _ => unreachable!(),
         }
     }
-
-    pub fn get_number_defines(&self) -> &NumberRangeDefines<I> {
-        match self {
-            AttributeTemplateValue::NumberRange { defines, .. } => defines,
-            _ => unreachable!(),
-        }
-    }  
-
+    
     pub fn get_number_permutation(&self) -> &Permutation {
         match self {
-            AttributeTemplateValue::NumberRange { permutation, .. } => permutation,
+            NodeTemplateValue::NumberRange { permutation, .. } => permutation,
             _ => unreachable!(),
         }
     } 
