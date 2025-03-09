@@ -5,7 +5,7 @@ use feistel_permutation_rs::{DefaultBuildHasher, Permutation};
 use kiddo::KdTree;
 use octa_force::glam::{vec3, vec4, Mat4, Vec3, Vec4Swizzles};
 
-use crate::{csg_tree::{self, tree::{CSGNode, CSGNodeData, CSGTree, MATERIAL_NONE}}, util::to_3d};
+use crate::{vec_csg_tree::{self, tree::{VecCSGNode, VecCSGNodeData, VecCSGTree}}, util::to_3d, volume::Volume};
 
 
 #[derive(Debug, Clone)]
@@ -15,13 +15,13 @@ pub struct PossibleVolume {
 }
 
 impl PossibleVolume {
-    pub fn new(base_volume: CSGNode, point_distance: f32) -> Self {
+    pub fn new(base_volume: VecCSGNode, point_distance: f32) -> Self {
 
-        let mut poisson = Poisson::<3, CSGTree>::new()
+        let mut poisson = Poisson::<3, VecCSGTree>::new()
             .with_radius(point_distance);
 
-        let csg_tree = CSGTree::from_node(base_volume);
-        poisson.set_validate(|p, csg_tree| { csg_tree.at_pos(Vec3::from_array(p)) }, csg_tree);
+        let csg_tree = VecCSGTree::from_node(base_volume);
+        poisson.set_validate(|p, csg_tree| { csg_tree.is_position_valid_vec3(Vec3::from_array(p)) }, csg_tree);
 
         let (kd_tree, points) = poisson.iter()
             .enumerate()

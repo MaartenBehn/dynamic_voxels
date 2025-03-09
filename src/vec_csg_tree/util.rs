@@ -2,10 +2,10 @@ use octa_force::glam::{vec3, vec4, Vec3, Vec4Swizzles};
 
 use crate::aabb::AABB;
 
-use super::tree::{CSGNode, CSGNodeData, CSGTree};
+use super::tree::{VecCSGNode, VecCSGNodeData, VecCSGTree};
 
-impl CSGTree {
-    pub fn find_valid_pos(&self, grid_size: f32) -> Option<Vec3> {
+impl VecCSGTree {
+    pub(super) fn find_valid_pos(&self, grid_size: f32) -> Option<Vec3> {
         let aabb = &self.nodes[0].aabb;
 
         aabb.get_random_sampled_positions(grid_size)
@@ -13,7 +13,7 @@ impl CSGTree {
             .find(|&pos| self.at_pos(pos))
     }
 
-    pub fn at_pos(&self, pos: Vec3) -> bool {
+    pub(super) fn at_pos(&self, pos: Vec3) -> bool {
         self.at_pos_internal(pos, 0)
     }
 
@@ -21,17 +21,17 @@ impl CSGTree {
         let node = &self.nodes[index];
 
         match node.data { 
-            CSGNodeData::Union(c1, c2) => {
+            VecCSGNodeData::Union(c1, c2) => {
                 self.at_pos_internal(pos, c1) || self.at_pos_internal(pos, c2)
             }
-            CSGNodeData::Remove(c1, c2) => {
+            VecCSGNodeData::Remove(c1, c2) => {
                 self.at_pos_internal(pos, c1) && !self.at_pos_internal(pos, c2)
             }
-            CSGNodeData::Intersect(c1, c2) => {
+            VecCSGNodeData::Intersect(c1, c2) => {
                 self.at_pos_internal(pos, c1) && self.at_pos_internal(pos, c2)
             }
-            CSGNodeData::Mat(_, c) => self.at_pos_internal(pos, c),
-            CSGNodeData::Box(mat, _) => {
+            VecCSGNodeData::Mat(_, c) => self.at_pos_internal(pos, c),
+            VecCSGNodeData::Box(mat, _) => {
                 let pos = mat.inverse().mul_vec4(vec4(pos.x, pos.y, pos.z, 1.0)).xyz();
 
                 let aabb = AABB {
@@ -41,26 +41,26 @@ impl CSGTree {
 
                 aabb.pos_in_aabb(pos)
             }
-            CSGNodeData::Sphere(mat, _) => {
+            VecCSGNodeData::Sphere(mat, _) => {
                 let pos = mat.inverse().mul_vec4(vec4(pos.x, pos.y, pos.z, 1.0)).xyz();
 
                 pos_in_sphere(pos, vec3(0.0, 0.0, 0.0), 1.0)
             }
-            CSGNodeData::VoxelGrid(..) => todo!(),
-            CSGNodeData::All(_) => true,
+            VecCSGNodeData::VoxelGrid(..) => todo!(),
+            VecCSGNodeData::All(_) => true,
         }
     }
 
-    pub fn append_tree_with_remove(&mut self, mut tree: CSGTree) {
-        self.insert_node_before(CSGNode::new(CSGNodeData::Remove(1, self.nodes.len() + 1)));
+    pub fn append_tree_with_remove(&mut self, mut tree: VecCSGTree) {
+        self.insert_node_before(VecCSGNode::new(VecCSGNodeData::Remove(1, self.nodes.len() + 1)));
 
         tree.shift_node_pointers(self.nodes.len());
 
         self.nodes.append(&mut tree.nodes);
     }
 
-    pub fn append_tree_with_union(&mut self, mut tree: CSGTree) { 
-        self.insert_node_before(CSGNode::new(CSGNodeData::Union(1, self.nodes.len() + 1)));
+    pub fn append_tree_with_union(&mut self, mut tree: VecCSGTree) { 
+        self.insert_node_before(VecCSGNode::new(VecCSGNodeData::Union(1, self.nodes.len() + 1)));
 
         tree.shift_node_pointers(self.nodes.len());
 
@@ -70,9 +70,9 @@ impl CSGTree {
     pub fn shift_node_pointers(&mut self, ammount: usize) {
         for i in 0..self.nodes.len() {
             match &mut self.nodes[i].data {
-                CSGNodeData::Union(c1, c2)
-                | CSGNodeData::Remove(c1, c2)
-                | CSGNodeData::Intersect(c1, c2) => {
+                VecCSGNodeData::Union(c1, c2)
+                | VecCSGNodeData::Remove(c1, c2)
+                | VecCSGNodeData::Intersect(c1, c2) => {
                     *c1 += ammount;
                     *c2 += ammount;
                 }
@@ -80,7 +80,7 @@ impl CSGTree {
             }
         }
     }
-    pub fn insert_node_before(&mut self, node: CSGNode) {
+    pub fn insert_node_before(&mut self, node: VecCSGNode) {
         self.shift_node_pointers(1);
 
         self.nodes.insert(0, node);
@@ -92,9 +92,9 @@ impl CSGTree {
             .enumerate()
             .filter_map(|(i, node)| {
                 match node.data {
-                    CSGNodeData::Union(child1, child2)
-                    | CSGNodeData::Remove(child1, child2)
-                    | CSGNodeData::Intersect(child1, child2) => {
+                    VecCSGNodeData::Union(child1, child2)
+                    | VecCSGNodeData::Remove(child1, child2)
+                    | VecCSGNodeData::Intersect(child1, child2) => {
                         if ids.contains(&child1) || ids.contains(&child2) {
                             return Some(i);
                         }

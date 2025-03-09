@@ -4,16 +4,18 @@ use octa_force::vulkan::gpu_allocator::MemoryLocation;
 use octa_force::vulkan::{Buffer, Context};
 use octa_force::OctaResult;
 
-pub const MAX_CSG_TREE_DATA_SIZE: usize = 10000000;
-pub struct CSGController {
+use crate::render_csg_tree::base::RenderCSGTree;
+
+pub const MAX_DATA_BUFFER_SIZE: usize = 10000000;
+pub struct DataController {
     pub buffer: Buffer,
 }
 
-impl CSGController {
+impl DataController {
     pub fn new(context: &Context) -> OctaResult<Self> {
 
-        let buffer_size = (size_of::<u32>() * MAX_CSG_TREE_DATA_SIZE);
-        info!("CSG Buffer size: {:.04} MB", buffer_size as f32 * 0.000001);
+        let buffer_size = (size_of::<u32>() * MAX_DATA_BUFFER_SIZE);
+        info!("Data Buffer size: {:.04} MB", buffer_size as f32 * 0.000001);
 
         let buffer = context.create_buffer(
             vk::BufferUsageFlags::STORAGE_BUFFER,
@@ -22,10 +24,10 @@ impl CSGController {
         )?;
         
 
-        Ok(CSGController { buffer })
+        Ok(DataController { buffer })
     }
 
-    pub fn set_data(&self, data: &[u32]) -> OctaResult<()> {
-        self.buffer.copy_data_to_buffer(data)
+    pub fn set_render_csg_tree(&self, tree: &RenderCSGTree) -> OctaResult<()> {
+        self.buffer.copy_data_to_buffer(&tree.data)
     }
 }

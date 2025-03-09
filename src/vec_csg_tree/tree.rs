@@ -1,5 +1,5 @@
 use crate::aabb::AABB;
-use crate::csg_tree::controller::MAX_CSG_TREE_DATA_SIZE;
+use crate::csg_renderer::color_controller::{Material, MATERIAL_BASE};
 use crate::voxel::grid::VoxelGrid;
 use octa_force::glam::{ivec3, uvec3, vec3, EulerRot, IVec3, Mat4, Quat, UVec3, Vec3};
 use octa_force::log::{error, info};
@@ -7,22 +7,21 @@ use octa_force::puffin_egui::puffin;
 use std::f32::consts::PI;
 use std::{slice, usize};
 
+
 pub const AABB_PADDING: f32 = 0.0;
 pub const VOXEL_SIZE: f32 = 10.0;
-pub type Material = usize;
-pub const MATERIAL_NONE: usize = 0;
-pub const MATERIAL_BASE: usize = 1;
+
 pub const CSG_PARENT_NONE: usize = usize::MAX;
 
 #[derive(Clone, Debug)]
-pub struct CSGNode {
-    pub data: CSGNodeData,
+pub struct VecCSGNode {
+    pub data: VecCSGNodeData,
     pub aabb: AABB,
     pub parent: usize,
 }
 
 #[derive(Clone, Debug)]
-pub enum CSGNodeData {
+pub enum VecCSGNodeData {
     Union(usize, usize),
     Remove(usize, usize),
     Intersect(usize, usize),
@@ -34,13 +33,13 @@ pub enum CSGNodeData {
 }
 
 #[derive(Clone, Debug)]
-pub struct CSGTree {
-    pub nodes: Vec<CSGNode>,
+pub struct VecCSGTree {
+    pub nodes: Vec<VecCSGNode>,
 }
 
-impl CSGTree { 
-    pub fn from_node(node: CSGNode) -> Self {
-        CSGTree {
+impl VecCSGTree { 
+    pub fn from_node(node: VecCSGNode) -> Self {
+        VecCSGTree {
             nodes: vec![node],
         }
     }
@@ -53,9 +52,9 @@ impl CSGTree {
         let frac_3 = simple_easing::roundtrip((time * 0.01) % 1.0);
 
         let nodes = vec![
-            CSGNode::new(CSGNodeData::Union(1, 4)),
-            CSGNode::new(CSGNodeData::Remove(2, 3)),
-            CSGNode::new(CSGNodeData::Box(
+            VecCSGNode::new(VecCSGNodeData::Union(1, 4)),
+            VecCSGNode::new(VecCSGNodeData::Remove(2, 3)),
+            VecCSGNode::new(VecCSGNodeData::Box(
                 Mat4::from_scale_rotation_translation(
                     (vec3(2.0, 5.0, 7.0) + simple_easing::expo_in_out(frac)) * VOXEL_SIZE,
                     Quat::from_euler(
@@ -68,7 +67,7 @@ impl CSGTree {
                 ),
                 MATERIAL_BASE,
             )),
-            CSGNode::new(CSGNodeData::Sphere(
+            VecCSGNode::new(VecCSGNodeData::Sphere(
                 Mat4::from_scale_rotation_translation(
                     (vec3(2.0, 1.0, 3.0) + simple_easing::cubic_in_out(frac_2) * 2.0) * VOXEL_SIZE,
                     Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, 0.0),
@@ -76,7 +75,7 @@ impl CSGTree {
                 ),
                 MATERIAL_BASE,
             )),
-            CSGNode::new(CSGNodeData::Sphere(
+            VecCSGNode::new(VecCSGNodeData::Sphere(
                 Mat4::from_scale_rotation_translation(
                     (vec3(3.0, 3.0, 1.0) + simple_easing::back_in_out(frac) * 10.0) * VOXEL_SIZE,
                     Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, 0.0),
@@ -105,7 +104,7 @@ impl CSGTree {
 
          */
 
-        let mut tree = CSGTree {
+        let mut tree = VecCSGTree {
             nodes,
         };
 
@@ -121,7 +120,7 @@ impl CSGTree {
         grid.set_example_sphere();
 
         let nodes = vec![
-            CSGNode::new(CSGNodeData::Mat(Mat4::from_scale_rotation_translation(
+            VecCSGNode::new(VecCSGNodeData::Mat(Mat4::from_scale_rotation_translation(
                     vec3(1.0, 1.0, 1.0),
                     Quat::from_euler(
                         EulerRot::XYZ,
@@ -132,8 +131,8 @@ impl CSGTree {
                     vec3(0.0, 0.0, 0.0) * VOXEL_SIZE,
                 ),
                 1)),
-            CSGNode::new(CSGNodeData::Union(2, 3)),
-            CSGNode::new(CSGNodeData::Sphere(
+            VecCSGNode::new(VecCSGNodeData::Union(2, 3)),
+            VecCSGNode::new(VecCSGNodeData::Sphere(
                 Mat4::from_scale_rotation_translation(
                     (vec3(2.0, 5.0, 7.0) + simple_easing::expo_in_out(frac)) * VOXEL_SIZE,
                     Quat::from_euler(
@@ -146,10 +145,10 @@ impl CSGTree {
                 ),
                 MATERIAL_BASE,
             )),
-            CSGNode::new(CSGNodeData::VoxelGrid(grid, ivec3(-10, -30, 20))),
+            VecCSGNode::new(VecCSGNodeData::VoxelGrid(grid, ivec3(-10, -30, 20))),
         ];
 
-        let mut tree = CSGTree {
+        let mut tree = VecCSGTree {
             nodes,
         };
 
@@ -163,8 +162,8 @@ impl CSGTree {
         grid.set_example_sphere();
 
         let nodes = vec![
-            CSGNode::new(CSGNodeData::Union(1, 2)),
-            CSGNode::new(CSGNodeData::Box(
+            VecCSGNode::new(VecCSGNodeData::Union(1, 2)),
+            VecCSGNode::new(VecCSGNodeData::Box(
                 Mat4::from_scale_rotation_translation(
                     vec3(0.0, 0.0, 0.0) * VOXEL_SIZE,
                     Quat::from_euler(
@@ -177,10 +176,10 @@ impl CSGTree {
                 ),
                 MATERIAL_BASE,
             )),
-            CSGNode::new(CSGNodeData::VoxelGrid(grid, ivec3(-10, -30, 200))),
+            VecCSGNode::new(VecCSGNodeData::VoxelGrid(grid, ivec3(-10, -30, 200))),
         ];
 
-        let mut tree = CSGTree {
+        let mut tree = VecCSGTree {
             nodes,
         };
         tree.set_parents(0, CSG_PARENT_NONE);
@@ -191,13 +190,13 @@ impl CSGTree {
     pub fn set_parents(&mut self, i: usize, parent: usize) {
         self.nodes[i].parent = parent;
         match self.nodes[i].data {
-            CSGNodeData::Union(c1, c2)
-            | CSGNodeData::Remove(c1, c2)
-            | CSGNodeData::Intersect(c1, c2) => {
+            VecCSGNodeData::Union(c1, c2)
+            | VecCSGNodeData::Remove(c1, c2)
+            | VecCSGNodeData::Intersect(c1, c2) => {
                 self.set_parents(c1, i);
                 self.set_parents(c2, i);
             },
-            CSGNodeData::Mat(_, c1) => {
+            VecCSGNodeData::Mat(_, c1) => {
                 self.set_parents(c1, i);
             },
             _ => {}
@@ -205,9 +204,9 @@ impl CSGTree {
     }
 }
 
-impl Default for CSGTree {
+impl Default for VecCSGTree {
     fn default() -> Self {
-        CSGTree {
+        VecCSGTree {
             nodes: vec![],
         }
     }
@@ -215,16 +214,16 @@ impl Default for CSGTree {
 
 
 
-impl CSGNode {
-    pub fn new(data: CSGNodeData) -> CSGNode {
-        CSGNode {
+impl VecCSGNode {
+    pub fn new(data: VecCSGNodeData) -> VecCSGNode {
+        VecCSGNode {
             data,
             aabb: Default::default(),
             parent: CSG_PARENT_NONE,
         }
     }
 
-    pub fn new_with_aabb(data: CSGNodeData, aabb: AABB) -> CSGNode {
-        CSGNode { data, aabb, parent: CSG_PARENT_NONE }
+    pub fn new_with_aabb(data: VecCSGNodeData, aabb: AABB) -> VecCSGNode {
+        VecCSGNode { data, aabb, parent: CSG_PARENT_NONE }
     }
 }

@@ -1,9 +1,10 @@
 use feistel_permutation_rs::{DefaultBuildHasher, Permutation};
 use octa_force::glam::Vec3;
 
-use crate::csg_tree::tree::{CSGNode, CSGNodeData, CSGTree};
 
 use std::{fmt::Debug, marker::PhantomData, ops::RangeBounds, usize};
+
+use crate::vec_csg_tree::tree::VecCSGNode;
 
 use super::{collapse::Node,  volume::PossibleVolume};
 
@@ -161,7 +162,7 @@ impl<I: IT> WFCBuilder<I> {
     pub fn volume(
         mut self, 
         identifier: I,
-        volume: CSGNode,
+        volume: VecCSGNode,
         sample_distance: f32,
     ) -> Self {
         let node = NodeTemplate {

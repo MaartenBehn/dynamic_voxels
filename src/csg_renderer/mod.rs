@@ -1,7 +1,8 @@
-pub mod tree_data;
+pub mod data_controller;
+pub mod color_controller;
 
-use crate::color::ColorController;
 use crate::profiler::ShaderProfiler;
+use color_controller::ColorController;
 use octa_force::anyhow::Result;
 use octa_force::camera::Camera;
 use octa_force::glam::{UVec2, Vec3};
@@ -16,7 +17,7 @@ use octa_force::ImageAndView;
 use std::mem::size_of;
 use std::time::Duration;
 
-use super::controller::CSGController;
+use data_controller::{DataController, MAX_DATA_BUFFER_SIZE};
 
 const RENDER_DISPATCH_GROUP_SIZE_X: u32 = 32;
 const RENDER_DISPATCH_GROUP_SIZE_Y: u32 = 32;
@@ -52,7 +53,7 @@ impl Renderer {
         context: &Context,
         res: UVec2,
         num_frames: usize,
-        csg_controller: &CSGController,
+        csg_controller: &DataController,
         color_controller: &ColorController,
         profiler: &Option<ShaderProfiler>,
         shader_bin: &[u8],

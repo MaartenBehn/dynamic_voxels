@@ -1,18 +1,23 @@
 mod aabb;
 mod buddy_controller;
-mod csg_tree;
-mod color;
+mod vec_csg_tree;
 mod profiler;
 mod util;
 mod model_synthesis;
 mod voxel;
+mod volume;
+mod csg_renderer;
+mod render_csg_tree;
+mod slot_map_csg_tree;
 
-use crate::csg_tree::controller::CSGController;
-use crate::csg_tree::tree::{CSGTree, VOXEL_SIZE};
-use crate::color::ColorController;
+use crate::vec_csg_tree::tree::{VecCSGTree, VOXEL_SIZE};
 use crate::profiler::ShaderProfiler;
-use csg_tree::renderer::Renderer;
-use csg_tree::tree::{CSGNode, CSGNodeData, MATERIAL_NONE};
+use csg_renderer::color_controller::ColorController;
+use csg_renderer::data_controller::DataController;
+use csg_renderer::Renderer;
+use render_csg_tree::base::RenderCSGTree;
+use slot_map_csg_tree::tree::SlotMapCSGTree;
+use vec_csg_tree::tree::{VecCSGNode, VecCSGNodeData};
 use egui_graphs::Node;
 use glsl_compiler::glsl;
 use kiddo::SquaredEuclidean;
@@ -37,7 +42,7 @@ pub const USE_PROFILE: bool = false;
 
 pub struct RenderState {
     pub gui: Gui,
-    pub csg_controller: CSGController,
+    pub data_controller: DataController,
     pub color_controller: ColorController,
     pub renderer: Renderer,
     pub profiler: Option<ShaderProfiler>,
@@ -93,7 +98,7 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
         engine.num_frames,
     )?;
 
-    let csg_controller = CSGController::new(&engine.context)?;
+    let data_controller = DataController::new(&engine.context)?;
 
 
     let color_controller = ColorController::new(&engine.context)?;
@@ -115,7 +120,7 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
         &engine.context,
         engine.swapchain.size,
         engine.num_frames,
-        &csg_controller,
+        &data_controller,
         &color_controller,
         &profiler,
         shader_bin,
@@ -169,7 +174,7 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
             
     let mut pos = vec3(1.0, 1.0, 1.0);
     let start_pos = pos;
-    let mut csg = CSGTree::default();
+    let mut csg = VecCSGTree::default();
 
     let mut collapser = wfc_builder.get_collaper();
     while let Some((operation, collapser)) = collapser.next() {
@@ -193,7 +198,7 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
 
                         let pos = pos_value + Vec3::Z * (height as f32) * 0.5;
 
-                        let csg_node = CSGNode::new(CSGNodeData::Box(
+                        let csg_node = VecCSGNode::new(VecCSGNodeData::Box(
                             Mat4::from_scale_rotation_translation(
                                 vec3(0.5, 0.5, height as f32) * VOXEL_SIZE, 
                                 Quat::IDENTITY, 
@@ -208,7 +213,7 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
                             continue;
                         }
 
-                        let mut tree = CSGTree::from_node(csg_node);
+                        let mut tree = VecCSGTree::from_node(csg_node);
                         csg.append_tree_with_union(tree);
                     }
                     Identifier::FencePlanks => {
@@ -230,7 +235,7 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
                         for _ in 0..plank_number {
                             plank_pos += Vec3::Z * plank_distance as f32;
 
-                            let mut tree = CSGTree::from_node(CSGNode::new(CSGNodeData::Box(
+                            let mut tree = VecCSGTree::from_node(VecCSGNode::new(VecCSGNodeData::Box(
                                 Mat4::from_scale_rotation_translation(
                                     plank_scale * VOXEL_SIZE, 
                                     Quat::IDENTITY, 
@@ -251,12 +256,11 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
         } 
     }
 
-    csg_controller.set_data(&csg.make_data());
-    
+    data_controller.set_render_csg_tree(&csg.into());    
 
     Ok(RenderState {
         gui,
-        csg_controller,
+        data_controller,
         color_controller,
         renderer,
         profiler,

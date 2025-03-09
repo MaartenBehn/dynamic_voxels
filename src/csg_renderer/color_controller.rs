@@ -5,6 +5,9 @@ use octa_force::vulkan::{Buffer, Context};
 use octa_force::OctaResult;
 
 pub const COLOR_BUFFER_SIZE: usize = 256;
+pub type Material = u8;
+pub const MATERIAL_NONE: u8 = 0;
+pub const MATERIAL_BASE: u8 = 1;
 
 pub struct ColorController {
     pub buffer: Buffer,

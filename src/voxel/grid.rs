@@ -1,7 +1,8 @@
 use std::usize;
 
-use crate::{csg_tree::tree::MATERIAL_NONE, util::to_1d};
 use octa_force::glam::{uvec3, vec3, UVec3, Vec3};
+
+use crate::{csg_renderer::color_controller::MATERIAL_NONE, util::to_1d};
 
 const VOXELS_PER_U32: usize = 4;
 
