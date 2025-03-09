@@ -16,12 +16,13 @@ use csg_renderer::color_controller::ColorController;
 use csg_renderer::data_controller::DataController;
 use csg_renderer::Renderer;
 use render_csg_tree::base::RenderCSGTree;
-use slot_map_csg_tree::tree::SlotMapCSGTree;
+use slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey};
+use slotmap::Key;
 use vec_csg_tree::tree::{VecCSGNode, VecCSGNodeData};
 use egui_graphs::Node;
 use glsl_compiler::glsl;
 use kiddo::SquaredEuclidean;
-use model_synthesis::collapse::CollapseOperation;
+use model_synthesis::collapse::{CollapseOperation, Collapser};
 use octa_force::camera::Camera;
 use octa_force::egui_winit::winit::event::WindowEvent;
 use octa_force::glam::{vec3, Mat4, Quat, Vec3};
@@ -174,9 +175,9 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
             
     let mut pos = vec3(1.0, 1.0, 1.0);
     let start_pos = pos;
-    let mut csg = VecCSGTree::default();
+    let mut csg = None;
 
-    let mut collapser = wfc_builder.get_collaper();
+    let mut collapser: Collapser<Identifier, SlotMapCSGTreeKey> = wfc_builder.get_collaper();
     while let Some((operation, collapser)) = collapser.next() {
         match operation {
             CollapseOperation::CollapsePos{ index  } => {
@@ -189,7 +190,7 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
 
                 pos += Vec3::X * dist as f32;
             },
-            CollapseOperation::BuildNode{ index, identifier, .. } => {
+            CollapseOperation::Build{ index, identifier, .. } => {
                 match identifier {
                     Identifier::FencePost => {
                         let height = collapser.get_dependend_number(index, Identifier::PostHeight);
@@ -198,7 +199,7 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
 
                         let pos = pos_value + Vec3::Z * (height as f32) * 0.5;
 
-                        let csg_node = VecCSGNode::new(VecCSGNodeData::Box(
+                        let csg_node = SlotMapCSGNode::new(SlotMapCSGNodeData::Box(
                             Mat4::from_scale_rotation_translation(
                                 vec3(0.5, 0.5, height as f32) * VOXEL_SIZE, 
                                 Quat::IDENTITY, 
@@ -208,13 +209,14 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
                         ));
                         info!("{:?} Build: {:?}: {}", index, identifier, pos);
 
-                        if csg.nodes.is_empty() {
-                            csg.nodes.push(csg_node);
-                            continue;
-                        }
+                        let csg_index = if csg.is_none() {
+                            csg = Some(SlotMapCSGTree::from_node(csg_node));
+                            csg.as_ref().unwrap().root_node
+                        } else {
+                            csg.as_mut().unwrap().append_node_with_union(csg_node)
+                        };
 
-                        let mut tree = VecCSGTree::from_node(csg_node);
-                        csg.append_tree_with_union(tree);
+                        collapser.set_build_data(index, csg_index)?;
                     }
                     Identifier::FencePlanks => {
                         let plank_number = collapser.get_dependend_number(index, Identifier::PlankNumber);
@@ -235,29 +237,40 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
                         for _ in 0..plank_number {
                             plank_pos += Vec3::Z * plank_distance as f32;
 
-                            let mut tree = VecCSGTree::from_node(VecCSGNode::new(VecCSGNodeData::Box(
+                            let mut node = SlotMapCSGNode::new(SlotMapCSGNodeData::Box(
                                 Mat4::from_scale_rotation_translation(
                                     plank_scale * VOXEL_SIZE, 
                                     Quat::IDENTITY, 
                                     plank_pos * VOXEL_SIZE
                                 ),
                                 1,
-                            )));
-                            csg.append_tree_with_union(tree);
+                            ));
+                            csg.as_mut().unwrap().append_node_with_union(node);
                         } 
                     }
                     _ => error!("Build hook on wrong type")
                 }
-
-
-                             
+            }, 
+            CollapseOperation::UndoBuild { index, identifier } => {
+                match identifier {
+                    Identifier::FencePost => {
+                        info!("{:?} Undo Build", index);
+                        let csg_index = collapser.get_build_data(index)?;
+                        csg.as_mut().unwrap().remove_node_as_child_of_union(csg_index);
+                    },
+                    _ => error!("Undo Build hook on wrong type")
+                }
             },
+
             CollapseOperation::None => {},
         } 
     }
 
-    data_controller.set_render_csg_tree(&csg.into());    
-
+    if let Some(csg) = csg {
+        let vec_tree: VecCSGTree = csg.into();
+        data_controller.set_render_csg_tree(&vec_tree.into());    
+    }
+    
     Ok(RenderState {
         gui,
         data_controller,

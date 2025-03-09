@@ -84,29 +84,13 @@ impl VecCSGTree {
                 MATERIAL_BASE,
             )),
         ];
-
-        /*
-        self.nodes = vec![
-            CSGNode::Union(1, 2, Material::None, AABB::default()),
-
-            CSGNode::Box(Mat4::from_scale_rotation_translation(
-                vec3(2.0, 5.0, 7.0),
-                Quat::from_euler(EulerRot::XYZ, 0.0,0.0,0.0),
-                vec3(0.0, 0.0, 0.0)
-            ), AABB::default()),
-
-            CSGNode::Sphere(Mat4::from_scale_rotation_translation(
-                vec3(2.0, 1.0, 3.0),
-                Quat::from_euler(EulerRot::XYZ, 0.0,0.0,0.0),
-                vec3(0.0, 0.0, 0.0)
-            ), AABB::default()),
-        ];
-
-         */
-
+ 
         let mut tree = VecCSGTree {
             nodes,
         };
+
+        tree.set_parents(0, CSG_PARENT_NONE);
+        tree.set_all_aabbs(AABB_PADDING);
 
         tree
     }
@@ -152,6 +136,9 @@ impl VecCSGTree {
             nodes,
         };
 
+        tree.set_parents(0, CSG_PARENT_NONE);
+        tree.set_all_aabbs(AABB_PADDING);
+
         tree
     }
 
@@ -183,6 +170,7 @@ impl VecCSGTree {
             nodes,
         };
         tree.set_parents(0, CSG_PARENT_NONE);
+        tree.set_all_aabbs(AABB_PADDING);
 
         tree
     }

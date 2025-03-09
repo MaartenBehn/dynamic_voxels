@@ -9,6 +9,7 @@ use crate::vec_csg_tree::tree::VecCSGNode;
 use super::{collapse::Node,  volume::PossibleVolume};
 
 pub trait IT: Debug + Copy + Eq {}
+pub trait BU: Debug + Copy + Default {}
 
 #[derive(Debug, Clone)]
 pub struct WFCBuilder<I: IT> {

@@ -1,9 +1,11 @@
 use octa_force::glam::{IVec3, Mat4};
-use slotmap::{new_key_type, SlotMap};
+use slotmap::{new_key_type, Key, SlotMap};
 
-use crate::{aabb::AABB, csg_renderer::color_controller::Material, voxel::grid::VoxelGrid};
+use crate::{aabb::AABB, csg_renderer::color_controller::Material, model_synthesis::builder::BU, voxel::grid::VoxelGrid};
 
 new_key_type! { pub struct SlotMapCSGTreeKey; }
+
+impl BU for SlotMapCSGTreeKey {}
 
 #[derive(Clone, Debug)]
 pub struct SlotMapCSGTree {
@@ -30,3 +32,29 @@ pub enum SlotMapCSGNodeData {
     VoxelGrid(VoxelGrid, IVec3),
 }
 
+impl SlotMapCSGNode {
+    pub fn new(data: SlotMapCSGNodeData) -> Self {
+        SlotMapCSGNode {
+            data,
+            aabb: Default::default(),
+            parent: SlotMapCSGTreeKey::null(),
+        }
+    }
+}
+
+impl SlotMapCSGTree {
+    pub fn is_empty(&self) -> bool {
+        self.root_node == SlotMapCSGTreeKey::null()
+    }
+
+    pub fn from_node(node: SlotMapCSGNode) -> Self {
+        let mut tree = Self {
+            nodes: SlotMap::with_capacity_and_key(1),
+            root_node: SlotMapCSGTreeKey::null(),
+        };
+        let index = tree.nodes.insert(node);
+        tree.root_node = index;
+
+        tree
+    }
+}
