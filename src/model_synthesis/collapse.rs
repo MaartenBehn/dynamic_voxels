@@ -386,9 +386,4 @@ impl<I: IT> WFCBuilder<I> {
     }
 }
 
-impl<I: IT> WFCBuilder<I> {
-    pub fn get_node_index_by_identifier(&self, identifier: I) -> usize {
-        self.nodes.iter().position(|n| n.identifier == identifier).expect(&format!("No Node with Identifier {:?} found.", identifier))
-    }
-}
 

@@ -133,33 +133,30 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
     let wfc_renderer = WFCRenderer::new();
 
     let wfc_builder: WFCBuilder<Identifier> = WFCBuilder::new()
-        .groupe(Identifier::Fence, |b| {b
-            .child(Identifier::PostHeight)
-            .child(Identifier::PostDistance)
-            .child(Identifier::PostNumber)
-            .child(Identifier::PlankNumber)
-            .child(Identifier::PlankDistance)
-            .child(Identifier::FencePlanks)
+        .groupe(Identifier::Fence, |b| {b})
+
+        .number_range(Identifier::PostHeight, 3..=8, |b|{b
+            .depends(Identifier::Fence)
         })
 
-        .number_range(Identifier::PostHeight, 3..=8, |b|{b})
-
-        .number_range(Identifier::PostDistance, 2..=5, |b|{b})
+        .number_range(Identifier::PostDistance, 2..=5, |b|{b
+            .depends(Identifier::Fence
+            )})
 
         .number_range(Identifier::PostNumber, 5..=10, |b|{b
-            .child(Identifier::PostPos)
+            .depends(Identifier::Fence)
         })
 
         .pos(Identifier::PostPos, |b| {b
+            .depends(Identifier::PostNumber)
             .depends(Identifier::PostHeight)
             .depends(Identifier::PostDistance)
-            .child(Identifier::FencePost)
         })
 
         .build(Identifier::FencePost, |b| {b
+            .ammount_defined_by(Identifier::PostPos)
             .depends(Identifier::PostHeight)
             .depends(Identifier::PostDistance)
-            .depends(Identifier::PostPos)
         })
 
         .number_range(Identifier::PlankNumber, 3..=4, |b|{b})
@@ -169,9 +166,8 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
             .depends(Identifier::PlankNumber)
             .depends(Identifier::PlankDistance)
             .depends(Identifier::PostHeight)
-            .depends(Identifier::PostDistance)
+            .knows(Identifier::PostDistance)
         });
-
             
     let mut pos = vec3(1.0, 1.0, 1.0);
     let start_pos = pos;

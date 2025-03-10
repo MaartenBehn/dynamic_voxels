@@ -21,7 +21,9 @@ pub struct NodeTemplate<I: IT> {
     pub identifier: I,
     pub value: NodeTemplateValue,
     pub depends: Vec<I>,
-    pub children: Vec<I>
+    pub ammount_defined_by: Option<I>,
+    pub knows: Vec<I>,
+    pub level: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -40,26 +42,10 @@ pub enum NodeTemplateValue {
 }
 
 #[derive(Debug, Clone)]
-pub struct GroupeBuilder<I: IT> {
-    pub children: Vec<I>,
+pub struct NodeBuilder<I: IT> {
+    pub ammount_defined_by: Option<I>,
     pub depends: Vec<I>,
-}
-
-#[derive(Debug, Clone)]
-pub struct NumberBuilder<I: IT> {
-    pub children: Vec<I>,
-    pub depends: Vec<I>,
-}
-
-#[derive(Debug, Clone)]
-pub struct PosBuilder<I: IT> {
-    pub children: Vec<I>,
-    pub depends: Vec<I>,
-}
-
-#[derive(Debug, Clone)]
-pub struct BuildHookBuilder<I: IT> {
-    pub depends: Vec<I>,
+    pub knows: Vec<I>,
 }
 
 impl<I: IT> WFCBuilder<I> {
@@ -72,11 +58,12 @@ impl<I: IT> WFCBuilder<I> {
     pub fn groupe(
         mut self,
         identifier: I,
-        b: fn(GroupeBuilder<I>) -> GroupeBuilder<I>
+        b: fn(NodeBuilder<I>) -> NodeBuilder<I>
     ) -> Self {
-        let mut builder = GroupeBuilder {
-            children: vec![],
+        let mut builder = NodeBuilder {
             depends: vec![],
+            ammount_defined_by: None,
+            knows: vec![],
         };
 
         builder = b(builder);
@@ -85,7 +72,9 @@ impl<I: IT> WFCBuilder<I> {
             value: NodeTemplateValue::Groupe {},
             identifier,
             depends: builder.depends,
-            children: builder.children
+            knows: builder.knows,
+            ammount_defined_by: builder.ammount_defined_by,
+            level: 0
         };
 
         self.nodes.push(node);
@@ -97,11 +86,13 @@ impl<I: IT> WFCBuilder<I> {
         mut self,
         identifier: I,
         range: R,
-        b: fn(NumberBuilder<I>) -> NumberBuilder<I>
+        b: fn(NodeBuilder<I>) -> NodeBuilder<I>
     ) -> Self {
-        let mut builder = NumberBuilder {
-            children: vec![],
+        let mut builder = NodeBuilder {
             depends: vec![],
+            knows: vec![],
+
+            ammount_defined_by: None,
         };
 
         builder = b(builder);
@@ -128,7 +119,9 @@ impl<I: IT> WFCBuilder<I> {
             },
             identifier,
             depends: builder.depends,
-            children: builder.children,
+            knows: builder.knows,
+            ammount_defined_by: builder.ammount_defined_by,
+            level: 0
         };
 
         self.nodes.push(node);
@@ -139,20 +132,24 @@ impl<I: IT> WFCBuilder<I> {
     pub fn pos(
         mut self,
         identifier: I,
-        b: fn(PosBuilder<I>) -> PosBuilder<I>
+        b: fn(NodeBuilder<I>) -> NodeBuilder<I>
     ) -> Self {
-        
-        let mut builder = PosBuilder{
-            children: vec![],
+        let mut builder = NodeBuilder {
             depends: vec![],
+            knows: vec![],
+
+            ammount_defined_by: None,
         };
+
         builder = b(builder);
 
         let node = NodeTemplate {
             value: NodeTemplateValue::Pos {},
             identifier,
             depends: builder.depends,
-            children: builder.children
+            knows: builder.knows,
+            ammount_defined_by: builder.ammount_defined_by,
+            level: 0
         };
 
         self.nodes.push(node);
@@ -165,14 +162,26 @@ impl<I: IT> WFCBuilder<I> {
         identifier: I,
         volume: VecCSGNode,
         sample_distance: f32,
+        b: fn(NodeBuilder<I>) -> NodeBuilder<I>
     ) -> Self {
+        let mut builder = NodeBuilder {
+            depends: vec![],
+            knows: vec![],
+
+            ammount_defined_by: None,
+        };
+
+        builder = b(builder);
+
         let node = NodeTemplate {
             value: NodeTemplateValue::Volume { 
                 volume: PossibleVolume::new(volume, sample_distance) 
             },
             identifier,
-            depends: vec![],
-            children: vec![],
+            depends: builder.depends,
+            knows: builder.knows,
+            ammount_defined_by: builder.ammount_defined_by,
+            level: 0
         };
 
         self.nodes.push(node);
@@ -183,19 +192,24 @@ impl<I: IT> WFCBuilder<I> {
     pub fn build(
         mut self, 
         identifier: I,
-        b: fn(BuildHookBuilder<I>) -> BuildHookBuilder<I>
+        b: fn(NodeBuilder<I>) -> NodeBuilder<I>
     ) -> Self {
-
-        let mut builder = BuildHookBuilder{
+        let mut builder = NodeBuilder {
             depends: vec![],
+            knows: vec![],
+
+            ammount_defined_by: None,
         };
+
         builder = b(builder);
 
         let node = NodeTemplate {
             value: NodeTemplateValue::BuildHook {  },
             identifier,
-            depends: builder.depends,
-            children: vec![],
+            depends: builder.depends, 
+            knows: builder.knows, 
+            ammount_defined_by: builder.ammount_defined_by,
+            level: 0
         };
 
         self.nodes.push(node);
@@ -204,51 +218,71 @@ impl<I: IT> WFCBuilder<I> {
     }
 }
 
-impl<I: IT> GroupeBuilder<I> {
+impl<I: IT> NodeBuilder<I> {
 
-    pub fn child(mut self, identifier: I) -> Self {
-        self.children.push(identifier);
+    pub fn ammount_defined_by(mut self, identifier: I) -> Self {
+        self.ammount_defined_by = Some(identifier);
         self
     }
 
     pub fn depends(mut self, identifier: I) -> Self {
         self.depends.push(identifier);
         self
-    } 
-}
-
-impl<I: IT> NumberBuilder<I> {
-
-    pub fn child(mut self, identifier: I) -> Self {
-        self.children.push(identifier);
-        self
     }
 
-    pub fn depends(mut self, identifier: I) -> Self {
-        self.depends.push(identifier);
+    pub fn knows(mut self, identifier: I) -> Self {
+        self.knows.push(identifier);
         self
     } 
 }
 
-impl<I: IT> PosBuilder<I> {
+
+impl<I: IT> WFCBuilder<I> {
+    pub fn get_node_index_by_identifier(&self, identifier: I) -> usize {
+        self.nodes.iter().position(|n| n.identifier == identifier).expect(&format!("No Node with Identifier {:?} found.", identifier))
+    }
+
+    fn set_levels(&mut self) {
+        
+        for i in 0..self.nodes.len() {
+            if self.nodes[i].level != 0 {
+                continue;
+            }
+
+            self.set_level_of_node(i);
+        }
+    }
+
+    fn set_level_of_node(&mut self, index: usize) -> usize {
+        let node = &self.nodes[index];
+
+        let mut max_level = 0;
+        for identifier in node.depends
+            .to_owned()
+            .into_iter()
+            .chain(
+                node.ammount_defined_by
+                    .to_owned()
+                    .into_iter()
+            ) {
+            let i = self.get_node_index_by_identifier(identifier);
+
+            let mut level = self.nodes[i].level; 
+
+            if level == 0 {
+                level = self.set_level_of_node(i);
+            } 
+
+            max_level = max_level.max(level);
+        }
+
+        let node_level = max_level + 1;
+        self.nodes[index].level = node_level;
+
+        node_level
+    }
+
     
-    pub fn child(mut self, identifier: I) -> Self {
-        self.children.push(identifier);
-        self
-    }
-
-    pub fn depends(mut self, identifier: I) -> Self {
-        self.depends.push(identifier);
-        self
-    } 
-}
-
-impl<I: IT> BuildHookBuilder<I> {
-    
-    pub fn depends(mut self, identifier: I) -> Self {
-        self.depends.push(identifier);
-        self
-    } 
 }
 
 impl NodeTemplateValue {
