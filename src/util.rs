@@ -29,3 +29,5 @@ pub fn to_3d_i(index: usize, size: IVec3) -> IVec3 {
     let z = rem % size.x;
     ivec3(x, y, z)
 }
+
+

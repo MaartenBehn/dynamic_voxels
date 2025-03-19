@@ -36,7 +36,7 @@ use octa_force::{log, Engine, OctaResult};
 use std::f32::consts::PI;
 use std::time::{Duration, Instant};
 use std::usize;
-use model_synthesis::builder::{WFCBuilder, IT};
+use model_synthesis::builder::{Ammount, WFCBuilder, IT};
 use model_synthesis::renderer::renderer::WFCRenderer;
 
 pub const USE_PROFILE: bool = false;
@@ -132,42 +132,53 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
  
     let wfc_renderer = WFCRenderer::new();
 
-    let wfc_builder: WFCBuilder<Identifier> = WFCBuilder::new()
+    let mut wfc_builder: WFCBuilder<Identifier> = WFCBuilder::new()
         .groupe(Identifier::Fence, |b| {b})
 
         .number_range(Identifier::PostHeight, 3..=8, |b|{b
-            .depends(Identifier::Fence)
+            .ammount(Ammount::OnePer(Identifier::Fence))
         })
 
         .number_range(Identifier::PostDistance, 2..=5, |b|{b
-            .depends(Identifier::Fence
-        )})
+            .ammount(Ammount::OnePer(Identifier::Fence))
+        })
 
         .number_range(Identifier::PostNumber, 5..=10, |b|{b
-            .depends(Identifier::Fence)
+            .ammount(Ammount::OnePer(Identifier::Fence))
         })
 
         .pos(Identifier::PostPos, |b| {b
+            .ammount(Ammount::DefinedBy(Identifier::PostNumber))
             .depends(Identifier::PostNumber)
             .depends(Identifier::PostHeight)
             .depends(Identifier::PostDistance)
         })
 
         .build(Identifier::FencePost, |b| {b
-            .ammount_defined_by(Identifier::PostPos)
+            .ammount(Ammount::OnePer(Identifier::PostPos))
             .depends(Identifier::PostHeight)
             .depends(Identifier::PostDistance)
         })
 
-        .number_range(Identifier::PlankNumber, 3..=4, |b|{b})
-        .number_range(Identifier::PlankDistance, 2..=3, |b|{b})
+        .number_range(Identifier::PlankNumber, 3..=4, |b|{b
+            .ammount(Ammount::OnePer(Identifier::Fence))
+        })
+
+        .number_range(Identifier::PlankDistance, 2..=3, |b|{b
+            .ammount(Ammount::OnePer(Identifier::Fence))
+        })
 
         .build(Identifier::FencePlanks, |b|{b
+            .ammount(Ammount::OnePer(Identifier::Fence))
             .depends(Identifier::PlankNumber)
             .depends(Identifier::PlankDistance)
             .depends(Identifier::PostHeight)
             .knows(Identifier::PostDistance)
         });
+
+    wfc_builder.set_levels();
+
+    dbg!(&wfc_builder);
             
     let mut pos = vec3(1.0, 1.0, 1.0);
     let start_pos = pos;

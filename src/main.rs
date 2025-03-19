@@ -10,6 +10,8 @@ use reload::{
 };
 use std::time::Duration;
 
+isd
+
 const WIDTH: u32 = 1920;
 const HEIGHT: u32 = 1080;
 const APP_NAME: &str = "Dynamic Voxels";

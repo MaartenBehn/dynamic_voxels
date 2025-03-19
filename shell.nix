@@ -63,6 +63,8 @@ pkgs.mkShell rec {
       # load external libraries that you need in your rust project here
       libxkbcommon
       wayland-scanner.out
+      libGL
+      wayland
     ];
 
   # Add precompiled library to rustc search path

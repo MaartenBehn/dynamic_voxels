@@ -1,8 +1,7 @@
 use feistel_permutation_rs::{DefaultBuildHasher, Permutation};
 use octa_force::glam::Vec3;
 
-
-use std::{fmt::Debug, marker::PhantomData, ops::RangeBounds, usize};
+use std::{fmt::Debug, iter, marker::PhantomData, ops::RangeBounds, usize};
 
 use crate::vec_csg_tree::tree::VecCSGNode;
 
@@ -17,12 +16,20 @@ pub struct WFCBuilder<I: IT> {
 }
 
 #[derive(Debug, Clone)]
+pub enum Ammount<I: IT>{
+    OneGlobal,
+    OnePer(I),
+    NPer(usize, I),
+    DefinedBy(I),
+}
+
+#[derive(Debug, Clone)]
 pub struct NodeTemplate<I: IT> {
     pub identifier: I,
     pub value: NodeTemplateValue,
     pub depends: Vec<I>,
-    pub ammount_defined_by: Option<I>,
     pub knows: Vec<I>,
+    pub ammount: Ammount<I>,
     pub level: usize,
 }
 
@@ -43,9 +50,9 @@ pub enum NodeTemplateValue {
 
 #[derive(Debug, Clone)]
 pub struct NodeBuilder<I: IT> {
-    pub ammount_defined_by: Option<I>,
     pub depends: Vec<I>,
     pub knows: Vec<I>,
+    pub ammount: Ammount<I>,
 }
 
 impl<I: IT> WFCBuilder<I> {
@@ -62,21 +69,21 @@ impl<I: IT> WFCBuilder<I> {
     ) -> Self {
         let mut builder = NodeBuilder {
             depends: vec![],
-            ammount_defined_by: None,
             knows: vec![],
+            ammount: Ammount::OneGlobal
         };
 
         builder = b(builder);
+        builder.add_ammount_to_depends();
 
         let node = NodeTemplate {
             value: NodeTemplateValue::Groupe {},
             identifier,
             depends: builder.depends,
             knows: builder.knows,
-            ammount_defined_by: builder.ammount_defined_by,
+            ammount: builder.ammount,
             level: 0
         };
-
         self.nodes.push(node);
         
         self
@@ -91,11 +98,11 @@ impl<I: IT> WFCBuilder<I> {
         let mut builder = NodeBuilder {
             depends: vec![],
             knows: vec![],
-
-            ammount_defined_by: None,
+            ammount: Ammount::OneGlobal
         };
 
         builder = b(builder);
+        builder.add_ammount_to_depends();
 
         let start_bound = match range.start_bound() {
             std::ops::Bound::Included(&num) => num,
@@ -120,7 +127,7 @@ impl<I: IT> WFCBuilder<I> {
             identifier,
             depends: builder.depends,
             knows: builder.knows,
-            ammount_defined_by: builder.ammount_defined_by,
+            ammount: builder.ammount,
             level: 0
         };
 
@@ -137,18 +144,18 @@ impl<I: IT> WFCBuilder<I> {
         let mut builder = NodeBuilder {
             depends: vec![],
             knows: vec![],
-
-            ammount_defined_by: None,
+            ammount: Ammount::OneGlobal
         };
 
         builder = b(builder);
+        builder.add_ammount_to_depends();
 
         let node = NodeTemplate {
             value: NodeTemplateValue::Pos {},
             identifier,
             depends: builder.depends,
             knows: builder.knows,
-            ammount_defined_by: builder.ammount_defined_by,
+            ammount: builder.ammount,
             level: 0
         };
 
@@ -167,11 +174,11 @@ impl<I: IT> WFCBuilder<I> {
         let mut builder = NodeBuilder {
             depends: vec![],
             knows: vec![],
-
-            ammount_defined_by: None,
+            ammount: Ammount::OneGlobal
         };
 
         builder = b(builder);
+        builder.add_ammount_to_depends();
 
         let node = NodeTemplate {
             value: NodeTemplateValue::Volume { 
@@ -180,7 +187,7 @@ impl<I: IT> WFCBuilder<I> {
             identifier,
             depends: builder.depends,
             knows: builder.knows,
-            ammount_defined_by: builder.ammount_defined_by,
+            ammount: builder.ammount,
             level: 0
         };
 
@@ -197,18 +204,18 @@ impl<I: IT> WFCBuilder<I> {
         let mut builder = NodeBuilder {
             depends: vec![],
             knows: vec![],
-
-            ammount_defined_by: None,
+            ammount: Ammount::OneGlobal
         };
 
         builder = b(builder);
+        builder.add_ammount_to_depends();
 
         let node = NodeTemplate {
             value: NodeTemplateValue::BuildHook {  },
             identifier,
             depends: builder.depends, 
             knows: builder.knows, 
-            ammount_defined_by: builder.ammount_defined_by,
+            ammount: builder.ammount,
             level: 0
         };
 
@@ -220,8 +227,8 @@ impl<I: IT> WFCBuilder<I> {
 
 impl<I: IT> NodeBuilder<I> {
 
-    pub fn ammount_defined_by(mut self, identifier: I) -> Self {
-        self.ammount_defined_by = Some(identifier);
+    pub fn ammount(mut self, ammount: Ammount<I>) -> Self {
+        self.ammount = ammount;
         self
     }
 
@@ -233,7 +240,17 @@ impl<I: IT> NodeBuilder<I> {
     pub fn knows(mut self, identifier: I) -> Self {
         self.knows.push(identifier);
         self
-    } 
+    }
+
+    fn add_ammount_to_depends(&mut self) {
+        match self.ammount {
+            Ammount::OneGlobal => {},
+            Ammount::NPer(i)
+            | Ammount::DefinedBy(i) => {
+                self.depends.push(value);
+            },
+        }
+    }
 }
 
 
@@ -242,7 +259,7 @@ impl<I: IT> WFCBuilder<I> {
         self.nodes.iter().position(|n| n.identifier == identifier).expect(&format!("No Node with Identifier {:?} found.", identifier))
     }
 
-    fn set_levels(&mut self) {
+    pub fn set_levels(&mut self) {
         
         for i in 0..self.nodes.len() {
             if self.nodes[i].level != 0 {
@@ -257,15 +274,10 @@ impl<I: IT> WFCBuilder<I> {
         let node = &self.nodes[index];
 
         let mut max_level = 0;
-        for identifier in node.depends
-            .to_owned()
-            .into_iter()
-            .chain(
-                node.ammount_defined_by
-                    .to_owned()
-                    .into_iter()
-            ) {
-            let i = self.get_node_index_by_identifier(identifier);
+        for identifier in iter::empty()
+            .chain(node.depends.to_owned().iter())
+            .chain(node.knows.to_owned().iter()) {
+            let i = self.get_node_index_by_identifier(*identifier);
 
             let mut level = self.nodes[i].level; 
 

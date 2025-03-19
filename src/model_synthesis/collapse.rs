@@ -12,7 +12,6 @@ use super::builder::{NodeTemplate, NodeTemplateValue, WFCBuilder, BU, IT};
 
 new_key_type! { pub struct CollapseNodeKey; }
 
-
 #[derive(Debug, Clone)]
 pub struct Collapser<'a, I: IT, U: BU> {
     builder: &'a WFCBuilder<I>,
@@ -25,7 +24,7 @@ pub struct Collapser<'a, I: IT, U: BU> {
 pub struct Node<I: IT, U: BU> {
     pub template_index: usize,
     pub identfier: I,
-    pub children: Vec<CollapseNodeKey>,
+    pub children: Vec<CollapseNodeKey>, 
     pub depends: Vec<(I, CollapseNodeKey)>,
     pub data: NodeDataType<U>,
     pub next_reset: CollapseNodeKey,
