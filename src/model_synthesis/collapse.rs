@@ -75,7 +75,7 @@ pub enum CollapseOperation<I> {
 
 impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
     pub fn next(&mut self) -> Option<(CollapseOperation<I>, &mut Collapser<'a, I, U>)> {
- 
+
         if let Some((index, identifier)) = self.pending_undo_build.pop() {
             return Some((CollapseOperation::UndoBuild { index, identifier }, self));
         } 
