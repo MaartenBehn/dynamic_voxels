@@ -141,7 +141,7 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
 
         .number_range(Identifier::PostDistance, 2..=5, |b|{b
             .depends(Identifier::Fence
-            )})
+        )})
 
         .number_range(Identifier::PostNumber, 5..=10, |b|{b
             .depends(Identifier::Fence)

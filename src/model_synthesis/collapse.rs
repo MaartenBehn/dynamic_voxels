@@ -26,7 +26,6 @@ pub struct Node<I: IT, U: BU> {
     pub template_index: usize,
     pub identfier: I,
     pub children: Vec<CollapseNodeKey>,
-    pub parent: CollapseNodeKey,
     pub depends: Vec<(I, CollapseNodeKey)>,
     pub data: NodeDataType<U>,
     pub next_reset: CollapseNodeKey,
@@ -126,14 +125,17 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
                 info!("{:?} {:?}: {}", node_index, node.identfier, number_value.value);
 
                 let collapse_len = self.pending_collapse.len();
+                
+                /*
                 for child_identifier in node_template.children.iter() { 
                     for i in 0..value {
                         self.add_child(*child_identifier, node_index, collapse_len);
                     }
                 }
+                */
 
             } else {
-                self.add_children(node_index, node_template);
+                //self.add_children(node_index, node_template);
             } 
         } else {
             return None;
@@ -142,6 +144,7 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
         Some((CollapseOperation::None, self)) 
     }
 
+    /*
     fn add_children(&mut self, node_index: CollapseNodeKey, node_template: &NodeTemplate<I>) {
         let collapse_len = self.pending_collapse.len();
         for child_identifier in node_template.children.iter() {
@@ -155,6 +158,7 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
         let index = self.add_node(new_node_template_index, node_index, insert_collpase_at);
         self.nodes[node_index].children.push(index);
     }
+    */
 
     pub fn add_node(&mut self, new_node_template_index: usize, parent: CollapseNodeKey, insert_collpase_at: usize) -> CollapseNodeKey {
         let new_node_template = &self.builder.nodes[new_node_template_index];
@@ -193,7 +197,6 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
             template_index: new_node_template_index,
             identfier: new_node_template.identifier,
             children: vec![],
-            parent,
             depends,
             data,
             next_reset: parent,
@@ -228,7 +231,6 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
                 return *child_index;
             } else {
                 last_index = index;
-                index = node.parent;
             }
         }
 
@@ -292,7 +294,6 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
 
         self.pending_collapse.push(index);
          
-        let parent = node.parent;
         let mut last = CollapseNodeKey::null();
         for (_, i) in node.depends.to_owned() {
             if last == CollapseNodeKey::null() {
@@ -303,7 +304,7 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
 
             last = i;
         }
-        self.set_next_reset(last, parent);
+        //self.set_next_reset(last, parent);
     }
 
     fn reset_node(&mut self, index: CollapseNodeKey) {
