@@ -245,9 +245,12 @@ impl<I: IT> NodeBuilder<I> {
     fn add_ammount_to_depends(&mut self) {
         match self.ammount {
             Ammount::OneGlobal => {},
-            Ammount::NPer(i)
-            | Ammount::DefinedBy(i) => {
-                self.depends.push(value);
+            Ammount::NPer(_, i)
+            | Ammount::DefinedBy(i)
+            | Ammount::OnePer(i)=> {
+                if !self.depends.contains(&i) {
+                    self.depends.push(i);
+                }
             },
         }
     }
