@@ -31,6 +31,7 @@ pub struct NodeTemplate<I: IT> {
     pub knows: Vec<I>,
     pub ammount: Ammount<I>,
     pub level: usize,
+    pub creates: Vec<I>
 }
 
 #[derive(Debug, Clone)]
@@ -82,7 +83,8 @@ impl<I: IT> WFCBuilder<I> {
             depends: builder.depends,
             knows: builder.knows,
             ammount: builder.ammount,
-            level: 0
+            level: 0,
+            creates: vec![],
         };
         self.nodes.push(node);
         
@@ -128,7 +130,8 @@ impl<I: IT> WFCBuilder<I> {
             depends: builder.depends,
             knows: builder.knows,
             ammount: builder.ammount,
-            level: 0
+            level: 0,
+            creates: vec![],
         };
 
         self.nodes.push(node);
@@ -156,7 +159,8 @@ impl<I: IT> WFCBuilder<I> {
             depends: builder.depends,
             knows: builder.knows,
             ammount: builder.ammount,
-            level: 0
+            level: 0,
+            creates: vec![],
         };
 
         self.nodes.push(node);
@@ -188,7 +192,8 @@ impl<I: IT> WFCBuilder<I> {
             depends: builder.depends,
             knows: builder.knows,
             ammount: builder.ammount,
-            level: 0
+            level: 0,
+            creates: vec![],
         };
 
         self.nodes.push(node);
@@ -216,13 +221,16 @@ impl<I: IT> WFCBuilder<I> {
             depends: builder.depends, 
             knows: builder.knows, 
             ammount: builder.ammount,
-            level: 0
+            level: 0,
+            creates: vec![],
         };
 
         self.nodes.push(node);
 
         self
     }
+
+    
 }
 
 impl<I: IT> NodeBuilder<I> {
@@ -262,7 +270,26 @@ impl<I: IT> WFCBuilder<I> {
         self.nodes.iter().position(|n| n.identifier == identifier).expect(&format!("No Node with Identifier {:?} found.", identifier))
     }
 
-    pub fn set_levels(&mut self) {
+    pub fn done(&mut self) {
+        self.set_levels();
+        self.set_creates();
+    }
+
+    fn set_creates(&mut self) {
+        for i in 0..self.nodes.len() {
+            let idetifier = self.nodes[i].identifier;
+            let mut creates = vec![];
+            for node in self.nodes.iter() {
+                if node.depends.iter().any(|i| *i == idetifier) {
+                    creates.push(node.identifier);
+                }
+            }
+
+            self.nodes[i].creates = creates;
+        }
+    }
+
+    fn set_levels(&mut self) {
         
         for i in 0..self.nodes.len() {
             if self.nodes[i].level != 0 {
@@ -295,9 +322,7 @@ impl<I: IT> WFCBuilder<I> {
         self.nodes[index].level = node_level;
 
         node_level
-    }
-
-    
+    } 
 }
 
 impl NodeTemplateValue {

@@ -176,7 +176,7 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
             .knows(Identifier::PostDistance)
         });
 
-    wfc_builder.set_levels();
+    wfc_builder.done();
 
     dbg!(&wfc_builder);
             
