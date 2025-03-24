@@ -8,16 +8,21 @@ use slotmap::{new_key_type, Key, SlotMap};
 
 use crate::{vec_csg_tree::tree::VecCSGTree, model_synthesis::{volume::PossibleVolume}};
 
-use super::builder::{NodeTemplate, NodeTemplateValue, WFCBuilder, BU, IT};
+use super::builder::{BuilderNode, NodeTemplateValue, ModelSynthesisBuilder, BU, IT};
 
 new_key_type! { pub struct CollapseNodeKey; }
 
 #[derive(Debug, Clone)]
 pub struct Collapser<'a, I: IT, U: BU> {
-    builder: &'a WFCBuilder<I>,
+    builder: &'a ModelSynthesisBuilder<I>,
     pub nodes: SlotMap<CollapseNodeKey, Node<I, U>>,
     pending_collapse: Vec<CollapseNodeKey>,
     pending_undo_build: Vec<(CollapseNodeKey, I)>,
+}
+
+pub struct NodeOrder<I: IT> {
+    pub identfier: I,
+    pub level: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -372,7 +377,7 @@ impl<U: BU> NodeDataType<U> {
 }
 
 
-impl<I: IT> WFCBuilder<I> {
+impl<I: IT> ModelSynthesisBuilder<I> {
     pub fn get_collaper<U: BU>(&self) -> Collapser<I, U> {
         let mut collapser = Collapser{
             builder: self,
@@ -386,4 +391,12 @@ impl<I: IT> WFCBuilder<I> {
     }
 }
 
+impl<I: IT, U: BU> From<Node<I, U>> for NodeOrder<I> {
+    fn from(value: Node<I, U>) -> Self {
+        NodeOrder {
+            identfier: value.identfier,
+            level: 0, //value.level,
+        }
+    }
+}
 

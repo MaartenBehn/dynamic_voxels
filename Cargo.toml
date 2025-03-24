@@ -29,4 +29,6 @@ fast_poisson = { path="../fast_poisson", features = ["single_precision"]}
 petgraph = "0.6.5"
 egui_graphs = "0.21.1"
 fdg = { git = "https://github.com/grantshandy/fdg" }
+
 slotmap = "1.0.7"
+sorted-vec = "0.8.6"

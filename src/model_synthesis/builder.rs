@@ -5,18 +5,18 @@ use std::{fmt::Debug, iter, marker::PhantomData, ops::RangeBounds, usize};
 
 use crate::vec_csg_tree::tree::VecCSGNode;
 
-use super::{collapse::Node,  volume::PossibleVolume};
+use super::{collapse::Node, relative_path::{self, RelativePathTree}, template::TemplateTree, volume::PossibleVolume};
 
-pub trait IT: Debug + Copy + Eq {}
+pub trait IT: Debug + Copy + Eq + Default {}
 pub trait BU: Debug + Copy + Default {}
 
 #[derive(Debug, Clone)]
-pub struct WFCBuilder<I: IT> {
-    pub nodes: Vec<NodeTemplate<I>>,
+pub struct ModelSynthesisBuilder<I: IT> {
+    pub nodes: Vec<BuilderNode<I>>,
 }
 
-#[derive(Debug, Clone)]
-pub enum Ammount<I: IT>{
+#[derive(Debug, Clone, Copy)]
+pub enum BuilderAmmount<I: IT>{
     OneGlobal,
     OnePer(I),
     NPer(usize, I),
@@ -24,14 +24,12 @@ pub enum Ammount<I: IT>{
 }
 
 #[derive(Debug, Clone)]
-pub struct NodeTemplate<I: IT> {
+pub struct BuilderNode<I: IT> {
     pub identifier: I,
     pub value: NodeTemplateValue,
     pub depends: Vec<I>,
     pub knows: Vec<I>,
-    pub ammount: Ammount<I>,
-    pub level: usize,
-    pub creates: Vec<I>
+    pub ammount: BuilderAmmount<I>,
 }
 
 #[derive(Debug, Clone)]
@@ -53,12 +51,12 @@ pub enum NodeTemplateValue {
 pub struct NodeBuilder<I: IT> {
     pub depends: Vec<I>,
     pub knows: Vec<I>,
-    pub ammount: Ammount<I>,
+    pub ammount: BuilderAmmount<I>,
 }
 
-impl<I: IT> WFCBuilder<I> {
-    pub fn new() -> WFCBuilder<I> {
-        WFCBuilder {
+impl<I: IT> ModelSynthesisBuilder<I> {
+    pub fn new() -> ModelSynthesisBuilder<I> {
+        ModelSynthesisBuilder {
             nodes: vec![],
         }
     }
@@ -71,20 +69,17 @@ impl<I: IT> WFCBuilder<I> {
         let mut builder = NodeBuilder {
             depends: vec![],
             knows: vec![],
-            ammount: Ammount::OneGlobal
+            ammount: BuilderAmmount::OneGlobal
         };
 
         builder = b(builder);
-        builder.add_ammount_to_depends();
 
-        let node = NodeTemplate {
+        let node = BuilderNode {
             value: NodeTemplateValue::Groupe {},
             identifier,
             depends: builder.depends,
             knows: builder.knows,
             ammount: builder.ammount,
-            level: 0,
-            creates: vec![],
         };
         self.nodes.push(node);
         
@@ -100,11 +95,10 @@ impl<I: IT> WFCBuilder<I> {
         let mut builder = NodeBuilder {
             depends: vec![],
             knows: vec![],
-            ammount: Ammount::OneGlobal
+            ammount: BuilderAmmount::OneGlobal
         };
 
         builder = b(builder);
-        builder.add_ammount_to_depends();
 
         let start_bound = match range.start_bound() {
             std::ops::Bound::Included(&num) => num,
@@ -120,7 +114,7 @@ impl<I: IT> WFCBuilder<I> {
 
 
         let seed = fastrand::u64(0..1000);
-        let node = NodeTemplate {
+        let node = BuilderNode {
             value: NodeTemplateValue::NumberRange {
                 min: start_bound,
                 max: end_bound,
@@ -130,8 +124,6 @@ impl<I: IT> WFCBuilder<I> {
             depends: builder.depends,
             knows: builder.knows,
             ammount: builder.ammount,
-            level: 0,
-            creates: vec![],
         };
 
         self.nodes.push(node);
@@ -147,20 +139,17 @@ impl<I: IT> WFCBuilder<I> {
         let mut builder = NodeBuilder {
             depends: vec![],
             knows: vec![],
-            ammount: Ammount::OneGlobal
+            ammount: BuilderAmmount::OneGlobal
         };
 
         builder = b(builder);
-        builder.add_ammount_to_depends();
 
-        let node = NodeTemplate {
+        let node = BuilderNode {
             value: NodeTemplateValue::Pos {},
             identifier,
             depends: builder.depends,
             knows: builder.knows,
             ammount: builder.ammount,
-            level: 0,
-            creates: vec![],
         };
 
         self.nodes.push(node);
@@ -178,13 +167,12 @@ impl<I: IT> WFCBuilder<I> {
         let mut builder = NodeBuilder {
             depends: vec![],
             knows: vec![],
-            ammount: Ammount::OneGlobal
+            ammount: BuilderAmmount::OneGlobal
         };
 
         builder = b(builder);
-        builder.add_ammount_to_depends();
 
-        let node = NodeTemplate {
+        let node = BuilderNode {
             value: NodeTemplateValue::Volume { 
                 volume: PossibleVolume::new(volume, sample_distance) 
             },
@@ -192,8 +180,6 @@ impl<I: IT> WFCBuilder<I> {
             depends: builder.depends,
             knows: builder.knows,
             ammount: builder.ammount,
-            level: 0,
-            creates: vec![],
         };
 
         self.nodes.push(node);
@@ -209,20 +195,17 @@ impl<I: IT> WFCBuilder<I> {
         let mut builder = NodeBuilder {
             depends: vec![],
             knows: vec![],
-            ammount: Ammount::OneGlobal
+            ammount: BuilderAmmount::OneGlobal
         };
 
         builder = b(builder);
-        builder.add_ammount_to_depends();
 
-        let node = NodeTemplate {
+        let node = BuilderNode {
             value: NodeTemplateValue::BuildHook {  },
             identifier,
             depends: builder.depends, 
             knows: builder.knows, 
             ammount: builder.ammount,
-            level: 0,
-            creates: vec![],
         };
 
         self.nodes.push(node);
@@ -235,7 +218,7 @@ impl<I: IT> WFCBuilder<I> {
 
 impl<I: IT> NodeBuilder<I> {
 
-    pub fn ammount(mut self, ammount: Ammount<I>) -> Self {
+    pub fn ammount(mut self, ammount: BuilderAmmount<I>) -> Self {
         self.ammount = ammount;
         self
     }
@@ -249,80 +232,16 @@ impl<I: IT> NodeBuilder<I> {
         self.knows.push(identifier);
         self
     }
-
-    fn add_ammount_to_depends(&mut self) {
-        match self.ammount {
-            Ammount::OneGlobal => {},
-            Ammount::NPer(_, i)
-            | Ammount::DefinedBy(i)
-            | Ammount::OnePer(i)=> {
-                if !self.depends.contains(&i) {
-                    self.depends.push(i);
-                }
-            },
-        }
-    }
 }
 
-
-impl<I: IT> WFCBuilder<I> {
+impl<I: IT> ModelSynthesisBuilder<I> {
     pub fn get_node_index_by_identifier(&self, identifier: I) -> usize {
         self.nodes.iter().position(|n| n.identifier == identifier).expect(&format!("No Node with Identifier {:?} found.", identifier))
     }
 
-    pub fn done(&mut self) {
-        self.set_levels();
-        self.set_creates();
+    pub fn build_template(&self) -> TemplateTree<I> {
+        TemplateTree::new_from_builder(self)
     }
-
-    fn set_creates(&mut self) {
-        for i in 0..self.nodes.len() {
-            let idetifier = self.nodes[i].identifier;
-            let mut creates = vec![];
-            for node in self.nodes.iter() {
-                if node.depends.iter().any(|i| *i == idetifier) {
-                    creates.push(node.identifier);
-                }
-            }
-
-            self.nodes[i].creates = creates;
-        }
-    }
-
-    fn set_levels(&mut self) {
-        
-        for i in 0..self.nodes.len() {
-            if self.nodes[i].level != 0 {
-                continue;
-            }
-
-            self.set_level_of_node(i);
-        }
-    }
-
-    fn set_level_of_node(&mut self, index: usize) -> usize {
-        let node = &self.nodes[index];
-
-        let mut max_level = 0;
-        for identifier in iter::empty()
-            .chain(node.depends.to_owned().iter())
-            .chain(node.knows.to_owned().iter()) {
-            let i = self.get_node_index_by_identifier(*identifier);
-
-            let mut level = self.nodes[i].level; 
-
-            if level == 0 {
-                level = self.set_level_of_node(i);
-            } 
-
-            max_level = max_level.max(level);
-        }
-
-        let node_level = max_level + 1;
-        self.nodes[index].level = node_level;
-
-        node_level
-    } 
 }
 
 impl NodeTemplateValue {
