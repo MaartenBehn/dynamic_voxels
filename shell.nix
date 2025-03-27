@@ -22,7 +22,7 @@ with builtins;
   ...
 }:
 
-pkgs.mkShell rec {
+pkgs.mkShell {
 
   name = "dynamic_voxels";
   RUSTC_VERSION = "stable";

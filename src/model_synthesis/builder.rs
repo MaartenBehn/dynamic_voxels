@@ -1,7 +1,7 @@
 use feistel_permutation_rs::{DefaultBuildHasher, Permutation};
 use octa_force::glam::Vec3;
 
-use std::{fmt::Debug, iter, marker::PhantomData, ops::RangeBounds, usize};
+use std::{fmt::Debug, iter, marker::PhantomData, ops::RangeBounds};
 
 use crate::vec_csg_tree::tree::VecCSGNode;
 

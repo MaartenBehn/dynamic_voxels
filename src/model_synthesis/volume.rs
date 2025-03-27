@@ -1,6 +1,6 @@
 use std::u64;
 
-use fast_poisson::{Poisson};
+use fast_poisson::Poisson;
 use feistel_permutation_rs::{DefaultBuildHasher, Permutation};
 use kiddo::KdTree;
 use octa_force::glam::{vec3, vec4, Mat4, Vec3, Vec4Swizzles};

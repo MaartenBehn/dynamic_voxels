@@ -1,8 +1,8 @@
-use std::{iter, usize};
+use std::iter;
 
 use crate::model_synthesis::relative_path::RelativePathTree;
 
-use super::{builder::{BuilderAmmount, ModelSynthesisBuilder, NodeTemplateValue, IT}};
+use super::builder::{BuilderAmmount, BuilderNode, ModelSynthesisBuilder, NodeTemplateValue, IT};
 
 pub type TemplateIndex = usize;
 pub const TEMPLATE_INDEX_ROOT: TemplateIndex = 0;
@@ -16,49 +16,52 @@ pub struct TemplateTree<I: IT> {
 #[derive(Debug, Clone)]
 pub struct TemplateNode<I: IT> {
     pub identifier: I,
+    pub index: TemplateIndex,
     pub value: NodeTemplateValue,
-    pub ammount: TemplateAmmount,
-    pub creates: Vec<NodeCreationInfo>,
     pub depends: Vec<TemplateIndex>,
+    pub dependend: Vec<TemplateIndex>,
     pub knows: Vec<TemplateIndex>,
     pub level: usize,
+    pub defines_ammount: Vec<TemplateAmmount>,
 }
 
 #[derive(Debug, Clone)]
-pub enum TemplateAmmount{
-    Root,
-    NPer(usize, TemplateIndex),
-    DefinedBy(TemplateIndex),
-}
-
-#[derive(Debug, Clone)]
-pub struct NodeCreationInfo {
+pub struct TemplateAmmount {
+    pub typ: TemplateAmmountType,
     pub index: TemplateIndex,
-    pub dependecy_paths: RelativePathTree,
+    pub dependecy_tree: RelativePathTree,
+}
+
+#[derive(Debug, Clone)]
+pub enum TemplateAmmountType{
+    N(usize),
+    Value,
 }
 
 impl<I: IT> TemplateTree<I> {
     pub fn new_from_builder(builder: &ModelSynthesisBuilder<I>) -> TemplateTree<I> {
         let mut nodes = vec![TemplateNode { 
-            identifier: I::default(), 
+            identifier: I::default(),
+            index: 0,
             value: NodeTemplateValue::Groupe {  }, 
-            ammount: TemplateAmmount::Root,
-            creates: vec![], 
             depends: vec![], 
+            dependend: vec![], 
             knows: vec![], 
-            level: 0 
+            level: 0,
+            defines_ammount: vec![],
         }];
 
         // Create the nodes
-        for builder_node in builder.nodes.iter() {
+        for (i, builder_node) in builder.nodes.iter().enumerate() {
             let template_node = TemplateNode {
                 identifier: builder_node.identifier,
+                index: i + 1,
                 value: builder_node.value.to_owned(),
-                ammount: TemplateAmmount::from_builder_ammount(builder_node.ammount, builder),
-                creates: vec![],
                 depends: vec![],
+                dependend: vec![],
                 knows: vec![],
                 level: 0,
+                defines_ammount: vec![],
             };
 
             nodes.push(template_node);
@@ -69,31 +72,24 @@ impl<I: IT> TemplateTree<I> {
             template_node_index += 1;
 
             let template_node = &nodes[template_node_index];
-            let ammount_index = match template_node.ammount {
-                TemplateAmmount::NPer(_, i) => i,
-                TemplateAmmount::DefinedBy(i) => i,
-                TemplateAmmount::Root => unreachable!(),
-            };
-            let mut depends = vec![ammount_index];
-                   
-            let ammount_idetifier = &nodes[ammount_index].identifier;
-            &nodes[ammount_index].creates.push(NodeCreationInfo {
-                index: template_node_index,
-                dependecy_paths: RelativePathTree::default(),
-            });
 
-            
+            let (typ, parent_node_index) = Self::get_ammount_type_and_defines_index(builder, builder_node, &nodes);
+            nodes[parent_node_index].defines_ammount.push(TemplateAmmount{
+                typ,
+                index: template_node_index,
+                dependecy_tree: RelativePathTree::default(),
+            });
+            nodes[parent_node_index].dependend.push(template_node_index);
+                
+            let mut depends = vec![parent_node_index]; 
             for i in builder_node.depends.iter() {
                 let depends_index = builder.get_node_index_by_identifier(*i) + 1;
                 if !depends.contains(&depends_index) {
                     depends.push(depends_index);
+                    nodes[depends_index].dependend.push(template_node_index);
                 }
-
-                &nodes[depends_index].creates.push(NodeCreationInfo {
-                    index: template_node_index,
-                    dependecy_paths: RelativePathTree::default(),
-                });
             }
+            nodes[template_node_index].depends = depends;
 
             let mut knows = vec![];
             for i in builder_node.knows.iter() {
@@ -102,30 +98,26 @@ impl<I: IT> TemplateTree<I> {
                     knows.push(knows_index);
                 }
             }
-
-            nodes[template_node_index].depends = depends;
             nodes[template_node_index].knows = knows;
         }
-         
+
         let mut tree = TemplateTree {
             nodes,
         };
 
         // Set create paths und levels
         for i in 1..tree.nodes.len() {
-            dbg!(&tree.nodes[i]);
-
             if tree.nodes[i].level == 0 {
                 tree.set_level_of_node(i);
             }
 
-            let identifier = tree.nodes[i].identifier;
-            for j in 0..tree.nodes[i].creates.len() {
-                tree.nodes[i].creates[j].dependecy_paths = RelativePathTree::get_paths_to_other_dependcies_from_parent(
+            let index = tree.nodes[i].index;
+            for j in 0..tree.nodes[i].defines_ammount.len() {
+                tree.nodes[i].defines_ammount[j].dependecy_tree = RelativePathTree::get_paths_to_other_dependcies_from_parent(
                     &tree, 
                     i,
-                    builder.nodes[tree.nodes[i].creates[j].index - 1].depends.iter()
-                        .filter(|i| **i != identifier)
+                    tree.nodes[tree.nodes[i].defines_ammount[j].index].depends.iter()
+                        .filter(|i| **i != index)
                         .map(|i| *i)
                         .collect())
             }
@@ -133,7 +125,7 @@ impl<I: IT> TemplateTree<I> {
 
         tree
     } 
-    
+
     fn set_level_of_node(&mut self, index: usize) -> usize {
         let node = &self.nodes[index];
 
@@ -156,15 +148,14 @@ impl<I: IT> TemplateTree<I> {
 
         node_level
     } 
-}
 
-impl TemplateAmmount {
-    fn from_builder_ammount<I: IT>(value: BuilderAmmount<I>, builder: &ModelSynthesisBuilder<I>) -> Self {
-        match value {
-            BuilderAmmount::OneGlobal => TemplateAmmount::NPer(1, TEMPLATE_INDEX_ROOT),
-            BuilderAmmount::OnePer(i) => TemplateAmmount::NPer(1, builder.get_node_index_by_identifier(i) + 1),
-            BuilderAmmount::NPer(n, i) => TemplateAmmount::NPer(n, builder.get_node_index_by_identifier(i) + 1),
-            BuilderAmmount::DefinedBy(i) => TemplateAmmount::DefinedBy(builder.get_node_index_by_identifier(i) + 1),
+    fn get_ammount_type_and_defines_index(builder: &ModelSynthesisBuilder<I>, builder_node: &BuilderNode<I>, nodes: &[TemplateNode<I>]) -> (TemplateAmmountType, usize) {
+        match builder_node.ammount {
+            BuilderAmmount::OneGlobal => (TemplateAmmountType::N(1), 0), 
+            BuilderAmmount::OnePer(i) => (TemplateAmmountType::N(1), builder.get_node_index_by_identifier(i) + 1),
+            BuilderAmmount::NPer(n, i) => (TemplateAmmountType::N(n), builder.get_node_index_by_identifier(i) + 1),
+            BuilderAmmount::DefinedBy(i) =>  (TemplateAmmountType::Value, builder.get_node_index_by_identifier(i) + 1),
         }
+
     }
 }

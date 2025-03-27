@@ -35,7 +35,7 @@ use octa_force::vulkan::Fence;
 use octa_force::{log, Engine, OctaResult};
 use std::f32::consts::PI;
 use std::time::{Duration, Instant};
-use std::{default, usize};
+use std::default;
 use model_synthesis::builder::{BuilderAmmount, ModelSynthesisBuilder, IT};
 use model_synthesis::renderer::renderer::WFCRenderer;
 
@@ -80,9 +80,11 @@ pub enum Identifier {
 }
 impl IT for Identifier {}
 
-
 #[no_mangle]
 pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
+
+
+
     #[cfg(debug_assertions)]
     puffin::profile_function!();
 
@@ -178,17 +180,15 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
             .knows(Identifier::PostDistance)
         });
     
-    dbg!(&wfc_builder);
-
     let template = wfc_builder.build_template();
 
-    dbg!(template.nodes.iter().enumerate().collect::<Vec<_>>());
+    dbg!(&template);
             
     let mut pos = vec3(1.0, 1.0, 1.0);
     let start_pos = pos;
     let mut csg = None;
 
-    let mut collapser: Collapser<Identifier, SlotMapCSGTreeKey> = wfc_builder.get_collaper();
+    let mut collapser: Collapser<Identifier, SlotMapCSGTreeKey> = template.get_collaper();
     while let Some((operation, collapser)) = collapser.next() {
         match operation {
             CollapseOperation::CollapsePos{ index  } => {
