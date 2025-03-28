@@ -9,7 +9,7 @@ use slotmap::{new_key_type, Key, SlotMap};
 
 use crate::{vec_csg_tree::tree::VecCSGTree, model_synthesis::volume::PossibleVolume};
 
-use super::{builder::{BuilderNode, ModelSynthesisBuilder, NodeTemplateValue, BU, IT}, relative_path::RelativePathTree, template::{TemplateAmmountType, TemplateIndex, TemplateNode, TemplateTree}};
+use super::{builder::{BuilderNode, ModelSynthesisBuilder, NodeTemplateValue, BU, IT}, relative_path::{LeafType, RelativePathTree}, template::{TemplateAmmountType, TemplateIndex, TemplateNode, TemplateTree}};
 
 new_key_type! { pub struct CollapseNodeKey; }
 
@@ -39,6 +39,7 @@ pub struct Node<I: IT, U: BU> {
     pub identfier: I,
     pub children: Vec<CollapseNodeKey>, 
     pub depends: Vec<(I, CollapseNodeKey)>,
+    pub knows: Vec<(I, CollapseNodeKey)>,
     pub data: NodeDataType<U>,
 }
 
@@ -175,8 +176,11 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
         let tree = &template_ammount.dependecy_tree;
 
         // Contains a list of node indecies matching the template dependency
-        let mut dependencies = iter::repeat_with(|| vec![])
+        let mut depends = iter::repeat_with(|| vec![])
             .take(new_node_template.depends.len())
+            .collect::<Vec<_>>();
+        let mut knows = iter::repeat_with(|| vec![])
+            .take(new_node_template.knows.len())
             .collect::<Vec<_>>();
 
         let mut pending_paths = tree.starts.iter()
@@ -199,15 +203,18 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
                     .collect::<Vec<_>>()
             };
 
-            if step.leaf {
-                // TODO maybe precompute the index to the dependency in the relative tree
-                let i = new_node_template.depends.iter()
-                        .position(|i| step.into_index == *i)
-                        .expect("Leaf Node in realtive Tree is not dependency");
-
-                for edge in edges.iter() {
-                    dependencies[i].push(*edge);
-                }
+            match step.leaf {
+                LeafType::None => {},
+                LeafType::Depends(i) => {
+                    for edge in edges.iter() {
+                        depends[i].push(*edge);
+                    }
+                },
+                LeafType::Knows(i) => {
+                    for edge in edges.iter() {
+                         knows[i].push(*edge);
+                    }
+                },
             }
 
             for edge in edges {
@@ -218,17 +225,25 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
             }  
         }
 
-        let dependencies = new_node_template.depends.iter()
-            .zip(dependencies)
-            .map(|(depend_template_node, nodes)| {
-                if *depend_template_node == template_node.index {
-                    return (template_node.identifier, node_index);
-                }
+        let transform_depends_and_knows = |
+            template_list: &[TemplateIndex], 
+            found_list: Vec<Vec<CollapseNodeKey>>
+        | -> Vec<(I, CollapseNodeKey)> {
+            template_list.iter()
+                .zip(found_list)
+                .map(|(depend_template_node, nodes)| {
+                    if *depend_template_node == template_node.index {
+                        return (template_node.identifier, node_index);
+                    }
 
-                let depend_template_node = &self.template.nodes[*depend_template_node];
-                assert_eq!(nodes.len(), 1, "Invalid number of nodes for dependency of node found");
-                (depend_template_node.identifier, nodes[0])
-            }).collect::<Vec<_>>();
+                    let depend_template_node = &self.template.nodes[*depend_template_node];
+                    assert_eq!(nodes.len(), 1, "Invalid number of nodes for dependency or knows of node found");
+                    (depend_template_node.identifier, nodes[0])
+                }).collect::<Vec<_>>()
+        };
+
+        let depends = transform_depends_and_knows(&new_node_template.depends, depends);
+        let knows = transform_depends_and_knows(&new_node_template.knows, knows);
 
         let ammount = match template_ammount.typ {
             TemplateAmmountType::N(n) => n,
@@ -242,7 +257,7 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
         };
 
         for _ in 0..ammount {
-            self.add_node(template_ammount.index, dependencies.clone()); 
+            self.add_node(template_ammount.index, depends.clone(), knows.clone()); 
         } 
     }
     
@@ -251,9 +266,11 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
         if let Err(index) = res {
             self.pending_operations.insert(index, opperation);
         } 
-    } 
+    }
+
+    fn instert_opperation_only_lock_pending_operations(&mut pending_operations)
  
-    pub fn add_node(&mut self, new_node_template_index: TemplateIndex, depends: Vec<(I, CollapseNodeKey)>) {
+    pub fn add_node(&mut self, new_node_template_index: TemplateIndex, depends: Vec<(I, CollapseNodeKey)>, knows: Vec<(I, CollapseNodeKey)>) {
         let new_node_template = &self.template.nodes[new_node_template_index];
 
         let data = match &new_node_template.value {
@@ -287,6 +304,7 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
             identfier: new_node_template.identifier,
             children: vec![],
             depends: depends.clone(),
+            knows,
             data,
         });
 
@@ -323,13 +341,8 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
         }
     }
 
-    fn get_dependend_indecies_with_index(&self, index: CollapseNodeKey) -> &[(I, CollapseNodeKey)] {
-        &self.nodes.get(index).expect("Node by index not found").depends
-    }
-
     fn get_dependend_index(&self, index: CollapseNodeKey, identifier: I) -> CollapseNodeKey {
-        let depends = self.get_dependend_indecies_with_index(index);
-        dbg!(&depends);
+        let depends = &self.nodes.get(index).expect("Node by index not found").depends;
         depends.iter().find(|(i, _)| *i == identifier).expect(&format!("Node has no depends {:?}", identifier)).1
     }
 
@@ -349,16 +362,42 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
         self.get_pos_mut(index)
     }
 
+
+    fn get_known_index(&self, index: CollapseNodeKey, identifier: I) -> CollapseNodeKey {
+        let knows = &self.nodes.get(index).expect("Node by index not found").knows;
+        knows.iter().find(|(i, _)| *i == identifier).expect(&format!("Node has no knows {:?}", identifier)).1
+    }
+
+    pub fn get_known_number(&self, index: CollapseNodeKey, identifier: I) -> i32 {
+        let index = self.get_known_index(index, identifier);
+        self.get_number(index)
+    }
+
+    pub fn get_known_pos(&self, index: CollapseNodeKey, identifier: I) -> Vec3 {
+        let index = self.get_known_index(index, identifier);
+        self.get_pos(index)
+    }
+
+    pub fn get_known_pos_mut(&mut self, index: CollapseNodeKey, identifier: I) -> &mut Vec3 {
+        let index = self.get_known_index(index, identifier);
+        self.get_pos_mut(index)
+    }
+
     pub fn pos_collapse_failed(&mut self, index: CollapseNodeKey) {
 
     }
 
     pub fn build_failed(&mut self, index: CollapseNodeKey) {
-        /*
         info!("{:?} Build of faild", index);
+        
         let node = self.nodes.get(index).expect("Reset CollapseNodeKey not valid!");
+        let level = self.template.nodes[node.template_index].level;
 
-        self.pending_operations.push(index);
+        self.insert_opperation(NodeOperation{
+            level,
+            index,
+            typ: NodeOperationType::CollapseValue,
+        });
 
         let mut last = CollapseNodeKey::null();
         for (_, i) in node.depends.to_owned() {
@@ -370,8 +409,6 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
 
             last = i;
         }
-        //self.set_next_reset(last, parent);
-        */
     }
 
     fn reset_node(&mut self, index: CollapseNodeKey) {
@@ -454,7 +491,7 @@ impl<I: IT> TemplateTree<I> {
             pending_operations: vec![],
         };
 
-        collapser.add_node(0, vec![]);
+        collapser.add_node(0, vec![], vec![]);
         collapser
     }
 }

@@ -113,13 +113,13 @@ impl<I: IT> TemplateTree<I> {
 
             let index = tree.nodes[i].index;
             for j in 0..tree.nodes[i].defines_ammount.len() {
+                let new_node = &tree.nodes[tree.nodes[i].defines_ammount[j].index];
+
                 tree.nodes[i].defines_ammount[j].dependecy_tree = RelativePathTree::get_paths_to_other_dependcies_from_parent(
                     &tree, 
                     i,
-                    tree.nodes[tree.nodes[i].defines_ammount[j].index].depends.iter()
-                        .filter(|i| **i != index)
-                        .map(|i| *i)
-                        .collect())
+                    &new_node.depends,
+                    &new_node.knows);
             }
         }
 

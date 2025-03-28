@@ -30,4 +30,3 @@ pub fn to_3d_i(index: usize, size: IVec3) -> IVec3 {
     ivec3(x, y, z)
 }
 
-

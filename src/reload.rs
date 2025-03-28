@@ -233,7 +233,7 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
                         let plank_number = collapser.get_dependend_number(index, Identifier::PlankNumber);
                         let plank_distance = collapser.get_dependend_number(index, Identifier::PlankDistance);
                         let fence_height = collapser.get_dependend_number(index, Identifier::PostHeight);
-                        let post_distance = collapser.get_dependend_number(index, Identifier::PostDistance);
+                        let post_distance = collapser.get_known_number(index, Identifier::PostDistance);
 
                         if plank_number * plank_distance > fence_height {
                             collapser.build_failed(index);
