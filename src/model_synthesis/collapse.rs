@@ -6,6 +6,7 @@ use fdg::nalgebra::base;
 use feistel_permutation_rs::{DefaultBuildHasher, OwnedPermutationIterator, Permutation, PermutationIterator};
 use octa_force::{anyhow::{anyhow, bail}, glam::{vec3, IVec3, Vec3}, log::{debug, error, info}, OctaResult};
 use slotmap::{new_key_type, Key, SlotMap};
+use unpack_method::unpack;
 
 use crate::{vec_csg_tree::tree::VecCSGTree, model_synthesis::volume::PossibleVolume};
 
@@ -260,7 +261,8 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
             self.add_node(template_ammount.index, depends.clone(), knows.clone()); 
         } 
     }
-    
+     
+    #[unpack]
     fn insert_opperation(&mut self, opperation: NodeOperation) {
         let res = self.pending_operations.binary_search(&opperation);
         if let Err(index) = res {
@@ -268,8 +270,6 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
         } 
     }
 
-    fn instert_opperation_only_lock_pending_operations(&mut pending_operations)
- 
     pub fn add_node(&mut self, new_node_template_index: TemplateIndex, depends: Vec<(I, CollapseNodeKey)>, knows: Vec<(I, CollapseNodeKey)>) {
         let new_node_template = &self.template.nodes[new_node_template_index];
 
@@ -392,8 +392,8 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
         
         let node = self.nodes.get(index).expect("Reset CollapseNodeKey not valid!");
         let level = self.template.nodes[node.template_index].level;
-
-        self.insert_opperation(NodeOperation{
+        
+        Self::insert_opperation_unpacked(&mut self.pending_operations, NodeOperation{
             level,
             index,
             typ: NodeOperationType::CollapseValue,

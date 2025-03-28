@@ -32,3 +32,6 @@ fdg = { git = "https://github.com/grantshandy/fdg" }
 
 slotmap = "1.0.7"
 sorted-vec = "0.8.6"
+
+# unpack_method = { path = "../unpack_method" }
+unpack_method = { version = "0.1.0", git = "https://github.com/MaartenBehn/unpack_method" }

@@ -55,7 +55,7 @@ pub struct LogicState {
     pub start_time: Instant,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn init_hot_reload(logger: &'static dyn Log) -> OctaResult<()> {
     setup_logger(logger)?;
 
@@ -80,7 +80,7 @@ pub enum Identifier {
 }
 impl IT for Identifier {}
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
 
 
@@ -104,7 +104,6 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
     )?;
 
     let data_controller = DataController::new(&engine.context)?;
-
 
     let color_controller = ColorController::new(&engine.context)?;
 
@@ -293,7 +292,7 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
 }
 
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn new_logic_state(
     render_state: &mut RenderState,
     engine: &mut Engine,
@@ -318,7 +317,7 @@ pub fn new_logic_state(
     })
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn update(
     render_state: &mut RenderState,
     logic_state: &mut LogicState,
@@ -351,7 +350,7 @@ pub fn update(
     Ok(())
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn record_render_commands(
     render_state: &mut RenderState,
     _logic_state: &mut LogicState,
@@ -398,7 +397,7 @@ pub fn record_render_commands(
     Ok(())
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn on_window_event(
     render_state: &mut RenderState,
     _logic_state: &mut LogicState,
@@ -410,7 +409,7 @@ pub fn on_window_event(
     Ok(())
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn on_recreate_swapchain(
     render_state: &mut RenderState,
     _logic_state: &mut LogicState,
