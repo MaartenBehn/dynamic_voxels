@@ -51,6 +51,7 @@ pkgs.mkShell {
     watchexec
     renderdoc
     python3
+    graphviz
 
     pkgs-mcwitt.cudaPackages.nsight_systems
       # pkgs-fix.cudaPackages.nsight_compute

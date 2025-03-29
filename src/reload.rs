@@ -1,3 +1,5 @@
+#![forbid(unused_must_use)]
+
 mod aabb;
 mod buddy_controller;
 mod vec_csg_tree;
@@ -188,7 +190,7 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
     let mut csg = None;
 
     let mut collapser: Collapser<Identifier, SlotMapCSGTreeKey> = template.get_collaper();
-    while let Some((operation, collapser)) = collapser.next() {
+    while let Some((operation, collapser)) = collapser.next()? {
         match operation {
             CollapseOperation::CollapsePos{ index  } => {
                 let dist = collapser.get_dependend_number(index, Identifier::PostDistance);
@@ -235,7 +237,7 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
                         let post_distance = collapser.get_known_number(index, Identifier::PostDistance);
 
                         if plank_number * plank_distance > fence_height {
-                            collapser.build_failed(index);
+                            collapser.build_failed(index)?;
                             continue;
                         } 
                         
@@ -266,7 +268,7 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
                     Identifier::FencePost => {
                         info!("{:?} Undo Build", index);
                         let csg_index = collapser.get_build_data(index)?;
-                        csg.as_mut().unwrap().remove_node_as_child_of_union(csg_index);
+                        csg.as_mut().unwrap().remove_node_as_child_of_union(csg_index)?;
                     },
                     _ => error!("Undo Build hook on wrong type")
                 }
@@ -278,7 +280,7 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
 
     if let Some(csg) = csg {
         let vec_tree: VecCSGTree = csg.into();
-        data_controller.set_render_csg_tree(&vec_tree.into());    
+        data_controller.set_render_csg_tree(&vec_tree.into())?;    
     }
     
     Ok(RenderState {

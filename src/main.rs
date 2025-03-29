@@ -1,13 +1,16 @@
+#![forbid(unused_must_use)]
 
 use octa_force::binding::r#trait::BindingTrait;
 use octa_force::egui_winit::winit::event::WindowEvent;
 use octa_force::glam::uvec2;
 use octa_force::hot_reloading::HotReloadConfig;
+use octa_force::log::{error, trace};
 use octa_force::{Engine, EngineConfig, EngineFeatureValue, OctaResult};
 use reload::{
     new_logic_state, new_render_state, on_recreate_swapchain, on_window_event,
     record_render_commands, update, LogicState, RenderState, USE_PROFILE,
 };
+use std::env;
 use std::time::Duration;
 
 const WIDTH: u32 = 1920;
@@ -32,8 +35,7 @@ fn main() {
             lib_dir: "target/debug".to_string(),
             lib_name: "reload".to_string(),
         }),
-    })
-    .unwrap()
+    });
 }
 pub struct App {}
 
