@@ -257,7 +257,11 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
                                 ),
                                 1,
                             ));
-                            csg.as_mut().unwrap().append_node_with_union(node);
+                            if csg.is_none() {
+                                csg = Some(SlotMapCSGTree::from_node(node));
+                            } else {
+                                csg.as_mut().unwrap().append_node_with_union(node);
+                            }
                         } 
                     }
                     _ => error!("Build hook on wrong type")

@@ -161,13 +161,13 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
     fn push_pending_defineds(&mut self, node_index: CollapseNodeKey) {
         let node = &self.nodes[node_index];
         let template_node = &self.template.nodes[node.template_index]; 
-        for (i, ammount) in template_node.defines_ammount.iter().enumerate() {
+        for ammount in template_node.defines_ammount.iter() {
             let new_node_template = &self.template.nodes[ammount.index];
 
             self.insert_opperation(NodeOperation{
                 level: new_node_template.level,
                 index: node_index,
-                typ: NodeOperationType::CreateDefined(i),
+                typ: NodeOperationType::CreateDefined(ammount.index),
             }); 
         }
     }
@@ -315,6 +315,7 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
             data,
             next_reset: CollapseNodeKey::null(),
         });
+        info!("{:?} Node added {:?}", index, new_node_template.identifier);
 
         for (_, depend) in depends {
             self.nodes[depend].children.push(index);
@@ -387,9 +388,23 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
         info!("{:?} Delete Node", node_index);
 
         self.pending_operations = self.pending_operations.iter()
-            .filter(|opperation| opperation.index == node_index)
+            .filter(|opperation| opperation.index != node_index)
             .copied()
             .collect();
+
+        for (_, depends) in node.depends.iter() {
+            let depends_node = self.get_node_mut_from_node_index(*depends);
+            if depends_node.is_err() {
+                continue;
+            }
+            let depends_node = depends_node.unwrap();
+
+            let i = depends_node.children.iter()
+                .position(|i| *i == node_index)
+                .ok_or(anyhow!("When deleting node the node index was not present in the children of a dependency"))?;
+            
+            depends_node.children.swap_remove(i);
+        }
 
         for child in node.children.iter() {
             self.delete_node(*child)?;
@@ -397,6 +412,7 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
 
         let node_template = self.get_template_from_node_ref(&node); 
         if self.has_index(node.defined_by) {
+
             self.insert_opperation(NodeOperation {
                 index: node.defined_by,
                 level: node_template.level,
@@ -466,6 +482,8 @@ impl<I: IT> TemplateTree<I> {
 
 impl Ord for NodeOperation {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        other.level.cmp(&self.level).then(other.typ.cmp(&self.typ))
+        other.level.cmp(&self.level)
+            .then(other.typ.cmp(&self.typ))
+            .then(other.index.cmp(&self.index))
     }
 }

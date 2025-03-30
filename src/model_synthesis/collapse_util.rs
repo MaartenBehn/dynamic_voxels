@@ -1,6 +1,7 @@
 use octa_force::{anyhow::anyhow, glam::Vec3, OctaResult};
 use unpack_method::unpack;
 use slotmap::SlotMap;
+use octa_force::log::info;
 
 use super::{builder::{BU, IT}, collapse::{CollapseNodeKey, Collapser, Node, NodeDataType, NodeOperation}, template::{TemplateNode, TemplateTree}};
 
@@ -11,6 +12,7 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
     pub fn insert_opperation(&mut self, opperation: NodeOperation) {
         let res = self.pending_operations.binary_search(&opperation);
         if let Err(index) = res {
+            info!("Insert {:?}", opperation);
             self.pending_operations.insert(index, opperation);
         } 
     }
