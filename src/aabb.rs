@@ -1,7 +1,6 @@
 use std::iter;
 
 use feistel_permutation_rs::{DefaultBuildHasher, Permutation};
-use gcd::Gcd;
 use octa_force::glam::{ivec3, vec3, vec4, Mat4, Vec3, Vec4Swizzles};
 
 use crate::{util::to_3d_i, voxel::grid::VoxelGrid};

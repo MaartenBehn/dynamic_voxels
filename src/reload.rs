@@ -21,7 +21,6 @@ use render_csg_tree::base::RenderCSGTree;
 use slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey};
 use slotmap::Key;
 use vec_csg_tree::tree::{VecCSGNode, VecCSGNodeData};
-use egui_graphs::Node;
 use glsl_compiler::glsl;
 use kiddo::SquaredEuclidean;
 use model_synthesis::collapse::{CollapseOperation, Collapser};
@@ -39,7 +38,6 @@ use std::f32::consts::PI;
 use std::time::{Duration, Instant};
 use std::default;
 use model_synthesis::builder::{BuilderAmmount, ModelSynthesisBuilder, IT};
-use model_synthesis::renderer::renderer::WFCRenderer;
 
 pub const USE_PROFILE: bool = false;
 
@@ -49,7 +47,6 @@ pub struct RenderState {
     pub color_controller: ColorController,
     pub renderer: Renderer,
     pub profiler: Option<ShaderProfiler>,
-    pub wfc_renderer: WFCRenderer,
 }
 
 pub struct LogicState {
@@ -135,8 +132,6 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
     // let mut tree = CSGTree::new_example_tree_2(1.0);
     // csg_controller.set_data(&tree.make_data());
  
-    let wfc_renderer = WFCRenderer::new();
-
     let mut wfc_builder: ModelSynthesisBuilder<Identifier> = ModelSynthesisBuilder::new()
         .groupe(Identifier::Fence, |b| {b})
 
@@ -293,7 +288,6 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
         color_controller,
         renderer,
         profiler,
-        wfc_renderer,
     })
 }
 
@@ -351,8 +345,6 @@ pub fn update(
             .update(frame_index, &engine.context)?;
     }
 
-    render_state.wfc_renderer.update(&engine.controls);
-
     Ok(())
 }
 
@@ -393,8 +385,6 @@ pub fn record_render_commands(
                     .unwrap()
                     .gui_windows(ctx, engine.controls.mouse_left);
             }
-
-            render_state.wfc_renderer.gui_windows(ctx);
         },
     )?;
 
