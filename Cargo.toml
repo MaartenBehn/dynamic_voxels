@@ -18,20 +18,16 @@ fastrand = "2.2.0"
 # glsl_compiler = { path = "../glsl_compiler" }
 glsl_compiler = { version = "0.1.4", git = "https://github.com/MaartenBehn/glsl_compiler" }
 simple-easing = "1.0.1"
-simple-log = "2.1.1"
-gcd = "2.3.0"
 
 feistel-permutation-rs = { git="https://github.com/MaartenBehn/permutation-rs.git", version = "0.1.5"}
 kiddo = "5.0.3"
 fast_poisson = { path="../fast_poisson", features = ["single_precision"]}
 #fast_poisson = { git="https://github.com/MaartenBehn/fast_poisson.git", version = "1.0.3", features = ["single_precision"]}
 
-petgraph = "0.6.5"
-egui_graphs = "0.21.1"
-fdg = { git = "https://github.com/grantshandy/fdg" }
+# Graphs
+egui-graph-edit = "0.6.0"
 
 slotmap = "1.0.7"
-sorted-vec = "0.8.6"
 
 unpack_method = { path = "../unpack_method" }
 # unpack_method = { version = "0.1.0", git = "https://github.com/MaartenBehn/unpack_method" }
