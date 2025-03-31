@@ -18,6 +18,7 @@ pub struct Collapser<'a, I: IT, U: BU> {
     pub template: &'a TemplateTree<I>,
     pub nodes: SlotMap<CollapseNodeKey, Node<I, U>>,
     pub pending_operations: Vec<NodeOperation>,
+    pub pending_collapse_opperations: Vec<CollapseOperation<I, U>>,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd)]
@@ -41,16 +42,17 @@ pub struct Node<I: IT, U: BU> {
     pub depends: Vec<(I, CollapseNodeKey)>,
     pub knows: Vec<(I, CollapseNodeKey)>,
     pub defined_by: CollapseNodeKey,
-    pub data: NodeDataType<U>,
+    pub data: NodeDataType,
     pub next_reset: CollapseNodeKey,
+    pub undo_data: U,
 }
 
 #[derive(Debug, Clone)]
-pub enum NodeDataType<U: BU> {
+pub enum NodeDataType {
     Number(NumberData),
     Pos(PosData),
     Volume(VolumeData),
-    Build(U),
+    Build,
     None,
 }
 
@@ -72,27 +74,31 @@ pub struct VolumeData {
     pub value: PossibleVolume,
 }
 
-pub enum CollapseOperation<I> {
+#[derive(Debug, Clone)]
+pub enum CollapseOperation<I, U> {
     None,
     CollapsePos {
         index: CollapseNodeKey,
     },
-    Build {
+    CollapseBuild {
         index: CollapseNodeKey,
         identifier: I, 
     },
-    UndoBuild {
-        index: CollapseNodeKey,
+    Undo {
         identifier: I,
+        undo_data: U,
     }
 }
 
 impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
-    pub fn next(&mut self) -> OctaResult<Option<(CollapseOperation<I>, &mut Collapser<'a, I, U>)>> { 
-        if let Some(operation) = self.pending_operations.pop() {
+    pub fn next(&mut self) -> OctaResult<Option<(CollapseOperation<I, U>, &mut Collapser<'a, I, U>)>> { 
+        if let Some(collapse_opperation) = self.pending_collapse_opperations.pop() {
+            Ok(Some((collapse_opperation, self)))
+
+        } else if let Some(operation) = self.pending_operations.pop() {
             match operation.typ {
                 NodeOperationType::CollapseValue => {
-                    let opperation = self.collapse_node(operation.index);
+                    let opperation = self.collapse_node(operation.index)?;
                     Ok(Some((opperation, self)))    
                 },
                 NodeOperationType::CreateDefined(defined_index) => {
@@ -105,26 +111,26 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
         }
     }
 
-    fn collapse_node(&mut self, node_index: CollapseNodeKey) -> CollapseOperation<I> {
+    fn collapse_node(&mut self, node_index: CollapseNodeKey) -> OctaResult<CollapseOperation<I, U>> {
         let node = &mut self.nodes[node_index];
-        info!("{:?} Collapse: {:?}", node_index, node.identfier);
+        //info!("{:?} Collapse: {:?}", node_index, node.identfier);
 
         if let NodeDataType::Pos(pos_data) = &mut node.data {
             if !pos_data.collapsed {
                 
                 self.push_pending_defineds(node_index);
-                return CollapseOperation::CollapsePos { 
+                return Ok(CollapseOperation::CollapsePos { 
                     index: node_index
-                };
+                });
             }
         }
 
-        if let NodeDataType::Build(_) = node.data {
+        if let NodeDataType::Build = node.data {
 
-            return CollapseOperation::Build { 
+            return Ok(CollapseOperation::CollapseBuild { 
                 index: node_index, 
                 identifier: node.identfier,
-            };
+            });
         }
 
         let node_template = &self.template.nodes[node.template_index];
@@ -136,14 +142,18 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
             if number_value.perm_counter >= permutation.max() as usize {
                 info!("{:?} Resetting Number faild", node_index);
 
-                /*
                 number_value.perm_counter = 0;
-                self.pending_operations.push(node_index);
-
+                
                 let next_reset = node.next_reset;
-                self.reset_node(next_reset); 
-                */
-                return CollapseOperation::None;
+                self.reset_node(next_reset)?;
+
+                self.insert_opperation(NodeOperation {
+                    index: node_index,
+                    level: node_template.level,
+                    typ: NodeOperationType::CollapseValue,
+                });
+
+                return Ok(CollapseOperation::None);
             }
 
             let value = permutation.get(number_value.perm_counter as _) as i32 + *min;
@@ -154,7 +164,7 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
         }
 
         self.push_pending_defineds(node_index);
-        CollapseOperation::None
+        Ok(CollapseOperation::None)
     }
 
     fn push_pending_defineds(&mut self, node_index: CollapseNodeKey) {
@@ -300,7 +310,7 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
                 })
             },
             NodeTemplateValue::BuildHook { .. } => {
-                NodeDataType::Build(U::default())
+                NodeDataType::Build
             },
         };
 
@@ -313,8 +323,9 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
             defined_by,
             data,
             next_reset: CollapseNodeKey::null(),
+            undo_data: U::default(),
         });
-        info!("{:?} Node added {:?}", index, new_node_template.identifier);
+        //info!("{:?} Node added {:?}", index, new_node_template.identifier);
 
         for (_, depend) in depends {
             self.nodes[depend].children.push(index);
@@ -331,10 +342,10 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
 
     }
 
-    pub fn build_failed(&mut self, index: CollapseNodeKey) -> OctaResult<()> {
-        info!("{:?} Build faild", index);
-        
+    pub fn collapse_failed(&mut self, index: CollapseNodeKey) -> OctaResult<()> {        
         let node = self.nodes.get(index).expect("Reset CollapseNodeKey not valid!");
+        info!("{:?} Collapse Faild {:?}", index, node.identfier);
+
         let level = self.template.nodes[node.template_index].level;
         
         Self::insert_opperation_unpacked(&mut self.pending_operations, NodeOperation{
@@ -358,9 +369,9 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
     }
 
     fn reset_node(&mut self, node_index: CollapseNodeKey) -> OctaResult<()> {
-        info!("{:?} Reset Node", node_index);
-
         let node = self.get_node_ref_from_node_index(node_index)?;
+        info!("{:?} Reset {:?}", node_index, node.identfier);
+
         for child in node.children.clone() {
             self.delete_node(child)?;
         }
@@ -384,7 +395,7 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
         let node = node.unwrap();
         ensure!(!node.defined_by.is_null(), "Trying to delete root node!");
 
-        info!("{:?} Delete Node", node_index);
+        info!("{:?} Delete {:?}", node_index, node.identfier);
 
         self.pending_operations = self.pending_operations.iter()
             .filter(|opperation| opperation.index != node_index)
@@ -404,6 +415,11 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
             
             depends_node.children.swap_remove(i);
         }
+
+        self.pending_collapse_opperations.push(CollapseOperation::Undo { 
+            identifier: node.identfier, 
+            undo_data: node.undo_data,
+        });
 
         for child in node.children.iter() {
             self.delete_node(*child)?;
@@ -428,35 +444,20 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
 
         Ok(())
     }
-
-    pub fn get_build_data(&self, index: CollapseNodeKey) -> OctaResult<U> {
-        let node = self.nodes.get(index)
-            .ok_or(anyhow!("Index of build node to get data is not valid!"))?;
-
-        if let NodeDataType::Build(d) = &node.data {
-            return Ok(*d); 
-        } 
-
-        bail!("Node Type ({:?}) is not Build Node when trying to set Build data!", node.data);
-    }
-
-    pub fn set_build_data(&mut self, index: CollapseNodeKey, data: U) -> OctaResult<()> {
+ 
+    pub fn set_undo_data(&mut self, index: CollapseNodeKey, data: U) -> OctaResult<()> {
         let node = self.nodes.get_mut(index)
             .ok_or(anyhow!("Index of build node to set data is not valid!"))?;
-
-        if let NodeDataType::Build(d) = &mut node.data {
-            *d = data;
-        } else {
-            bail!("Node Type ({:?}) is not Build Node when trying to set Build data!", node.data);
-        }
-
+        
+        node.undo_data = data;
+        
         Ok(())
     }
 
 }
 
 
-impl<U: BU> NodeDataType<U> {
+impl NodeDataType {
     pub fn get_number_mut(&mut self) -> &mut NumberData {
         match self {
             NodeDataType::Number(d) => d,
@@ -472,6 +473,7 @@ impl<I: IT> TemplateTree<I> {
             template: self,
             nodes: SlotMap::with_key(),
             pending_operations: vec![],
+            pending_collapse_opperations: vec![],
         };
 
         collapser.add_node(0, vec![], vec![], CollapseNodeKey::null());

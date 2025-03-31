@@ -10,7 +10,7 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
     pub fn insert_opperation(&mut self, opperation: NodeOperation) {
         let res = self.pending_operations.binary_search(&opperation);
         if let Err(index) = res {
-            info!("Insert {:?}", opperation);
+            //info!("Insert {:?}", opperation);
             self.pending_operations.insert(index, opperation);
         } 
     }
@@ -18,7 +18,7 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
     pub fn insert_opperation_unpacked(pending_operations: &mut Vec<NodeOperation>, opperation: NodeOperation) {
         let res = pending_operations.binary_search(&opperation);
         if let Err(index) = res {
-            info!("Insert {:?}", opperation);
+            //info!("Insert {:?}", opperation);
             pending_operations.insert(index, opperation);
         } 
     }

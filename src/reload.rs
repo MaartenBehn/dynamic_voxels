@@ -216,7 +216,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
                 pos += Vec3::X * dist as f32;
             },
-            CollapseOperation::Build{ index, identifier, .. } => {
+            CollapseOperation::CollapseBuild{ index, identifier, .. } => {
                 match identifier {
                     Identifier::FencePost => {
                         let height = collapser.get_dependend_number(index, Identifier::PostHeight);
@@ -242,7 +242,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
                             csg.as_mut().unwrap().append_node_with_union(csg_node)
                         };
 
-                        collapser.set_build_data(index, csg_index)?;
+                        collapser.set_undo_data(index, csg_index)?;
                     }
                     Identifier::FencePlanks => {
                         let plank_number = collapser.get_dependend_number(index, Identifier::PlankNumber);
@@ -251,7 +251,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
                         let post_distance = collapser.get_known_number(index, Identifier::PostDistance);
 
                         if plank_number * plank_distance > fence_height {
-                            collapser.build_failed(index)?;
+                            collapser.collapse_failed(index)?;
                             continue;
                         } 
                         
@@ -281,14 +281,20 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
                     _ => error!("Build hook on wrong type")
                 }
             }, 
-            CollapseOperation::UndoBuild { index, identifier } => {
+            CollapseOperation::Undo { identifier , undo_data} => {
+                info!("Undo {:?}", identifier);
+
                 match identifier {
                     Identifier::FencePost => {
-                        info!("{:?} Undo Build", index);
-                        let csg_index = collapser.get_build_data(index)?;
-                        csg.as_mut().unwrap().remove_node_as_child_of_union(csg_index)?;
+                        csg.as_mut().unwrap().remove_node_as_child_of_union(undo_data)?;
                     },
-                    _ => error!("Undo Build hook on wrong type")
+                    Identifier::PostNumber => {
+                        pos = vec3(1.0, 1.0, 1.0);
+                    },
+                    Identifier::PostPos => {
+                        pos = vec3(1.0, 1.0, 1.0);
+                    },
+                    _ => {}
                 }
             },
 
