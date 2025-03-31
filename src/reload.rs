@@ -22,7 +22,6 @@ use render_csg_tree::base::RenderCSGTree;
 use slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey};
 use slotmap::Key;
 use vec_csg_tree::tree::{VecCSGNode, VecCSGNodeData};
-use glsl_compiler::glsl;
 use kiddo::SquaredEuclidean;
 use model_synthesis::collapse::{CollapseOperation, Collapser};
 use octa_force::camera::Camera;
@@ -62,8 +61,6 @@ pub fn init_hot_reload(logger: &'static dyn Log) -> OctaResult<()> {
     Ok(())
 }
 
-
-
 #[unsafe(no_mangle)]
 pub fn new_logic_state() -> OctaResult<LogicState> {
     #[cfg(debug_assertions)]
@@ -86,8 +83,6 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
     })
 }
 
-
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Identifier {
     #[default]
@@ -108,17 +103,14 @@ impl IT for Identifier {}
 
 #[unsafe(no_mangle)]
 pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> OctaResult<RenderState> {
-
-
-
     #[cfg(debug_assertions)]
     puffin::profile_function!();
 
-    let (shader_bin, profile_scopes): (&[u8], &[&str]) =
+    let (shader_bin, profile_scopes): (&[u8], &[&str]) = 
         if USE_PROFILE && engine.context.shader_clock {
-            glsl! {type = Compute, profile, file = "shaders/trace_ray.glsl"}
+            shaders::trace_ray_profile()
         } else {
-            glsl! {type = Compute, file = "shaders/trace_ray.glsl"}
+            shaders::trace_ray()
         };
 
     let mut gui = Gui::new(

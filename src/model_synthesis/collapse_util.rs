@@ -1,5 +1,4 @@
 use octa_force::{anyhow::anyhow, glam::Vec3, OctaResult};
-use unpack_method::unpack;
 use slotmap::SlotMap;
 use octa_force::log::info;
 
@@ -8,7 +7,6 @@ use super::{builder::{BU, IT}, collapse::{CollapseNodeKey, Collapser, Node, Node
 
 impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
 
-    #[unpack]
     pub fn insert_opperation(&mut self, opperation: NodeOperation) {
         let res = self.pending_operations.binary_search(&opperation);
         if let Err(index) = res {
@@ -17,24 +15,44 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
         } 
     }
 
-    #[unpack]
+    pub fn insert_opperation_unpacked(pending_operations: &mut Vec<NodeOperation>, opperation: NodeOperation) {
+        let res = pending_operations.binary_search(&opperation);
+        if let Err(index) = res {
+            info!("Insert {:?}", opperation);
+            pending_operations.insert(index, opperation);
+        } 
+    }
+
     pub fn has_index(&self, node_index: CollapseNodeKey) -> bool {
         self.nodes.contains_key(node_index)
     }
 
-    #[unpack]
+    pub fn has_index_unpacked(nodes: &SlotMap<CollapseNodeKey, Node<I, U>>, node_index: CollapseNodeKey) -> bool {
+        nodes.contains_key(node_index)
+    }
+
     pub fn get_node_ref_from_node_index(&self, node_index: CollapseNodeKey) -> OctaResult<&Node<I, U>> {
         self.nodes.get(node_index).ok_or(anyhow!("Node index invalid!"))
     }
 
-    #[unpack]
+    pub fn get_node_ref_from_node_index_unpacked(nodes: &SlotMap<CollapseNodeKey, Node<I, U>>, node_index: CollapseNodeKey) -> OctaResult<&Node<I, U>> {
+        nodes.get(node_index).ok_or(anyhow!("Node index invalid!"))
+    }
+
     pub fn get_node_mut_from_node_index(&mut self, node_index: CollapseNodeKey) -> OctaResult<&mut Node<I, U>> {
         self.nodes.get_mut(node_index).ok_or(anyhow!("Node index invalid!"))
     }
 
-    #[unpack]
+    pub fn get_node_mut_from_node_index_unpacked(nodes: &mut SlotMap<CollapseNodeKey, Node<I, U>>, node_index: CollapseNodeKey) -> OctaResult<&mut Node<I, U>> {
+        nodes.get_mut(node_index).ok_or(anyhow!("Node index invalid!"))
+    }
+
     pub fn get_template_from_node_ref(&self, node: &Node<I, U>) -> &'a TemplateNode<I> {
-        &(self.template.nodes[node.template_index])
+        &self.template.nodes[node.template_index]
+    }
+
+    pub fn get_template_from_node_ref_unpacked(template: &'a TemplateTree<I>, node: &Node<I, U>) -> &'a TemplateNode<I> {
+        &template.nodes[node.template_index]
     }
 
     pub fn get_template_from_node_index(&self, node_index: CollapseNodeKey) -> &'a TemplateNode<I> {

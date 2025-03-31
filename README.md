@@ -5,14 +5,9 @@
 cargo run
 ```
 
-### Force shader rebuild
-```shell
-watchexec -e glsl,comp "sh ./scripts/rebuild_shaders.sh"
-```
-
 ### Hot reload lib
 ```shell
-watchexec -e rs,glsl,comp "sh ./scripts/hot_reload.sh"
+watchexec -e rs,glsl,comp "cargo build --profile dev-fast --lib"
 ```
 
 ```shell 

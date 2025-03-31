@@ -1,4 +1,4 @@
-/target
+*target*
 .idea
 *.spv
 *.log
@@ -6,3 +6,4 @@ perf*
 Cargo.lock
 .direnv
 .envrc
+strace.out
