@@ -62,6 +62,8 @@ pub fn init_hot_reload(logger: &'static dyn Log) -> OctaResult<()> {
     Ok(())
 }
 
+
+
 #[unsafe(no_mangle)]
 pub fn new_logic_state() -> OctaResult<LogicState> {
     #[cfg(debug_assertions)]
@@ -83,6 +85,8 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
         start_time: Instant::now(),
     })
 }
+
+
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Identifier {
@@ -152,8 +156,6 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         shader_bin,
     )?;
 
-
-    /*
     // let mut tree = CSGTree::new_example_tree_2(1.0);
     // csg_controller.set_data(&tree.make_data());
  
@@ -306,8 +308,6 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         let vec_tree: VecCSGTree = csg.into();
         data_controller.set_render_csg_tree(&vec_tree.into())?;    
     }
-
-    */
     
     Ok(RenderState {
         gui,

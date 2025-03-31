@@ -30,7 +30,7 @@ void main () {
 
     Ray ray = init_ray(POS, DIR, gl_GlobalInvocationID.xy, RES);
 
-    vec4 color = vec4(ray.dir * 1.0, 1);
+    vec4 color = vec4(ray.dir, 1);
 
     float time = TIME;
 

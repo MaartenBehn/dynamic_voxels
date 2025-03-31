@@ -6,6 +6,11 @@ edition = "2024"
 [lints.rust]
 unused = "allow"
 
+[profile.dev-fast]
+inherits = "dev"
+debug = 0
+strip = "debuginfo"
+
 [lib]
 name = "reload"
 path = "src/reload.rs"
@@ -15,8 +20,8 @@ crate-type = ["rlib", "dylib"]
 octa-force = { path = "../octa-force-rs" }
 # octa-force = { version = "0.3.0", git = "https://github.com/MaartenBehn/octa-force-rs" }
 fastrand = "2.2.0"
-# glsl_compiler = { path = "../glsl_compiler" }
-glsl_compiler = { version = "0.1.4", git = "https://github.com/MaartenBehn/glsl_compiler" }
+glsl_compiler = { path = "../glsl_compiler" }
+# glsl_compiler = { version = "0.1.4", git = "https://github.com/MaartenBehn/glsl_compiler" }
 simple-easing = "1.0.1"
 
 feistel-permutation-rs = { git="https://github.com/MaartenBehn/permutation-rs.git", version = "0.1.5"}
