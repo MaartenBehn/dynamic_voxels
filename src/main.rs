@@ -2,10 +2,11 @@
 
 use octa_force::binding::r#trait::BindingTrait;
 use octa_force::egui_winit::winit::event::WindowEvent;
+use octa_force::engine::{Engine, EngineConfig, EngineFeatureValue};
 use octa_force::glam::uvec2;
 use octa_force::hot_reloading::HotReloadConfig;
 use octa_force::log::{error, trace};
-use octa_force::{Engine, EngineConfig, EngineFeatureValue, OctaResult};
+use octa_force::OctaResult;
 use reload::{
     new_logic_state, new_render_state, on_recreate_swapchain, on_window_event,
     record_render_commands, update, LogicState, RenderState, USE_PROFILE,
@@ -43,50 +44,49 @@ impl BindingTrait for App {
     type RenderState = RenderState;
     type LogicState = LogicState;
 
-    fn new_render_state(engine: &mut Engine) -> OctaResult<Self::RenderState> {
-        new_render_state(engine)
+    fn new_logic_state() -> OctaResult<Self::LogicState> {
+        new_logic_state()
     }
 
-    fn new_logic_state(
-        render_state: &mut RenderState,
-        engine: &mut Engine,
-    ) -> OctaResult<Self::LogicState> {
-        new_logic_state(render_state, engine)
+    fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> OctaResult<Self::RenderState> {
+        new_render_state(logic_state, engine)
     }
 
     fn update(
-        render_state: &mut RenderState,
         logic_state: &mut LogicState,
+        render_state: &mut RenderState,
         engine: &mut Engine,
         image_index: usize,
         delta_time: Duration,
     ) -> OctaResult<()> {
-        update(render_state, logic_state, engine, image_index, delta_time)
+        update(logic_state, render_state, engine, image_index, delta_time)
     }
 
     fn record_render_commands(
-        render_state: &mut RenderState,
         logic_state: &mut LogicState,
+        render_state: &mut RenderState,
         engine: &mut Engine,
         image_index: usize,
     ) -> OctaResult<()> {
-        record_render_commands(render_state, logic_state, engine, image_index)
+        record_render_commands(logic_state, render_state,  engine, image_index)
     }
 
+
+
     fn on_window_event(
-        render_state: &mut RenderState,
         logic_state: &mut LogicState,
+        render_state: &mut RenderState,
         engine: &mut Engine,
         event: &WindowEvent,
     ) -> OctaResult<()> {
-        on_window_event(render_state, logic_state, engine, event)
+        on_window_event(logic_state, render_state,  engine, event)
     }
 
     fn on_recreate_swapchain(
-        render_state: &mut RenderState,
         logic_state: &mut LogicState,
+        render_state: &mut RenderState,
         engine: &mut Engine,
     ) -> OctaResult<()> {
-        on_recreate_swapchain(render_state, logic_state, engine)
+        on_recreate_swapchain(logic_state, render_state, engine)
     }
 }

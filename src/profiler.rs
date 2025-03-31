@@ -8,10 +8,9 @@ use octa_force::vulkan::ash::vk;
 use octa_force::vulkan::ash::vk::Format;
 use octa_force::vulkan::gpu_allocator::MemoryLocation;
 use octa_force::vulkan::{
-    Buffer, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, Sampler,
-    WriteDescriptorSet, WriteDescriptorSetKind,
+    Buffer, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, ImageAndView, Sampler, WriteDescriptorSet, WriteDescriptorSetKind
 };
-use octa_force::{egui, ImageAndView, OctaResult};
+use octa_force::{egui, OctaResult};
 use std::{iter, mem};
 
 pub const SCOPES: usize = 20;
@@ -158,7 +157,7 @@ impl ShaderProfiler {
             }])
             .unwrap();
 
-        let sampler_info = vk::SamplerCreateInfo::builder();
+        let sampler_info = vk::SamplerCreateInfo::default();
 
         let mut egui_descriptor_sets = Vec::with_capacity(3);
 

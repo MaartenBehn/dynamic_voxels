@@ -17,6 +17,7 @@ use crate::profiler::ShaderProfiler;
 use csg_renderer::color_controller::ColorController;
 use csg_renderer::data_controller::DataController;
 use csg_renderer::Renderer;
+use octa_force::engine::Engine;
 use render_csg_tree::base::RenderCSGTree;
 use slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey};
 use slotmap::Key;
@@ -33,7 +34,7 @@ use octa_force::logger::setup_logger;
 use octa_force::puffin_egui::puffin;
 use octa_force::vulkan::ash::vk::AttachmentLoadOp;
 use octa_force::vulkan::Fence;
-use octa_force::{log, Engine, OctaResult};
+use octa_force::{log, OctaResult};
 use std::f32::consts::PI;
 use std::time::{Duration, Instant};
 use std::default;
@@ -61,6 +62,28 @@ pub fn init_hot_reload(logger: &'static dyn Log) -> OctaResult<()> {
     Ok(())
 }
 
+#[unsafe(no_mangle)]
+pub fn new_logic_state() -> OctaResult<LogicState> {
+    #[cfg(debug_assertions)]
+    puffin::profile_function!();
+
+    log::info!("Creating Camera");
+    let mut camera = Camera::default();
+
+    camera.position = Vec3::new(1.0, -10.0, 1.0);
+    camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
+    // camera.position = Vec3::new(67.02305, 127.88921, 43.476604);
+    // camera.direction = Vec3::new(0.79322153, -0.47346807, -0.38291982).normalize();
+    camera.speed = 10.0 * VOXEL_SIZE;
+    camera.z_far = 100.0;
+    camera.up = vec3(0.0, 0.0, 1.0);
+
+    Ok(LogicState {
+        camera,
+        start_time: Instant::now(),
+    })
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Identifier {
     #[default]
@@ -80,7 +103,7 @@ pub enum Identifier {
 impl IT for Identifier {}
 
 #[unsafe(no_mangle)]
-pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
+pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> OctaResult<RenderState> {
 
 
 
@@ -129,6 +152,8 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
         shader_bin,
     )?;
 
+
+    /*
     // let mut tree = CSGTree::new_example_tree_2(1.0);
     // csg_controller.set_data(&tree.make_data());
  
@@ -281,6 +306,8 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
         let vec_tree: VecCSGTree = csg.into();
         data_controller.set_render_csg_tree(&vec_tree.into())?;    
     }
+
+    */
     
     Ok(RenderState {
         gui,
@@ -292,35 +319,12 @@ pub fn new_render_state(engine: &mut Engine) -> OctaResult<RenderState> {
 }
 
 
-#[unsafe(no_mangle)]
-pub fn new_logic_state(
-    render_state: &mut RenderState,
-    engine: &mut Engine,
-) -> OctaResult<LogicState> {
-    #[cfg(debug_assertions)]
-    puffin::profile_function!();
 
-    log::info!("Creating Camera");
-    let mut camera = Camera::base(engine.swapchain.size.as_vec2());
-
-    camera.position = Vec3::new(1.0, -10.0, 1.0);
-    camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
-    // camera.position = Vec3::new(67.02305, 127.88921, 43.476604);
-    // camera.direction = Vec3::new(0.79322153, -0.47346807, -0.38291982).normalize();
-    camera.speed = 10.0 * VOXEL_SIZE;
-    camera.z_far = 100.0;
-    camera.up = vec3(0.0, 0.0, 1.0);
-
-    Ok(LogicState {
-        camera,
-        start_time: Instant::now(),
-    })
-}
 
 #[unsafe(no_mangle)]
 pub fn update(
-    render_state: &mut RenderState,
     logic_state: &mut LogicState,
+    render_state: &mut RenderState,
     engine: &mut Engine,
     frame_index: usize,
     delta_time: Duration,
@@ -350,8 +354,8 @@ pub fn update(
 
 #[unsafe(no_mangle)]
 pub fn record_render_commands(
-    render_state: &mut RenderState,
     _logic_state: &mut LogicState,
+    render_state: &mut RenderState,
     engine: &mut Engine,
     image_index: usize,
 ) -> OctaResult<()> {
@@ -395,8 +399,8 @@ pub fn record_render_commands(
 
 #[unsafe(no_mangle)]
 pub fn on_window_event(
-    render_state: &mut RenderState,
     _logic_state: &mut LogicState,
+    render_state: &mut RenderState,
     engine: &mut Engine,
     event: &WindowEvent,
 ) -> OctaResult<()> {
@@ -407,10 +411,12 @@ pub fn on_window_event(
 
 #[unsafe(no_mangle)]
 pub fn on_recreate_swapchain(
+    logic_state: &mut LogicState,
     render_state: &mut RenderState,
-    _logic_state: &mut LogicState,
     engine: &mut Engine,
 ) -> OctaResult<()> {
+    logic_state.camera.set_screen_size(engine.swapchain.size.as_vec2());
+    
     render_state.renderer.on_recreate_swapchain(
         &engine.context,
         engine.num_frames,

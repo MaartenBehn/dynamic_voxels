@@ -9,11 +9,8 @@ use octa_force::glam::{UVec2, Vec3};
 use octa_force::vulkan::ash::vk;
 use octa_force::vulkan::gpu_allocator::MemoryLocation;
 use octa_force::vulkan::{
-    Buffer, CommandBuffer, ComputePipeline, ComputePipelineCreateInfo, Context, DescriptorPool,
-    DescriptorSet, DescriptorSetLayout, PipelineLayout, Swapchain, WriteDescriptorSet,
-    WriteDescriptorSetKind,
+    Buffer, CommandBuffer, ComputePipeline, ComputePipelineCreateInfo, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, ImageAndView, PipelineLayout, Swapchain, WriteDescriptorSet, WriteDescriptorSetKind
 };
-use octa_force::ImageAndView;
 use std::mem::size_of;
 use std::time::Duration;
 
