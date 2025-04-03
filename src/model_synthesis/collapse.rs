@@ -66,7 +66,6 @@ pub struct NumberData {
 #[derive(Debug, Clone)]
 pub struct PosData {
     pub value: Vec3,
-    pub collapsed: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -116,13 +115,10 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
         //info!("{:?} Collapse: {:?}", node_index, node.identfier);
 
         if let NodeDataType::Pos(pos_data) = &mut node.data {
-            if !pos_data.collapsed {
-                
-                self.push_pending_defineds(node_index);
-                return Ok(CollapseOperation::CollapsePos { 
-                    index: node_index
-                });
-            }
+            self.push_pending_defineds(node_index);
+            return Ok(CollapseOperation::CollapsePos { 
+                index: node_index
+            });
         }
 
         if let NodeDataType::Build = node.data {
@@ -301,7 +297,6 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
             NodeTemplateValue::Pos { .. } => {
                 NodeDataType::Pos(PosData {
                     value: Vec3::ZERO,
-                    collapsed: false,
                 })
             },
             NodeTemplateValue::Volume { volume, .. } => {
