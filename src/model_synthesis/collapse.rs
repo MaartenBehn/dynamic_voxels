@@ -15,7 +15,7 @@ new_key_type! { pub struct CollapseNodeKey; }
 #[derive(Debug, Clone)]
 pub struct Collapser<'a, I: IT, U: BU, V: Volume> {
     pub template: &'a TemplateTree<I, V>,
-    pub nodes: SlotMap<CollapseNodeKey, Node<I, U>>,
+    pub nodes: SlotMap<CollapseNodeKey, CollapseNode<I, U>>,
     pub pending_operations: Vec<NodeOperation>,
     pub pending_collapse_opperations: Vec<CollapseOperation<I, U>>,
 }
@@ -34,9 +34,10 @@ pub enum NodeOperationType {
 }
 
 #[derive(Debug, Clone)]
-pub struct Node<I: IT, U: BU> {
+pub struct CollapseNode<I: IT, U: BU> {
     pub template_index: usize,
     pub identfier: I,
+    pub level: usize,
     pub children: Vec<(TemplateIndex, Vec<CollapseNodeKey>)>, 
     pub depends: Vec<(I, CollapseNodeKey)>,
     pub knows: Vec<(I, CollapseNodeKey)>,

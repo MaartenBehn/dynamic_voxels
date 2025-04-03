@@ -1,0 +1,206 @@
+use std::{borrow::Cow, marker::PhantomData};
+
+use egui_graph_edit::{DataTypeTrait, Graph, GraphEditorState, InputParamKind, NodeDataTrait, NodeId, NodeResponse, NodeTemplateIter, NodeTemplateTrait, UserResponseTrait, WidgetValueTrait};
+use octa_force::{egui, OctaResult};
+
+use crate::{model_synthesis::{builder::{BU, IT}, collapse::{CollapseNode, CollapseNodeKey, Collapser}, collapser_data::CollapserData}, slot_map_csg_tree::tree::SlotMapCSGTreeKey, vec_csg_tree::tree::VecCSGTree, volume::Volume, Identifier};
+
+type UserState = CollapserData<Identifier, SlotMapCSGTreeKey>;
+
+/// Additional (besides inputs and outputs) state to be stored inside each node.
+#[derive(Debug)]
+pub struct NodeData {
+    pub collapse_key: CollapseNodeKey,
+}
+
+// Connection variant. Equal DataType means input port is compatible with output port.
+// Typically an enum, but this example has only one connection type (any output can be connected to any input),
+// so this type is dummied out.
+#[derive(PartialEq, Eq, Debug, Default)]
+pub struct DataType;
+
+/// Type of the editable value that is used as a fallback for unconnected input node,
+/// i.e. when some input to a node can be either constant or taken from another node,
+/// this defines how to store that constant.
+///
+/// This example does not feature editable content within nodes, so this type is dummy.
+#[derive(Copy, Clone, Debug, Default)]
+pub struct DummyValueType;
+
+
+/// Typically an enum that lists node types.
+/// In this example there is only one node type ("Node"),
+/// so no this type is dummy.
+#[derive(Clone, Copy, Default)]
+pub struct DummyNodeTemplate;
+
+/// Additional events that bubble up from `NodeDataTrait::bottom_ui` back to your app.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DummyResponse;
+
+
+/// Defines how to render edges (connections) between nodes
+impl DataTypeTrait<UserState> for DataType {
+    fn data_type_color(&self, _user_state: &mut UserState) -> egui::Color32 {
+        egui::Color32::from_rgb(238, 207, 60)
+    }
+
+    fn name(&self) -> Cow<'_, str> {
+        "edge".into()
+    }
+}
+
+/// Defines how to name and construct each node variant and what inputs and
+/// outputs each node variant has.
+impl NodeTemplateTrait for DummyNodeTemplate {
+    type NodeData = NodeData;
+    type DataType = DataType;
+    type ValueType = DummyValueType;
+    type UserState = UserState;
+    type CategoryType = &'static str;
+
+    fn node_finder_label(&self, _user_state: &mut Self::UserState) -> Cow<'_, str> {
+        "".into()
+    }
+
+    fn node_graph_label(&self, _user_state: &mut Self::UserState) -> String {
+        "Node".to_owned()
+    }
+
+    fn user_data(&self, _user_state: &mut Self::UserState) -> Self::NodeData {
+        todo!()
+    }
+
+    fn build_node(
+        &self,
+        graph: &mut Graph<Self::NodeData, Self::DataType, Self::ValueType>,
+        _user_state: &mut Self::UserState,
+        node_id: NodeId,
+    ) {
+        todo!()
+    }
+}
+
+/// Enumeration of all node variants to populate the context menu that allows creating nodes
+#[derive(Clone, Copy, Default)]
+pub struct AllNodeTemplates;
+impl NodeTemplateIter for AllNodeTemplates {
+    type Item = DummyNodeTemplate;
+
+    fn all_kinds(&self) -> Vec<Self::Item> {
+        vec![]
+    }
+}
+
+/// Defines how to render input's GUI when it is not connected.
+impl WidgetValueTrait for DummyValueType {
+    type Response = DummyResponse;
+    type UserState = UserState;
+    type NodeData = NodeData;
+
+    fn value_widget(
+        &mut self,
+        _param_name: &str,
+        _node_id: NodeId,
+        ui: &mut egui::Ui,
+        _user_state: &mut Self::UserState,
+        _node_data: &NodeData,
+    ) -> Vec<DummyResponse> {
+        ui.label("x");
+        Vec::new()
+    }
+}
+
+impl UserResponseTrait for DummyResponse {}
+
+/// Defines how to render node window (besides inputs and output ports)
+impl NodeDataTrait for NodeData {
+    type Response = DummyResponse;
+    type UserState = UserState;
+    type DataType = DataType;
+    type ValueType = DummyValueType;
+
+    fn bottom_ui(
+        &self,
+        _ui: &mut egui::Ui,
+        _node_id: NodeId,
+        _graph: &Graph<NodeData, Self::DataType, Self::ValueType>,
+        _user_state: &mut Self::UserState,
+    ) -> Vec<NodeResponse<Self::Response, NodeData>>
+    where
+        DummyResponse: UserResponseTrait,
+    {
+        vec![]
+    }
+}
+
+/// Main graph editor type
+type MyEditorState = GraphEditorState<
+    NodeData,
+    DataType,
+    DummyValueType,
+    DummyNodeTemplate,
+    UserState,
+>;
+
+#[derive(Default)]
+pub struct ModelDebugRenderer {
+    state: MyEditorState,
+    level_counter: Vec<usize>,
+}
+
+impl ModelDebugRenderer {
+    pub fn render(&mut self, ctx: &egui::Context, collapser: &mut UserState) {
+
+        // Add main panel with the interactive graph
+        egui::CentralPanel::default().show(ctx, |ui| {
+            // Triger graph display and obtain user interaction events, if any.
+            let ret = self.state.draw_graph_editor(
+                ui,
+                AllNodeTemplates::default(),
+                collapser,
+                Vec::default(),
+            );
+        });
+    }
+
+    pub fn update(&mut self, collapser: &mut UserState) {
+        let keys = collapser.nodes.keys().collect::<Vec<_>>();
+        for key in keys {
+            self.add_node(key, collapser);
+        }
+    }
+
+    fn add_node(&mut self, node_index: CollapseNodeKey, collapser: &mut UserState){
+        let collapser_node = &collapser.nodes[node_index];
+        
+        let id =
+            self.state
+                .graph
+                .add_node(
+                format!("{:?}", collapser_node.identfier),
+                NodeData { 
+                    collapse_key: node_index,  
+                },
+                |_g, _id| {
+
+                });
+
+        // Supplement z-order for the node (panic if missing)
+        self.state.node_order.push(id);
+        
+        while self.level_counter.len() <= collapser_node.level {
+            self.level_counter.push(0);
+        }
+
+        let y = self.level_counter[collapser_node.level];
+        self.level_counter[collapser_node.level] += 1;
+
+        let pos = egui::Pos2{ x: collapser_node.level as f32 * 10.0, y: y as f32 * 10.0  };
+
+        // Position the node within editor area ((panic if missing)
+        self.state
+            .node_positions
+            .insert(id, pos);
+    }
+}

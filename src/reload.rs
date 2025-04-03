@@ -11,12 +11,16 @@ mod volume;
 mod csg_renderer;
 mod render_csg_tree;
 mod slot_map_csg_tree;
+mod model_renderer;
 
 use crate::vec_csg_tree::tree::{VecCSGTree, VOXEL_SIZE};
 use crate::profiler::ShaderProfiler;
 use csg_renderer::color_controller::ColorController;
 use csg_renderer::data_controller::DataController;
 use csg_renderer::Renderer;
+use model_renderer::ModelDebugRenderer;
+use model_synthesis::collapser_data::CollapserData;
+use model_synthesis::template::TemplateTree;
 use octa_force::engine::Engine;
 use render_csg_tree::base::RenderCSGTree;
 use slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey};
@@ -47,6 +51,10 @@ pub struct RenderState {
     pub color_controller: ColorController,
     pub renderer: Renderer,
     pub profiler: Option<ShaderProfiler>,
+
+    pub template: TemplateTree<Identifier, VecCSGTree>,
+    pub collapser: CollapserData<Identifier, SlotMapCSGTreeKey>,
+    pub model_renderer: ModelDebugRenderer,
 }
 
 pub struct LogicState {
@@ -201,7 +209,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     let start_pos = pos;
     let mut csg = None;
 
-    let mut collapser: Collapser<Identifier, SlotMapCSGTreeKey, VecCSGTree> = template.get_collaper();
+    let mut collapser = template.get_collaper();
     while let Some((operation, collapser)) = collapser.next()? {
         match operation {
             CollapseOperation::CollapsePos{ index  } => {
@@ -305,12 +313,21 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         data_controller.set_render_csg_tree(&vec_tree.into())?;    
     }
     
+    let mut collapser = collapser.into_data();
+    let mut model_renderer = ModelDebugRenderer::default();
+
+    model_renderer.update(&mut collapser);
+    
     Ok(RenderState {
         gui,
         data_controller,
         color_controller,
         renderer,
         profiler,
+
+        template,
+        collapser,
+        model_renderer,
     })
 }
 
@@ -385,6 +402,8 @@ pub fn record_render_commands(
                     .unwrap()
                     .gui_windows(ctx, engine.controls.mouse_left);
             }
+
+            render_state.model_renderer.render(ctx, &mut render_state.collapser);
         },
     )?;
 

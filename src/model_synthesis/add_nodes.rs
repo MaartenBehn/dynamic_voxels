@@ -5,7 +5,7 @@ use slotmap::Key;
 
 use crate::volume::Volume;
 
-use super::{builder::{BU, IT}, collapse::{CollapseNodeKey, Collapser, GridData, Node, NodeDataType, NodeOperation, NodeOperationType, NumberData, PosData}, relative_path::LeafType, template::{NodeTemplateValue, TemplateAmmountType, TemplateIndex, TemplateNode}};
+use super::{builder::{BU, IT}, collapse::{CollapseNodeKey, Collapser, GridData, CollapseNode, NodeDataType, NodeOperation, NodeOperationType, NumberData, PosData}, relative_path::LeafType, template::{NodeTemplateValue, TemplateAmmountType, TemplateIndex, TemplateNode}};
 
 
 impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
@@ -238,9 +238,10 @@ impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
 
     pub fn push_new_node(&mut self, new_node_template: &TemplateNode<I, V>, depends: Vec<(I, CollapseNodeKey)>, knows: Vec<(I, CollapseNodeKey)>, defined_by: CollapseNodeKey, data: NodeDataType) {
         
-        let index = self.nodes.insert(Node {
+        let index = self.nodes.insert(CollapseNode {
             template_index: new_node_template.index,
             identfier: new_node_template.identifier,
+            level: new_node_template.level,
             children: vec![],
             depends: depends.clone(),
             knows,

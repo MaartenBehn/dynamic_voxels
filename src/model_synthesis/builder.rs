@@ -5,7 +5,7 @@ use std::{fmt::Debug, iter, marker::PhantomData, ops::RangeBounds};
 
 use crate::{vec_csg_tree::tree::VecCSGNode, volume::Volume};
 
-use super::{collapse::Node, relative_path::{self, RelativePathTree}, template::{NodeTemplateValue, TemplateTree}};
+use super::{collapse::CollapseNode, relative_path::{self, RelativePathTree}, template::{NodeTemplateValue, TemplateTree}};
 
 pub trait IT: Debug + Copy + Eq + Default {}
 pub trait BU: Debug + Copy + Default {}
