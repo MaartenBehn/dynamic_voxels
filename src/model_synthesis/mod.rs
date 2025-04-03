@@ -3,3 +3,5 @@ pub mod collapse;
 pub mod collapse_util;
 pub mod relative_path;
 pub mod template;
+pub mod add_nodes;
+pub mod reset_nodes;
