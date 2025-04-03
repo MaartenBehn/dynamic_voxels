@@ -5,7 +5,7 @@ use std::{fmt::Debug, iter, marker::PhantomData, ops::RangeBounds};
 
 use crate::{vec_csg_tree::tree::VecCSGNode, volume::Volume};
 
-use super::{collapse::Node, relative_path::{self, RelativePathTree}, template::TemplateTree, volume::PossibleVolume};
+use super::{collapse::Node, relative_path::{self, RelativePathTree}, template::{NodeTemplateValue, TemplateTree}};
 
 pub trait IT: Debug + Copy + Eq + Default {}
 pub trait BU: Debug + Copy + Default {}
@@ -30,22 +30,6 @@ pub struct BuilderNode<I: IT, V: Volume> {
     pub depends: Vec<I>,
     pub knows: Vec<I>,
     pub ammount: BuilderAmmount<I>,
-}
-
-#[derive(Debug, Clone)]
-pub enum NodeTemplateValue<V: Volume> {
-    Groupe {},
-    NumberRange {
-        min: i32,
-        max: i32,
-        permutation: Permutation<DefaultBuildHasher>,
-    }, 
-    Grid {
-        boundary: V,
-        spacing: Vec3,
-    },
-    Pos {},
-    BuildHook {}
 }
 
 #[derive(Debug, Clone)]
@@ -76,7 +60,7 @@ impl<I: IT, V: Volume> ModelSynthesisBuilder<I, V> {
         builder = b(builder);
 
         let node = BuilderNode {
-            value: NodeTemplateValue::Groupe {},
+            value: NodeTemplateValue::new_group(),
             identifier,
             depends: builder.depends,
             knows: builder.knows,
@@ -113,20 +97,14 @@ impl<I: IT, V: Volume> ModelSynthesisBuilder<I, V> {
             std::ops::Bound::Unbounded => panic!("Range can not be unbounded"),
         };
 
-
-        let seed = fastrand::u64(0..1000);
         let node = BuilderNode {
-            value: NodeTemplateValue::NumberRange {
-                min: start_bound,
-                max: end_bound,
-                permutation: Permutation::new((end_bound - start_bound) as _, seed, DefaultBuildHasher::new())
-            },
+            value: NodeTemplateValue::new_number_range(start_bound, end_bound),
             identifier,
             depends: builder.depends,
             knows: builder.knows,
             ammount: builder.ammount,
         };
-
+        
         self.nodes.push(node);
         
         self
@@ -148,7 +126,7 @@ impl<I: IT, V: Volume> ModelSynthesisBuilder<I, V> {
         builder = b(builder);
 
         let node = BuilderNode {
-            value: NodeTemplateValue::Grid { boundary, spacing },
+            value: NodeTemplateValue::new_grid(boundary, spacing),
             identifier,
             depends: builder.depends,
             knows: builder.knows,
@@ -174,7 +152,7 @@ impl<I: IT, V: Volume> ModelSynthesisBuilder<I, V> {
         builder = b(builder);
 
         let node = BuilderNode {
-            value: NodeTemplateValue::Pos {},
+            value: NodeTemplateValue::new_pos(),
             identifier,
             depends: builder.depends,
             knows: builder.knows,
@@ -200,7 +178,7 @@ impl<I: IT, V: Volume> ModelSynthesisBuilder<I, V> {
         builder = b(builder);
 
         let node = BuilderNode {
-            value: NodeTemplateValue::BuildHook {  },
+            value: NodeTemplateValue::new_build(),
             identifier,
             depends: builder.depends, 
             knows: builder.knows, 

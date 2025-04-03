@@ -1,8 +1,11 @@
 use std::iter;
 
+use feistel_permutation_rs::{DefaultBuildHasher, Permutation};
+use octa_force::glam::Vec3;
+
 use crate::{model_synthesis::relative_path::RelativePathTree, volume::Volume};
 
-use super::builder::{BuilderAmmount, BuilderNode, ModelSynthesisBuilder, NodeTemplateValue, IT};
+use super::builder::{BuilderAmmount, BuilderNode, ModelSynthesisBuilder, IT};
 
 pub type TemplateIndex = usize;
 pub const TEMPLATE_INDEX_ROOT: TemplateIndex = 0;
@@ -11,6 +14,23 @@ pub const AMMOUNT_PATH_INDEX: usize = 0;
 #[derive(Debug, Clone)]
 pub struct TemplateTree<I: IT, V: Volume> {
     pub nodes: Vec<TemplateNode<I, V>> 
+}
+
+#[derive(Debug, Clone)]
+pub enum NodeTemplateValue<V: Volume> {
+    Groupe {},
+    NumberRange {
+        min: i32,
+        max: i32,
+        permutation: Permutation<DefaultBuildHasher>,
+    }, 
+    Grid {
+        boundary: V,
+        spacing: Vec3,
+        points: Vec<Vec3>,
+    },
+    Pos {},
+    BuildHook {}
 }
 
 #[derive(Debug, Clone)]
@@ -157,5 +177,50 @@ impl<I: IT, V: Volume> TemplateTree<I, V> {
             BuilderAmmount::DefinedBy(i) =>  (TemplateAmmountType::Value, builder.get_node_index_by_identifier(i) + 1),
         }
 
+    }
+}
+
+impl<V: Volume> NodeTemplateValue<V> {
+    pub fn new_group() -> NodeTemplateValue<V> {
+        NodeTemplateValue::Groupe {}
+    }
+
+    pub fn new_number_range(min: i32, max: i32) -> NodeTemplateValue<V> {
+        let seed = fastrand::u64(0..1000);
+        NodeTemplateValue::NumberRange {
+            min,
+            max,
+            permutation: Permutation::new((max - min) as _, seed, DefaultBuildHasher::new())
+        }
+    }
+
+    pub fn new_pos() -> NodeTemplateValue<V> {
+        NodeTemplateValue::Pos {}
+    }
+
+    pub fn new_grid(mut boundary: V, spacing: Vec3) -> NodeTemplateValue<V> {
+        let aabb = boundary.get_aabb();
+
+        let mut points = vec![];
+        let mut point = aabb.min;
+        while point.x <= aabb.max.x {
+            while point.y <= aabb.max.y {
+                while point.z <= aabb.max.z {
+                    if boundary.is_position_valid_vec3(point) {
+                        points.push(point);
+                    }  
+                } 
+                point.y += spacing.y;
+                point.z = aabb.min.z;
+            } 
+            point.x += spacing.x;
+            point.y = aabb.min.y;
+        } 
+
+        NodeTemplateValue::Grid { boundary, spacing, points }
+    }
+
+    pub fn new_build() -> NodeTemplateValue<V> {
+        NodeTemplateValue::BuildHook {}
     }
 }

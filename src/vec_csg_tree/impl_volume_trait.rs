@@ -1,8 +1,8 @@
 use octa_force::glam::{IVec3, Vec3};
 
-use crate::volume::Volume;
+use crate::{aabb::AABB, volume::Volume};
 
-use super::tree::VecCSGTree;
+use super::tree::{VecCSGTree, AABB_PADDING};
 
 
 impl Volume for VecCSGTree {
@@ -20,5 +20,14 @@ impl Volume for VecCSGTree {
 
     fn get_gradient_at_position(&self, pos: Vec3) -> Vec3 {
         self.get_gradient_at_pos(pos)
+    }
+
+    fn get_aabb(&mut self) -> AABB {
+        if self.nodes.is_empty() {
+            return AABB::default();
+        }
+        
+        self.set_all_aabbs(AABB_PADDING);
+        self.nodes[0].aabb
     }
 }

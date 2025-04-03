@@ -6,9 +6,9 @@ use octa_force::{anyhow::{anyhow, bail, ensure}, glam::{vec3, IVec3, Vec3}, log:
 use slotmap::{new_key_type, Key, SlotMap};
 
 
-use crate::{model_synthesis::volume::PossibleVolume, vec_csg_tree::tree::VecCSGTree, volume::Volume};
+use crate::{vec_csg_tree::tree::VecCSGTree, volume::Volume};
 
-use super::{builder::{BuilderNode, ModelSynthesisBuilder, NodeTemplateValue, BU, IT}, relative_path::{LeafType, RelativePathTree}, template::{TemplateAmmountType, TemplateIndex, TemplateNode, TemplateTree}};
+use super::{builder::{BuilderNode, ModelSynthesisBuilder, BU, IT}, relative_path::{LeafType, RelativePathTree}, template::{NodeTemplateValue, TemplateAmmountType, TemplateIndex, TemplateNode, TemplateTree}};
 
 new_key_type! { pub struct CollapseNodeKey; }
 
@@ -69,6 +69,7 @@ pub struct PosData {
 
 #[derive(Debug, Clone)]
 pub struct GridData {
+
 }
 
 #[derive(Debug, Clone)]
@@ -156,7 +157,7 @@ impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
             number_value.value = value;
             info!("{:?} {:?}: {}", node_index, node.identfier, number_value.value); 
         }
-
+ 
         self.push_pending_defineds(node_index);
         Ok(CollapseOperation::None)
     }
@@ -187,10 +188,18 @@ impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
                 self.create_n_defined_nodes(node_index, to_create_template_index, n)?;
             },
             TemplateAmmountType::Value => {
-                if let NodeDataType::Number(data) = &node.data {
-                    self.create_n_defined_nodes(node_index, to_create_template_index, data.value as usize)?;
-                } else {
-                    panic!("TemplateAmmount Value is not allowed on {:?}", &node.data);
+                match &node.data {
+                    NodeDataType::Pos(_)
+                    | NodeDataType::Build
+                    | NodeDataType::None => {
+                        panic!("TemplateAmmount Value is not allowed on {:?}", &node.data);
+                    },
+                    NodeDataType::Number(data) => {
+                        self.create_n_defined_nodes(node_index, to_create_template_index, data.value as usize)?;
+                    },
+                    NodeDataType::Grid(data) => {
+
+                    },
                 }
             },
         };
@@ -220,6 +229,40 @@ impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
             }
         } 
 
+        
+        Ok(())
+    }
+
+    fn create_pos_nodes (&mut self, node_index: CollapseNodeKey, to_create_template_index: TemplateIndex, mut points: Vec<Vec3>) -> OctaResult<()> {
+        let node = &self.nodes[node_index];
+        let mut present_children = node.children.iter()
+            .find(|(template_index, _)| *template_index == to_create_template_index)
+            .map(|(_, children)| children.to_vec())
+            .unwrap_or(vec![]);
+        
+        for i in (0..present_children.len()).rev() {
+
+            let child = present_children[i];
+            let pos = if let NodeDataType::Pos(pos) =  &self.nodes[child].data {
+                pos.value
+            } else {
+                bail!("Gird child that is defined by Grid is not a Pos");
+            };
+            if let Some(j) = points.iter()
+                .position(|p| *p == pos) {
+                present_children.swap_remove(i);
+                points.swap_remove(j);
+            }
+        }
+
+        for child in present_children {
+            self.delete_node(child, false)?;
+        }
+
+        let (depends, knows) = self.get_depends_and_knows_for_template(node_index, to_create_template_index)?;
+        for point in points {
+            self.add_pos(to_create_template_index, depends.clone(), knows.clone(), node_index, point); 
+        }
         
         Ok(())
     }
@@ -308,8 +351,7 @@ impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
 
         Ok((depends, knows))
     }
-     
-    
+
     pub fn add_node(
         &mut self, 
         new_node_template_index: TemplateIndex, 
@@ -344,8 +386,27 @@ impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
             }
         };
 
+        self.push_new_node(new_node_template, depends, knows, defined_by, data)
+    }
+
+    pub fn add_pos(
+        &mut self, 
+        new_node_template_index: TemplateIndex, 
+        depends: Vec<(I, CollapseNodeKey)>, 
+        knows: Vec<(I, CollapseNodeKey)>,
+        defined_by: CollapseNodeKey,
+        pos: Vec3,
+    ) {
+        let new_node_template = &self.template.nodes[new_node_template_index];
+
+        let data = NodeDataType::Pos(PosData { value: pos });
+        self.push_new_node(new_node_template, depends, knows, defined_by, data)
+    }
+
+    pub fn push_new_node(&mut self, new_node_template: &TemplateNode<I, V>, depends: Vec<(I, CollapseNodeKey)>, knows: Vec<(I, CollapseNodeKey)>, defined_by: CollapseNodeKey, data: NodeDataType) {
+        
         let index = self.nodes.insert(Node {
-            template_index: new_node_template_index,
+            template_index: new_node_template.index,
             identfier: new_node_template.identifier,
             children: vec![],
             depends: depends.clone(),
@@ -359,11 +420,11 @@ impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
 
         for (_, depend) in depends {
             let children_list = self.nodes[depend].children.iter_mut()
-                .find(|(template_index, _)| *template_index == new_node_template_index)
+                .find(|(template_index, _)| *template_index == new_node_template.index)
                 .map(|(_, c)| c);
 
             if children_list.is_none() {
-                self.nodes[depend].children.push((new_node_template_index, vec![index]));
+                self.nodes[depend].children.push((new_node_template.index, vec![index]));
             } else {
                 children_list.unwrap().push(index);
             };
