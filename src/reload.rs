@@ -168,8 +168,6 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
         .pos(Identifier::PostPos, |b| {b
             .ammount(BuilderAmmount::DefinedBy(Identifier::PostNumber))
-            .depends(Identifier::PostNumber)
-            .depends(Identifier::PostHeight)
             .depends(Identifier::PostDistance)
         })
 

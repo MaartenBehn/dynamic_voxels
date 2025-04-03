@@ -1,5 +1,4 @@
 
-use core::panic;
 use std::{collections::HashMap, fmt::{Debug, Octal}, iter, marker::PhantomData, task::ready, usize};
 
 use feistel_permutation_rs::{DefaultBuildHasher, OwnedPermutationIterator, Permutation, PermutationIterator};
@@ -31,14 +30,14 @@ pub struct NodeOperation {
 #[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
 pub enum NodeOperationType {
     CollapseValue,
-    CreateDefined(TemplateIndex),
+    UpdateDefined(TemplateIndex),
 }
 
 #[derive(Debug, Clone)]
 pub struct Node<I: IT, U: BU> {
     pub template_index: usize,
     pub identfier: I,
-    pub children: Vec<CollapseNodeKey>, 
+    pub children: Vec<(TemplateIndex, Vec<CollapseNodeKey>)>, 
     pub depends: Vec<(I, CollapseNodeKey)>,
     pub knows: Vec<(I, CollapseNodeKey)>,
     pub defined_by: CollapseNodeKey,
@@ -100,8 +99,8 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
                     let opperation = self.collapse_node(operation.index)?;
                     Ok(Some((opperation, self)))    
                 },
-                NodeOperationType::CreateDefined(defined_index) => {
-                    self.create_defined(operation.index, defined_index)?;
+                NodeOperationType::UpdateDefined(defined_index) => {
+                    self.update_defined(operation.index, defined_index)?;
                     Ok(Some((CollapseOperation::None, self)))
                 },
             }
@@ -172,14 +171,64 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
             self.insert_opperation(NodeOperation{
                 level: new_node_template.level,
                 index: node_index,
-                typ: NodeOperationType::CreateDefined(ammount.index),
+                typ: NodeOperationType::UpdateDefined(ammount.index),
             }); 
         }
     }
 
-    fn create_defined(&mut self, node_index: CollapseNodeKey, to_create_template_index: TemplateIndex) -> OctaResult<()> {
+    fn update_defined(&mut self, node_index: CollapseNodeKey, to_create_template_index: TemplateIndex) -> OctaResult<()> {
+        let node = &self.nodes[node_index];
+        let template_node = self.get_template_from_node_ref(node);
+        let template_ammount = template_node.defines_ammount.iter()
+            .find(|ammount| ammount.index == to_create_template_index)
+            .ok_or(anyhow!("Node Template to create has no defines ammout in parent"))?;
+ 
+        match template_ammount.typ {
+            TemplateAmmountType::N(n) => {
+                self.create_n_defined_nodes(node_index, to_create_template_index, n)?;
+            },
+            TemplateAmmountType::Value => {
+                if let NodeDataType::Number(data) = &node.data {
+                    self.create_n_defined_nodes(node_index, to_create_template_index, data.value as usize)?;
+                } else {
+                    panic!("TemplateAmmount Value is not allowed on {:?}", &node.data);
+                }
+            },
+        };
+
+        
+        Ok(())
+    }
+
+    fn create_n_defined_nodes (&mut self, node_index: CollapseNodeKey, to_create_template_index: TemplateIndex, n: usize) -> OctaResult<()> {
+        let node = &self.nodes[node_index];
+        let present_children = node.children.iter()
+            .find(|(template_index, _)| *template_index == to_create_template_index)
+            .map(|(_, children)| children.as_slice())
+            .unwrap_or(&[]);
+
+        let present_children_len = present_children.len(); 
+        if present_children_len < n {
+            let (depends, knows) = self.get_depends_and_knows_for_template(node_index, to_create_template_index)?;
+
+            for _ in present_children_len..n {
+                self.add_node(to_create_template_index, depends.clone(), knows.clone(), node_index); 
+            }
+        } else if present_children_len > n {
+
+            for child in present_children.to_owned().into_iter().take(n) {
+                self.delete_node(child, false)?;
+            }
+        } 
+
+        
+        Ok(())
+    }
+
+    fn get_depends_and_knows_for_template(&mut self, node_index: CollapseNodeKey, to_create_template_index: TemplateIndex) 
+    -> OctaResult<(Vec<(I, CollapseNodeKey)>, Vec<(I, CollapseNodeKey)>)> {
         let template_node = self.get_template_from_node_ref(&self.nodes[node_index]);
-        let template_ammount = &template_node.defines_ammount.iter()
+        let template_ammount = template_node.defines_ammount.iter()
             .find(|ammount| ammount.index == to_create_template_index)
             .ok_or(anyhow!("Node Template to create has no defines ammout in parent"))?;
 
@@ -209,8 +258,10 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
                     .collect::<Vec<_>>()
             } else { 
                 step_node.children.iter()
-                    .map(|i|*i)
-                    .filter(|i| self.nodes[*i].template_index == step.into_index)
+                    .filter(|(template_index, _)| *template_index == step.into_index)
+                    .map(|(template_index, c)|c)
+                    .flatten()
+                    .copied()
                     .collect::<Vec<_>>()
             };
 
@@ -256,22 +307,7 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
         let depends = transform_depends_and_knows(&new_node_template.depends, depends);
         let knows = transform_depends_and_knows(&new_node_template.knows, knows);
 
-        let ammount = match template_ammount.typ {
-            TemplateAmmountType::N(n) => n,
-            TemplateAmmountType::Value => {
-                if let NodeDataType::Number(data) = &self.nodes[node_index].data {
-                    data.value as usize
-                } else {
-                    panic!("TemplateAmmount Value is not allowed on {:?}", &self.nodes[node_index].data);
-                }
-            },
-        };
-
-        for _ in 0..ammount {
-            self.add_node(template_ammount.index, depends.clone(), knows.clone(), node_index); 
-        }
-
-        Ok(())
+        Ok((depends, knows))
     }
      
     
@@ -323,7 +359,16 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
         //info!("{:?} Node added {:?}", index, new_node_template.identifier);
 
         for (_, depend) in depends {
-            self.nodes[depend].children.push(index);
+            let children_list = self.nodes[depend].children.iter_mut()
+                .find(|(template_index, _)| *template_index == new_node_template_index)
+                .map(|(_, c)| c);
+
+            if children_list.is_none() {
+                self.nodes[depend].children.push((new_node_template_index, vec![index]));
+            } else {
+                children_list.unwrap().push(index);
+            };
+
         }
 
         self.insert_opperation(NodeOperation {
@@ -367,12 +412,20 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
         let node = self.get_node_ref_from_node_index(node_index)?;
         info!("{:?} Reset {:?}", node_index, node.identfier);
 
-        for child in node.children.clone() {
-            self.delete_node(child)?;
+        let node_template = Self::get_template_from_node_ref_unpacked(&self.template, node);
+        for child in node.children.iter()
+            .filter(|(template_index, _)| node_template.defines_ammount.iter()
+                .find(|ammount| ammount.index == *template_index)
+                .is_none())
+            .map(|(_, c)| c)
+            .flatten()
+            .copied()
+            .collect::<Vec<_>>() {
+
+            self.delete_node(child, true)?;
         }
 
         let node = self.get_node_ref_from_node_index(node_index)?; 
-        let node_template = Self::get_template_from_node_ref_unpacked(&self.template, node);
         self.insert_opperation(NodeOperation {
             index: node_index,
             level: node_template.level,
@@ -382,7 +435,7 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
         Ok(())
     }
 
-    fn delete_node(&mut self, node_index: CollapseNodeKey) -> OctaResult<()> {
+    fn delete_node(&mut self, node_index: CollapseNodeKey, recreate: bool) -> OctaResult<()> {
         let node = self.nodes.remove(node_index);
         if node.is_none() {
             return Ok(());
@@ -404,11 +457,16 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
             }
             let depends_node = depends_node.unwrap();
 
-            let i = depends_node.children.iter()
-                .position(|i| *i == node_index)
-                .ok_or(anyhow!("When deleting node the node index was not present in the children of a dependency"))?;
+            let children = depends_node.children.iter_mut()
+                .find(|(template_index, _)| *template_index == node.template_index)
+                .map(|(_, c)| c)
+                .ok_or(anyhow!("When deleting node the template index of the node was not present in the children of a dependency"))?;
+
+            let i = children.iter()
+                .position(|t| *t == node_index)
+                .ok_or(anyhow!("When deleting node index of the node was not present in the children of a dependency"))?;
             
-            depends_node.children.swap_remove(i);
+            children.swap_remove(i);
         }
 
         self.pending_collapse_opperations.push(CollapseOperation::Undo { 
@@ -416,19 +474,24 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
             undo_data: node.undo_data,
         });
 
-        for child in node.children.iter() {
-            self.delete_node(*child)?;
+        for child in node.children.iter()
+            .map(|(_, c)| c) 
+            .flatten() {
+
+            self.delete_node(*child, recreate)?;
         }
 
-        let node_template = self.get_template_from_node_ref(&node); 
-        if self.has_index(node.defined_by) {
+        if recreate {
+            let node_template = self.get_template_from_node_ref(&node); 
+            if self.has_index(node.defined_by) {
 
-            self.insert_opperation(NodeOperation {
-                index: node.defined_by,
-                level: node_template.level,
-                typ: NodeOperationType::CreateDefined(node.template_index)
-            });
-        } 
+                self.insert_opperation(NodeOperation {
+                    index: node.defined_by,
+                    level: node_template.level,
+                    typ: NodeOperationType::UpdateDefined(node.template_index)
+                });
+            } 
+        }
 
         return Ok(());
     }
