@@ -3,7 +3,7 @@ use octa_force::glam::Vec3;
 
 use std::{fmt::Debug, iter, marker::PhantomData, ops::RangeBounds};
 
-use crate::vec_csg_tree::tree::VecCSGNode;
+use crate::{vec_csg_tree::tree::VecCSGNode, volume::Volume};
 
 use super::{collapse::Node, relative_path::{self, RelativePathTree}, template::TemplateTree, volume::PossibleVolume};
 
@@ -11,8 +11,8 @@ pub trait IT: Debug + Copy + Eq + Default {}
 pub trait BU: Debug + Copy + Default {}
 
 #[derive(Debug, Clone)]
-pub struct ModelSynthesisBuilder<I: IT> {
-    pub nodes: Vec<BuilderNode<I>>,
+pub struct ModelSynthesisBuilder<I: IT, V: Volume> {
+    pub nodes: Vec<BuilderNode<I, V>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -24,26 +24,27 @@ pub enum BuilderAmmount<I: IT>{
 }
 
 #[derive(Debug, Clone)]
-pub struct BuilderNode<I: IT> {
+pub struct BuilderNode<I: IT, V: Volume> {
     pub identifier: I,
-    pub value: NodeTemplateValue,
+    pub value: NodeTemplateValue<V>,
     pub depends: Vec<I>,
     pub knows: Vec<I>,
     pub ammount: BuilderAmmount<I>,
 }
 
 #[derive(Debug, Clone)]
-pub enum NodeTemplateValue {
+pub enum NodeTemplateValue<V: Volume> {
     Groupe {},
     NumberRange {
         min: i32,
         max: i32,
         permutation: Permutation<DefaultBuildHasher>,
     }, 
-    Pos {},
-    Volume {
-        volume: PossibleVolume,
+    Grid {
+        boundary: V,
+        spacing: Vec3,
     },
+    Pos {},
     BuildHook {}
 }
 
@@ -54,8 +55,8 @@ pub struct NodeBuilder<I: IT> {
     pub ammount: BuilderAmmount<I>,
 }
 
-impl<I: IT> ModelSynthesisBuilder<I> {
-    pub fn new() -> ModelSynthesisBuilder<I> {
+impl<I: IT, V: Volume> ModelSynthesisBuilder<I, V> {
+    pub fn new() -> ModelSynthesisBuilder<I, V> {
         ModelSynthesisBuilder {
             nodes: vec![],
         }
@@ -131,6 +132,34 @@ impl<I: IT> ModelSynthesisBuilder<I> {
         self
     }
 
+    pub fn grid(
+        mut self,
+        identifier: I,
+        boundary: V,
+        spacing: Vec3,
+        b: fn(NodeBuilder<I>) -> NodeBuilder<I>
+    ) -> Self {
+        let mut builder = NodeBuilder {
+            depends: vec![],
+            knows: vec![],
+            ammount: BuilderAmmount::OneGlobal
+        };
+
+        builder = b(builder);
+
+        let node = BuilderNode {
+            value: NodeTemplateValue::Grid { boundary, spacing },
+            identifier,
+            depends: builder.depends,
+            knows: builder.knows,
+            ammount: builder.ammount,
+        };
+
+        self.nodes.push(node);
+
+        self
+    }
+
     pub fn pos(
         mut self,
         identifier: I,
@@ -156,37 +185,7 @@ impl<I: IT> ModelSynthesisBuilder<I> {
 
         self
     }
-
-    pub fn volume(
-        mut self, 
-        identifier: I,
-        volume: VecCSGNode,
-        sample_distance: f32,
-        b: fn(NodeBuilder<I>) -> NodeBuilder<I>
-    ) -> Self {
-        let mut builder = NodeBuilder {
-            depends: vec![],
-            knows: vec![],
-            ammount: BuilderAmmount::OneGlobal
-        };
-
-        builder = b(builder);
-
-        let node = BuilderNode {
-            value: NodeTemplateValue::Volume { 
-                volume: PossibleVolume::new(volume, sample_distance) 
-            },
-            identifier,
-            depends: builder.depends,
-            knows: builder.knows,
-            ammount: builder.ammount,
-        };
-
-        self.nodes.push(node);
-
-        self
-    }
-
+ 
     pub fn build(
         mut self, 
         identifier: I,
@@ -234,17 +233,17 @@ impl<I: IT> NodeBuilder<I> {
     }
 }
 
-impl<I: IT> ModelSynthesisBuilder<I> {
+impl<I: IT, V: Volume> ModelSynthesisBuilder<I, V> {
     pub fn get_node_index_by_identifier(&self, identifier: I) -> usize {
         self.nodes.iter().position(|n| n.identifier == identifier).expect(&format!("No Node with Identifier {:?} found.", identifier))
     }
 
-    pub fn build_template(&self) -> TemplateTree<I> {
+    pub fn build_template(&self) -> TemplateTree<I, V> {
         TemplateTree::new_from_builder(self)
     }
 }
 
-impl NodeTemplateValue {
+impl<V: Volume> NodeTemplateValue<V> {
     pub fn get_number_min(&self) -> i32 {
         match self {
             NodeTemplateValue::NumberRange { min, .. } => *min,

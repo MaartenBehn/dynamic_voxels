@@ -151,7 +151,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     // let mut tree = CSGTree::new_example_tree_2(1.0);
     // csg_controller.set_data(&tree.make_data());
  
-    let mut wfc_builder: ModelSynthesisBuilder<Identifier> = ModelSynthesisBuilder::new()
+    let mut wfc_builder: ModelSynthesisBuilder<Identifier, VecCSGTree> = ModelSynthesisBuilder::new()
         .groupe(Identifier::Fence, |b| {b})
 
         .number_range(Identifier::PostHeight, 3..=8, |b|{b
@@ -201,7 +201,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     let start_pos = pos;
     let mut csg = None;
 
-    let mut collapser: Collapser<Identifier, SlotMapCSGTreeKey> = template.get_collaper();
+    let mut collapser: Collapser<Identifier, SlotMapCSGTreeKey, VecCSGTree> = template.get_collaper();
     while let Some((operation, collapser)) = collapser.next()? {
         match operation {
             CollapseOperation::CollapsePos{ index  } => {

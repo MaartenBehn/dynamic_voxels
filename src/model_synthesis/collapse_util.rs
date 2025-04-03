@@ -2,10 +2,12 @@ use octa_force::{anyhow::anyhow, glam::Vec3, OctaResult};
 use slotmap::SlotMap;
 use octa_force::log::info;
 
+use crate::volume::Volume;
+
 use super::{builder::{BU, IT}, collapse::{CollapseNodeKey, Collapser, Node, NodeDataType, NodeOperation}, template::{TemplateNode, TemplateTree}};
 
 
-impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
+impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
 
     pub fn insert_opperation(&mut self, opperation: NodeOperation) {
         let res = self.pending_operations.binary_search(&opperation);
@@ -47,15 +49,15 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
         nodes.get_mut(node_index).ok_or(anyhow!("Node index invalid!"))
     }
 
-    pub fn get_template_from_node_ref(&self, node: &Node<I, U>) -> &'a TemplateNode<I> {
+    pub fn get_template_from_node_ref(&self, node: &Node<I, U>) -> &'a TemplateNode<I, V> {
         &self.template.nodes[node.template_index]
     }
 
-    pub fn get_template_from_node_ref_unpacked(template: &'a TemplateTree<I>, node: &Node<I, U>) -> &'a TemplateNode<I> {
+    pub fn get_template_from_node_ref_unpacked(template: &'a TemplateTree<I, V>, node: &Node<I, U>) -> &'a TemplateNode<I, V> {
         &template.nodes[node.template_index]
     }
 
-    pub fn get_template_from_node_index(&self, node_index: CollapseNodeKey) -> &'a TemplateNode<I> {
+    pub fn get_template_from_node_index(&self, node_index: CollapseNodeKey) -> &'a TemplateNode<I, V> {
         &(self.template.nodes[self.nodes[node_index].template_index])
     }
 

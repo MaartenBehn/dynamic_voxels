@@ -6,15 +6,15 @@ use octa_force::{anyhow::{anyhow, bail, ensure}, glam::{vec3, IVec3, Vec3}, log:
 use slotmap::{new_key_type, Key, SlotMap};
 
 
-use crate::{vec_csg_tree::tree::VecCSGTree, model_synthesis::volume::PossibleVolume};
+use crate::{model_synthesis::volume::PossibleVolume, vec_csg_tree::tree::VecCSGTree, volume::Volume};
 
 use super::{builder::{BuilderNode, ModelSynthesisBuilder, NodeTemplateValue, BU, IT}, relative_path::{LeafType, RelativePathTree}, template::{TemplateAmmountType, TemplateIndex, TemplateNode, TemplateTree}};
 
 new_key_type! { pub struct CollapseNodeKey; }
 
 #[derive(Debug, Clone)]
-pub struct Collapser<'a, I: IT, U: BU> {
-    pub template: &'a TemplateTree<I>,
+pub struct Collapser<'a, I: IT, U: BU, V: Volume> {
+    pub template: &'a TemplateTree<I, V>,
     pub nodes: SlotMap<CollapseNodeKey, Node<I, U>>,
     pub pending_operations: Vec<NodeOperation>,
     pub pending_collapse_opperations: Vec<CollapseOperation<I, U>>,
@@ -50,7 +50,7 @@ pub struct Node<I: IT, U: BU> {
 pub enum NodeDataType {
     Number(NumberData),
     Pos(PosData),
-    Volume(VolumeData),
+    Grid(GridData),
     Build,
     None,
 }
@@ -68,8 +68,7 @@ pub struct PosData {
 }
 
 #[derive(Debug, Clone)]
-pub struct VolumeData {
-    pub value: PossibleVolume,
+pub struct GridData {
 }
 
 #[derive(Debug, Clone)]
@@ -88,8 +87,8 @@ pub enum CollapseOperation<I, U> {
     }
 }
 
-impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
-    pub fn next(&mut self) -> OctaResult<Option<(CollapseOperation<I, U>, &mut Collapser<'a, I, U>)>> { 
+impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
+    pub fn next(&mut self) -> OctaResult<Option<(CollapseOperation<I, U>, &mut Collapser<'a, I, U, V>)>> { 
         if let Some(collapse_opperation) = self.pending_collapse_opperations.pop() {
             Ok(Some((collapse_opperation, self)))
 
@@ -151,7 +150,7 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
                 return Ok(CollapseOperation::None);
             }
 
-            let value = permutation.get(number_value.perm_counter as _) as i32 + *min;
+            let value = permutation.get(number_value.perm_counter as _) as i32 + min;
             number_value.perm_counter += 1;
 
             number_value.value = value;
@@ -335,14 +334,14 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
                     value: Vec3::ZERO,
                 })
             },
-            NodeTemplateValue::Volume { volume, .. } => {
-                NodeDataType::Volume(VolumeData {
-                    value: volume.to_owned(),
-                })
-            },
             NodeTemplateValue::BuildHook { .. } => {
                 NodeDataType::Build
             },
+            NodeTemplateValue::Grid { .. } => {
+                NodeDataType::Grid(GridData {
+
+                })
+            }
         };
 
         let index = self.nodes.insert(Node {
@@ -525,8 +524,8 @@ impl NodeDataType {
 }
 
 
-impl<I: IT> TemplateTree<I> {
-    pub fn get_collaper<U: BU>(&self) -> Collapser<I, U> {
+impl<I: IT, V: Volume> TemplateTree<I, V> {
+    pub fn get_collaper<U: BU>(&self) -> Collapser<I, U, V> {
         let mut collapser = Collapser{
             template: self,
             nodes: SlotMap::with_key(),
