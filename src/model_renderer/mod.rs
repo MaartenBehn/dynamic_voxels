@@ -1,7 +1,7 @@
 use std::{borrow::Cow, marker::PhantomData};
 
 use egui_graph_edit::{DataTypeTrait, Graph, GraphEditorState, InputParamKind, NodeDataTrait, NodeId, NodeResponse, NodeTemplateIter, NodeTemplateTrait, UserResponseTrait, WidgetValueTrait};
-use octa_force::{egui, OctaResult};
+use octa_force::{controls::Controls, egui, log::debug, OctaResult};
 
 use crate::{model_synthesis::{builder::{BU, IT}, collapse::{CollapseNode, CollapseNodeKey, Collapser}, collapser_data::CollapserData}, slot_map_csg_tree::tree::SlotMapCSGTreeKey, vec_csg_tree::tree::VecCSGTree, volume::Volume, Identifier};
 
@@ -25,7 +25,7 @@ pub struct DataType;
 ///
 /// This example does not feature editable content within nodes, so this type is dummy.
 #[derive(Copy, Clone, Debug, Default)]
-pub struct DummyValueType;
+pub struct ValueType;
 
 
 /// Typically an enum that lists node types.
@@ -55,7 +55,7 @@ impl DataTypeTrait<UserState> for DataType {
 impl NodeTemplateTrait for DummyNodeTemplate {
     type NodeData = NodeData;
     type DataType = DataType;
-    type ValueType = DummyValueType;
+    type ValueType = ValueType;
     type UserState = UserState;
     type CategoryType = &'static str;
 
@@ -93,7 +93,7 @@ impl NodeTemplateIter for AllNodeTemplates {
 }
 
 /// Defines how to render input's GUI when it is not connected.
-impl WidgetValueTrait for DummyValueType {
+impl WidgetValueTrait for ValueType {
     type Response = DummyResponse;
     type UserState = UserState;
     type NodeData = NodeData;
@@ -106,7 +106,7 @@ impl WidgetValueTrait for DummyValueType {
         _user_state: &mut Self::UserState,
         _node_data: &NodeData,
     ) -> Vec<DummyResponse> {
-        ui.label("x");
+        ui.label(_param_name);
         Vec::new()
     }
 }
@@ -118,7 +118,7 @@ impl NodeDataTrait for NodeData {
     type Response = DummyResponse;
     type UserState = UserState;
     type DataType = DataType;
-    type ValueType = DummyValueType;
+    type ValueType = ValueType;
 
     fn bottom_ui(
         &self,
@@ -138,7 +138,7 @@ impl NodeDataTrait for NodeData {
 type MyEditorState = GraphEditorState<
     NodeData,
     DataType,
-    DummyValueType,
+    ValueType,
     DummyNodeTemplate,
     UserState,
 >;
@@ -164,10 +164,22 @@ impl ModelDebugRenderer {
         });
     }
 
+    pub fn update_controls(&mut self, controls: &Controls) {
+        debug!("Scroll Delta: {:?}", controls.scroll_delta);
+        self.state.pan_zoom.zoom += controls.scroll_delta;
+    }
+
     pub fn update(&mut self, collapser: &mut UserState) {
+        self.state.graph.nodes.clear();
+        self.level_counter = vec![];
+
         let keys = collapser.nodes.keys().collect::<Vec<_>>();
-        for key in keys {
-            self.add_node(key, collapser);
+        for key in keys.iter() {
+            self.add_node(*key, collapser);
+        }
+
+        for key in keys.iter() {
+            self.add_child_connections(*key, collapser);
         }
     }
 
@@ -196,11 +208,68 @@ impl ModelDebugRenderer {
         let y = self.level_counter[collapser_node.level];
         self.level_counter[collapser_node.level] += 1;
 
-        let pos = egui::Pos2{ x: collapser_node.level as f32 * 10.0, y: y as f32 * 10.0  };
+        let pos = egui::Pos2{ x: (collapser_node.level - 1) as f32 * 700.0, y: y as f32 * 300.0  };
 
-        // Position the node within editor area ((panic if missing)
+        // Position the node within editor area (panic if missing)
         self.state
             .node_positions
             .insert(id, pos);
+
+        // Orientation of the node (panic if missing)
+        self.state
+            .node_orientations
+            .insert(id, egui_graph_edit::NodeOrientation::LeftToRight);
+
+        for (_, index) in collapser_node.depends.iter() {
+            let other_node = &collapser.nodes[*index];
+            self.state.graph.add_input_param(
+                id,
+                format!("{:?}", other_node.identfier),
+                DataType,
+                ValueType,
+                InputParamKind::ConnectionOnly,
+                true,
+            );
+        }
+
+        for index in collapser_node.children.iter()
+            .map(|(_, c)| c) 
+            .flatten() {
+            let other_node = &collapser.nodes[*index];
+            self.state.graph.add_output_param(
+                id,
+                format!("{:?}", other_node.identfier),
+                DataType,
+            );
+        }
+    }
+
+    pub fn add_child_connections(&mut self, node_index: CollapseNodeKey, collapser: &mut UserState) {
+        let collapser_node = &collapser.nodes[node_index];
+        let graph_node = self.state.graph.nodes.iter()
+                .find(|(_, data)| data.user_data.collapse_key == node_index)
+                .map(|(_, data)| data)
+                .expect("Graph did not have node with child index");
+
+        for (index, output) in collapser_node.children.iter()
+            .map(|(_, c)| c) 
+            .flatten()
+            .zip(graph_node.output_ids().collect::<Vec<_>>().into_iter()) {
+            let other_node = &collapser.nodes[*index];
+            let depends_nr = other_node.depends.iter()
+                .position(|(_, k)| *k == node_index)
+                .expect("Child did not have a depends entry of node");
+
+            let other_graph_node = self.state.graph.nodes.iter()
+                .find(|(_, data)| data.user_data.collapse_key == *index)
+                .map(|(_, data)| data)
+                .expect("Graph did not have node with child index");
+            
+            let input = &other_graph_node.input_ids().nth(depends_nr)
+                .expect("Graph node did not have enough Inputs");
+            
+            self.state.graph.add_connection(output, *input);
+        }
+
     }
 }
