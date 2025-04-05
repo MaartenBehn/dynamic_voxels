@@ -362,8 +362,6 @@ pub fn update(
             .update(frame_index, &engine.context)?;
     }
 
-    render_state.model_renderer.update_controls(&engine.controls);
-
     Ok(())
 }
 

@@ -31,6 +31,8 @@ fast_poisson = { path="../fast_poisson", features = ["single_precision"]}
 #fast_poisson = { git="https://github.com/MaartenBehn/fast_poisson.git", version = "1.0.3", features = ["single_precision"]}
 
 # Graphs
-egui-graph-edit = "0.6.0"
+egui_node_graph2 = { git="https://github.com/trevyn/egui_node_graph2.git", version="0.7" }
+# egui-graph-edit = { path = "../egui_node_graph/egui-graph-edit/egui-graph-edit" }
+# egui-graph-edit = "0.6.0"
 
 slotmap = "1.0.7"

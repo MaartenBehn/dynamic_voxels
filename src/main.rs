@@ -31,7 +31,7 @@ fn main() {
         } else {
             EngineFeatureValue::NotUsed
         },
-        GL_EXT_scalar_block_layout: EngineFeatureValue::Needed,
+        gl_ext_scalar_block_layout: EngineFeatureValue::Needed,
         hot_reload_config: Some(HotReloadConfig {
             lib_dir: "target/debug".to_string(),
             lib_name: "reload".to_string(),

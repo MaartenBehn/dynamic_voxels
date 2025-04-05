@@ -1,6 +1,6 @@
 use std::{borrow::Cow, marker::PhantomData};
 
-use egui_graph_edit::{DataTypeTrait, Graph, GraphEditorState, InputParamKind, NodeDataTrait, NodeId, NodeResponse, NodeTemplateIter, NodeTemplateTrait, UserResponseTrait, WidgetValueTrait};
+use egui_node_graph2::{DataTypeTrait, Graph, GraphEditorState, InputParamKind, NodeDataTrait, NodeId, NodeResponse, NodeTemplateIter, NodeTemplateTrait, UserResponseTrait, WidgetValueTrait};
 use octa_force::{controls::Controls, egui, log::debug, OctaResult};
 
 use crate::{model_synthesis::{builder::{BU, IT}, collapse::{CollapseNode, CollapseNodeKey, Collapser}, collapser_data::CollapserData}, slot_map_csg_tree::tree::SlotMapCSGTreeKey, vec_csg_tree::tree::VecCSGTree, volume::Volume, Identifier};
@@ -164,11 +164,6 @@ impl ModelDebugRenderer {
         });
     }
 
-    pub fn update_controls(&mut self, controls: &Controls) {
-        debug!("Scroll Delta: {:?}", controls.scroll_delta);
-        self.state.pan_zoom.zoom += controls.scroll_delta;
-    }
-
     pub fn update(&mut self, collapser: &mut UserState) {
         self.state.graph.nodes.clear();
         self.level_counter = vec![];
@@ -215,11 +210,6 @@ impl ModelDebugRenderer {
             .node_positions
             .insert(id, pos);
 
-        // Orientation of the node (panic if missing)
-        self.state
-            .node_orientations
-            .insert(id, egui_graph_edit::NodeOrientation::LeftToRight);
-
         for (_, index) in collapser_node.depends.iter() {
             let other_node = &collapser.nodes[*index];
             self.state.graph.add_input_param(
@@ -251,10 +241,11 @@ impl ModelDebugRenderer {
                 .map(|(_, data)| data)
                 .expect("Graph did not have node with child index");
 
-        for (index, output) in collapser_node.children.iter()
+        for (i, (index, output)) in collapser_node.children.iter()
             .map(|(_, c)| c) 
             .flatten()
-            .zip(graph_node.output_ids().collect::<Vec<_>>().into_iter()) {
+            .zip(graph_node.output_ids().collect::<Vec<_>>().into_iter())
+            .enumerate(){
             let other_node = &collapser.nodes[*index];
             let depends_nr = other_node.depends.iter()
                 .position(|(_, k)| *k == node_index)
@@ -268,7 +259,7 @@ impl ModelDebugRenderer {
             let input = &other_graph_node.input_ids().nth(depends_nr)
                 .expect("Graph node did not have enough Inputs");
             
-            self.state.graph.add_connection(output, *input);
+            self.state.graph.add_connection(output, *input, 0);
         }
 
     }
