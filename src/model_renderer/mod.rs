@@ -3,7 +3,7 @@ use std::{borrow::Cow, marker::PhantomData};
 use egui_node_graph2::{DataTypeTrait, Graph, GraphEditorState, InputParamKind, NodeDataTrait, NodeId, NodeResponse, NodeTemplateIter, NodeTemplateTrait, UserResponseTrait, WidgetValueTrait};
 use octa_force::{controls::Controls, egui, log::debug, OctaResult};
 
-use crate::{model_synthesis::{builder::{BU, IT}, collapse::{CollapseNode, CollapseNodeKey, Collapser}, collapser_data::CollapserData}, slot_map_csg_tree::tree::SlotMapCSGTreeKey, vec_csg_tree::tree::VecCSGTree, volume::Volume, Identifier};
+use crate::{model_example::fence::Identifier, model_synthesis::{builder::{BU, IT}, collapse::{CollapseNode, CollapseNodeKey, Collapser}, collapser_data::CollapserData}, slot_map_csg_tree::tree::SlotMapCSGTreeKey, vec_csg_tree::tree::VecCSGTree, volume::Volume};
 
 type UserState = CollapserData<Identifier, SlotMapCSGTreeKey>;
 
@@ -166,7 +166,12 @@ impl ModelDebugRenderer {
 
     pub fn update(&mut self, collapser: &mut UserState) {
         self.state.graph.nodes.clear();
-        self.level_counter = vec![];
+        self.state.node_order.clear();
+        self.level_counter.clear();
+        self.state.node_positions.clear();
+        self.state.graph.inputs.clear();
+        self.state.graph.outputs.clear();
+        self.state.graph.connections.clear();
 
         let keys = collapser.nodes.keys().collect::<Vec<_>>();
         for key in keys.iter() {
@@ -203,7 +208,7 @@ impl ModelDebugRenderer {
         let y = self.level_counter[collapser_node.level];
         self.level_counter[collapser_node.level] += 1;
 
-        let pos = egui::Pos2{ x: (collapser_node.level - 1) as f32 * 700.0, y: y as f32 * 300.0  };
+        let pos = egui::Pos2{ x: (collapser_node.level - 1) as f32 * 500.0, y: y as f32 * 300.0  } * self.state.pan_zoom.zoom;
 
         // Position the node within editor area (panic if missing)
         self.state

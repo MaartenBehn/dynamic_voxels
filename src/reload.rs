@@ -12,12 +12,15 @@ mod csg_renderer;
 mod render_csg_tree;
 mod slot_map_csg_tree;
 mod model_renderer;
+mod model_example;
+mod state_saver;
 
 use crate::vec_csg_tree::tree::{VecCSGTree, VOXEL_SIZE};
 use crate::profiler::ShaderProfiler;
 use csg_renderer::color_controller::ColorController;
 use csg_renderer::data_controller::DataController;
 use csg_renderer::Renderer;
+use model_example::fence::FenceState;
 use model_renderer::ModelDebugRenderer;
 use model_synthesis::collapser_data::CollapserData;
 use model_synthesis::template::TemplateTree;
@@ -25,6 +28,7 @@ use octa_force::engine::Engine;
 use render_csg_tree::base::RenderCSGTree;
 use slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey};
 use slotmap::Key;
+use state_saver::StateSaver;
 use vec_csg_tree::tree::{VecCSGNode, VecCSGNodeData};
 use kiddo::SquaredEuclidean;
 use model_synthesis::collapse::{CollapseOperation, Collapser};
@@ -45,28 +49,17 @@ use model_synthesis::builder::{BuilderAmmount, ModelSynthesisBuilder, IT};
 
 pub const USE_PROFILE: bool = false;
 
-pub struct RenderState {
-    pub gui: Gui,
-    pub data_controller: DataController,
-    pub color_controller: ColorController,
-    pub renderer: Renderer,
-    pub profiler: Option<ShaderProfiler>,
-
-    pub template: TemplateTree<Identifier, VecCSGTree>,
-    pub collapser: CollapserData<Identifier, SlotMapCSGTreeKey>,
-    pub model_renderer: ModelDebugRenderer,
-}
-
-pub struct LogicState {
-    pub camera: Camera,
-    pub start_time: Instant,
-}
 
 #[unsafe(no_mangle)]
 pub fn init_hot_reload(logger: &'static dyn Log) -> OctaResult<()> {
     setup_logger(logger)?;
 
     Ok(())
+}
+
+pub struct LogicState {
+    pub camera: Camera,
+    pub start_time: Instant,
 }
 
 #[unsafe(no_mangle)]
@@ -91,23 +84,17 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
     })
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub enum Identifier {
-    #[default]
-    None,
-    Fence,
-    FencePost,
-    PlankSetting,
-    FencePlanks,
 
-    PostNumber,
-    PostHeight,
-    PostDistance,
-    PostPos,
-    PlankNumber,
-    PlankDistance,
+pub struct RenderState {
+    pub gui: Gui,
+    pub data_controller: DataController,
+    pub color_controller: ColorController,
+    pub renderer: Renderer,
+    pub profiler: Option<ShaderProfiler>,
+
+    pub state_saver: StateSaver<FenceState>,
+    pub model_renderer: ModelDebugRenderer,
 }
-impl IT for Identifier {}
 
 #[unsafe(no_mangle)]
 pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> OctaResult<RenderState> {
@@ -158,166 +145,12 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
     // let mut tree = CSGTree::new_example_tree_2(1.0);
     // csg_controller.set_data(&tree.make_data());
- 
-    let mut wfc_builder: ModelSynthesisBuilder<Identifier, VecCSGTree> = ModelSynthesisBuilder::new()
-        .groupe(Identifier::Fence, |b| {b})
 
-        .number_range(Identifier::PostHeight, 3..=8, |b|{b
-            .ammount(BuilderAmmount::OnePer(Identifier::Fence))
-        })
+    let fence_state = FenceState::new(); 
+    let state_saver = StateSaver::from_state(fence_state, 10);
 
-        .number_range(Identifier::PostDistance, 2..=5, |b|{b
-            .ammount(BuilderAmmount::OnePer(Identifier::Fence))
-        })
-
-        .number_range(Identifier::PostNumber, 5..=10, |b|{b
-            .ammount(BuilderAmmount::OnePer(Identifier::Fence))
-        })
-
-        .pos(Identifier::PostPos, |b| {b
-            .ammount(BuilderAmmount::DefinedBy(Identifier::PostNumber))
-            .depends(Identifier::PostDistance)
-        })
-
-        .build(Identifier::FencePost, |b| {b
-            .ammount(BuilderAmmount::OnePer(Identifier::PostPos))
-            .depends(Identifier::PostHeight)
-            .depends(Identifier::PostDistance)
-        })
-
-        .number_range(Identifier::PlankNumber, 3..=4, |b|{b
-            .ammount(BuilderAmmount::OnePer(Identifier::Fence))
-        })
-
-        .number_range(Identifier::PlankDistance, 2..=3, |b|{b
-            .ammount(BuilderAmmount::OnePer(Identifier::Fence))
-        })
-
-        .build(Identifier::FencePlanks, |b|{b
-            .ammount(BuilderAmmount::OnePer(Identifier::Fence))
-            .depends(Identifier::PlankNumber)
-            .depends(Identifier::PlankDistance)
-            .depends(Identifier::PostHeight)
-            .knows(Identifier::PostDistance)
-        });
-    
-    let template = wfc_builder.build_template();
-
-    dbg!(&template);
-            
-    let mut pos = vec3(1.0, 1.0, 1.0);
-    let start_pos = pos;
-    let mut csg = None;
-
-    let mut collapser = template.get_collaper();
-    while let Some((operation, collapser)) = collapser.next()? {
-        match operation {
-            CollapseOperation::CollapsePos{ index  } => {
-                let dist = collapser.get_dependend_number(index, Identifier::PostDistance);
-
-                let pos_data = collapser.get_pos_mut(index);
-                *pos_data = pos;
-
-                info!("{:?} Pos: {}", index, pos);
-
-                pos += Vec3::X * dist as f32;
-            },
-            CollapseOperation::CollapseBuild{ index, identifier, .. } => {
-                match identifier {
-                    Identifier::FencePost => {
-                        let height = collapser.get_dependend_number(index, Identifier::PostHeight);
-                        let distance = collapser.get_dependend_number(index, Identifier::PostDistance);
-                        let pos_value = collapser.get_dependend_pos(index, Identifier::PostPos);
-
-                        let pos = pos_value + Vec3::Z * (height as f32) * 0.5;
-
-                        let csg_node = SlotMapCSGNode::new(SlotMapCSGNodeData::Box(
-                            Mat4::from_scale_rotation_translation(
-                                vec3(0.5, 0.5, height as f32) * VOXEL_SIZE, 
-                                Quat::IDENTITY, 
-                                pos * VOXEL_SIZE
-                            ),
-                            1,
-                        ));
-                        info!("{:?} Build: {:?}: {}", index, identifier, pos);
-
-                        let csg_index = if csg.is_none() {
-                            csg = Some(SlotMapCSGTree::from_node(csg_node));
-                            csg.as_ref().unwrap().root_node
-                        } else {
-                            csg.as_mut().unwrap().append_node_with_union(csg_node)
-                        };
-
-                        collapser.set_undo_data(index, csg_index)?;
-                    }
-                    Identifier::FencePlanks => {
-                        let plank_number = collapser.get_dependend_number(index, Identifier::PlankNumber);
-                        let plank_distance = collapser.get_dependend_number(index, Identifier::PlankDistance);
-                        let fence_height = collapser.get_dependend_number(index, Identifier::PostHeight);
-                        let post_distance = collapser.get_known_number(index, Identifier::PostDistance);
-
-                        if plank_number * plank_distance > fence_height {
-                            collapser.collapse_failed(index)?;
-                            continue;
-                        } 
-                        
-                        let pos = pos - Vec3::X * post_distance as f32;
-                        let plank_size = pos - start_pos;
-                        let mut plank_pos = start_pos + plank_size * vec3(0.5, 1.0, 1.0);
-                        let plank_scale = vec3(plank_size.x, 0.2, 0.2);
-                        
-                        for _ in 0..plank_number {
-                            plank_pos += Vec3::Z * plank_distance as f32;
-
-                            let mut node = SlotMapCSGNode::new(SlotMapCSGNodeData::Box(
-                                Mat4::from_scale_rotation_translation(
-                                    plank_scale * VOXEL_SIZE, 
-                                    Quat::IDENTITY, 
-                                    plank_pos * VOXEL_SIZE
-                                ),
-                                1,
-                            ));
-                            if csg.is_none() {
-                                csg = Some(SlotMapCSGTree::from_node(node));
-                            } else {
-                                csg.as_mut().unwrap().append_node_with_union(node);
-                            }
-                        } 
-                    }
-                    _ => error!("Build hook on wrong type")
-                }
-            }, 
-            CollapseOperation::Undo { identifier , undo_data} => {
-                info!("Undo {:?}", identifier);
-
-                match identifier {
-                    Identifier::FencePost => {
-                        csg.as_mut().unwrap().remove_node_as_child_of_union(undo_data)?;
-                    },
-                    Identifier::PostNumber => {
-                        pos = vec3(1.0, 1.0, 1.0);
-                    },
-                    Identifier::PostPos => {
-                        pos = vec3(1.0, 1.0, 1.0);
-                    },
-                    _ => {}
-                }
-            },
-
-            CollapseOperation::None => {},
-        } 
-    }
-
-    if let Some(csg) = csg {
-        let vec_tree: VecCSGTree = csg.into();
-        data_controller.set_render_csg_tree(&vec_tree.into())?;    
-    }
-    
-    let mut collapser = collapser.into_data();
     let mut model_renderer = ModelDebugRenderer::default();
-
-    model_renderer.update(&mut collapser);
-    
+ 
     Ok(RenderState {
         gui,
         data_controller,
@@ -325,8 +158,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         renderer,
         profiler,
 
-        template,
-        collapser,
+        state_saver,
         model_renderer,
     })
 }
@@ -360,6 +192,16 @@ pub fn update(
             .as_mut()
             .unwrap()
             .update(frame_index, &engine.context)?;
+    }
+
+    if render_state.state_saver.tick()? {
+        let state = render_state.state_saver.get_state_mut();
+        render_state.model_renderer.update(&mut state.collapser.as_mut().unwrap());
+
+        if let Some(csg) = state.csg.clone() {
+            let vec_tree: VecCSGTree = csg.into();
+            render_state.data_controller.set_render_csg_tree(&vec_tree.into())?;    
+        }
     }
 
     Ok(())
@@ -403,7 +245,10 @@ pub fn record_render_commands(
                     .gui_windows(ctx, engine.controls.mouse_left);
             }
 
-            render_state.model_renderer.render(ctx, &mut render_state.collapser);
+            render_state.state_saver.render(ctx);
+
+            let state = render_state.state_saver.get_state_mut();
+            render_state.model_renderer.render(ctx, state.collapser.as_mut().unwrap());
         },
     )?;
 

@@ -4,7 +4,7 @@ use crate::volume::Volume;
 
 use super::{builder::{BU, IT}, collapse::{CollapseNodeKey, CollapseOperation, Collapser, CollapseNode, NodeOperation}, template::TemplateTree};
 
-
+#[derive(Clone, Debug)]
 pub struct CollapserData< I: IT, U: BU> {
     pub nodes: SlotMap<CollapseNodeKey, CollapseNode<I, U>>,
     pub pending_operations: Vec<NodeOperation>,
