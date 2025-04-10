@@ -18,6 +18,7 @@ pub struct StateSaver<S> {
 
     ticks_per_frame: usize,
     run: bool,
+    was_reset: bool,
 }
 
 pub trait State: Clone {
@@ -34,32 +35,47 @@ impl<S: State> StateSaver<S> {
             next_tick: TickType::None,
             ticks_per_frame: 1,
             run: false,
+            was_reset: false,
         }
     }
 
     pub fn tick(&mut self) -> OctaResult<bool> {
-        puffin::profile_function!();
         
-        match self.next_tick {
-            TickType::None => {
-                Ok(false)
+        let mut changed = false;
+
+        for _ in 0..self.ticks_per_frame {
+            if self.was_reset {
+                changed |= true;
+                self.was_reset = false;
             }
-            TickType::Back => {
-                self.tick_back();
-                self.set_next_tick(TickType::None);
-                Ok(true)
+            
+            match self.next_tick {
+                TickType::None => {
+                    break;
+                }
+                TickType::Back => {
+                    self.tick_back();
+                    changed |= true;
+                }
+                TickType::Forward => {
+                    self.tick_forward(false)?;
+                    changed |= true;
+                }
+                TickType::ForwardSave => {
+                    self.tick_forward(true)?;
+                    changed |= true;
+                    self.set_next_tick(TickType::Forward);
+                }
             }
-            TickType::Forward => {
-                self.tick_forward(false)?;
-                self.set_next_tick(TickType::None);
-                Ok(true)
-            }
-            TickType::ForwardSave => {
-                self.tick_forward(true)?;
-                self.set_next_tick(TickType::None);
-                Ok(true)
-            }
+        } 
+        
+        if self.run {
+            self.set_next_tick(TickType::ForwardSave);
+        } else {
+            self.set_next_tick(TickType::None);
         }
+
+        Ok(changed)
     }
 
     fn tick_forward(&mut self, save_tick: bool) -> OctaResult<()> {
@@ -113,6 +129,7 @@ impl<S: State> StateSaver<S> {
     pub fn reset(&mut self) {
         self.states = vec![self.start_state.clone()];
         self.current = 0;
+        self.was_reset = true;
     }
     
     pub fn set_next_tick(&mut self, next_tick: TickType) {
@@ -128,7 +145,6 @@ impl<S: State> StateSaver<S> {
                 div(ui, |ui| {
                     ui.heading("Depth Tree Grid (Debug Mode)");
                 });
-
 
                 div(ui, |ui| {
                     ui.label("Tick: ");
