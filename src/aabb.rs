@@ -3,7 +3,7 @@ use std::iter;
 use feistel_permutation_rs::{DefaultBuildHasher, Permutation};
 use octa_force::glam::{ivec3, vec3, vec4, Mat4, Vec3, Vec4Swizzles};
 
-use crate::{util::to_3d_i, voxel::grid::VoxelGrid};
+use crate::{util::to_3d_i, voxel_grid::VoxelGrid};
 
 #[derive(Copy, Clone, Debug)]
 pub struct AABB {
@@ -128,6 +128,10 @@ impl AABB {
 
         perm.into_iter()
             .map(move |i| (to_3d_i(i as usize, size) + min).as_vec3() * step)
+    }
+
+    pub fn size(&self) -> Vec3 {
+        self.max - self.min
     }
 }
 

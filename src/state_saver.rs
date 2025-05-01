@@ -39,6 +39,11 @@ impl<S: State> StateSaver<S> {
         }
     }
 
+    pub fn with_run_active(mut self) -> Self {
+        self.run = true;
+        self
+    }
+
     pub fn tick(&mut self) -> OctaResult<bool> {
         
         let mut changed = false;

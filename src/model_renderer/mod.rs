@@ -1,4 +1,4 @@
-use std::{borrow::Cow, marker::PhantomData};
+use std::{borrow::Cow, marker::PhantomData, time::Instant};
 
 use egui_node_graph2::{DataTypeTrait, Graph, GraphEditorState, InputParamKind, NodeDataTrait, NodeId, NodeResponse, NodeTemplateIter, NodeTemplateTrait, UserResponseTrait, WidgetValueTrait};
 use octa_force::{controls::Controls, egui, log::debug, OctaResult};
@@ -6,6 +6,8 @@ use octa_force::{controls::Controls, egui, log::debug, OctaResult};
 use crate::{model_example::fence::Identifier, model_synthesis::{builder::{BU, IT}, collapse::{CollapseNode, CollapseNodeKey, Collapser}, collapser_data::CollapserData}, slot_map_csg_tree::tree::SlotMapCSGTreeKey, vec_csg_tree::tree::VecCSGTree, volume::Volume};
 
 type UserState = CollapserData<Identifier, SlotMapCSGTreeKey>;
+
+const SHOW_COOLDOWN_TIME: f32 = 0.2;
 
 /// Additional (besides inputs and outputs) state to be stored inside each node.
 #[derive(Debug)]
@@ -127,7 +129,7 @@ impl NodeDataTrait for NodeData {
         _graph: &Graph<NodeData, Self::DataType, Self::ValueType>,
         _user_state: &mut Self::UserState,
     ) -> Vec<NodeResponse<Self::Response, NodeData>>
-    where
+where
         DummyResponse: UserResponseTrait,
     {
         vec![]
@@ -136,21 +138,25 @@ impl NodeDataTrait for NodeData {
 
 /// Main graph editor type
 type MyEditorState = GraphEditorState<
-    NodeData,
-    DataType,
-    ValueType,
-    DummyNodeTemplate,
-    UserState,
+NodeData,
+DataType,
+ValueType,
+DummyNodeTemplate,
+UserState,
 >;
 
-#[derive(Default)]
 pub struct ModelDebugRenderer {
     state: MyEditorState,
     level_counter: Vec<usize>,
+    show: bool, 
+    last_show_change: Instant,
 }
 
 impl ModelDebugRenderer {
     pub fn render(&mut self, ctx: &egui::Context, collapser: &mut UserState) {
+        if !self.show {
+            return;
+        }
 
         // Add main panel with the interactive graph
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -164,7 +170,15 @@ impl ModelDebugRenderer {
         });
     }
 
+    pub fn update_show(&mut self, controls: &Controls) {
+        if self.last_show_change.elapsed().as_secs_f32() > SHOW_COOLDOWN_TIME && controls.f2 {
+            self.show = !self.show;
+            self.last_show_change = Instant::now();
+        }
+    }
+
     pub fn update(&mut self, collapser: &mut UserState) {
+       
         self.state.graph.nodes.clear();
         self.state.node_order.clear();
         self.level_counter.clear();
@@ -185,11 +199,11 @@ impl ModelDebugRenderer {
 
     fn add_node(&mut self, node_index: CollapseNodeKey, collapser: &mut UserState){
         let collapser_node = &collapser.nodes[node_index];
-        
+
         let id =
-            self.state
-                .graph
-                .add_node(
+        self.state
+            .graph
+            .add_node(
                 format!("{:?}", collapser_node.identfier),
                 NodeData { 
                     collapse_key: node_index,  
@@ -200,7 +214,7 @@ impl ModelDebugRenderer {
 
         // Supplement z-order for the node (panic if missing)
         self.state.node_order.push(id);
-        
+
         while self.level_counter.len() <= collapser_node.level {
             self.level_counter.push(0);
         }
@@ -242,9 +256,9 @@ impl ModelDebugRenderer {
     pub fn add_child_connections(&mut self, node_index: CollapseNodeKey, collapser: &mut UserState) {
         let collapser_node = &collapser.nodes[node_index];
         let graph_node = self.state.graph.nodes.iter()
-                .find(|(_, data)| data.user_data.collapse_key == node_index)
-                .map(|(_, data)| data)
-                .expect("Graph did not have node with child index");
+            .find(|(_, data)| data.user_data.collapse_key == node_index)
+            .map(|(_, data)| data)
+            .expect("Graph did not have node with child index");
 
         for (i, (index, output)) in collapser_node.children.iter()
             .map(|(_, c)| c) 
@@ -260,12 +274,23 @@ impl ModelDebugRenderer {
                 .find(|(_, data)| data.user_data.collapse_key == *index)
                 .map(|(_, data)| data)
                 .expect("Graph did not have node with child index");
-            
+
             let input = &other_graph_node.input_ids().nth(depends_nr)
                 .expect("Graph node did not have enough Inputs");
-            
+
             self.state.graph.add_connection(output, *input, 0);
         }
 
+    }
+}
+
+impl Default for ModelDebugRenderer {
+    fn default() -> Self {
+        Self { 
+            state: Default::default(), 
+            level_counter: Default::default(), 
+            show: Default::default(), 
+            last_show_change: Instant::now() 
+        }
     }
 }

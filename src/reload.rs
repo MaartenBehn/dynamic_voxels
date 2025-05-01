@@ -6,7 +6,7 @@ mod vec_csg_tree;
 mod profiler;
 mod util;
 mod model_synthesis;
-mod voxel;
+mod voxel_grid;
 mod volume;
 mod csg_renderer;
 mod render_csg_tree;
@@ -44,11 +44,10 @@ use octa_force::vulkan::Fence;
 use octa_force::{log, OctaResult};
 use std::f32::consts::PI;
 use std::time::{Duration, Instant};
-use std::default;
+use std::{default, env};
 use model_synthesis::builder::{BuilderAmmount, ModelSynthesisBuilder, IT};
 
 pub const USE_PROFILE: bool = false;
-
 
 #[unsafe(no_mangle)]
 pub fn init_hot_reload(logger: &'static dyn Log) -> OctaResult<()> {
@@ -70,10 +69,18 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
     log::info!("Creating Camera");
     let mut camera = Camera::default();
 
-    camera.position = Vec3::new(1.0, -10.0, 1.0);
-    camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
-    // camera.position = Vec3::new(67.02305, 127.88921, 43.476604);
-    // camera.direction = Vec3::new(0.79322153, -0.47346807, -0.38291982).normalize();
+    #[cfg(feature="fence")]
+    {
+        camera.position = Vec3::new(1.0, -10.0, 1.0); 
+        camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
+    }
+    
+    #[cfg(feature="render_example")]
+    {
+        camera.position = Vec3::new(67.02305, 127.88921, 43.476604);
+        camera.direction = Vec3::new(0.79322153, -0.47346807, -0.38291982).normalize();
+    }
+
     camera.speed = 10.0 * VOXEL_SIZE;
     camera.z_far = 100.0;
     camera.up = vec3(0.0, 0.0, 1.0);
@@ -91,8 +98,11 @@ pub struct RenderState {
     pub color_controller: ColorController,
     pub renderer: Renderer,
     pub profiler: Option<ShaderProfiler>,
-
+    
+    #[cfg(feature="fence")]
     pub state_saver: StateSaver<FenceState>,
+    
+    #[cfg(feature="fence")]
     pub model_renderer: ModelDebugRenderer,
 }
 
@@ -100,7 +110,7 @@ pub struct RenderState {
 pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> OctaResult<RenderState> {
     #[cfg(debug_assertions)]
     puffin::profile_function!();
-
+    
     let (shader_bin, profile_scopes): (&[u8], &[&str]) = 
         if USE_PROFILE && engine.context.shader_clock {
             shaders::trace_ray_profile()
@@ -143,10 +153,17 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         shader_bin,
     )?;
 
-    // let mut tree = CSGTree::new_example_tree_2(1.0);
-    // csg_controller.set_data(&tree.make_data());
+    
+    #[cfg(feature="render_example")]
+    let mut tree = VecCSGTree::new_example_tree_2(1.0);
+    #[cfg(feature="render_example")]
+    data_controller.set_render_csg_tree(&tree.into())?;
+   
 
+    #[cfg(feature="fence")]
     let fence_state = FenceState::new(); 
+    
+    #[cfg(feature="fence")]
     let state_saver = StateSaver::from_state(fence_state, 10);
 
     let mut model_renderer = ModelDebugRenderer::default();
@@ -158,13 +175,13 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         renderer,
         profiler,
 
+        #[cfg(feature="fence")]
         state_saver,
+
+        #[cfg(feature="fence")]
         model_renderer,
     })
 }
-
-
-
 
 #[unsafe(no_mangle)]
 pub fn update(
@@ -186,6 +203,9 @@ pub fn update(
         .renderer
         .update(&logic_state.camera, engine.swapchain.size, time)?;
 
+    #[cfg(feature="fence")]
+    render_state.model_renderer.update_show(&engine.controls);
+
     if render_state.profiler.is_some() {
         render_state
             .profiler
@@ -194,6 +214,7 @@ pub fn update(
             .update(frame_index, &engine.context)?;
     }
 
+    #[cfg(feature="fence")]
     if render_state.state_saver.tick()? {
         let state = render_state.state_saver.get_state_mut();
         render_state.model_renderer.update(&mut state.collapser.as_mut().unwrap());
@@ -245,9 +266,13 @@ pub fn record_render_commands(
                     .gui_windows(ctx, engine.controls.mouse_left);
             }
 
+            #[cfg(feature="fence")]
             render_state.state_saver.render(ctx);
 
+            #[cfg(feature="fence")]
             let state = render_state.state_saver.get_state_mut();
+             
+            #[cfg(feature="fence")]
             render_state.model_renderer.render(ctx, state.collapser.as_mut().unwrap());
         },
     )?;

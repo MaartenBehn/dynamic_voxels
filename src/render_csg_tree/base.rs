@@ -6,6 +6,7 @@ pub const CSG_CHILD_TYPE_MAT: u32 = 4;
 pub const CSG_CHILD_TYPE_BOX: u32 = 5;
 pub const CSG_CHILD_TYPE_SPHERE: u32 = 6;
 pub const CSG_CHILD_TYPE_VOXEL_GRID: u32 = 7;
+pub const CSG_CHILD_TYPE_BRICK_NODE: u32 = 8;
 
 pub const CSG_DATA_AABB_SIZE: usize = 6;
 pub const CSG_DATA_TRANSFORM_SIZE: usize = 12;

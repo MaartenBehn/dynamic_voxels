@@ -16,11 +16,15 @@ name = "reload"
 path = "src/reload.rs"
 crate-type = ["rlib", "dylib"]
 
+[features]
+fence = []
+render_example = []
+
 [dependencies]
 shaders = { path="./shaders/" }
 
-# octa-force = { path = "../octa-force-rs" }
-octa-force = { version = "0.3.1", git = "https://github.com/MaartenBehn/octa-force-rs" }
+octa-force = { path = "../octa-force-rs" }
+# octa-force = { version = "0.3.1", git = "https://github.com/MaartenBehn/octa-force-rs" }
 fastrand = "2.2.0"
 
 simple-easing = "1.0.1"

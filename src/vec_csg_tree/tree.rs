@@ -1,6 +1,6 @@
 use crate::aabb::AABB;
 use crate::csg_renderer::color_controller::{Material, MATERIAL_BASE};
-use crate::voxel::grid::VoxelGrid;
+use crate::voxel_grid::VoxelGrid;
 use octa_force::glam::{ivec3, uvec3, vec3, EulerRot, IVec3, Mat4, Quat, UVec3, Vec3};
 use octa_force::log::{error, info};
 use octa_force::puffin_egui::puffin;
