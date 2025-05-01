@@ -2,7 +2,6 @@
 .idea
 *.spv
 *.log
-perf*
 Cargo.lock
 .direnv
 .envrc
