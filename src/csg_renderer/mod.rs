@@ -20,7 +20,7 @@ const RENDER_DISPATCH_GROUP_SIZE_X: u32 = 32;
 const RENDER_DISPATCH_GROUP_SIZE_Y: u32 = 32;
 
 #[allow(dead_code)]
-pub struct Renderer {
+pub struct CSGRenderer {
     storage_images: Vec<ImageAndView>,
     render_buffer: Buffer,
 
@@ -34,7 +34,7 @@ pub struct Renderer {
 #[derive(Clone, Copy)]
 #[allow(dead_code)]
 #[repr(C)]
-pub struct RenderBuffer {
+pub struct CSGRenderBuffer {
     pub pos: Vec3,
     pub screen_size_x: f32,
     pub dir: Vec3,
@@ -45,7 +45,7 @@ pub struct RenderBuffer {
     fill3: f32,
 }
 
-impl Renderer {
+impl CSGRenderer {
     pub fn new(
         context: &Context,
         res: UVec2,
@@ -54,13 +54,13 @@ impl Renderer {
         color_controller: &ColorController,
         profiler: &Option<ShaderProfiler>,
         shader_bin: &[u8],
-    ) -> Result<Renderer> {
+    ) -> Result<CSGRenderer> {
         let storage_images = context.create_storage_images(res, num_frames)?;
 
         let render_buffer = context.create_buffer(
             vk::BufferUsageFlags::UNIFORM_BUFFER,
             MemoryLocation::CpuToGpu,
-            size_of::<RenderBuffer>() as _,
+            size_of::<CSGRenderBuffer>() as _,
         )?;
 
         let descriptor_pool = context.create_descriptor_pool(
@@ -175,7 +175,7 @@ impl Renderer {
             },
         )?;
 
-        Ok(Renderer {
+        Ok(CSGRenderer {
             storage_images,
             render_buffer,
 
@@ -189,7 +189,7 @@ impl Renderer {
     }
 
     pub fn update(&self, camera: &Camera, res: UVec2, time: Duration) -> Result<()> {
-        self.render_buffer.copy_data_to_buffer(&[RenderBuffer::new(
+        self.render_buffer.copy_data_to_buffer(&[CSGRenderBuffer::new(
             camera.position,
             camera.direction,
             res,
@@ -249,9 +249,9 @@ impl Renderer {
     }
 }
 
-impl RenderBuffer {
-    pub fn new(pos: Vec3, dir: Vec3, res: UVec2, time: f32) -> RenderBuffer {
-        RenderBuffer {
+impl CSGRenderBuffer {
+    pub fn new(pos: Vec3, dir: Vec3, res: UVec2, time: f32) -> CSGRenderBuffer {
+        CSGRenderBuffer {
             pos,
             dir,
             screen_size_x: res.x as f32,

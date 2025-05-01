@@ -11,17 +11,18 @@ mod volume;
 mod csg_renderer;
 mod render_csg_tree;
 mod slot_map_csg_tree;
-mod model_renderer;
+mod model_debug_renderer;
 mod model_example;
 mod state_saver;
+mod voxel_tree64;
 
 use crate::vec_csg_tree::tree::{VecCSGTree, VOXEL_SIZE};
 use crate::profiler::ShaderProfiler;
 use csg_renderer::color_controller::ColorController;
 use csg_renderer::data_controller::DataController;
-use csg_renderer::Renderer;
+use csg_renderer::CSGRenderer;
 use model_example::fence::FenceState;
-use model_renderer::ModelDebugRenderer;
+use model_debug_renderer::ModelDebugRenderer;
 use model_synthesis::collapser_data::CollapserData;
 use model_synthesis::template::TemplateTree;
 use octa_force::engine::Engine;
@@ -94,11 +95,20 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
 
 pub struct RenderState {
     pub gui: Gui,
-    pub data_controller: DataController,
-    pub color_controller: ColorController,
-    pub renderer: Renderer,
-    pub profiler: Option<ShaderProfiler>,
     
+    
+    #[cfg(any(feature="fence", feature="render_example"))]
+    pub data_controller: DataController,
+    
+    #[cfg(any(feature="fence", feature="render_example"))]
+    pub color_controller: ColorController,
+    
+    #[cfg(any(feature="fence", feature="render_example"))]
+    pub renderer: CSGRenderer,
+
+    #[cfg(any(feature="fence", feature="render_example"))]
+    pub profiler: Option<ShaderProfiler>,
+
     #[cfg(feature="fence")]
     pub state_saver: StateSaver<FenceState>,
     
@@ -126,10 +136,13 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         engine.num_frames,
     )?;
 
+    #[cfg(any(feature="fence", feature="render_example"))]
     let data_controller = DataController::new(&engine.context)?;
 
+    #[cfg(any(feature="fence", feature="render_example"))]
     let color_controller = ColorController::new(&engine.context)?;
 
+    #[cfg(any(feature="fence", feature="render_example"))]
     let profiler = if engine.context.shader_clock {
         Some(ShaderProfiler::new(
             &engine.context,
@@ -143,7 +156,8 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         None
     };
 
-    let renderer = Renderer::new(
+    #[cfg(any(feature="fence", feature="render_example"))]
+    let renderer = CSGRenderer::new(
         &engine.context,
         engine.swapchain.size,
         engine.num_frames,
@@ -170,9 +184,17 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
  
     Ok(RenderState {
         gui,
+        
+        #[cfg(any(feature="fence", feature="render_example"))]
         data_controller,
+        
+        #[cfg(any(feature="fence", feature="render_example"))]
         color_controller,
+        
+        #[cfg(any(feature="fence", feature="render_example"))]
         renderer,
+        
+        #[cfg(any(feature="fence", feature="render_example"))]
         profiler,
 
         #[cfg(feature="fence")]
@@ -199,6 +221,7 @@ pub fn update(
     logic_state.camera.update(&engine.controls, delta_time);
     // info!("Camera Pos: {} Dir: {}", logic_state.camera.position, logic_state.camera.direction);
 
+    #[cfg(any(feature="fence", feature="render_example"))]
     render_state
         .renderer
         .update(&logic_state.camera, engine.swapchain.size, time)?;
@@ -206,6 +229,7 @@ pub fn update(
     #[cfg(feature="fence")]
     render_state.model_renderer.update_show(&engine.controls);
 
+    #[cfg(any(feature="fence", feature="render_example"))]
     if render_state.profiler.is_some() {
         render_state
             .profiler
@@ -239,6 +263,8 @@ pub fn record_render_commands(
     puffin::profile_function!();
 
     let command_buffer = &engine.command_buffers[image_index];
+    
+    #[cfg(any(feature="fence", feature="render_example"))]
     render_state
         .renderer
         .render(command_buffer, image_index, &engine.swapchain)?;
@@ -258,6 +284,8 @@ pub fn record_render_commands(
         &engine.window,
         &engine.context,
         |ctx| {
+            
+            #[cfg(any(feature="fence", feature="render_example"))]
             if render_state.profiler.is_some() {
                 render_state
                     .profiler
@@ -302,12 +330,14 @@ pub fn on_recreate_swapchain(
 ) -> OctaResult<()> {
     logic_state.camera.set_screen_size(engine.swapchain.size.as_vec2());
     
+    #[cfg(any(feature="fence", feature="render_example"))]
     render_state.renderer.on_recreate_swapchain(
         &engine.context,
         engine.num_frames,
         engine.swapchain.size,
     )?;
 
+    #[cfg(any(feature="fence", feature="render_example"))]
     if render_state.profiler.is_some() {
         render_state
             .profiler
