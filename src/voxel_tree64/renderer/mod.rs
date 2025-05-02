@@ -1,5 +1,5 @@
-mod render_data;
-mod voxel_tree_data;
+pub mod render_data;
+pub mod voxel_tree64_buffer;
 
 use std::time::Duration;
 
@@ -13,20 +13,29 @@ use octa_force::vulkan::{
     Buffer, CommandBuffer, ComputePipeline, ComputePipelineCreateInfo, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, ImageAndView, PipelineLayout, Swapchain, WriteDescriptorSet, WriteDescriptorSetKind
 };
 use render_data::RenderData;
+use voxel_tree64_buffer::{VoxelTree64Buffer, VoxelTreeData};
 
 use super::VoxelTree64;
 
 const RENDER_DISPATCH_GROUP_SIZE_X: u32 = 8;
 const RENDER_DISPATCH_GROUP_SIZE_Y: u32 = 8;
 
+
+#[repr(C)]
+pub struct DispatchParams {
+  render_data: RenderData,
+  tree: VoxelTreeData,
+  image_ptr: u64,
+  palette_ptr: u64,
+  max_bounces: u32,
+}
+
 #[allow(dead_code)]
 pub struct Renderer {
     storage_images: Vec<ImageAndView>,
+    voxel_tree64_buffer: VoxelTree64Buffer,
+
     push_constant_range: PushConstantRange,
-
-    tree_node_buffer: Buffer,
-    tree_data_buffer: Buffer,
-
     pipeline_layout: PipelineLayout,
     pipeline: ComputePipeline,
 }
@@ -39,23 +48,9 @@ impl Renderer {
         tree: VoxelTree64,
     ) -> Result<Renderer> {
         let storage_images = context.create_storage_images(res, num_frames)?;
-        
-        let buffer_size = (size_of::<u8>() * tree.tree.data.len());
-        info!("Tree64 Node size: {:.04} MB", buffer_size as f32 * 0.000001);
     
-        let tree_node_buffer = context.create_gpu_only_buffer_from_data(
-            vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS_KHR,
-            &tree.tree.nodes
-        )?;
+        let voxel_tree64_buffer = tree.into_buffer(context)?;
 
-        let buffer_size = (size_of::<u8>() * tree.tree.data.len());
-        info!("Tree64 Data size: {:.04} MB", buffer_size as f32 * 0.000001);
-
-        let tree_data_buffer = context.create_gpu_only_buffer_from_data(
-            vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS_KHR,
-            &tree.tree.data
-        )?;
- 
         let push_constant_range = PushConstantRange::default()
             .offset(0)
             .size(size_of::<RenderData>() as _)
@@ -76,8 +71,7 @@ impl Renderer {
             storage_images,
             push_constant_range,
 
-            tree_node_buffer,
-            tree_data_buffer,
+            voxel_tree64_buffer,
 
             pipeline_layout,
             pipeline,
@@ -89,10 +83,19 @@ impl Renderer {
         buffer: &CommandBuffer,
         frame_index: usize,
         swapchain: &Swapchain,
+        cam: &Camera,
+        res: UVec2,
     ) -> Result<()> {
         buffer.bind_compute_pipeline(&self.pipeline);
+
+        let dispatch_params = DispatchParams {
+            render_data: RenderData::new(cam, res),
+            tree: self.voxel_tree64_buffer.get_data(),
+            image_ptr: self.
+
+        };
       
-        buffer.push_constant(&self.pipeline_layout, ShaderStageFlags::COMPUTE,);
+        buffer.push_constant(&self.pipeline_layout, ShaderStageFlags::COMPUTE, &dispatch_params);
         buffer.dispatch(
             (swapchain.size.x / RENDER_DISPATCH_GROUP_SIZE_X) + 1,
             (swapchain.size.y / RENDER_DISPATCH_GROUP_SIZE_Y) + 1,

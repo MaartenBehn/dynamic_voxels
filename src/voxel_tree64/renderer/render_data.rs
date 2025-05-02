@@ -1,7 +1,7 @@
-use octa_force::{egui::Vec2, glam::Vec3};
+use octa_force::{camera::Camera, egui::Vec2, glam::{UVec2, Vec3}};
 
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy)]
 #[allow(dead_code)]
 #[repr(C)]
 pub struct RenderData {
@@ -9,6 +9,15 @@ pub struct RenderData {
 }
 
 impl RenderData {
+    pub fn new(cam: &Camera, res: UVec2) -> RenderData {
+        let mut data = RenderData { packed_data: [0.0; 8] };
+        data.set_pos(cam.position);
+        data.set_pos(cam.direction);
+        data.set_res(res.as_vec2());
+
+        data
+    }
+
     pub fn set_pos(&mut self, pos: Vec3) {
         self.packed_data[0] = pos.x;
         self.packed_data[1] = pos.y;
@@ -35,4 +44,3 @@ impl RenderData {
         Vec2::new(self.packed_data[6], self.packed_data[7])
     }
 }
-
