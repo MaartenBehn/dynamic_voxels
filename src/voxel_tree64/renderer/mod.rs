@@ -1,5 +1,6 @@
 pub mod render_data;
 pub mod voxel_tree64_buffer;
+pub mod palette;
 
 use std::time::Duration;
 
@@ -12,6 +13,7 @@ use octa_force::vulkan::gpu_allocator::MemoryLocation;
 use octa_force::vulkan::{
     Buffer, CommandBuffer, ComputePipeline, ComputePipelineCreateInfo, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, ImageAndView, PipelineLayout, Swapchain, WriteDescriptorSet, WriteDescriptorSetKind
 };
+use palette::Palette;
 use render_data::RenderData;
 use voxel_tree64_buffer::{VoxelTree64Buffer, VoxelTreeData};
 
@@ -25,7 +27,6 @@ const RENDER_DISPATCH_GROUP_SIZE_Y: u32 = 8;
 pub struct DispatchParams {
   render_data: RenderData,
   tree: VoxelTreeData,
-  image_ptr: u64,
   palette_ptr: u64,
   max_bounces: u32,
 }
@@ -34,6 +35,11 @@ pub struct DispatchParams {
 pub struct Renderer {
     storage_images: Vec<ImageAndView>,
     voxel_tree64_buffer: VoxelTree64Buffer,
+    palette: Palette,
+    
+    descriptor_pool: DescriptorPool,
+    descriptor_layout: DescriptorSetLayout,
+    descriptor_sets: Vec<DescriptorSet>,
 
     push_constant_range: PushConstantRange,
     pipeline_layout: PipelineLayout,
@@ -51,13 +57,56 @@ impl Renderer {
     
         let voxel_tree64_buffer = tree.into_buffer(context)?;
 
+        let palette = Palette::new(context)?;
+
+        let descriptor_pool = context.create_descriptor_pool(
+            num_frames as u32,
+            &[
+                vk::DescriptorPoolSize {
+                    ty: vk::DescriptorType::STORAGE_IMAGE,
+                    descriptor_count: num_frames as u32,
+                }, 
+            ],
+        )?;
+
+        let mut descriptor_layout_bindings = vec![
+            vk::DescriptorSetLayoutBinding {
+                binding: 0,
+                descriptor_count: 1,
+                descriptor_type: vk::DescriptorType::STORAGE_IMAGE,
+                stage_flags: vk::ShaderStageFlags::COMPUTE,
+                ..Default::default()
+            },
+        ];
+
+         let descriptor_layout =
+            context.create_descriptor_set_layout(&descriptor_layout_bindings)?;
+
+        let mut descriptor_sets = Vec::new();
+        for i in 0..num_frames {
+            let descriptor_set = descriptor_pool.allocate_set(&descriptor_layout)?;
+
+            let mut write_descriptor_sets = vec![
+                WriteDescriptorSet {
+                    binding: 0,
+                    kind: WriteDescriptorSetKind::StorageImage {
+                        layout: vk::ImageLayout::GENERAL,
+                        view: &storage_images[i].view,
+                    },
+                },
+            ];
+
+            descriptor_set.update(&write_descriptor_sets);
+            descriptor_sets.push(descriptor_set);
+        }
+
         let push_constant_range = PushConstantRange::default()
             .offset(0)
             .size(size_of::<RenderData>() as _)
             .stage_flags(ShaderStageFlags::COMPUTE);
 
         let pipeline_layout = context.create_pipeline_layout(
-            &[],
+            &[&descriptor_layout],
             &[push_constant_range])?;
 
         let pipeline = context.create_compute_pipeline(
@@ -69,10 +118,14 @@ impl Renderer {
 
         Ok(Renderer {
             storage_images,
-            push_constant_range,
-
             voxel_tree64_buffer,
+            palette,
 
+            descriptor_pool,
+            descriptor_layout,
+            descriptor_sets,
+
+            push_constant_range,
             pipeline_layout,
             pipeline,
         })
@@ -91,8 +144,8 @@ impl Renderer {
         let dispatch_params = DispatchParams {
             render_data: RenderData::new(cam, res),
             tree: self.voxel_tree64_buffer.get_data(),
-            image_ptr: self.
-
+            palette_ptr: self.palette.buffer.get_device_address(),
+            max_bounces: 0,
         };
       
         buffer.push_constant(&self.pipeline_layout, ShaderStageFlags::COMPUTE, &dispatch_params);
@@ -117,6 +170,16 @@ impl Renderer {
         res: UVec2,
     ) -> Result<()> {
         self.storage_images = context.create_storage_images(res, num_frames)?;
+
+        for (i, descriotor_set) in self.descriptor_sets.iter().enumerate() {
+            descriotor_set.update(&[WriteDescriptorSet {
+                binding: 0,
+                kind: WriteDescriptorSetKind::StorageImage {
+                    layout: vk::ImageLayout::GENERAL,
+                    view: &self.storage_images[i].view,
+                },
+            }]);
+        }
 
         Ok(())
     }

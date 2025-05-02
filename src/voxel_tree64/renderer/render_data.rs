@@ -1,4 +1,4 @@
-use octa_force::{camera::Camera, egui::Vec2, glam::{UVec2, Vec3}};
+use octa_force::{camera::Camera, glam::{UVec2, Vec2, Vec3}};
 
 
 #[derive(Clone, Copy)]
