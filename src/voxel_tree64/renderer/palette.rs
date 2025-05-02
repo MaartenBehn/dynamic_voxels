@@ -1,6 +1,7 @@
 use octa_force::{glam::{vec4, Vec4}, vulkan::{ash::vk, Buffer, Context}, OctaResult};
 
 
+#[derive(Debug)]
 pub struct Palette {
     pub buffer: Buffer,
 }
@@ -12,7 +13,9 @@ impl Palette {
         colors[2] = vec4(0.0, 0.5, 0.0, 1.0);
 
         let buffer = context
-            .create_gpu_only_buffer_from_data(vk::BufferUsageFlags::UNIFORM_BUFFER, &colors)?;
+            .create_gpu_only_buffer_from_data(
+                vk::BufferUsageFlags::UNIFORM_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS, 
+                &colors)?;
 
         Ok(Self { buffer })
 

@@ -1,9 +1,10 @@
+layout(binding = 0, rgba8) public WTexture2D img;
+
 public struct DispatchParams {
-  RenderData render_data;
-  VoxelTree tree;
-  RWTexture2D* image;
-  float4* Palette;
-  uint MaxBounces;
+  public RenderData render_data;
+  public VoxelTree tree;
+  public float4* Palette;
+  public uint MaxBounces;
 };
 
 public struct RenderData {

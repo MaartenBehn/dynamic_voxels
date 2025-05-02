@@ -32,12 +32,26 @@ fn main() {
             EngineFeatureValue::NotUsed
         },
         gl_ext_scalar_block_layout: EngineFeatureValue::Needed,
-        hot_reload_config: Some(HotReloadConfig {
+
+        required_device_features: vec![
+            "storagePushConstant8".to_string(),
+            "bufferDeviceAddress".to_string(),
+            "shaderInt8".to_string(),
+            "variablePointersStorageBuffer".to_string(),
+            "variablePointers".to_string(),
+            "shaderInt64".to_string(),
+        ],
+
+        hot_reload_config: None, /*Some(HotReloadConfig {
             lib_dir: "target/debug".to_string(),
             lib_name: "reload".to_string(),
-        }),
+        }),*/
+
+        ..Default::default()
     });
 }
+
+#[derive(Debug)]
 pub struct App {}
 
 impl BindingTrait for App {

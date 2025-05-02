@@ -32,7 +32,8 @@ pub struct DispatchParams {
 }
 
 #[allow(dead_code)]
-pub struct Renderer {
+#[derive(Debug)]
+pub struct Tree64Renderer {
     storage_images: Vec<ImageAndView>,
     voxel_tree64_buffer: VoxelTree64Buffer,
     palette: Palette,
@@ -46,13 +47,13 @@ pub struct Renderer {
     pipeline: ComputePipeline,
 }
 
-impl Renderer {
+impl Tree64Renderer {
     pub fn new(
         context: &Context,
         res: UVec2,
         num_frames: usize,
         tree: VoxelTree64,
-    ) -> Result<Renderer> {
+    ) -> Result<Tree64Renderer> {
         let storage_images = context.create_storage_images(res, num_frames)?;
     
         let voxel_tree64_buffer = tree.into_buffer(context)?;
@@ -102,7 +103,7 @@ impl Renderer {
 
         let push_constant_range = PushConstantRange::default()
             .offset(0)
-            .size(size_of::<RenderData>() as _)
+            .size(size_of::<DispatchParams>() as _)
             .stage_flags(ShaderStageFlags::COMPUTE);
 
         let pipeline_layout = context.create_pipeline_layout(
@@ -116,7 +117,7 @@ impl Renderer {
             },
         )?;
 
-        Ok(Renderer {
+        Ok(Tree64Renderer {
             storage_images,
             voxel_tree64_buffer,
             palette,
@@ -137,17 +138,23 @@ impl Renderer {
         frame_index: usize,
         swapchain: &Swapchain,
         cam: &Camera,
-        res: UVec2,
     ) -> Result<()> {
         buffer.bind_compute_pipeline(&self.pipeline);
 
+        buffer.bind_descriptor_sets(
+            vk::PipelineBindPoint::COMPUTE,
+            &self.pipeline_layout,
+            0,
+            &[&self.descriptor_sets[frame_index]],
+        );
+
         let dispatch_params = DispatchParams {
-            render_data: RenderData::new(cam, res),
+            render_data: RenderData::new(cam, swapchain.size),
             tree: self.voxel_tree64_buffer.get_data(),
             palette_ptr: self.palette.buffer.get_device_address(),
             max_bounces: 0,
         };
-      
+        
         buffer.push_constant(&self.pipeline_layout, ShaderStageFlags::COMPUTE, &dispatch_params);
         buffer.dispatch(
             (swapchain.size.x / RENDER_DISPATCH_GROUP_SIZE_X) + 1,

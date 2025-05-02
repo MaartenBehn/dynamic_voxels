@@ -1,6 +1,6 @@
 use octa_force::{glam::UVec3, log::info, vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
 use crate::voxel_tree64::VoxelTree64;
-use super::Renderer;
+use super::Tree64Renderer;
 
 #[derive(Clone, Copy)]
 #[allow(dead_code)]
@@ -12,6 +12,7 @@ pub struct VoxelTreeData {
     pub leaf_ptr: u64,
 }
 
+#[derive(Debug)]
 pub struct VoxelTree64Buffer {
     pub tree: tree64::Tree64<u8>,
     pub nodes_buffer: Buffer,
@@ -41,7 +42,7 @@ impl VoxelTree64 {
         )?;
          
         let buffer_size = (size_of::<u8>() * self.tree.data.len());
-        info!("Tree64 Node Buffer size: {:.04} MB", buffer_size as f32 * 0.000001);
+        info!("Tree64 Data Buffer size: {:.04} MB", buffer_size as f32 * 0.000001);
 
         let data_buffer = context.create_gpu_only_buffer_from_data(
             vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS_KHR,

@@ -35,7 +35,7 @@ use kiddo::SquaredEuclidean;
 use model_synthesis::collapse::{CollapseOperation, Collapser};
 use octa_force::camera::Camera;
 use octa_force::egui_winit::winit::event::WindowEvent;
-use octa_force::glam::{vec3, Mat4, Quat, Vec3};
+use octa_force::glam::{vec3, Mat4, Quat, UVec3, Vec3};
 use octa_force::gui::Gui;
 use octa_force::log::{debug, error, info, Log};
 use octa_force::logger::setup_logger;
@@ -43,6 +43,9 @@ use octa_force::puffin_egui::puffin;
 use octa_force::vulkan::ash::vk::AttachmentLoadOp;
 use octa_force::vulkan::Fence;
 use octa_force::{log, OctaResult};
+use voxel_grid::VoxelGrid;
+use voxel_tree64::renderer::Tree64Renderer;
+use voxel_tree64::VoxelTree64;
 use std::f32::consts::PI;
 use std::time::{Duration, Instant};
 use std::{default, env};
@@ -57,6 +60,7 @@ pub fn init_hot_reload(logger: &'static dyn Log) -> OctaResult<()> {
     Ok(())
 }
 
+#[derive(Debug)]
 pub struct LogicState {
     pub camera: Camera,
     pub start_time: Instant,
@@ -70,7 +74,7 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
     log::info!("Creating Camera");
     let mut camera = Camera::default();
 
-    #[cfg(feature="fence")]
+    #[cfg(any(feature="fence", feature="tree64"))]
     {
         camera.position = Vec3::new(1.0, -10.0, 1.0); 
         camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
@@ -93,6 +97,7 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
 }
 
 
+#[derive(Debug)]
 pub struct RenderState {
     pub gui: Gui,
     
@@ -114,6 +119,9 @@ pub struct RenderState {
     
     #[cfg(feature="fence")]
     pub model_renderer: ModelDebugRenderer,
+    
+    #[cfg(feature="tree64")]
+    pub renderer: Tree64Renderer, 
 }
 
 #[unsafe(no_mangle)]
@@ -180,8 +188,18 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     #[cfg(feature="fence")]
     let state_saver = StateSaver::from_state(fence_state, 10);
 
+    #[cfg(feature="fence")]
     let mut model_renderer = ModelDebugRenderer::default();
- 
+
+    #[cfg(feature="tree64")]
+    let mut grid = VoxelGrid::new(UVec3::new(32, 32, 32));
+    #[cfg(feature="tree64")]
+    grid.set_example_sphere();
+    #[cfg(feature="tree64")]
+    let tree64: VoxelTree64 = grid.into();
+    #[cfg(feature="tree64")]
+    let tree_renderer = Tree64Renderer::new(&engine.context, engine.swapchain.size, engine.num_frames, tree64)?;
+
     Ok(RenderState {
         gui,
         
@@ -202,6 +220,9 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
         #[cfg(feature="fence")]
         model_renderer,
+
+        #[cfg(feature="tree64")]
+        renderer: tree_renderer
     })
 }
 
@@ -254,7 +275,7 @@ pub fn update(
 
 #[unsafe(no_mangle)]
 pub fn record_render_commands(
-    _logic_state: &mut LogicState,
+    logic_state: &mut LogicState,
     render_state: &mut RenderState,
     engine: &mut Engine,
     image_index: usize,
@@ -268,6 +289,10 @@ pub fn record_render_commands(
     render_state
         .renderer
         .render(command_buffer, image_index, &engine.swapchain)?;
+
+
+    #[cfg(feature="tree64")]
+    render_state.renderer.render(command_buffer, image_index, &engine.swapchain, &logic_state.camera)?;
 
     command_buffer.begin_rendering(
         &engine.swapchain.images_and_views[image_index].view,
@@ -349,6 +374,15 @@ pub fn on_recreate_swapchain(
                 engine.swapchain.size,
             )?;
     }
+
+    #[cfg(feature="tree64")]
+    render_state
+        .renderer
+            .on_recreate_swapchain(
+                &engine.context,
+                engine.num_frames,
+                engine.swapchain.size,
+            )?;
 
     Ok(())
 }
