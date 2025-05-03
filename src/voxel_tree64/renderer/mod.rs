@@ -60,6 +60,17 @@ impl Tree64Renderer {
 
         let palette = Palette::new(context)?;
 
+        let descriptor_heap = context.create_descriptor_heap(&[
+            vk::DescriptorPoolSize {
+                ty: vk::DescriptorType::STORAGE_IMAGE,
+                descriptor_count: 10,
+            },
+            vk::DescriptorPoolSize {
+                ty: vk::DescriptorType::SAMPLED_IMAGE,
+                descriptor_count: 10,
+            },
+        ]);
+
         let descriptor_pool = context.create_descriptor_pool(
             num_frames as u32,
             &[
@@ -70,7 +81,7 @@ impl Tree64Renderer {
             ],
         )?;
 
-        let mut descriptor_layout_bindings = vec![
+        let descriptor_layout_bindings = vec![
             vk::DescriptorSetLayoutBinding {
                 binding: 0,
                 descriptor_count: 1,
@@ -80,7 +91,7 @@ impl Tree64Renderer {
             },
         ];
 
-         let descriptor_layout =
+        let descriptor_layout =
             context.create_descriptor_set_layout(&descriptor_layout_bindings)?;
 
         let mut descriptor_sets = Vec::new();
