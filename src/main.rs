@@ -37,8 +37,8 @@ fn main() {
             "storagePushConstant8".to_string(),
             "bufferDeviceAddress".to_string(),
             "shaderInt8".to_string(),
-            "variablePointersStorageBuffer".to_string(),
-            "variablePointers".to_string(),
+            //"variablePointersStorageBuffer".to_string(),
+            //"variablePointers".to_string(),
             "shaderInt64".to_string(),
         ],
 

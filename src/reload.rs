@@ -192,7 +192,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     let mut model_renderer = ModelDebugRenderer::default();
 
     #[cfg(feature="tree64")]
-    let mut grid = VoxelGrid::new(UVec3::new(32, 32, 32));
+    let mut grid = VoxelGrid::new(UVec3::new(4, 4, 4));
     #[cfg(feature="tree64")]
     grid.set_example_sphere();
     #[cfg(feature="tree64")]

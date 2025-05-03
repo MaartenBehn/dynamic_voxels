@@ -8,7 +8,7 @@ public extension VoxelTree {
     float scale = 1.0 / (1 << TreeScale);
     float3 origin = worldOrigin * scale + rayPos * scale + 1.0;
 
-    HitInfo hit = Traversal_OctMirror(origin, rayDir, coarse);
+    HitInfo hit = Traversal(origin, rayDir, coarse);
 
     if (hit.MaterialId != 0) {
       hit.Pos = (hit.Pos - 1.0 - worldOrigin * scale) * (1 << TreeScale);
@@ -98,7 +98,7 @@ public extension VoxelTree {
 
     if (node.IsLeaf) {
       int childIdx = GetNodeCellIndex(pos, scaleExp);
-      hit.MaterialId = LeafData[node.ChildPtr + popcnt_var64(node.PopMask, childIdx)];
+      hit.MaterialId = 2; //LeafData[node.ChildPtr + popcnt_var64(node.PopMask, childIdx)];
       hit.Pos = pos;
 
       float tmax = min(min(sideDist.x, sideDist.y), sideDist.z);

@@ -23,7 +23,7 @@ impl VoxelTree64Buffer {
     pub fn get_data(&self) -> VoxelTreeData {
         VoxelTreeData {
             origin: UVec3::ZERO,
-            tree_scale: 10,
+            tree_scale: 1,
             nodes_ptr: self.nodes_buffer.get_device_address(),
             leaf_ptr: self.data_buffer.get_device_address(),
         }

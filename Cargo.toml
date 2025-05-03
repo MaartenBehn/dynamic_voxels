@@ -44,3 +44,4 @@ egui_node_graph2 = { git="https://github.com/trevyn/egui_node_graph2.git", versi
 slotmap = "1.0.7"
 
 tree64 = { git="https://github.com/expenses/tree64.git", version = "0.1.0" }
+
