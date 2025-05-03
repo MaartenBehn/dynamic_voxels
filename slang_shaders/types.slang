@@ -23,7 +23,7 @@ public struct RenderData {
 
 public struct VoxelTree {
   public int3 worldOrigin;
-  public uint TreeScale;
+  public uint start_index;
   public Node* TreeNodes;
   public uint8_t* LeafData;
 }

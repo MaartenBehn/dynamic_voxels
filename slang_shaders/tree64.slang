@@ -1,6 +1,8 @@
 import "backend_common";
 import "types";
 
+static uint TreeScale = 0;
+
 public extension VoxelTree {
   public HitInfo RayCast(float3 rayPos, float3 rayDir, bool coarse) {
     // Multiply world origin separately to minimize float rounding errors.
@@ -20,7 +22,7 @@ public extension VoxelTree {
     uint stack[11];
     int scaleExp = 21;  // 0.25
 
-    uint nodeIdx = 0; // root
+    uint nodeIdx = start_index; // root
     Node node = TreeNodes[nodeIdx];
 
     if (abs(dir.x) < 0.0001) dir.x = 0.0001;
@@ -84,6 +86,7 @@ public extension VoxelTree {
       if (diffExp % 2 == 0) diffExp--;
 
       if (diffExp > scaleExp) {
+        scaleExp = diffExp;
         if (diffExp > 21) break;  // going out of root?
 
         scaleExp = diffExp;
@@ -96,9 +99,9 @@ public extension VoxelTree {
     HitInfo hit;
     hit.MaterialId = 0;
 
-    if (node.IsLeaf) {
+    if (node.IsLeaf && scaleExp <= 21) {
       int childIdx = GetNodeCellIndex(pos, scaleExp);
-      hit.MaterialId = 2; //LeafData[node.ChildPtr + popcnt_var64(node.PopMask, childIdx)];
+      hit.MaterialId = LeafData[node.ChildPtr + popcnt_var64(node.PopMask, childIdx)];
       hit.Pos = pos;
 
       float tmax = min(min(sideDist.x, sideDist.y), sideDist.z);
@@ -118,7 +121,7 @@ public extension VoxelTree {
     uint* stack = &gs_stack[groupId][0];
     int scaleExp = 21;  // 0.25
 
-    uint nodeIdx = 0; // root
+    uint nodeIdx = start_index; // root
     Node node = TreeNodes[nodeIdx];
 
     float3 invDir = 1.0f / -abs(dir);

@@ -13,8 +13,9 @@ fn main() {
         .arg("./slang_shaders/bin/render.spv")
         .output();
 
-
-    let res = Command::new("slangc")
+    
+    let mut command = Command::new("slangc");
+    command
         .arg("./slang_shaders/render.slang")
         .arg("-profile")
         .arg("glsl_450")
@@ -25,8 +26,17 @@ fn main() {
         .arg("-entry")
         .arg("compute_main")
         .arg("-stage")
-        .arg("compute")
-        .output();
+        .arg("compute");
+    
+    if cfg!(debug_assertions) {
+        command.arg("-g3")
+            .arg("-O0") 
+    } else {
+        command.arg("-g0")
+            .arg("-O3")
+    };
+
+    let res = command.output();
     if res.is_err() {
         panic!("{:?}", res);
     } else {

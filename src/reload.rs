@@ -74,19 +74,31 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
     log::info!("Creating Camera");
     let mut camera = Camera::default();
 
-    #[cfg(any(feature="fence", feature="tree64"))]
+    #[cfg(feature="fence")]
     {
         camera.position = Vec3::new(1.0, -10.0, 1.0); 
         camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
+        camera.speed = 10.0 * VOXEL_SIZE;
     }
     
     #[cfg(feature="render_example")]
     {
         camera.position = Vec3::new(67.02305, 127.88921, 43.476604);
         camera.direction = Vec3::new(0.79322153, -0.47346807, -0.38291982).normalize();
+        camera.speed = 10.0 * VOXEL_SIZE;
     }
 
-    camera.speed = 10.0 * VOXEL_SIZE;
+     #[cfg(feature="tree64")]
+    {
+        //camera.position = Vec3::new(-0.66225964, -0.10641506, 0.803499); 
+        //camera.direction = Vec3::new(0.87766635, 0.373136, -0.30078444).normalize();        
+        
+        camera.position = Vec3::new(0.04881219, -0.22088319, 0.057467535); 
+        camera.direction = Vec3::new(-0.097770326, 0.98611856, -0.1342061).normalize();        
+        
+        camera.speed = 1.0;
+    }
+
     camera.z_far = 100.0;
     camera.up = vec3(0.0, 0.0, 1.0);
 
@@ -192,9 +204,17 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     let mut model_renderer = ModelDebugRenderer::default();
 
     #[cfg(feature="tree64")]
-    let mut grid = VoxelGrid::new(UVec3::new(4, 4, 4));
+    let mut grid = VoxelGrid::new(UVec3::ONE * 4_u32.pow(4));
+    
+    #[cfg(feature="tree64")]
+    { 
+        grid.data[0] = 1;
+        grid.data[1] = 1;
+    }
+
     #[cfg(feature="tree64")]
     grid.set_example_sphere();
+
     #[cfg(feature="tree64")]
     let tree64: VoxelTree64 = grid.into();
     #[cfg(feature="tree64")]
@@ -240,7 +260,7 @@ pub fn update(
     let time = logic_state.start_time.elapsed(); 
 
     logic_state.camera.update(&engine.controls, delta_time);
-    // info!("Camera Pos: {} Dir: {}", logic_state.camera.position, logic_state.camera.direction);
+    //info!("Camera Pos: {} Dir: {}", logic_state.camera.position, logic_state.camera.direction);
 
     #[cfg(any(feature="fence", feature="render_example"))]
     render_state

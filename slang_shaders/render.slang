@@ -5,7 +5,7 @@ import ray;
 import tree64;
 import types;
 
-static uint MaxBounces = 1;
+static uint MaxBounces = 0;
 static int3 WorldOrigin = int3(0, 0, 0);
 static uint NumSteadyFrames = 0;
 
@@ -16,15 +16,22 @@ static uint NumSteadyFrames = 0;
 void compute_main(uint2 pos: SV_DispatchThreadID) {
   if (pos.x >= pc.render_data.Res.x || pos.y >= pc.render_data.Res.y ) {
     return;
-  } 
+  }
+
+  if (pos.x == (pc.render_data.Res.x / 2 + 1) && pos.y == (pc.render_data.Res.y / 2 + 1)) {
+    img.Store(pos, float4(0));
+    return;
+  }
   
   Ray ray = init_ray(pc.render_data, pos);
 
   float4 color = float4(ray.dir, 1.);
   
   Interval interval = init_interval();
-  if (ray_aabb_intersect(ray, float3(0), float3(10), interval)) {
-    ray.pos = get_ray_pos(ray, interval.t_min + 0.1); 
+  if (ray_aabb_intersect(ray, float3(0), float3(1), interval)) {
+    if (interval.t_min > 0) {
+      ray.pos = get_ray_pos(ray, interval.t_min);
+    }
 
     for (int bounceNo = 0; bounceNo <= MaxBounces; bounceNo++) {
       HitInfo hit = pc.tree.RayCast(ray.pos, ray.dir, bounceNo != 0);
