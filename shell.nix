@@ -6,12 +6,12 @@ with builtins;
       config.allowUnfree = true;
     }
   ),
-#  pkgs-fix ? (
-#   import (getFlake "/home/stroby/dev/nixpkgs") {
-#     config.allowUnfree = true;
-#     config.cudaSupport = true;
-#     }
-#   ),
+    #pkgs-fix ? (
+  #import (getFlake "/home/stroby/dev/nixpkgs") {
+  #    config.allowUnfree = true;
+#    config.cudaSupport = true;
+#        }
+#    ),
   pkgs-mcwitt ? (
     import (getFlake "github:mcwitt/nixpkgs/fix/nsight_systems") {
       config.allowUnfree = true;
@@ -21,7 +21,17 @@ with builtins;
 
   ...
 }:
-let 
+let
+  my-nsight_compute = pkgs.cudaPackages.nsight_compute.overrideAttrs(
+    oldAttrs: {
+        buildInputs = oldAttrs.buildInputs ++ [
+            pkgs.rdma-core
+            pkgs.ucx
+            pkgs.e2fsprogs
+            pkgs.kdePackages.qtwayland
+            ];
+        }
+    );
   rustc_version = "stable";
 in pkgs.mkShell {
 
@@ -55,8 +65,8 @@ in pkgs.mkShell {
     graphviz
 
     pkgs-mcwitt.cudaPackages.nsight_systems
-      # pkgs-fix.cudaPackages.nsight_compute
-      # my-nsight_compute 
+      #pkgs-mcwitt.cudaPackages.nsight_compute
+    my-nsight_compute 
   ];
 
   # Use fast liker 
