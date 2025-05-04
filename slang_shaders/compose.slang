@@ -12,6 +12,10 @@ struct DispatchParams {
 };
 [vk::push_constant] DispatchParams pc;
 
+[vk::binding(0, 1)]
+[SamplerDesc(MagFilter.Linear, MinFilter.Linear, MipFilter.Linear, WrapMode.Repeat)]
+public SamplerState g_LinearSampler;
+
 [shader("compute")]
 [numthreads(8, 8)]
 void compute_main(float2 uv: TEXCOORD0) {

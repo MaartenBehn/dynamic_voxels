@@ -2,9 +2,7 @@
 [vk::binding(0, 0)] __DynamicResource TextureHeap[];
 [vk::binding(1, 0)] __DynamicResource RWTextureHeap[];
 
-[vk::binding(0, 1)]
-[SamplerDesc(MagFilter.Linear, MinFilter.Linear, MipFilter.Linear, WrapMode.Repeat)]
-public SamplerState g_LinearSampler;
+
 
 public struct ImageHandle<T> {
     uint DescriptorIndex;

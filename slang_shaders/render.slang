@@ -107,6 +107,10 @@ void GetPrimaryRay(int2 screenPos, out float3 rayPos, out float3 rayDir) {
     rayDir = normalize(far.xyz / far.w);
 }
 
+[vk::binding(0, 1)]
+[SamplerDesc(MagFilter.Linear, MinFilter.Linear, MipFilter.Linear, WrapMode.Repeat)]
+public SamplerState g_LinearSampler;
+
 float3 GetSkyColor(float3 dir, bool isPrimary) {
     // return float3(0, 0, 1);
     // For light bounces, sample smaller mips to maybe improve cache coherency.

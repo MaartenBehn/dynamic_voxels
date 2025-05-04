@@ -9,6 +9,7 @@ use octa_force::camera::Camera;
 use octa_force::glam::{UVec2, Vec3};
 use octa_force::log::info;
 use octa_force::vulkan::ash::vk::{self, BufferDeviceAddressInfo, PushConstantRange, ShaderStageFlags};
+use octa_force::vulkan::descriptor_heap::DescriptorHeap;
 use octa_force::vulkan::gpu_allocator::MemoryLocation;
 use octa_force::vulkan::{
     Buffer, CommandBuffer, ComputePipeline, ComputePipelineCreateInfo, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, ImageAndView, PipelineLayout, Swapchain, WriteDescriptorSet, WriteDescriptorSetKind
@@ -25,10 +26,10 @@ const RENDER_DISPATCH_GROUP_SIZE_Y: u32 = 8;
 
 #[repr(C)]
 pub struct DispatchParams {
-  render_data: RenderData,
-  tree: VoxelTreeData,
-  palette_ptr: u64,
-  max_bounces: u32,
+    render_data: RenderData,
+    tree: VoxelTreeData,
+    palette_ptr: u64,
+    max_bounces: u32,
 }
 
 #[allow(dead_code)]
@@ -37,10 +38,8 @@ pub struct Tree64Renderer {
     storage_images: Vec<ImageAndView>,
     voxel_tree64_buffer: VoxelTree64Buffer,
     palette: Palette,
-    
-    descriptor_pool: DescriptorPool,
-    descriptor_layout: DescriptorSetLayout,
-    descriptor_sets: Vec<DescriptorSet>,
+
+    descriptor_heap: DescriptorHeap,
 
     push_constant_range: PushConstantRange,
     pipeline_layout: PipelineLayout,
@@ -55,7 +54,7 @@ impl Tree64Renderer {
         tree: VoxelTree64,
     ) -> Result<Tree64Renderer> {
         let storage_images = context.create_storage_images(res, num_frames)?;
-    
+
         let voxel_tree64_buffer = tree.into_buffer(context)?;
 
         let palette = Palette::new(context)?;
@@ -69,8 +68,12 @@ impl Tree64Renderer {
                 ty: vk::DescriptorType::SAMPLED_IMAGE,
                 descriptor_count: 10,
             },
+            vk::DescriptorPoolSize {
+                ty: vk::DescriptorType::SAMPLER,
+                descriptor_count: 1,
+            }
         ])?;
- 
+
         let push_constant_range = PushConstantRange::default()
             .offset(0)
             .size(size_of::<DispatchParams>() as _)
@@ -92,9 +95,7 @@ impl Tree64Renderer {
             voxel_tree64_buffer,
             palette,
 
-            descriptor_pool,
-            descriptor_layout,
-            descriptor_sets,
+            descriptor_heap,
 
             push_constant_range,
             pipeline_layout,
@@ -109,22 +110,22 @@ impl Tree64Renderer {
         swapchain: &Swapchain,
         cam: &Camera,
     ) -> Result<()> {
-        buffer.bind_compute_pipeline(&self.pipeline);
-
         buffer.bind_descriptor_sets(
             vk::PipelineBindPoint::COMPUTE,
             &self.pipeline_layout,
             0,
-            &[&self.descriptor_sets[frame_index]],
+            &[&self.descriptor_heap.set],
         );
 
+        buffer.bind_compute_pipeline(&self.pipeline);
+        
         let dispatch_params = DispatchParams {
             render_data: RenderData::new(cam, swapchain.size),
             tree: self.voxel_tree64_buffer.get_data(),
             palette_ptr: self.palette.buffer.get_device_address(),
             max_bounces: 0,
         };
-        
+
         buffer.push_constant(&self.pipeline_layout, ShaderStageFlags::COMPUTE, &dispatch_params);
         buffer.dispatch(
             (swapchain.size.x / RENDER_DISPATCH_GROUP_SIZE_X) + 1,
