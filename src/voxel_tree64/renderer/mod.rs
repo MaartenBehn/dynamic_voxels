@@ -60,7 +60,7 @@ impl Tree64Renderer {
 
         let palette = Palette::new(context)?;
 
-        let descriptor_heap = context.create_descriptor_heap(&[
+        let descriptor_heap = context.create_descriptor_heap(vec![
             vk::DescriptorPoolSize {
                 ty: vk::DescriptorType::STORAGE_IMAGE,
                 descriptor_count: 10,
@@ -69,56 +69,15 @@ impl Tree64Renderer {
                 ty: vk::DescriptorType::SAMPLED_IMAGE,
                 descriptor_count: 10,
             },
-        ]);
-
-        let descriptor_pool = context.create_descriptor_pool(
-            num_frames as u32,
-            &[
-                vk::DescriptorPoolSize {
-                    ty: vk::DescriptorType::STORAGE_IMAGE,
-                    descriptor_count: num_frames as u32,
-                }, 
-            ],
-        )?;
-
-        let descriptor_layout_bindings = vec![
-            vk::DescriptorSetLayoutBinding {
-                binding: 0,
-                descriptor_count: 1,
-                descriptor_type: vk::DescriptorType::STORAGE_IMAGE,
-                stage_flags: vk::ShaderStageFlags::COMPUTE,
-                ..Default::default()
-            },
-        ];
-
-        let descriptor_layout =
-            context.create_descriptor_set_layout(&descriptor_layout_bindings)?;
-
-        let mut descriptor_sets = Vec::new();
-        for i in 0..num_frames {
-            let descriptor_set = descriptor_pool.allocate_set(&descriptor_layout)?;
-
-            let mut write_descriptor_sets = vec![
-                WriteDescriptorSet {
-                    binding: 0,
-                    kind: WriteDescriptorSetKind::StorageImage {
-                        layout: vk::ImageLayout::GENERAL,
-                        view: &storage_images[i].view,
-                    },
-                },
-            ];
-
-            descriptor_set.update(&write_descriptor_sets);
-            descriptor_sets.push(descriptor_set);
-        }
-
+        ])?;
+ 
         let push_constant_range = PushConstantRange::default()
             .offset(0)
             .size(size_of::<DispatchParams>() as _)
             .stage_flags(ShaderStageFlags::COMPUTE);
 
         let pipeline_layout = context.create_pipeline_layout(
-            &[&descriptor_layout],
+            &[&descriptor_heap.layout],
             &[push_constant_range])?;
 
         let pipeline = context.create_compute_pipeline(

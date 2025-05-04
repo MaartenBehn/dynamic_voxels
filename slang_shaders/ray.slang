@@ -1,4 +1,3 @@
-import types;
 
 struct Ray {
     float3 pos;
@@ -6,11 +5,11 @@ struct Ray {
     float3 odir; // = 1 / dir
 };
 
-Ray init_ray(RenderData render_data, float2 coord) {
-    float2 uv = ((coord * 2 - render_data.Res) / render_data.Res.y) * float2(-1);
+Ray init_ray(float3 pos, float3 dir, float2 res, float2 coord) {
+    float2 uv = ((coord * 2 - res) / res.y) * float2(-1);
 
-    float3 ro = render_data.Pos;
-    float3 fwd = render_data.Dir;
+    float3 ro = pos;
+    float3 fwd = dir;
     float3 up = float3(0., 0., 1.);
     float3 right = normalize(cross(up, fwd));
     up = cross(fwd, right);

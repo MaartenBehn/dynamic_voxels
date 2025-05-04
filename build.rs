@@ -8,25 +8,31 @@ macro_rules! warn {
 
 fn main() {
     println!("cargo::rerun-if-changed=slang_shaders/*");
+    
+    compile_shader("render");
+    compile_shader("compose");
+}
+
+fn compile_shader(name: &str) {
+    let source_path = format!("./slang_shaders/{name}.slang");
+    let spv_path = format!("./slang_shaders/bin/{name}.spv");
 
     Command::new("rm")
-        .arg("./slang_shaders/bin/render.spv")
+        .arg(&spv_path)
         .output();
 
     
     let mut command = Command::new("slangc");
     command
-        .arg("./slang_shaders/render.slang")
+        .arg(&source_path)
         .arg("-profile")
         .arg("glsl_450")
         .arg("-target")
         .arg("spirv")
         .arg("-o")
-        .arg("./slang_shaders/bin/render.spv")
+        .arg(&spv_path)
         .arg("-entry")
-        .arg("compute_main")
-        .arg("-stage")
-        .arg("compute");
+        .arg("compute_main");
     
     if cfg!(debug_assertions) {
         command.arg("-g3")
@@ -45,9 +51,10 @@ fn main() {
         let stderr = String::from_utf8(output.stderr).unwrap();
 
         if output.status.success() {
-            warn!("Compiled successfully render.slang. \n {} {}", stdout, stderr);
+            warn!("Compiled successfully {}.slang. \n {} {}", name, stdout, stderr);
         } else {
-            panic!("Compile failed render.slang: {} {}", stdout, stderr);
+            panic!("Compile failed {}.slang: {} {}", name, stdout, stderr);
         }
     }
+
 }

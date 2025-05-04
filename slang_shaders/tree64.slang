@@ -1,9 +1,27 @@
-import "backend_common";
-import "types";
+import backend_common;
 
 static uint TreeScale = 0;
 
-public extension VoxelTree {
+public struct Node {
+  uint PackedData[3];
+
+  public property bool IsLeaf {
+  get { return (PackedData[0] & 1) != 0; }
+  }
+  public property uint ChildPtr {
+  get { return PackedData[0] >> 1; }
+  }
+  public property uint64_t PopMask {
+  get { return PackedData[1] | uint64_t(PackedData[2]) << 32; }
+  }
+}
+
+public struct VoxelTree {
+  public int3 worldOrigin;
+  public uint start_index;
+  public Node* TreeNodes;
+  public uint8_t* LeafData;
+  
   public HitInfo RayCast(float3 rayPos, float3 rayDir, bool coarse) {
     // Multiply world origin separately to minimize float rounding errors.
     // Compiler might mess with this, but oh well.
