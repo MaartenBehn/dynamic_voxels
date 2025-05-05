@@ -33,6 +33,10 @@ fn main() {
         },
         gl_ext_scalar_block_layout: EngineFeatureValue::Needed,
 
+        required_extensions: vec![
+            "VK_KHR_shader_clock".to_string(),
+        ],
+
         required_device_features: vec![
             "storagePushConstant8".to_string(),
             "bufferDeviceAddress".to_string(),
@@ -40,6 +44,15 @@ fn main() {
             //"variablePointersStorageBuffer".to_string(),
             //"variablePointers".to_string(),
             "shaderInt64".to_string(),
+            "descriptorBindingStorageImageUpdateAfterBind".to_string(),
+            "descriptorBindingSampledImageUpdateAfterBind".to_string(),
+            "descriptorBindingUpdateUnusedWhilePending".to_string(),
+            "descriptorBindingPartiallyBound".to_string(),
+            "shaderSubgroupClock".to_string(),
+            "runtimeDescriptorArray".to_string(),
+            "shaderBufferInt64Atomics".to_string(),
+            "shaderInt16".to_string(),
+            "shaderFloat16".to_string(),
         ],
 
         hot_reload_config: None, /*Some(HotReloadConfig {

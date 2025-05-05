@@ -9,6 +9,7 @@ pub type Material = u8;
 pub const MATERIAL_NONE: u8 = 0;
 pub const MATERIAL_BASE: u8 = 1;
 
+#[derive(Debug)]
 pub struct ColorController {
     pub buffer: Buffer,
 }

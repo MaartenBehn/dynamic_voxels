@@ -16,6 +16,7 @@ use std::{iter, mem};
 pub const SCOPES: usize = 20;
 pub const MAX_SAMPLE_RES_WIDTH: u32 = 30;
 
+#[derive(Debug)]
 pub struct ShaderProfiler {
     out_data_len: usize,
     profiler_in_buffer: Buffer,
@@ -48,14 +49,14 @@ pub struct ShaderProfiler {
     selected_result_pixel: Option<UVec2>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ShaderProfilerPixelData {
     pub scope_data: Vec<ShaderProfilerScopeData>,
     pub total_time: u64,
     pub sample_count: usize,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct ShaderProfilerScopeData {
     pub percent_mean: f32,
     pub percent_max: f32,

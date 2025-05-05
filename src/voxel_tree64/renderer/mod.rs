@@ -1,6 +1,7 @@
 pub mod render_data;
 pub mod voxel_tree64_buffer;
 pub mod palette;
+pub mod g_buffer;
 
 use std::time::Duration;
 
@@ -11,6 +12,7 @@ use octa_force::log::info;
 use octa_force::vulkan::ash::vk::{self, BufferDeviceAddressInfo, PushConstantRange, ShaderStageFlags};
 use octa_force::vulkan::descriptor_heap::DescriptorHeap;
 use octa_force::vulkan::gpu_allocator::MemoryLocation;
+use octa_force::vulkan::sampler_pool::{SamplerPool, SamplerSetHandle};
 use octa_force::vulkan::{
     Buffer, CommandBuffer, ComputePipeline, ComputePipelineCreateInfo, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, ImageAndView, PipelineLayout, Swapchain, WriteDescriptorSet, WriteDescriptorSetKind
 };
@@ -40,6 +42,8 @@ pub struct Tree64Renderer {
     palette: Palette,
 
     descriptor_heap: DescriptorHeap,
+    sampler_pool: SamplerPool,
+    sampler_set_handle: SamplerSetHandle,
 
     push_constant_range: PushConstantRange,
     pipeline_layout: PipelineLayout,
@@ -68,11 +72,19 @@ impl Tree64Renderer {
                 ty: vk::DescriptorType::SAMPLED_IMAGE,
                 descriptor_count: 10,
             },
-            vk::DescriptorPoolSize {
-                ty: vk::DescriptorType::SAMPLER,
-                descriptor_count: 1,
-            }
         ])?;
+
+        let mut sampler_pool = context.create_sampler_pool(1)?; 
+        let sampler_set_handle = sampler_pool.get_set(
+            &[
+                vk::SamplerCreateInfo::default()
+                    .mag_filter(vk::Filter::LINEAR)
+                    .min_filter(vk::Filter::LINEAR)
+                    .mipmap_mode(vk::SamplerMipmapMode::LINEAR)
+                    .min_lod(0.0)
+                    .max_lod(vk::LOD_CLAMP_NONE)
+            ]
+        )?;
 
         let push_constant_range = PushConstantRange::default()
             .offset(0)
@@ -80,7 +92,7 @@ impl Tree64Renderer {
             .stage_flags(ShaderStageFlags::COMPUTE);
 
         let pipeline_layout = context.create_pipeline_layout(
-            &[&descriptor_heap.layout],
+            &[&descriptor_heap.layout, &sampler_set_handle.layout],
             &[push_constant_range])?;
 
         let pipeline = context.create_compute_pipeline(
@@ -96,6 +108,8 @@ impl Tree64Renderer {
             palette,
 
             descriptor_heap,
+            sampler_pool,
+            sampler_set_handle,
 
             push_constant_range,
             pipeline_layout,
@@ -148,16 +162,6 @@ impl Tree64Renderer {
         res: UVec2,
     ) -> Result<()> {
         self.storage_images = context.create_storage_images(res, num_frames)?;
-
-        for (i, descriotor_set) in self.descriptor_sets.iter().enumerate() {
-            descriotor_set.update(&[WriteDescriptorSet {
-                binding: 0,
-                kind: WriteDescriptorSetKind::StorageImage {
-                    layout: vk::ImageLayout::GENERAL,
-                    view: &self.storage_images[i].view,
-                },
-            }]);
-        }
 
         Ok(())
     }

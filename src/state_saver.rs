@@ -1,6 +1,6 @@
 use octa_force::{egui::{self, panel::Side, Align, Frame, Id, Layout, Widget}, puffin_egui::puffin, OctaResult};
 
-#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub enum TickType {
     None,
     Back,
@@ -8,6 +8,7 @@ pub enum TickType {
     ForwardSave,
 }
 
+#[derive(Debug)]
 pub struct StateSaver<S> {
     start_state: S,
     states: Vec<S>,

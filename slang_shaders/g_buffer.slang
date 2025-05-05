@@ -1,32 +1,37 @@
 import texture_heap;
 
 public struct GBufferUniforms {
-    public ImageHandle2D<float4> AlbedoTex, PrevAlbedoTex;          // rgb: albedo, w: packed normal
-    public ImageHandle2D<float4> IrradianceTex, PrevIrradianceTex;  // rgb: irradiance, w: variance
-    public ImageHandle2D<float> DepthTex, PrevDepthTex;
-    public ImageHandle2D<float2> MomentsTex, PrevMomentsTex;
-    public ImageHandle2D<uint> HistoryLenTex;
+  public float4x4 ProjMat, InvProjMat;
+  public float4x4 HistoryProjMat, HistoryInvProjMat;
 
-    public float4x4 ProjMat, InvProjMat;
-    public float4x4 HistoryProjMat, HistoryInvProjMat;
-    public float3 OriginFrac, HistoryOriginFrac;
-    public float3 OriginDelta;
-    public uint FrameNo;
-    public uint NumSteadyFrames;
-    
-    public property uint2 RenderSize {
-        [__ref]
-        get {
-            uint width, height;
-            AlbedoTex.Instance.GetDimensions(width, height);
-            return uint2(width, height);
-        }
-    }
+  public float3 OriginFrac;
+  public uint FrameNo;
 
+  public float3 HistoryOriginFrac;
+  public uint NumSteadyFrames;
+
+  public float3 OriginDelta;
+  public ImageHandle2D<uint> HistoryLenTex;
+
+  public ImageHandle2D<float4> AlbedoTex, PrevAlbedoTex;          // rgb: albedo, w: packed normal
+  public ImageHandle2D<float4> IrradianceTex, PrevIrradianceTex;  // rgb: irradiance, w: variance
+  
+  public ImageHandle2D<float> DepthTex, PrevDepthTex;
+  public ImageHandle2D<float2> MomentsTex, PrevMomentsTex;
+
+  public property uint2 RenderSize {
     [__ref]
-    public bool CheckBounds(int2 pos) {
-        return all(uint2(pos) < RenderSize);
+    get {
+      uint width, height;
+      AlbedoTex.Instance.GetDimensions(width, height);
+      return uint2(width, height);
     }
+  }
+
+  [__ref]
+  public bool CheckBounds(int2 pos) {
+    return all(uint2(pos) < RenderSize);
+  }
 };
 
 public struct AlbedoData {

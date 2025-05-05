@@ -7,6 +7,8 @@ use octa_force::OctaResult;
 use crate::render_csg_tree::base::RenderCSGTree;
 
 pub const MAX_DATA_BUFFER_SIZE: usize = 10000000;
+
+#[derive(Debug)]
 pub struct DataController {
     pub buffer: Buffer,
 }

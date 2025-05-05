@@ -21,7 +21,7 @@ impl Palette {
         materials[2].set_color(vec3(0.0, 0.5, 0.0));
 
         let buffer = context.create_buffer(
-            vk::BufferUsageFlags::UNIFORM_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS, 
+            vk::BufferUsageFlags::UNIFORM_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS | vk::BufferUsageFlags::TRANSFER_DST, 
             MemoryLocation::GpuOnly,
             (size_of::<u64>() * 256) as _)?;
 

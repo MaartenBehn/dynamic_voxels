@@ -18,7 +18,8 @@ use data_controller::{DataController, MAX_DATA_BUFFER_SIZE};
 
 const RENDER_DISPATCH_GROUP_SIZE_X: u32 = 32;
 const RENDER_DISPATCH_GROUP_SIZE_Y: u32 = 32;
-
+ 
+#[derive(Debug)]
 #[allow(dead_code)]
 pub struct CSGRenderer {
     storage_images: Vec<ImageAndView>,

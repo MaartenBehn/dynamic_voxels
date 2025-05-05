@@ -1,3 +1,4 @@
+use core::fmt;
 use std::{borrow::Cow, marker::PhantomData, time::Instant};
 
 use egui_node_graph2::{DataTypeTrait, Graph, GraphEditorState, InputParamKind, NodeDataTrait, NodeId, NodeResponse, NodeTemplateIter, NodeTemplateTrait, UserResponseTrait, WidgetValueTrait};
@@ -292,5 +293,11 @@ impl Default for ModelDebugRenderer {
             show: Default::default(), 
             last_show_change: Instant::now() 
         }
+    }
+}
+
+impl fmt::Debug for ModelDebugRenderer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ModelDebugRenderer").field("state", &()).field("level_counter", &self.level_counter).field("show", &self.show).field("last_show_change", &self.last_show_change).finish()
     }
 }

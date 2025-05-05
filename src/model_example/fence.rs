@@ -21,7 +21,7 @@ pub enum Identifier {
 }
 impl IT for Identifier {}
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FenceState {
     pub template: TemplateTree<Identifier, VecCSGTree>,
     pub collapser: Option<CollapserData<Identifier, SlotMapCSGTreeKey>>,
