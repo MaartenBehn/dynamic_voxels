@@ -4,20 +4,23 @@ public struct GBufferUniforms {
   public float4x4 ProjMat, InvProjMat;
   public float4x4 HistoryProjMat, HistoryInvProjMat;
 
-  public float3 OriginFrac;
+  public float3 position;
   public uint FrameNo;
 
-  public float3 HistoryOriginFrac;
+  public float3 OriginFrac;
   public uint NumSteadyFrames;
 
-  public float3 OriginDelta;
-  public ImageHandle2D<uint> HistoryLenTex;
+  public float3 HistoryOriginFrac;
+  public ImageHandle2D<float4> AlbedoTex;          // rgb: albedo, w: packed normal
 
-  public ImageHandle2D<float4> AlbedoTex, PrevAlbedoTex;          // rgb: albedo, w: packed normal
-  public ImageHandle2D<float4> IrradianceTex, PrevIrradianceTex;  // rgb: irradiance, w: variance
-  
+  public float3 OriginDelta;
+  public ImageHandle2D<float4> PrevAlbedoTex;          // rgb: albedo, w: packed normal
+
+  public ImageHandle2D<float4> IrradianceTex, PrevIrradianceTex;  // rgb: irradiance, w: variance 
   public ImageHandle2D<float> DepthTex, PrevDepthTex;
+
   public ImageHandle2D<float2> MomentsTex, PrevMomentsTex;
+  public ImageHandle2D<uint> HistoryLenTex;
 
   public property uint2 RenderSize {
     [__ref]

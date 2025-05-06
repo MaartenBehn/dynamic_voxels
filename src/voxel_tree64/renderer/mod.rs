@@ -5,6 +5,7 @@ pub mod g_buffer;
 
 use std::time::Duration;
 
+use g_buffer::GBuffer;
 use octa_force::anyhow::Result;
 use octa_force::camera::Camera;
 use octa_force::glam::{UVec2, Vec3};
@@ -16,9 +17,12 @@ use octa_force::vulkan::sampler_pool::{SamplerPool, SamplerSetHandle};
 use octa_force::vulkan::{
     Buffer, CommandBuffer, ComputePipeline, ComputePipelineCreateInfo, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, ImageAndView, PipelineLayout, Swapchain, WriteDescriptorSet, WriteDescriptorSetKind
 };
+use octa_force::{in_flight_frames, OctaResult};
 use palette::Palette;
 use render_data::RenderData;
 use voxel_tree64_buffer::{VoxelTree64Buffer, VoxelTreeData};
+
+use crate::NUM_FRAMES_IN_FLIGHT;
 
 use super::VoxelTree64;
 
@@ -28,8 +32,8 @@ const RENDER_DISPATCH_GROUP_SIZE_Y: u32 = 8;
 
 #[repr(C)]
 pub struct DispatchParams {
-    render_data: RenderData,
     tree: VoxelTreeData,
+    g_buffer_ptr: u64,
     palette_ptr: u64,
     max_bounces: u32,
 }
@@ -37,9 +41,10 @@ pub struct DispatchParams {
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct Tree64Renderer {
-    storage_images: Vec<ImageAndView>,
     voxel_tree64_buffer: VoxelTree64Buffer,
     palette: Palette,
+    
+    g_buffer: GBuffer,
 
     descriptor_heap: DescriptorHeap,
     sampler_pool: SamplerPool,
@@ -54,16 +59,15 @@ impl Tree64Renderer {
     pub fn new(
         context: &Context,
         res: UVec2,
-        num_frames: usize,
         tree: VoxelTree64,
+        camera: &Camera,
     ) -> Result<Tree64Renderer> {
-        let storage_images = context.create_storage_images(res, num_frames)?;
 
         let voxel_tree64_buffer = tree.into_buffer(context)?;
 
         let palette = Palette::new(context)?;
 
-        let descriptor_heap = context.create_descriptor_heap(vec![
+        let mut descriptor_heap = context.create_descriptor_heap(vec![
             vk::DescriptorPoolSize {
                 ty: vk::DescriptorType::STORAGE_IMAGE,
                 descriptor_count: 10,
@@ -73,6 +77,8 @@ impl Tree64Renderer {
                 descriptor_count: 10,
             },
         ])?;
+
+        let g_buffer = GBuffer::new(context, res, &mut descriptor_heap, camera)?;
 
         let mut sampler_pool = context.create_sampler_pool(1)?; 
         let sampler_set_handle = sampler_pool.get_set(
@@ -103,9 +109,10 @@ impl Tree64Renderer {
         )?;
 
         Ok(Tree64Renderer {
-            storage_images,
             voxel_tree64_buffer,
             palette,
+
+            g_buffer,
 
             descriptor_heap,
             sampler_pool,
@@ -117,25 +124,30 @@ impl Tree64Renderer {
         })
     }
 
+    pub fn update(&mut self, current_index: usize, frame_no: usize, camera: &Camera) -> OctaResult<()> {
+        self.g_buffer.push_uniform(current_index, frame_no, camera)?;
+
+        Ok(())
+    }
+
     pub fn render(
         &self,
-        buffer: &CommandBuffer,
-        frame_index: usize,
+        buffer: &CommandBuffer, 
         swapchain: &Swapchain,
-        cam: &Camera,
+        in_flight_frames_index: usize,
     ) -> Result<()> {
         buffer.bind_descriptor_sets(
             vk::PipelineBindPoint::COMPUTE,
             &self.pipeline_layout,
             0,
-            &[&self.descriptor_heap.set],
+            &[&self.descriptor_heap.set, &self.sampler_set_handle.set],
         );
 
         buffer.bind_compute_pipeline(&self.pipeline);
         
         let dispatch_params = DispatchParams {
-            render_data: RenderData::new(cam, swapchain.size),
             tree: self.voxel_tree64_buffer.get_data(),
+            g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
             palette_ptr: self.palette.buffer.get_device_address(),
             max_bounces: 0,
         };
@@ -148,8 +160,8 @@ impl Tree64Renderer {
         );
 
         buffer.swapchain_image_copy_from_compute_storage_image(
-            &self.storage_images[frame_index].image,
-            &swapchain.images_and_views[frame_index].image,
+            &self.g_buffer.albedo_tex[in_flight_frames_index].image,
+            &swapchain.images_and_views[swapchain.current_index].image,
         )?;
 
         Ok(())
@@ -161,7 +173,6 @@ impl Tree64Renderer {
         num_frames: usize,
         res: UVec2,
     ) -> Result<()> {
-        self.storage_images = context.create_storage_images(res, num_frames)?;
 
         Ok(())
     }

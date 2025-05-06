@@ -17,21 +17,20 @@ public struct Node {
 }
 
 public struct VoxelTree {
-  public int3 worldOrigin;
   public uint start_index;
   public Node* TreeNodes;
   public uint8_t* LeafData;
   
-  public HitInfo RayCast(float3 rayPos, float3 rayDir, bool coarse) {
+  public HitInfo RayCast(int3 position, float3 rayPos, float3 rayDir, bool coarse) {
     // Multiply world origin separately to minimize float rounding errors.
     // Compiler might mess with this, but oh well.
     float scale = 1.0 / (1 << TreeScale);
-    float3 origin = worldOrigin * scale + rayPos * scale + 1.0;
+    float3 origin = position * scale + rayPos * scale + 1.0;
 
     HitInfo hit = Traversal(origin, rayDir, coarse);
 
     if (hit.MaterialId != 0) {
-      hit.Pos = (hit.Pos - 1.0 - worldOrigin * scale) * (1 << TreeScale);
+      hit.Pos = (hit.Pos - 1.0 - position * scale) * (1 << TreeScale);
     }
     return hit;
   }

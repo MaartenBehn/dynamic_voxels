@@ -1,4 +1,4 @@
-#![forbid(unused_must_use)]
+
 
 use octa_force::binding::r#trait::BindingTrait;
 use octa_force::egui_winit::winit::event::WindowEvent;
@@ -8,10 +8,9 @@ use octa_force::hot_reloading::HotReloadConfig;
 use octa_force::log::{error, trace};
 use octa_force::OctaResult;
 use reload::{
-    new_logic_state, new_render_state, on_recreate_swapchain, on_window_event,
-    record_render_commands, update, LogicState, RenderState, USE_PROFILE,
+    new_logic_state, new_render_state, on_recreate_swapchain, on_window_event, record_render_commands, update, LogicState, RenderState, NUM_FRAMES_IN_FLIGHT, USE_PROFILE
 };
-use std::env;
+use std::{env, usize};
 use std::time::Duration;
 
 const WIDTH: u32 = 1920;
@@ -22,6 +21,8 @@ fn main() {
     octa_force::run::<App>(EngineConfig {
         name: APP_NAME.to_string(),
         start_size: uvec2(WIDTH, HEIGHT),
+        num_frames_in_flight: NUM_FRAMES_IN_FLIGHT,
+
         ray_tracing: EngineFeatureValue::NotUsed,
         compute_rendering: EngineFeatureValue::Needed,
         validation_layers: EngineFeatureValue::Needed,
@@ -83,19 +84,17 @@ impl BindingTrait for App {
         logic_state: &mut LogicState,
         render_state: &mut RenderState,
         engine: &mut Engine,
-        image_index: usize,
         delta_time: Duration,
     ) -> OctaResult<()> {
-        update(logic_state, render_state, engine, image_index, delta_time)
+        update(logic_state, render_state, engine, delta_time)
     }
 
     fn record_render_commands(
         logic_state: &mut LogicState,
         render_state: &mut RenderState,
         engine: &mut Engine,
-        image_index: usize,
     ) -> OctaResult<()> {
-        record_render_commands(logic_state, render_state,  engine, image_index)
+        record_render_commands(logic_state, render_state,  engine)
     }
 
 

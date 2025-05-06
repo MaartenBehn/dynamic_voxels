@@ -52,6 +52,7 @@ use std::{default, env};
 use model_synthesis::builder::{BuilderAmmount, ModelSynthesisBuilder, IT};
 
 pub const USE_PROFILE: bool = false;
+pub const NUM_FRAMES_IN_FLIGHT: usize = 2;
 
 #[unsafe(no_mangle)]
 pub fn init_hot_reload(logger: &'static dyn Log) -> OctaResult<()> {
@@ -153,7 +154,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         engine.swapchain.format,
         engine.swapchain.depth_format,
         &engine.window,
-        engine.num_frames,
+        engine.in_flight_frames.num_frames,
     )?;
 
     #[cfg(any(feature="fence", feature="render_example"))]
@@ -218,7 +219,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     #[cfg(feature="tree64")]
     let tree64: VoxelTree64 = grid.into();
     #[cfg(feature="tree64")]
-    let tree_renderer = Tree64Renderer::new(&engine.context, engine.swapchain.size, engine.num_frames, tree64)?;
+    let tree_renderer = Tree64Renderer::new(&engine.context, engine.swapchain.size, engine.num_frames, tree64, &logic_state.camera)?;
 
     Ok(RenderState {
         gui,
@@ -251,7 +252,6 @@ pub fn update(
     logic_state: &mut LogicState,
     render_state: &mut RenderState,
     engine: &mut Engine,
-    frame_index: usize,
     delta_time: Duration,
 ) -> OctaResult<()> {
     #[cfg(debug_assertions)]
@@ -298,12 +298,11 @@ pub fn record_render_commands(
     logic_state: &mut LogicState,
     render_state: &mut RenderState,
     engine: &mut Engine,
-    image_index: usize,
 ) -> OctaResult<()> {
     #[cfg(debug_assertions)]
     puffin::profile_function!();
 
-    let command_buffer = &engine.command_buffers[image_index];
+    let command_buffer = engine.get_current_command_buffer();
     
     #[cfg(any(feature="fence", feature="render_example"))]
     render_state
@@ -315,8 +314,8 @@ pub fn record_render_commands(
     render_state.renderer.render(command_buffer, image_index, &engine.swapchain, &logic_state.camera)?;
 
     command_buffer.begin_rendering(
-        &engine.swapchain.images_and_views[image_index].view,
-        &engine.swapchain.depht_images_and_views[image_index].view,
+        &engine.get_current_swapchain_image_and_view().view,
+        &engine.get_current_depth_image_and_view().view,
         engine.swapchain.size,
         AttachmentLoadOp::DONT_CARE,
         None,
@@ -324,8 +323,8 @@ pub fn record_render_commands(
 
     render_state.gui.cmd_draw(
         command_buffer,
-        engine.swapchain.size,
-        image_index,
+        engine.get_resolution(),
+        engine.get_current_in_flight_frame_index(),
         &engine.window,
         &engine.context,
         |ctx| {

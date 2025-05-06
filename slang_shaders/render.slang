@@ -42,7 +42,7 @@ void compute_main(uint2 pos: SV_DispatchThreadID) {
   for (int bounceNo = 0; bounceNo <= pc.MaxBounces; bounceNo++) {
     PERF_STAT_INC(RayCasts, 1);
     PERF_TIME_BEGIN(ClocksPerRay);
-    HitInfo hit = pc.tree.RayCast(rayPos, rayDir, bounceNo != 0);
+    HitInfo hit = pc.tree.RayCast(pc.GBuffer.position, rayPos, rayDir, bounceNo != 0);
     PERF_TIME_END(ClocksPerRay);
 
     float3 albedo;
