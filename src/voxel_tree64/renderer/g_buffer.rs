@@ -57,7 +57,7 @@ impl GBuffer {
 
         let history_len_tex =  create_image(
             vk::Format::R8_UINT, vk::ImageUsageFlags::empty(), false)?;
- 
+         
         let mut create_images = |format: vk::Format, usage: vk::ImageUsageFlags, depth: bool|
             -> OctaResult<[(ImageAndView, DescriptorHandle); 2]> {
             Ok([create_image(format, usage, depth)?, create_image(format, usage, depth)?])
