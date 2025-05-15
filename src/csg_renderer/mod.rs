@@ -222,7 +222,7 @@ impl CSGRenderer {
 
         buffer.swapchain_image_copy_from_compute_storage_image(
             &self.storage_images[frame_index].image,
-            &swapchain.images_and_views[frame_index].image,
+            &swapchain.images_and_views[swapchain.current_index].image,
         )?;
 
         Ok(())

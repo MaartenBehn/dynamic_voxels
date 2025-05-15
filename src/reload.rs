@@ -113,8 +113,7 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
 #[derive(Debug)]
 pub struct RenderState {
     pub gui: Gui,
-    
-    
+     
     #[cfg(any(feature="fence", feature="render_example"))]
     pub data_controller: DataController,
     
@@ -168,8 +167,8 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         Some(ShaderProfiler::new(
             &engine.context,
             engine.swapchain.format,
-            engine.swapchain.size,
-            engine.num_frames,
+            engine.get_resolution(),
+            engine.get_num_frames_in_flight(),
             profile_scopes,
             &mut gui.renderer,
         )?)
@@ -180,8 +179,8 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     #[cfg(any(feature="fence", feature="render_example"))]
     let renderer = CSGRenderer::new(
         &engine.context,
-        engine.swapchain.size,
-        engine.num_frames,
+        engine.get_resolution(),
+        engine.get_num_frames_in_flight(),
         &data_controller,
         &color_controller,
         &profiler,
@@ -219,7 +218,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     #[cfg(feature="tree64")]
     let tree64: VoxelTree64 = grid.into();
     #[cfg(feature="tree64")]
-    let tree_renderer = Tree64Renderer::new(&engine.context, engine.swapchain.size, engine.num_frames, tree64, &logic_state.camera)?;
+    let tree_renderer = Tree64Renderer::new(&engine.context, engine.swapchain.size, tree64, &logic_state.camera)?;
 
     Ok(RenderState {
         gui,
@@ -276,7 +275,7 @@ pub fn update(
             .profiler
             .as_mut()
             .unwrap()
-            .update(frame_index, &engine.context)?;
+            .update(engine.get_current_in_flight_frame_index(), &engine.context)?;
     }
 
     #[cfg(feature="fence")]
@@ -307,11 +306,11 @@ pub fn record_render_commands(
     #[cfg(any(feature="fence", feature="render_example"))]
     render_state
         .renderer
-        .render(command_buffer, image_index, &engine.swapchain)?;
+        .render(command_buffer, engine.get_current_in_flight_frame_index(), &engine.swapchain)?;
 
 
     #[cfg(feature="tree64")]
-    render_state.renderer.render(command_buffer, image_index, &engine.swapchain, &logic_state.camera)?;
+    render_state.renderer.render(command_buffer, &engine.swapchain, engine.in_flight_frames.current_index)?;
 
     command_buffer.begin_rendering(
         &engine.get_current_swapchain_image_and_view().view,
@@ -377,7 +376,7 @@ pub fn on_recreate_swapchain(
     #[cfg(any(feature="fence", feature="render_example"))]
     render_state.renderer.on_recreate_swapchain(
         &engine.context,
-        engine.num_frames,
+        engine.get_num_frames_in_flight(),
         engine.swapchain.size,
     )?;
 
@@ -399,7 +398,7 @@ pub fn on_recreate_swapchain(
         .renderer
             .on_recreate_swapchain(
                 &engine.context,
-                engine.num_frames,
+                engine.swapchain.images_and_views.len(),
                 engine.swapchain.size,
             )?;
 

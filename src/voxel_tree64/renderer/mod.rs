@@ -2,6 +2,7 @@ pub mod render_data;
 pub mod voxel_tree64_buffer;
 pub mod palette;
 pub mod g_buffer;
+pub mod frame_perf_stats;
 
 use std::time::Duration;
 
