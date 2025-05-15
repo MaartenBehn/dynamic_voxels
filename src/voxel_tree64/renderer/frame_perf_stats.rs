@@ -15,7 +15,7 @@ pub enum Key {
 
 #[derive(Debug)]
 pub struct FramePerfStats {
-    buffer: Buffer
+    pub buffer: Buffer
 }
 
 #[derive(Debug)]

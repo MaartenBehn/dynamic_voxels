@@ -6,12 +6,14 @@ pub mod frame_perf_stats;
 
 use std::time::Duration;
 
-use g_buffer::GBuffer;
+use frame_perf_stats::FramePerfStats;
+use g_buffer::{GBuffer, ImageAndViewAndHandle};
 use octa_force::anyhow::Result;
 use octa_force::camera::Camera;
 use octa_force::glam::{UVec2, Vec3};
+use octa_force::image::ImageReader;
 use octa_force::log::info;
-use octa_force::vulkan::ash::vk::{self, BufferDeviceAddressInfo, PushConstantRange, ShaderStageFlags};
+use octa_force::vulkan::ash::vk::{self, BufferDeviceAddressInfo, Format, PushConstantRange, ShaderStageFlags};
 use octa_force::vulkan::descriptor_heap::DescriptorHeap;
 use octa_force::vulkan::gpu_allocator::MemoryLocation;
 use octa_force::vulkan::sampler_pool::{SamplerPool, SamplerSetHandle};
@@ -36,6 +38,7 @@ pub struct DispatchParams {
     tree: VoxelTreeData,
     g_buffer_ptr: u64,
     palette_ptr: u64,
+    perf_stats_ptr: u64,
     max_bounces: u32,
 }
 
@@ -54,6 +57,10 @@ pub struct Tree64Renderer {
     push_constant_range: PushConstantRange,
     pipeline_layout: PipelineLayout,
     pipeline: ComputePipeline,
+
+    perf_stats: FramePerfStats,
+
+    blue_noise_tex: ImageAndViewAndHandle,
 }
 
 impl Tree64Renderer {
@@ -80,6 +87,18 @@ impl Tree64Renderer {
         ])?;
 
         let g_buffer = GBuffer::new(context, res, &mut descriptor_heap, camera)?;
+
+        let perf_stats = FramePerfStats::new(context)?;
+
+        let img = ImageReader::open("assets/stbn_vec2_2Dx1D_128x128x64_combined.png")?.decode()?;
+        let blue_noise_tex = context.create_texture_image_from_data(
+            Format::R8G8_UINT, UVec2 { x: img.width(), y: img.height() }, img.as_bytes())?;
+
+        let blue_noise_handle = descriptor_heap.create_image_handle(
+            &blue_noise_tex.view, 
+            vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC)?;
+        let blue_noise_tex = ImageAndViewAndHandle { image: blue_noise_tex.image, view: blue_noise_tex.view, handle: blue_noise_handle };
+
 
         let mut sampler_pool = context.create_sampler_pool(1)?; 
         let sampler_set_handle = sampler_pool.get_set(
@@ -122,6 +141,9 @@ impl Tree64Renderer {
             push_constant_range,
             pipeline_layout,
             pipeline,
+
+            perf_stats,
+            blue_noise_tex,
         })
     }
 
@@ -150,6 +172,7 @@ impl Tree64Renderer {
             tree: self.voxel_tree64_buffer.get_data(),
             g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
             palette_ptr: self.palette.buffer.get_device_address(),
+            perf_stats_ptr: self.perf_stats.buffer.get_device_address(),
             max_bounces: 0,
         };
 

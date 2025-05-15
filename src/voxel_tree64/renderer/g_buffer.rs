@@ -1,6 +1,6 @@
 use std::iter;
 
-use octa_force::{camera::Camera, glam::{IVec3, Mat4, UVec2, Vec3}, vulkan::{ash::vk, descriptor_heap::{self, DescriptorHandle, DescriptorHandleValue, DescriptorHeap}, gpu_allocator::MemoryLocation, Buffer, Context, Image, ImageAndView, ImageView}, OctaResult};
+use octa_force::{camera::Camera, glam::{IVec3, Mat4, UVec2, Vec3}, log::debug, vulkan::{ash::vk, descriptor_heap::{self, DescriptorHandle, DescriptorHandleValue, DescriptorHeap}, gpu_allocator::MemoryLocation, physical_device::PhysicalDeviceCapabilities, Buffer, Context, Image, ImageAndView, ImageView}, OctaResult};
 
 use crate::NUM_FRAMES_IN_FLIGHT;
 
@@ -55,9 +55,13 @@ pub struct GBufferUniform {
 
 impl GBuffer {
     pub fn new(context: &Context, res: UVec2, descriptor_heap: &mut DescriptorHeap, camera: &Camera) -> OctaResult<Self> {
+
+        debug!("Supported Image Formats: {:?}", context.physical_device.supported_image_formats);
+        debug!("Supported Depth Formats: {:?}", context.physical_device.supported_depth_formats);
+
         let base_flags = vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC;
 
-        let mut create_image = |format: vk::Format, usage: vk::ImageUsageFlags, depth: bool|
+        let mut create_image = |format: vk::Format, usage: vk::ImageUsageFlags|
             -> OctaResult<ImageAndViewAndHandle> { 
             let image = context.create_image(
                 base_flags | usage, 
@@ -65,7 +69,7 @@ impl GBuffer {
                 format, 
                 res.x, res.y)?;
 
-            let view = image.create_image_view(depth)?;
+            let view = image.create_image_view(false)?;
             
             let handle = descriptor_heap.create_image_handle(&view, base_flags | usage)?;
 
@@ -77,26 +81,26 @@ impl GBuffer {
         };
 
         let history_len_tex =  create_image(
-            vk::Format::R8_UINT, vk::ImageUsageFlags::empty(), false)?;
+            vk::Format::R8_UINT, vk::ImageUsageFlags::empty())?;
          
-        let mut create_images = |format: vk::Format, usage: vk::ImageUsageFlags, depth: bool|
+        let mut create_images = |format: vk::Format, usage: vk::ImageUsageFlags|
             -> OctaResult<[ImageAndViewAndHandle; NUM_FRAMES_IN_FLIGHT]> {
-            Ok([create_image(format, usage, depth)?, create_image(format, usage, depth)?])
+            Ok([create_image(format, usage)?, create_image(format, usage)?])
         };
        
         let albedo_tex =  create_images(
-            vk::Format::R8G8B8A8_UNORM, vk::ImageUsageFlags::COLOR_ATTACHMENT, false)?;
+            vk::Format::R8G8B8A8_UNORM, vk::ImageUsageFlags::COLOR_ATTACHMENT)?;
         
         let irradiance_tex =  create_images(
-            vk::Format::R16G16B16_SFLOAT, vk::ImageUsageFlags::empty(), false)?;
+            vk::Format::R8G8B8A8_UNORM, vk::ImageUsageFlags::empty())?;
         //let temp_irradiance_tex =  create_image(
         //    vk::Format::R16G16B16_SFLOAT, vk::ImageUsageFlags::empty(), false)?;
         
         let depth_tex =  create_images(
-            vk::Format::R32_SFLOAT, vk::ImageUsageFlags::empty(), true)?;
+            vk::Format::R32_SFLOAT, vk::ImageUsageFlags::empty())?;
         
         let moments_tex =  create_images(
-            vk::Format::R16G16_SFLOAT, vk::ImageUsageFlags::empty(), false)?; 
+            vk::Format::R16G16_SFLOAT, vk::ImageUsageFlags::empty())?; 
 
         let uniform_buffer = context.create_buffer(
             vk::BufferUsageFlags::UNIFORM_BUFFER | vk::BufferUsageFlags::TRANSFER_DST, 

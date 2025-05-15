@@ -19,7 +19,6 @@ public struct DispatchParams {
 
   uint MaxBounces;
   TextureHandle2D<uint2> StbnTexture;
-  TextureHandleCube<float3> SkyTexture;
 };
 
 [vk::push_constant] DispatchParams pc;
@@ -114,5 +113,6 @@ public SamplerState g_LinearSampler;
 float3 GetSkyColor(float3 dir, bool isPrimary) {
     // return float3(0, 0, 1);
     // For light bounces, sample smaller mips to maybe improve cache coherency.
-    return pc.SkyTexture.Instance.SampleLevel(g_LinearSampler, dir, isPrimary ? 0 : 3) * (isPrimary?1:4);
+    return dir;
+    //return pc.SkyTexture.Instance.SampleLevel(g_LinearSampler, dir, isPrimary ? 0 : 3) * (isPrimary?1:4);
 }
