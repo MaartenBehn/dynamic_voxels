@@ -77,11 +77,11 @@ impl Tree64Renderer {
 
         let mut descriptor_heap = context.create_descriptor_heap(vec![
             vk::DescriptorPoolSize {
-                ty: vk::DescriptorType::STORAGE_IMAGE,
+                ty: vk::DescriptorType::SAMPLED_IMAGE,
                 descriptor_count: 10,
             },
             vk::DescriptorPoolSize {
-                ty: vk::DescriptorType::SAMPLED_IMAGE,
+                ty: vk::DescriptorType::STORAGE_IMAGE,
                 descriptor_count: 10,
             },
         ])?;
@@ -96,7 +96,7 @@ impl Tree64Renderer {
 
         let blue_noise_handle = descriptor_heap.create_image_handle(
             &blue_noise_tex.view, 
-            vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC)?;
+            vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC)?;
         let blue_noise_tex = ImageAndViewAndHandle { image: blue_noise_tex.image, view: blue_noise_tex.view, handle: blue_noise_handle };
 
 
@@ -197,6 +197,7 @@ impl Tree64Renderer {
         num_frames: usize,
         res: UVec2,
     ) -> Result<()> {
+        self.g_buffer.on_recreate_swapchain(context, res, &mut self.descriptor_heap)?;
 
         Ok(())
     }

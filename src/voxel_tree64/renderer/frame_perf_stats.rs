@@ -28,7 +28,7 @@ impl FramePerfStats {
     pub fn new(context: &Context) -> OctaResult<Self> {
         
         let buffer = context.create_buffer(
-            vk::BufferUsageFlags::UNIFORM_BUFFER,
+            vk::BufferUsageFlags::UNIFORM_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS,
             octa_force::vulkan::gpu_allocator::MemoryLocation::GpuToCpu,
             size_of::<FramePerfStatsData>() as _
         )?;
