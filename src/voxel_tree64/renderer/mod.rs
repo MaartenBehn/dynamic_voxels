@@ -78,11 +78,11 @@ impl Tree64Renderer {
         let mut descriptor_heap = context.create_descriptor_heap(vec![
             vk::DescriptorPoolSize {
                 ty: vk::DescriptorType::SAMPLED_IMAGE,
-                descriptor_count: 10,
+                descriptor_count: 100,
             },
             vk::DescriptorPoolSize {
                 ty: vk::DescriptorType::STORAGE_IMAGE,
-                descriptor_count: 10,
+                descriptor_count: 100,
             },
         ])?;
 

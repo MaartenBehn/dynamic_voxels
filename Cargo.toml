@@ -21,6 +21,7 @@ crate-type = ["rlib", "dylib"]
 fence = []
 render_example = []
 tree64 = []
+islands = []
 
 [dependencies]
 shaders = { path="./shaders/" }

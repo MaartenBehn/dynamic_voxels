@@ -6,7 +6,7 @@ use octa_force::{controls::Controls, egui, log::debug, OctaResult};
 
 use crate::{model_synthesis::{builder::{BU, IT}, collapse::{CollapseNode, CollapseNodeKey, Collapser}, collapser_data::CollapserData}, slot_map_csg_tree::tree::SlotMapCSGTreeKey, vec_csg_tree::tree::VecCSGTree, volume::Volume};
 
-type UserState<I: IT> = CollapserData<I, SlotMapCSGTreeKey>;
+type UserState<I> = CollapserData<I, SlotMapCSGTreeKey>;
 
 const SHOW_COOLDOWN_TIME: f32 = 0.2;
 
@@ -146,7 +146,7 @@ where
 }
 
 /// Main graph editor type
-type MyEditorState<I: IT> = GraphEditorState<
+type MyEditorState<I> = GraphEditorState<
 NodeData<I>,
 DataType,
 ValueType<I>,
