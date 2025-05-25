@@ -22,6 +22,7 @@ use csg_renderer::color_controller::ColorController;
 use csg_renderer::data_controller::DataController;
 use csg_renderer::CSGRenderer;
 use model_debug_renderer::ModelDebugRenderer;
+use model_example::fence;
 use model_synthesis::collapser_data::CollapserData;
 use model_synthesis::template::TemplateTree;
 use octa_force::engine::Engine;
@@ -132,7 +133,7 @@ pub struct RenderState {
     pub state_saver: StateSaver<FenceState>,
     
     #[cfg(feature="fence")]
-    pub model_renderer: ModelDebugRenderer,
+    pub model_renderer: ModelDebugRenderer<fence::Identifier>,
     
     #[cfg(feature="tree64")]
     pub renderer: Tree64Renderer, 

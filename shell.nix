@@ -44,7 +44,7 @@ in pkgs.mkShell {
   RUSTC_VERSION = rustc_version;
   RUSTUP_TOOLCHAIN="${rustc_version}-x86_64-unknown-linux-gnu";
     #CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS = "[\"-C\", \"link-arg=--ld-path=${pkgs.mold}/bin/mold\"]";
-  RUST_FEATURES = "tree64";
+  RUST_FEATURES = "fence";
 
   packages = with pkgs; [
     rustup

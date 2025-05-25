@@ -26,16 +26,16 @@ islands = []
 [dependencies]
 shaders = { path="./shaders/" }
 
-octa-force = { path = "../octa-force-rs" }
-# octa-force = { version = "0.3.1", git = "https://github.com/MaartenBehn/octa-force-rs" }
+# octa-force = { path = "../octa-force-rs" }
+octa-force = { version = "0.3.2", git = "https://github.com/MaartenBehn/octa-force-rs" }
 fastrand = "2.2.0"
 
 simple-easing = "1.0.1"
 
 feistel-permutation-rs = { git="https://github.com/MaartenBehn/permutation-rs.git", version = "0.1.5"}
 kiddo = "5.0.3"
-fast_poisson = { path="../fast_poisson", features = ["single_precision"]}
-#fast_poisson = { git="https://github.com/MaartenBehn/fast_poisson.git", version = "1.0.3", features = ["single_precision"]}
+# fast_poisson = { path="../fast_poisson", features = ["single_precision"]}
+fast_poisson = { git="https://github.com/MaartenBehn/fast_poisson.git", version = "1.0.3", features = ["single_precision"]}
 
 # Graphs
 egui_node_graph2 = { git="https://github.com/trevyn/egui_node_graph2.git", version="0.7" }

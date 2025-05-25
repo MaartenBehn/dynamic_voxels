@@ -2,7 +2,7 @@
 .idea
 *.spv
 *.log
-Cargo.lock
 .direnv
 .envrc
 strace.out
+/result
