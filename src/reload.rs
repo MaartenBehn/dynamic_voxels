@@ -22,7 +22,6 @@ use csg_renderer::color_controller::ColorController;
 use csg_renderer::data_controller::DataController;
 use csg_renderer::CSGRenderer;
 use model_debug_renderer::ModelDebugRenderer;
-use model_example::fence;
 use model_synthesis::collapser_data::CollapserData;
 use model_synthesis::template::TemplateTree;
 use octa_force::engine::Engine;
@@ -52,7 +51,7 @@ use std::{default, env};
 use model_synthesis::builder::{BuilderAmmount, ModelSynthesisBuilder, IT};
 
 #[cfg(feature="fence")]
-use model_example::fence::FenceState;
+use model_example::fence::{self, FenceState};
 
 pub const USE_PROFILE: bool = false;
 pub const NUM_FRAMES_IN_FLIGHT: usize = 2;

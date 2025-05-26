@@ -1,6 +1,8 @@
 { mkEnv, lib, ... } :{
-  mkCrate = cross@{ craneLib, buildPackageAttrs, file_filter, pkgsCross, ... }: 
-    craneLib.buildPackage (buildPackageAttrs // (mkEnv cross) // rec {
+  mkCrate = cross@{ craneLib, buildPackageAttrs, file_filter, pkgsCross, ... }:
+    let 
+      env = mkEnv cross;
+    in craneLib.buildPackage (buildPackageAttrs // env // rec {
       src = lib.cleanSourceWith {
         src = ./..; # The original, unfiltered source
         filter = file_filter;
@@ -8,7 +10,7 @@
       };
       strictDeps = true;
       doCheck = false;
-      cargoExtraArgs = "--features fence"; 
+      cargoExtraArgs = "--features ${env.RUST_FEATURES}"; 
 
       # Required because ring crate is special. This also seems to have
       # fixed some issues with the x86_64-windows cross-compile :shrug:

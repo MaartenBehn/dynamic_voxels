@@ -26,11 +26,13 @@ public struct Material {
             return color * color;  // srgb gamma hack
         }
     }
+   
     public property float Emission {
         get {
-            return f16tof32(Data.x >> 16);
+            return float(Data.x >> 16);
         }
     }
+  
     public property float MetalFuzziness {
         get {
             return (Data.y & 255) / 255.0;

@@ -3,7 +3,7 @@
 
 #extension GL_EXT_scalar_block_layout : require
 
-layout(binding = 0, rgba8) uniform writeonly image2D img;
+layout(binding = 0) uniform writeonly image2D img;
 
 layout(binding = 1, std430) uniform UniformBufferObject {
     vec4 pos; // w is screen_size_x

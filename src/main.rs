@@ -53,7 +53,7 @@ fn main() {
             "runtimeDescriptorArray".to_string(),
             "shaderBufferInt64Atomics".to_string(),
             "shaderInt16".to_string(),
-            //"shaderFloat16".to_string(),
+            "shaderFloat16".to_string(),
         ],
 
         hot_reload_config: None, /*Some(HotReloadConfig {
