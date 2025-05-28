@@ -1,43 +1,42 @@
-use std::iter;
+use std::{iter, ops::RangeBounds};
 
 use feistel_permutation_rs::{DefaultBuildHasher, Permutation};
 use octa_force::glam::Vec3;
 
 use crate::{model_synthesis::relative_path::RelativePathTree, volume::Volume};
 
-use super::builder::{BuilderAmmount, BuilderNode, ModelSynthesisBuilder, IT};
+use super::{builder::{BuilderAmmount, BuilderNode, ModelSynthesisBuilder, IT}, pos_set::PositionSet};
 
 pub type TemplateIndex = usize;
 pub const TEMPLATE_INDEX_ROOT: TemplateIndex = 0;
 pub const AMMOUNT_PATH_INDEX: usize = 0;
 
 #[derive(Debug, Clone)]
-pub struct TemplateTree<I: IT, V: Volume> {
-    pub nodes: Vec<TemplateNode<I, V>> 
+pub struct TemplateTree<I: IT> {
+    pub nodes: Vec<TemplateNode<I>> 
 }
 
 #[derive(Debug, Clone)]
-pub enum NodeTemplateValue<V: Volume> {
+pub enum NodeTemplateValue {
     Groupe {},
+    NumberRangeHook,
     NumberRange {
         min: i32,
         max: i32,
         permutation: Permutation<DefaultBuildHasher>,
     }, 
-    Grid {
-        boundary: V,
-        spacing: Vec3,
-        points: Vec<Vec3>,
-    },
-    Pos {},
+    PosSetHook,
+    PosSet(PositionSet),
+    PosHook,
+    Pos { value: Vec3 },
     BuildHook {}
 }
 
 #[derive(Debug, Clone)]
-pub struct TemplateNode<I: IT, V: Volume> {
+pub struct TemplateNode<I: IT> {
     pub identifier: I,
     pub index: TemplateIndex,
-    pub value: NodeTemplateValue<V>,
+    pub value: NodeTemplateValue,
     pub depends: Vec<TemplateIndex>,
     pub dependend: Vec<TemplateIndex>,
     pub knows: Vec<TemplateIndex>,
@@ -58,8 +57,8 @@ pub enum TemplateAmmountType{
     Value,
 }
 
-impl<I: IT, V: Volume> TemplateTree<I, V> {
-    pub fn new_from_builder(builder: &ModelSynthesisBuilder<I, V>) -> TemplateTree<I, V> {
+impl<I: IT> TemplateTree<I> {
+    pub fn new_from_builder(builder: &ModelSynthesisBuilder<I>) -> TemplateTree<I> {
         let mut nodes = vec![TemplateNode { 
             identifier: I::default(),
             index: 0,
@@ -169,7 +168,7 @@ impl<I: IT, V: Volume> TemplateTree<I, V> {
         node_level
     } 
 
-    fn get_ammount_type_and_defines_index(builder: &ModelSynthesisBuilder<I, V>, builder_node: &BuilderNode<I, V>, nodes: &[TemplateNode<I, V>]) -> (TemplateAmmountType, usize) {
+    fn get_ammount_type_and_defines_index(builder: &ModelSynthesisBuilder<I>, builder_node: &BuilderNode<I>, nodes: &[TemplateNode<I>]) -> (TemplateAmmountType, usize) {
         match builder_node.ammount {
             BuilderAmmount::OneGlobal => (TemplateAmmountType::N(1), 0), 
             BuilderAmmount::OnePer(i) => (TemplateAmmountType::N(1), builder.get_node_index_by_identifier(i) + 1),
@@ -180,12 +179,25 @@ impl<I: IT, V: Volume> TemplateTree<I, V> {
     }
 }
 
-impl<V: Volume> NodeTemplateValue<V> {
-    pub fn new_group() -> NodeTemplateValue<V> {
+impl NodeTemplateValue {
+    pub fn new_group() -> NodeTemplateValue {
         NodeTemplateValue::Groupe {}
     }
 
-    pub fn new_number_range(min: i32, max: i32) -> NodeTemplateValue<V> {
+    pub fn new_number_range<R: RangeBounds<i32>>(range: R) -> NodeTemplateValue {
+        
+        let min = match range.start_bound() {
+            std::ops::Bound::Included(&num) => num,
+            std::ops::Bound::Excluded(&num) => num + 1,
+            std::ops::Bound::Unbounded => i32::MIN,
+        };
+
+        let max = match range.end_bound() {
+            std::ops::Bound::Included(&num) => num + 1,
+            std::ops::Bound::Excluded(&num) => num,
+            std::ops::Bound::Unbounded => i32::MAX,
+        };
+
         let seed = fastrand::u64(0..1000);
         NodeTemplateValue::NumberRange {
             min,
@@ -194,10 +206,11 @@ impl<V: Volume> NodeTemplateValue<V> {
         }
     }
 
-    pub fn new_pos() -> NodeTemplateValue<V> {
-        NodeTemplateValue::Pos {}
+    pub fn new_pos( value: Vec3 ) -> NodeTemplateValue {
+        NodeTemplateValue::Pos { value }
     }
 
+    /*
     pub fn new_grid(mut boundary: V, spacing: Vec3) -> NodeTemplateValue<V> {
         let aabb = boundary.get_aabb();
 
@@ -219,8 +232,9 @@ impl<V: Volume> NodeTemplateValue<V> {
 
         NodeTemplateValue::Grid { boundary, spacing, points }
     }
+    */
 
-    pub fn new_build() -> NodeTemplateValue<V> {
+    pub fn new_build() -> NodeTemplateValue {
         NodeTemplateValue::BuildHook {}
     }
 }

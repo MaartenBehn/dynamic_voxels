@@ -7,7 +7,7 @@ use super::{builder::{BU, IT}, collapse::{CollapseNodeKey, Collapser}};
 
 
 
-impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
+impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
 
     pub fn reset_node(&mut self, node_index: CollapseNodeKey) -> OctaResult<()> {
         let node = self.get_node_ref_from_node_index(node_index)?;

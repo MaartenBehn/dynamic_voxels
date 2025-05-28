@@ -7,7 +7,7 @@ use crate::volume::Volume;
 use super::{builder::{BU, IT}, collapse::{CollapseNodeKey, Collapser, CollapseNode, NodeDataType, NodeOperation}, template::{TemplateNode, TemplateTree}};
 
 
-impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
+impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
 
     pub fn insert_opperation(&mut self, opperation: NodeOperation) {
         let res = self.pending_operations.binary_search(&opperation);
@@ -49,15 +49,15 @@ impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
         nodes.get_mut(node_index).ok_or(anyhow!("Node index invalid!"))
     }
 
-    pub fn get_template_from_node_ref(&self, node: &CollapseNode<I, U>) -> &'a TemplateNode<I, V> {
+    pub fn get_template_from_node_ref(&self, node: &CollapseNode<I, U>) -> &'a TemplateNode<I> {
         &self.template.nodes[node.template_index]
     }
 
-    pub fn get_template_from_node_ref_unpacked(template: &'a TemplateTree<I, V>, node: &CollapseNode<I, U>) -> &'a TemplateNode<I, V> {
+    pub fn get_template_from_node_ref_unpacked(template: &'a TemplateTree<I>, node: &CollapseNode<I, U>) -> &'a TemplateNode<I> {
         &template.nodes[node.template_index]
     }
 
-    pub fn get_template_from_node_index(&self, node_index: CollapseNodeKey) -> &'a TemplateNode<I, V> {
+    pub fn get_template_from_node_index(&self, node_index: CollapseNodeKey) -> &'a TemplateNode<I> {
         &(self.template.nodes[self.nodes[node_index].template_index])
     }
 

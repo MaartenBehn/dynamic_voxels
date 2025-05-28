@@ -6,3 +6,4 @@ pub mod template;
 pub mod add_nodes;
 pub mod reset_nodes;
 pub mod collapser_data;
+pub mod pos_set;

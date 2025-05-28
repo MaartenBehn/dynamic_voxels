@@ -3,16 +3,16 @@ use octa_force::glam::Vec3;
 
 use std::{fmt::Debug, iter, marker::PhantomData, ops::RangeBounds};
 
-use crate::{vec_csg_tree::tree::VecCSGNode, volume::Volume};
+use crate::{vec_csg_tree::tree::VecCSGNode};
 
-use super::{collapse::CollapseNode, relative_path::{self, RelativePathTree}, template::{NodeTemplateValue, TemplateTree}};
+use super::{collapse::CollapseNode, pos_set::PositionSet, relative_path::{self, RelativePathTree}, template::{NodeTemplateValue, TemplateTree}};
 
 pub trait IT: Debug + Copy + Eq + Default {}
 pub trait BU: Debug + Copy + Default {}
 
 #[derive(Debug, Clone)]
-pub struct ModelSynthesisBuilder<I: IT, V: Volume> {
-    pub nodes: Vec<BuilderNode<I, V>>,
+pub struct ModelSynthesisBuilder<I: IT> {
+    pub nodes: Vec<BuilderNode<I>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -23,24 +23,32 @@ pub enum BuilderAmmount<I: IT>{
     DefinedBy(I),
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum BuilderValue<I: IT, T>{
+    Const(T),
+    Hook,
+    DefinedBy(I),
+}
+
 #[derive(Debug, Clone)]
-pub struct BuilderNode<I: IT, V: Volume> {
+pub struct BuilderNode<I: IT> {
     pub identifier: I,
-    pub value: NodeTemplateValue<V>,
+    pub value: NodeTemplateValue,
     pub depends: Vec<I>,
     pub knows: Vec<I>,
     pub ammount: BuilderAmmount<I>,
 }
 
 #[derive(Debug, Clone)]
-pub struct NodeBuilder<I: IT> {
+pub struct NodeBuilder<I: IT, T> {
     pub depends: Vec<I>,
     pub knows: Vec<I>,
     pub ammount: BuilderAmmount<I>,
+    pub value: BuilderValue<I, T> 
 }
 
-impl<I: IT, V: Volume> ModelSynthesisBuilder<I, V> {
-    pub fn new() -> ModelSynthesisBuilder<I, V> {
+impl<I: IT> ModelSynthesisBuilder<I> {
+    pub fn new() -> ModelSynthesisBuilder<I> {
         ModelSynthesisBuilder {
             nodes: vec![],
         }
@@ -49,15 +57,21 @@ impl<I: IT, V: Volume> ModelSynthesisBuilder<I, V> {
     pub fn groupe(
         mut self,
         identifier: I,
-        b: fn(NodeBuilder<I>) -> NodeBuilder<I>
+        b: fn(NodeBuilder<I, ()>) -> NodeBuilder<I, ()>
     ) -> Self {
         let mut builder = NodeBuilder {
             depends: vec![],
             knows: vec![],
-            ammount: BuilderAmmount::OneGlobal
+            ammount: BuilderAmmount::OneGlobal,
+            value: BuilderValue::Const(())
         };
 
         builder = b(builder);
+
+        assert!(
+            matches!(builder.value, BuilderValue::Const(())), 
+            "Groupe Value only supports: Const(())"
+        );
 
         let node = BuilderNode {
             value: NodeTemplateValue::new_group(),
@@ -74,59 +88,54 @@ impl<I: IT, V: Volume> ModelSynthesisBuilder<I, V> {
     pub fn number_range<R: RangeBounds<i32>>(
         mut self,
         identifier: I,
-        range: R,
-        b: fn(NodeBuilder<I>) -> NodeBuilder<I>
+        b: fn(NodeBuilder<I, R>) -> NodeBuilder<I, R>
     ) -> Self {
         let mut builder = NodeBuilder {
             depends: vec![],
             knows: vec![],
-            ammount: BuilderAmmount::OneGlobal
+            ammount: BuilderAmmount::OneGlobal,
+            value: BuilderValue::Hook
         };
 
         builder = b(builder);
 
-        let start_bound = match range.start_bound() {
-            std::ops::Bound::Included(&num) => num,
-            std::ops::Bound::Excluded(&num) => num + 1,
-            std::ops::Bound::Unbounded => 0,
-        };
-
-        let end_bound = match range.end_bound() {
-            std::ops::Bound::Included(&num) => num + 1,
-            std::ops::Bound::Excluded(&num) => num,
-            std::ops::Bound::Unbounded => panic!("Range can not be unbounded"),
-        };
-
         let node = BuilderNode {
-            value: NodeTemplateValue::new_number_range(start_bound, end_bound),
+            value: match builder.value {
+                BuilderValue::Const(r) => NodeTemplateValue::new_number_range(r),
+                BuilderValue::Hook => NodeTemplateValue::NumberRangeHook,
+                _ => panic!("NumberRange Value only supports: Const(<Range>) and Hook") 
+            },
             identifier,
             depends: builder.depends,
             knows: builder.knows,
             ammount: builder.ammount,
         };
-        
+
         self.nodes.push(node);
         
         self
     }
 
-    pub fn grid(
+    pub fn position_set(
         mut self,
         identifier: I,
-        boundary: V,
-        spacing: Vec3,
-        b: fn(NodeBuilder<I>) -> NodeBuilder<I>
+        b: fn(NodeBuilder<I, PositionSet>) -> NodeBuilder<I, PositionSet>
     ) -> Self {
         let mut builder = NodeBuilder {
             depends: vec![],
             knows: vec![],
-            ammount: BuilderAmmount::OneGlobal
+            ammount: BuilderAmmount::OneGlobal,
+            value: BuilderValue::Hook
         };
 
         builder = b(builder);
 
         let node = BuilderNode {
-            value: NodeTemplateValue::new_grid(boundary, spacing),
+            value: match builder.value {
+                BuilderValue::Const(s) => NodeTemplateValue::PosSet(s),
+                BuilderValue::Hook => NodeTemplateValue::PosHook,
+                _ => panic!("Position Set Value only supports: Const and Hook"),
+            },
             identifier,
             depends: builder.depends,
             knows: builder.knows,
@@ -141,18 +150,23 @@ impl<I: IT, V: Volume> ModelSynthesisBuilder<I, V> {
     pub fn pos(
         mut self,
         identifier: I,
-        b: fn(NodeBuilder<I>) -> NodeBuilder<I>
+        b: fn(NodeBuilder<I, Vec3>) -> NodeBuilder<I, Vec3>
     ) -> Self {
         let mut builder = NodeBuilder {
             depends: vec![],
             knows: vec![],
-            ammount: BuilderAmmount::OneGlobal
+            ammount: BuilderAmmount::OneGlobal,
+            value: BuilderValue::Hook
         };
 
         builder = b(builder);
 
         let node = BuilderNode {
-            value: NodeTemplateValue::new_pos(),
+            value: match builder.value {
+                BuilderValue::Const(v) =>  NodeTemplateValue::new_pos(v),
+                BuilderValue::Hook => NodeTemplateValue::PosHook,
+                _ => panic!("Pos Value only supports: Const(<Range>) and Hook"),
+            },             
             identifier,
             depends: builder.depends,
             knows: builder.knows,
@@ -167,18 +181,22 @@ impl<I: IT, V: Volume> ModelSynthesisBuilder<I, V> {
     pub fn build(
         mut self, 
         identifier: I,
-        b: fn(NodeBuilder<I>) -> NodeBuilder<I>
+        b: fn(NodeBuilder<I, ()>) -> NodeBuilder<I, ()>
     ) -> Self {
         let mut builder = NodeBuilder {
             depends: vec![],
             knows: vec![],
-            ammount: BuilderAmmount::OneGlobal
+            ammount: BuilderAmmount::OneGlobal,
+            value: BuilderValue::Hook,
         };
 
         builder = b(builder);
 
         let node = BuilderNode {
-            value: NodeTemplateValue::new_build(),
+            value: match builder.value {
+                BuilderValue::Hook => NodeTemplateValue::new_build(),
+                _ => panic!("Build Value only supports: Hook"),
+            },            
             identifier,
             depends: builder.depends, 
             knows: builder.knows, 
@@ -193,7 +211,7 @@ impl<I: IT, V: Volume> ModelSynthesisBuilder<I, V> {
     
 }
 
-impl<I: IT> NodeBuilder<I> {
+impl<I: IT, T> NodeBuilder<I, T> {
 
     pub fn ammount(mut self, ammount: BuilderAmmount<I>) -> Self {
         self.ammount = ammount;
@@ -209,19 +227,26 @@ impl<I: IT> NodeBuilder<I> {
         self.knows.push(identifier);
         self
     }
+
+    pub fn value(mut self, v: BuilderValue<I, T>) -> Self {
+        self.value = v;
+        self
+    }
 }
 
-impl<I: IT, V: Volume> ModelSynthesisBuilder<I, V> {
+impl<I: IT> ModelSynthesisBuilder<I> {
     pub fn get_node_index_by_identifier(&self, identifier: I) -> usize {
-        self.nodes.iter().position(|n| n.identifier == identifier).expect(&format!("No Node with Identifier {:?} found.", identifier))
+        self.nodes.iter()
+            .position(|n| n.identifier == identifier)
+            .expect(&format!("No Node with Identifier {:?} found.", identifier))
     }
 
-    pub fn build_template(&self) -> TemplateTree<I, V> {
+    pub fn build_template(&self) -> TemplateTree<I> {
         TemplateTree::new_from_builder(self)
     }
 }
 
-impl<V: Volume> NodeTemplateValue<V> {
+impl NodeTemplateValue {
     pub fn get_number_min(&self) -> i32 {
         match self {
             NodeTemplateValue::NumberRange { min, .. } => *min,

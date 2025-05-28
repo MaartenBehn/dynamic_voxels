@@ -12,7 +12,7 @@ pub struct CollapserData< I: IT, U: BU> {
 }
 
 impl<I: IT, U: BU> CollapserData<I, U> {
-    pub fn into_collapser<'a, V: Volume>(self, template: &'a TemplateTree<I, V>) -> Collapser<'a, I, U, V> {
+    pub fn into_collapser<'a>(self, template: &'a TemplateTree<I>) -> Collapser<'a, I, U> {
         Collapser { 
             template, 
             nodes: self.nodes, 
@@ -22,7 +22,7 @@ impl<I: IT, U: BU> CollapserData<I, U> {
     }
 }
 
-impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
+impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
     pub fn into_data(self) -> CollapserData<I, U> {
         CollapserData { 
             nodes: self.nodes, 
