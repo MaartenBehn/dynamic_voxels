@@ -1,5 +1,5 @@
 
-use std::{collections::HashMap, fmt::{Debug, Octal}, iter, marker::PhantomData, task::ready, usize};
+use std::{collections::HashMap, fmt::{Debug, Octal}, iter, marker::PhantomData, mem, task::ready, usize};
 
 use feistel_permutation_rs::{DefaultBuildHasher, OwnedPermutationIterator, Permutation, PermutationIterator};
 use octa_force::{anyhow::{anyhow, bail, ensure}, glam::{vec3, IVec3, Vec3}, log::{debug, error, info}, OctaResult};
@@ -13,8 +13,8 @@ use super::{builder::{BuilderNode, ModelSynthesisBuilder, BU, IT}, relative_path
 new_key_type! { pub struct CollapseNodeKey; }
 
 #[derive(Debug, Clone)]
-pub struct Collapser<'a, I: IT, U: BU, V: Volume> {
-    pub template: &'a TemplateTree<I, V>,
+pub struct Collapser<'a, I: IT, U: BU> {
+    pub template: &'a TemplateTree<I>,
     pub nodes: SlotMap<CollapseNodeKey, CollapseNode<I, U>>,
     pub pending_operations: Vec<NodeOperation>,
     pub pending_collapse_opperations: Vec<CollapseOperation<I, U>>,
@@ -50,17 +50,20 @@ pub struct CollapseNode<I: IT, U: BU> {
 #[derive(Debug, Clone)]
 pub enum NodeDataType {
     Number(NumberData),
+    PosSet(PosSetData),
     Pos(PosData),
-    Grid(GridData),
     Build,
     None,
 }
-
 
 #[derive(Debug, Clone)]
 pub struct NumberData {
     pub value: i32,
     pub perm_counter: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct PosSetData {
 }
 
 #[derive(Debug, Clone)]
@@ -89,8 +92,8 @@ pub enum CollapseOperation<I, U> {
     }
 }
 
-impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
-    pub fn next(&mut self) -> OctaResult<Option<(CollapseOperation<I, U>, &mut Collapser<'a, I, U, V>)>> { 
+impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
+    pub fn next(&mut self) -> OctaResult<Option<(CollapseOperation<I, U>, &mut Collapser<'a, I, U>)>> { 
         if let Some(collapse_opperation) = self.pending_collapse_opperations.pop() {
             Ok(Some((collapse_opperation, self)))
 
@@ -112,13 +115,20 @@ impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
 
     fn collapse_node(&mut self, node_index: CollapseNodeKey) -> OctaResult<CollapseOperation<I, U>> {
         let node = &mut self.nodes[node_index];
+        let template_node = &self.template.nodes[node.template_index]; 
         //info!("{:?} Collapse: {:?}", node_index, node.identfier);
 
         if let NodeDataType::Pos(pos_data) = &mut node.data {
-            self.push_pending_defineds(node_index);
-            return Ok(CollapseOperation::CollapsePos { 
-                index: node_index
-            });
+            match template_node.value {
+                NodeTemplateValue::Pos { value } => node.data.set_pos(value),
+                NodeTemplateValue::PosHook => {
+                    self.push_pending_defineds(node_index);
+                    return Ok(CollapseOperation::CollapsePos { 
+                        index: node_index
+                    });
+                },
+                _ => unreachable!()
+            }
         }
 
         if let NodeDataType::Build = node.data {
@@ -227,11 +237,25 @@ impl NodeDataType {
             _ => unreachable!()
         }
     } 
+
+    pub fn get_pos_mut(&mut self) -> &mut PosData {
+        match self {
+            NodeDataType::Pos(d) => d,
+            _ => unreachable!()
+        }
+    }
+
+    pub fn set_pos(&mut self, v: Vec3) {
+        match self {
+            NodeDataType::Pos(d) => d.value = v,
+            _ => unreachable!()
+        }
+    }
 }
 
 
-impl<I: IT, V: Volume> TemplateTree<I, V> {
-    pub fn get_collaper<U: BU>(&self) -> Collapser<I, U, V> {
+impl<I: IT> TemplateTree<I> {
+    pub fn get_collaper<U: BU>(&self) -> Collapser<I, U> {
         let mut collapser = Collapser{
             template: self,
             nodes: SlotMap::with_key(),

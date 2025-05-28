@@ -1,7 +1,7 @@
 
 use octa_force::{glam::{vec3, Mat4, Quat, Vec3}, log::{error, info}, OctaResult};
 
-use crate::{model_synthesis::{builder::{BuilderAmmount, ModelSynthesisBuilder, IT}, collapse::CollapseOperation, collapser_data::CollapserData, template::TemplateTree}, slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey}, state_saver::State, vec_csg_tree::tree::{VecCSGTree, VOXEL_SIZE}};
+use crate::{model_synthesis::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder, IT}, collapse::CollapseOperation, collapser_data::CollapserData, template::TemplateTree}, slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey}, state_saver::State, vec_csg_tree::tree::{VecCSGTree, VOXEL_SIZE}};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Identifier {
@@ -23,7 +23,7 @@ impl IT for Identifier {}
 
 #[derive(Clone, Debug)]
 pub struct FenceState {
-    pub template: TemplateTree<Identifier, VecCSGTree>,
+    pub template: TemplateTree<Identifier>,
     pub collapser: Option<CollapserData<Identifier, SlotMapCSGTreeKey>>,
     pub pos: Vec3,
     pub start_pos: Vec3,
@@ -32,19 +32,22 @@ pub struct FenceState {
 
 impl FenceState {
     pub fn new() -> Self {
-        let mut wfc_builder: ModelSynthesisBuilder<Identifier, VecCSGTree> = ModelSynthesisBuilder::new()
+        let mut wfc_builder: ModelSynthesisBuilder<Identifier> = ModelSynthesisBuilder::new()
             .groupe(Identifier::Fence, |b| {b})
 
-            .number_range(Identifier::PostHeight, 3..=8, |b|{b
+            .number_range(Identifier::PostHeight, |b|{b
                 .ammount(BuilderAmmount::OnePer(Identifier::Fence))
+                .value(BuilderValue::Const(3..=8))
             })
 
-            .number_range(Identifier::PostDistance, 2..=5, |b|{b
+            .number_range(Identifier::PostDistance, |b|{b
                 .ammount(BuilderAmmount::OnePer(Identifier::Fence))
+                .value(BuilderValue::Const(2..=5))
             })
 
-            .number_range(Identifier::PostNumber, 5..=10, |b|{b
+            .number_range(Identifier::PostNumber, |b|{b
                 .ammount(BuilderAmmount::OnePer(Identifier::Fence))
+                .value(BuilderValue::Const(5..=10))
             })
 
             .pos(Identifier::PostPos, |b| {b
@@ -58,12 +61,14 @@ impl FenceState {
                 .depends(Identifier::PostDistance)
             })
 
-            .number_range(Identifier::PlankNumber, 3..=4, |b|{b
+            .number_range(Identifier::PlankNumber, |b|{b
                 .ammount(BuilderAmmount::OnePer(Identifier::Fence))
+                .value(BuilderValue::Const(3..=4))
             })
 
-            .number_range(Identifier::PlankDistance, 2..=3, |b|{b
+            .number_range(Identifier::PlankDistance, |b|{b
                 .ammount(BuilderAmmount::OnePer(Identifier::Fence))
+                .value(BuilderValue::Const(2..=5))
             })
 
             .build(Identifier::FencePlanks, |b|{b

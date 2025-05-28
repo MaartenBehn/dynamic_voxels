@@ -1,154 +1,79 @@
 
 use octa_force::{glam::{vec3, Mat4, Quat, Vec3}, log::{error, info}, OctaResult};
 
-use crate::{model_synthesis::{builder::{BuilderAmmount, ModelSynthesisBuilder, IT}, collapse::CollapseOperation, collapser_data::CollapserData, template::TemplateTree}, slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey}, state_saver::State, vec_csg_tree::tree::{VecCSGTree, VOXEL_SIZE}};
+use crate::{model_synthesis::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder, IT}, collapse::CollapseOperation, collapser_data::CollapserData, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree}, slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey}, state_saver::State, vec_csg_tree::tree::{VecCSGTree, VOXEL_SIZE}};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Identifier {
     #[default]
     None,
-    Root,
-    WorldCenter,
-    WorldRadius,
-    IslandPos,
+    MinIslandDistance,
+    IslandRadius,
+    BeachWidth,
+    IslandRoot,
 }
 impl IT for Identifier {}
 
 #[derive(Clone, Debug)]
-pub struct FenceState {
-    pub template: TemplateTree<Identifier, VecCSGTree>,
-    pub collapser: Option<CollapserData<Identifier, SlotMapCSGTreeKey>>,
-    pub csg: Option<SlotMapCSGTree>,
+pub struct IslandsState {
+    pub template: TemplateTree<Identifier>,
 }
 
-impl FenceState {
+impl IslandsState {
     pub fn new() -> Self {
-        let mut wfc_builder: ModelSynthesisBuilder<Identifier, VecCSGTree> = ModelSynthesisBuilder::new()
-            .groupe(Identifier::Root, |b| {b})
+        let mut wfc_builder = ModelSynthesisBuilder::new()
+            .number_range(Identifier::MinIslandDistance, |b|{b
+                .ammount(BuilderAmmount::OneGlobal)
+                .value(BuilderValue::Const(3..=10))
+            })
 
-            .pos(identifier, b)
-        
+            .number_range(Identifier::IslandRadius, |b|{b
+                .ammount(BuilderAmmount::OneGlobal)
+                .value(BuilderValue::Const(1..=3))
+            })
+
+            .number_range(Identifier::BeachWidth, |b| {b
+                .ammount(BuilderAmmount::OneGlobal)
+                .value(BuilderValue::Const(0..=2))
+            })
+
+            .position_set(Identifier::IslandRoot, |b| {b
+                .ammount(BuilderAmmount::OneGlobal)
+                .value(BuilderValue::Const(PositionSet::new(1.0, Vec3::ZERO, PositionSetRule::Grid { spacing: 0.1 })))
+            });
+
         let template = wfc_builder.build_template();
 
-        let csg = None;
-
-        let collapser = template.get_collaper().into_data();
-
         Self {
-            collapser: Some(collapser),
             template,
-            csg,
         }
     }
 }
 
-impl State for FenceState {
+impl State for IslandsState {
     fn tick_state(&mut self) -> OctaResult<bool> {
         let mut ticked = false;
 
+        /*
         let mut collapser = self.collapser.take().unwrap().into_collapser(&self.template);
         if let Some((operation, collapser)) = collapser.next()? {
             ticked = true;
 
             match operation {
                 CollapseOperation::CollapsePos{ index  } => {
-                    let dist = collapser.get_dependend_number(index, Identifier::PostDistance);
-
-                    let pos_data = collapser.get_pos_mut(index);
-                    *pos_data = self.pos;
-
-                    info!("{:?} Pos: {}", index, self.pos);
-
-                    self.pos += Vec3::X * dist as f32;
+                                  
                 },
                 CollapseOperation::CollapseBuild{ index, identifier, .. } => {
-                    match identifier {
-                        Identifier::FencePost => {
-                            let height = collapser.get_dependend_number(index, Identifier::PostHeight);
-                            let distance = collapser.get_dependend_number(index, Identifier::PostDistance);
-                            let pos_value = collapser.get_dependend_pos(index, Identifier::PostPos);
-
-                            let pos = pos_value + Vec3::Z * (height as f32) * 0.5;
-
-                            let csg_node = SlotMapCSGNode::new(SlotMapCSGNodeData::Box(
-                                Mat4::from_scale_rotation_translation(
-                                    vec3(0.5, 0.5, height as f32) * VOXEL_SIZE, 
-                                    Quat::IDENTITY, 
-                                    pos * VOXEL_SIZE
-                                ),
-                                1,
-                            ));
-                            info!("{:?} Build: {:?}: {}", index, identifier, pos);
-
-                            let csg_index = if self.csg.is_none() {
-                                self.csg = Some(SlotMapCSGTree::from_node(csg_node));
-                                self.csg.as_ref().unwrap().root_node
-                            } else {
-                                self.csg.as_mut().unwrap().append_node_with_union(csg_node)
-                            };
-
-                            collapser.set_undo_data(index, csg_index)?;
-                        }
-                        Identifier::FencePlanks => {
-                            let plank_number = collapser.get_dependend_number(index, Identifier::PlankNumber);
-                            let plank_distance = collapser.get_dependend_number(index, Identifier::PlankDistance);
-                            let fence_height = collapser.get_dependend_number(index, Identifier::PostHeight);
-                            let post_distance = collapser.get_known_number(index, Identifier::PostDistance);
-
-                            if plank_number * plank_distance > fence_height {
-                                collapser.collapse_failed(index)?;
-                                
-                            } else {
-                                let pos = self.pos - Vec3::X * post_distance as f32;
-                                let plank_size = pos - self.start_pos;
-                                let mut plank_pos = self.start_pos + plank_size * vec3(0.5, 1.0, 1.0);
-                                let plank_scale = vec3(plank_size.x, 0.2, 0.2);
-                                
-                                for _ in 0..plank_number {
-                                    plank_pos += Vec3::Z * plank_distance as f32;
-
-                                    let mut node = SlotMapCSGNode::new(SlotMapCSGNodeData::Box(
-                                        Mat4::from_scale_rotation_translation(
-                                            plank_scale * VOXEL_SIZE, 
-                                            Quat::IDENTITY, 
-                                            plank_pos * VOXEL_SIZE
-                                        ),
-                                        1,
-                                    ));
-                                    if self.csg.is_none() {
-                                        self.csg = Some(SlotMapCSGTree::from_node(node));
-                                    } else {
-                                        self.csg.as_mut().unwrap().append_node_with_union(node);
-                                    }
-                                } 
-                            }  
-                            
-                                                    }
-                        _ => error!("Build hook on wrong type")
-                    }
+                           
                 }, 
                 CollapseOperation::Undo { identifier , undo_data} => {
                     info!("Undo {:?}", identifier);
 
-                    match identifier {
-                        Identifier::FencePost => {
-                            self.csg.as_mut().unwrap().remove_node_as_child_of_union(undo_data)?;
-                        },
-                        Identifier::PostNumber => {
-                            self.pos = vec3(1.0, 1.0, 1.0);
-                        },
-                        Identifier::PostPos => {
-                            self.pos = vec3(1.0, 1.0, 1.0);
-                        },
-                        _ => {}
-                    }
                 },
-
                 CollapseOperation::None => {},
             } 
         }
-
-        self.collapser = Some(collapser.into_data());
+        */
 
         Ok(ticked)
     }

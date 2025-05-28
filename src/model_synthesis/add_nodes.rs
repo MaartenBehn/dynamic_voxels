@@ -3,12 +3,10 @@ use std::iter;
 use octa_force::{anyhow::{anyhow, bail}, glam::Vec3, OctaResult};
 use slotmap::Key;
 
-use crate::volume::Volume;
-
-use super::{builder::{BU, IT}, collapse::{CollapseNodeKey, Collapser, GridData, CollapseNode, NodeDataType, NodeOperation, NodeOperationType, NumberData, PosData}, relative_path::LeafType, template::{NodeTemplateValue, TemplateAmmountType, TemplateIndex, TemplateNode}};
+use super::{builder::{BU, IT}, collapse::{CollapseNode, CollapseNodeKey, Collapser, GridData, NodeDataType, NodeOperation, NodeOperationType, NumberData, PosData, PosSetData}, relative_path::LeafType, template::{NodeTemplateValue, TemplateAmmountType, TemplateIndex, TemplateNode}};
 
 
-impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
+impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
 
     pub fn update_defined(&mut self, node_index: CollapseNodeKey, to_create_template_index: TemplateIndex) -> OctaResult<()> {
         let node = &self.nodes[node_index];
@@ -31,9 +29,8 @@ impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
                     NodeDataType::Number(data) => {
                         self.create_n_defined_nodes(node_index, to_create_template_index, data.value as usize)?;
                     },
-                    NodeDataType::Grid(data) => {
+                    NodeDataType::PosSet(_) => todo!(),
 
-                    },
                 }
             },
         };
@@ -61,7 +58,6 @@ impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
                 self.delete_node(child, false)?;
             }
         } 
-
         
         Ok(())
     }
@@ -194,17 +190,19 @@ impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
     ) {
         let new_node_template = &self.template.nodes[new_node_template_index];
 
-        let data = match &new_node_template.value {
+        let data = match &(&self.template.nodes[new_node_template_index]).value {
             NodeTemplateValue::Groupe { .. } => {
                 NodeDataType::None
             },
-            NodeTemplateValue::NumberRange { .. } => {
+            NodeTemplateValue::NumberRangeHook 
+            | NodeTemplateValue::NumberRange { .. } => {
                 NodeDataType::Number(NumberData {
                     value: 0,
                     perm_counter: 0,
                 })
             },
-            NodeTemplateValue::Pos { .. } => {
+            NodeTemplateValue::PosHook
+            | NodeTemplateValue::Pos { .. } => {
                 NodeDataType::Pos(PosData {
                     value: Vec3::ZERO,
                 })
@@ -212,8 +210,9 @@ impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
             NodeTemplateValue::BuildHook { .. } => {
                 NodeDataType::Build
             },
-            NodeTemplateValue::Grid { .. } => {
-                NodeDataType::Grid(GridData {
+            NodeTemplateValue::PosSetHook
+            | NodeTemplateValue::PosSet { .. } => {
+                NodeDataType::PosSet(PosSetData {
 
                 })
             }
@@ -236,7 +235,7 @@ impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
         self.push_new_node(new_node_template, depends, knows, defined_by, data)
     }
 
-    pub fn push_new_node(&mut self, new_node_template: &TemplateNode<I, V>, depends: Vec<(I, CollapseNodeKey)>, knows: Vec<(I, CollapseNodeKey)>, defined_by: CollapseNodeKey, data: NodeDataType) {
+    pub fn push_new_node(&mut self, new_node_template: &TemplateNode<I>, depends: Vec<(I, CollapseNodeKey)>, knows: Vec<(I, CollapseNodeKey)>, defined_by: CollapseNodeKey, data: NodeDataType) {
         
         let index = self.nodes.insert(CollapseNode {
             template_index: new_node_template.index,
