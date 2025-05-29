@@ -1,7 +1,7 @@
 
 use octa_force::{glam::{vec3, Mat4, Quat, Vec3}, log::{error, info}, OctaResult};
 
-use crate::{model_synthesis::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder, IT}, collapse::CollapseOperation, collapser_data::CollapserData, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree}, slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey}, state_saver::State, vec_csg_tree::tree::{VecCSGTree, VOXEL_SIZE}};
+use crate::{model_synthesis::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder, IT}, collapse::CollapseOperation, collapser_data::CollapserData, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree}, slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey}, state_saver::State, vec_csg_tree::tree::{VecCSGNode, VecCSGTree, VOXEL_SIZE}};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Identifier {
@@ -39,7 +39,9 @@ impl IslandsState {
 
             .position_set(Identifier::IslandRoot, |b| {b
                 .ammount(BuilderAmmount::OneGlobal)
-                .value(BuilderValue::Const(PositionSet::new(1.0, Vec3::ZERO, PositionSetRule::Grid { spacing: 0.1 })))
+                .value(BuilderValue::Const(PositionSet::new(
+                    VecCSGTree::new_sphere(Vec3::ZERO, 1.5), 
+                    PositionSetRule::Grid { spacing: 0.1 })))
             });
 
         let template = wfc_builder.build_template();

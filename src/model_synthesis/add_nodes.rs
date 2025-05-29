@@ -29,7 +29,9 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
                     NodeDataType::Number(data) => {
                         self.create_n_defined_nodes(node_index, to_create_template_index, data.value as usize)?;
                     },
-                    NodeDataType::PosSet(_) => todo!(),
+                    NodeDataType::PosSet(set) => {
+                        
+                    },
 
                 }
             },
@@ -62,35 +64,46 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
         Ok(())
     }
 
-    fn create_pos_nodes (&mut self, node_index: CollapseNodeKey, to_create_template_index: TemplateIndex, mut points: Vec<Vec3>) -> OctaResult<()> {
+    fn create_pos_set_nodes (&mut self, node_index: CollapseNodeKey, to_create_template_index: TemplateIndex, mut points: Vec<Vec3>) -> OctaResult<()> { 
         let node = &self.nodes[node_index];
         let mut present_children = node.children.iter()
             .find(|(template_index, _)| *template_index == to_create_template_index)
             .map(|(_, children)| children.to_vec())
             .unwrap_or(vec![]);
-        
+       
         for i in (0..present_children.len()).rev() {
 
             let child = present_children[i];
             let pos = if let NodeDataType::Pos(pos) =  &self.nodes[child].data {
                 pos.value
             } else {
-                bail!("Gird child that is defined by Grid is not a Pos");
+                bail!("Node that is defined by Pos set is not a Pos");
             };
             if let Some(j) = points.iter()
                 .position(|p| *p == pos) {
+                // Remove present_child that we want to keep
                 present_children.swap_remove(i);
+
+                // Remove point that we already have
                 points.swap_remove(j);
             }
         }
-
+        
+        // Remove the rest
         for child in present_children {
             self.delete_node(child, false)?;
         }
 
+        // Add nodes for the rest of the points
         let (depends, knows) = self.get_depends_and_knows_for_template(node_index, to_create_template_index)?;
         for point in points {
-            self.add_pos(to_create_template_index, depends.clone(), knows.clone(), node_index, point); 
+            self.add_pos(
+                to_create_template_index, 
+                depends.clone(), 
+                knows.clone(), 
+                node_index, 
+                point
+            ); 
         }
         
         Ok(())

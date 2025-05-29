@@ -1,4 +1,6 @@
-use octa_force::glam::Vec3;
+use octa_force::glam::{Mat4, Vec3};
+
+use crate::{aabb::AABB, volume::Volume};
 
 #[derive(Debug, Clone)]
 pub enum PositionSetRule {
@@ -7,15 +9,21 @@ pub enum PositionSetRule {
 }
 
 #[derive(Debug, Clone)]
-pub struct PositionSet {
-    radius: f32,
-    center: Vec3,
+pub struct PositionSet<V: Volume> {
+    volume: V,
     rule: PositionSetRule, 
 }
 
-impl PositionSet {
-    pub fn new(radius: f32, center: Vec3, rule: PositionSetRule) -> Self {
-        Self { radius, center, rule }
+impl<V: Volume> PositionSet<V> {
+    pub fn new(volume: V, rule: PositionSetRule) -> Self {
+        Self { volume, rule }
+    }
+
+    pub fn get_points(&mut self) -> impl IntoIterator<Item = Vec3> {
+        match self.rule {
+            PositionSetRule::Grid { spacing } => self.volume.get_grid_positions(spacing),
+            PositionSetRule::Possion { distance } => todo!(),
+        }
     }
 }
 

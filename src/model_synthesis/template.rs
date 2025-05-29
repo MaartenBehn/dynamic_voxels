@@ -17,7 +17,7 @@ pub struct TemplateTree<I: IT> {
 }
 
 #[derive(Debug, Clone)]
-pub enum NodeTemplateValue {
+pub enum NodeTemplateValue<V: Volume> {
     Groupe {},
     NumberRangeHook,
     NumberRange {
@@ -26,17 +26,17 @@ pub enum NodeTemplateValue {
         permutation: Permutation<DefaultBuildHasher>,
     }, 
     PosSetHook,
-    PosSet(PositionSet),
+    PosSet(PositionSet<V>),
     PosHook,
     Pos { value: Vec3 },
     BuildHook {}
 }
 
 #[derive(Debug, Clone)]
-pub struct TemplateNode<I: IT> {
+pub struct TemplateNode<I: IT, V: Volume> {
     pub identifier: I,
     pub index: TemplateIndex,
-    pub value: NodeTemplateValue,
+    pub value: NodeTemplateValue<V>,
     pub depends: Vec<TemplateIndex>,
     pub dependend: Vec<TemplateIndex>,
     pub knows: Vec<TemplateIndex>,
@@ -204,6 +204,10 @@ impl NodeTemplateValue {
             max,
             permutation: Permutation::new((max - min) as _, seed, DefaultBuildHasher::new())
         }
+    }
+
+    pub fn new_position_set(set: PositionSet) -> NodeTemplateValue { 
+        NodeTemplateValue::PosSet(set)
     }
 
     pub fn new_pos( value: Vec3 ) -> NodeTemplateValue {

@@ -79,10 +79,16 @@ pub struct GridData {
 #[derive(Debug, Clone)]
 pub enum CollapseOperation<I, U> {
     None,
-    CollapsePos {
+    NumberRangeHook {
         index: CollapseNodeKey,
     },
-    CollapseBuild {
+    PosSetHook {
+        index: CollapseNodeKey,
+    },
+    PosHook {
+        index: CollapseNodeKey,
+    },
+    BuildHook {
         index: CollapseNodeKey,
         identifier: I, 
     },
@@ -118,57 +124,76 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
         let template_node = &self.template.nodes[node.template_index]; 
         //info!("{:?} Collapse: {:?}", node_index, node.identfier);
 
-        if let NodeDataType::Pos(pos_data) = &mut node.data {
-            match template_node.value {
-                NodeTemplateValue::Pos { value } => node.data.set_pos(value),
-                NodeTemplateValue::PosHook => {
-                    self.push_pending_defineds(node_index);
-                    return Ok(CollapseOperation::CollapsePos { 
-                        index: node_index
-                    });
-                },
-                _ => unreachable!()
-            }
-        }
+        match &mut node.data {
+            NodeDataType::Number(number_data) => {
+                match &template_node.value {
+                    NodeTemplateValue::NumberRangeHook => {
+                        self.push_pending_defineds(node_index);
+                        return Ok(CollapseOperation::NumberRangeHook { 
+                            index: node_index
+                        });
+                    },
+                    NodeTemplateValue::NumberRange { min, max, permutation } => {
 
-        if let NodeDataType::Build = node.data {
+                        if number_data.perm_counter >= permutation.max() as usize {
+                            info!("{:?} Resetting Number faild", node_index);
 
-            return Ok(CollapseOperation::CollapseBuild { 
-                index: node_index, 
-                identifier: node.identfier,
-            });
-        }
+                            number_data.perm_counter = 0;
 
-        let node_template = &self.template.nodes[node.template_index];
-        if let NodeTemplateValue::NumberRange { min, max, permutation  } = &node_template.value {
+                            let next_reset = node.next_reset;
+                            self.reset_node(next_reset)?;
 
-            let node = &mut self.nodes[node_index];
-            let number_value = node.data.get_number_mut();
+                            self.insert_opperation(NodeOperation {
+                                index: node_index,
+                                level: template_node.level,
+                                typ: NodeOperationType::CollapseValue,
+                            });
 
-            if number_value.perm_counter >= permutation.max() as usize {
-                info!("{:?} Resetting Number faild", node_index);
+                            return Ok(CollapseOperation::None);
+                        }
 
-                number_value.perm_counter = 0;
-                
-                let next_reset = node.next_reset;
-                self.reset_node(next_reset)?;
+                        let value = permutation.get(number_data.perm_counter as _) as i32 + min;
+                        number_data.perm_counter += 1;
 
-                self.insert_opperation(NodeOperation {
-                    index: node_index,
-                    level: node_template.level,
-                    typ: NodeOperationType::CollapseValue,
+                        number_data.value = value;
+                        info!("{:?} {:?}: {}", node_index, node.identfier, number_data.value); 
+                    },
+                    _ => unreachable!()
+                }
+            },
+            NodeDataType::PosSet(pos_set_data) => {
+                match &template_node.value {
+                    NodeTemplateValue::PosSetHook => {
+                        self.push_pending_defineds(node_index);
+                        return Ok(CollapseOperation::PosHook { 
+                            index: node_index
+                        });
+                    },
+                    NodeTemplateValue::PosSet(position_set) => todo!(),
+                    _ => unreachable!(),
+                }
+            },
+            NodeDataType::Pos(pos_data) => {
+                match template_node.value {
+                    NodeTemplateValue::Pos { value } => node.data.set_pos(value),
+                    NodeTemplateValue::PosHook => {
+                        self.push_pending_defineds(node_index);
+                        return Ok(CollapseOperation::PosHook { 
+                            index: node_index
+                        });
+                    },
+                    _ => unreachable!()
+                }
+            },
+            NodeDataType::Build => {
+                return Ok(CollapseOperation::BuildHook { 
+                    index: node_index, 
+                    identifier: node.identfier,
                 });
-
-                return Ok(CollapseOperation::None);
-            }
-
-            let value = permutation.get(number_value.perm_counter as _) as i32 + min;
-            number_value.perm_counter += 1;
-
-            number_value.value = value;
-            info!("{:?} {:?}: {}", node_index, node.identfier, number_value.value); 
+            },
+            NodeDataType::None => {},
         }
- 
+
         self.push_pending_defineds(node_index);
         Ok(CollapseOperation::None)
     }
