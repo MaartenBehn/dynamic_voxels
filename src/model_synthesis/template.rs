@@ -12,8 +12,8 @@ pub const TEMPLATE_INDEX_ROOT: TemplateIndex = 0;
 pub const AMMOUNT_PATH_INDEX: usize = 0;
 
 #[derive(Debug, Clone)]
-pub struct TemplateTree<I: IT> {
-    pub nodes: Vec<TemplateNode<I>> 
+pub struct TemplateTree<I: IT, V: Volume> {
+    pub nodes: Vec<TemplateNode<I, V>> 
 }
 
 #[derive(Debug, Clone)]
@@ -57,8 +57,8 @@ pub enum TemplateAmmountType{
     Value,
 }
 
-impl<I: IT> TemplateTree<I> {
-    pub fn new_from_builder(builder: &ModelSynthesisBuilder<I>) -> TemplateTree<I> {
+impl<I: IT, V: Volume> TemplateTree<I, V> {
+    pub fn new_from_builder(builder: &ModelSynthesisBuilder<I, V>) -> TemplateTree<I, V> {
         let mut nodes = vec![TemplateNode { 
             identifier: I::default(),
             index: 0,
@@ -168,7 +168,7 @@ impl<I: IT> TemplateTree<I> {
         node_level
     } 
 
-    fn get_ammount_type_and_defines_index(builder: &ModelSynthesisBuilder<I>, builder_node: &BuilderNode<I>, nodes: &[TemplateNode<I>]) -> (TemplateAmmountType, usize) {
+    fn get_ammount_type_and_defines_index(builder: &ModelSynthesisBuilder<I, V>, builder_node: &BuilderNode<I, V>, nodes: &[TemplateNode<I, V>]) -> (TemplateAmmountType, usize) {
         match builder_node.ammount {
             BuilderAmmount::OneGlobal => (TemplateAmmountType::N(1), 0), 
             BuilderAmmount::OnePer(i) => (TemplateAmmountType::N(1), builder.get_node_index_by_identifier(i) + 1),
@@ -179,12 +179,12 @@ impl<I: IT> TemplateTree<I> {
     }
 }
 
-impl NodeTemplateValue {
-    pub fn new_group() -> NodeTemplateValue {
+impl<V: Volume> NodeTemplateValue<V> {
+    pub fn new_group() -> NodeTemplateValue<V> {
         NodeTemplateValue::Groupe {}
     }
 
-    pub fn new_number_range<R: RangeBounds<i32>>(range: R) -> NodeTemplateValue {
+    pub fn new_number_range<R: RangeBounds<i32>>(range: R) -> NodeTemplateValue<V> {
         
         let min = match range.start_bound() {
             std::ops::Bound::Included(&num) => num,
@@ -206,11 +206,11 @@ impl NodeTemplateValue {
         }
     }
 
-    pub fn new_position_set(set: PositionSet) -> NodeTemplateValue { 
+    pub fn new_position_set(set: PositionSet<V>) -> NodeTemplateValue<V> { 
         NodeTemplateValue::PosSet(set)
     }
 
-    pub fn new_pos( value: Vec3 ) -> NodeTemplateValue {
+    pub fn new_pos( value: Vec3 ) -> NodeTemplateValue<V> {
         NodeTemplateValue::Pos { value }
     }
 
@@ -238,7 +238,7 @@ impl NodeTemplateValue {
     }
     */
 
-    pub fn new_build() -> NodeTemplateValue {
+    pub fn new_build() -> NodeTemplateValue<V> {
         NodeTemplateValue::BuildHook {}
     }
 }

@@ -23,8 +23,8 @@ impl IT for Identifier {}
 
 #[derive(Clone, Debug)]
 pub struct FenceState {
-    pub template: TemplateTree<Identifier>,
-    pub collapser: Option<CollapserData<Identifier, SlotMapCSGTreeKey>>,
+    pub template: TemplateTree<Identifier, VecCSGTree>,
+    pub collapser: Option<CollapserData<Identifier, SlotMapCSGTreeKey, VecCSGTree>>,
     pub pos: Vec3,
     pub start_pos: Vec3,
     pub csg: Option<SlotMapCSGTree>,
@@ -32,7 +32,7 @@ pub struct FenceState {
 
 impl FenceState {
     pub fn new() -> Self {
-        let mut wfc_builder: ModelSynthesisBuilder<Identifier> = ModelSynthesisBuilder::new()
+        let mut wfc_builder: ModelSynthesisBuilder<Identifier, VecCSGTree> = ModelSynthesisBuilder::new()
             .groupe(Identifier::Fence, |b| {b})
 
             .number_range(Identifier::PostHeight, |b|{b
@@ -78,7 +78,7 @@ impl FenceState {
                 .depends(Identifier::PostHeight)
                 .knows(Identifier::PostDistance)
             });
-        
+
         let template = wfc_builder.build_template();
 
         let pos = vec3(1.0, 1.0, 1.0);
@@ -106,7 +106,7 @@ impl State for FenceState {
             ticked = true;
 
             match operation {
-                CollapseOperation::CollapsePos{ index  } => {
+                CollapseOperation::PosHook{ index  } => {
                     let dist = collapser.get_dependend_number(index, Identifier::PostDistance);
 
                     let pos_data = collapser.get_pos_mut(index);
@@ -116,7 +116,7 @@ impl State for FenceState {
 
                     self.pos += Vec3::X * dist as f32;
                 },
-                CollapseOperation::CollapseBuild{ index, identifier, .. } => {
+                CollapseOperation::BuildHook{ index, identifier, .. } => {
                     match identifier {
                         Identifier::FencePost => {
                             let height = collapser.get_dependend_number(index, Identifier::PostHeight);
@@ -152,13 +152,13 @@ impl State for FenceState {
 
                             if plank_number * plank_distance > fence_height {
                                 collapser.collapse_failed(index)?;
-                                
+
                             } else {
                                 let pos = self.pos - Vec3::X * post_distance as f32;
                                 let plank_size = pos - self.start_pos;
                                 let mut plank_pos = self.start_pos + plank_size * vec3(0.5, 1.0, 1.0);
                                 let plank_scale = vec3(plank_size.x, 0.2, 0.2);
-                                
+
                                 for _ in 0..plank_number {
                                     plank_pos += Vec3::Z * plank_distance as f32;
 
@@ -177,11 +177,11 @@ impl State for FenceState {
                                     }
                                 } 
                             }  
-                            
-                                                    }
+
+                        }
                         _ => error!("Build hook on wrong type")
                     }
-                }, 
+                },
                 CollapseOperation::Undo { identifier , undo_data} => {
                     info!("Undo {:?}", identifier);
 
@@ -198,8 +198,9 @@ impl State for FenceState {
                         _ => {}
                     }
                 },
-
                 CollapseOperation::None => {},
+                CollapseOperation::NumberRangeHook { index } => todo!(),
+                CollapseOperation::PosSetHook { index } => todo!(),
             } 
         }
 

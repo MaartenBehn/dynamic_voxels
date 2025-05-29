@@ -4,8 +4,14 @@
       name = "dynamic_voxels";
 
       packages = with pkgs; [
-        graphviz
         cmake
+
+        # For performance profile
+        linuxPackages_latest.perf
+        hotspot
+
+        # For dependency graph
+        graphviz
       ];
 
       # Use faster linker for local build 

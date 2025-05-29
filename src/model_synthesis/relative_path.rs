@@ -28,8 +28,8 @@ pub enum LeafType {
 }
 
 impl RelativePathTree {
-    pub fn get_paths_to_other_dependcies_from_parent<I: IT>(
-        tree: &TemplateTree<I>, 
+    pub fn get_paths_to_other_dependcies_from_parent<I: IT, V: Volume>(
+        tree: &TemplateTree<I, V>, 
         parent_index: TemplateIndex, 
         dependencies: &[TemplateIndex], 
         knows: &[TemplateIndex]
@@ -37,15 +37,15 @@ impl RelativePathTree {
         let mut dependencies = dependencies.iter().copied().enumerate().collect::<Vec<_>>();
         let mut knows = knows.iter().copied().enumerate().collect::<Vec<_>>();
 
-        let mut open_child_paths: VecDeque<(&TemplateNode<I>, Vec<RelativePathStep>)> = VecDeque::new();
-        let mut open_parent_paths: VecDeque<(&TemplateNode<I>, Vec<RelativePathStep>)> = VecDeque::new();
+        let mut open_child_paths: VecDeque<(&TemplateNode<I, V>, Vec<RelativePathStep>)> = VecDeque::new();
+        let mut open_parent_paths: VecDeque<(&TemplateNode<I, V>, Vec<RelativePathStep>)> = VecDeque::new();
         open_parent_paths.push_back((&tree.nodes[parent_index], vec![]));
         let mut path_tree = RelativePathTree { 
             steps: vec![],
             starts: vec![],
         };
 
-        let mut check_hit = |node: &TemplateNode<I>, path: &Vec<RelativePathStep>| {
+        let mut check_hit = |node: &TemplateNode<I, V>, path: &Vec<RelativePathStep>| {
             if let Some((i, dependency_index, dependecy)) = dependencies.iter()
                 .enumerate()
                 .find(|(_, (_, i))| *i == node.index)
@@ -135,9 +135,9 @@ impl RelativePathTree {
         path_tree
     }
 
-    fn copy_path<I: IT>(
+    fn copy_path<I: IT, V: Volume>(
         &mut self, 
-        node: &TemplateNode<I>, 
+        node: &TemplateNode<I, V>, 
         path: &Vec<RelativePathStep>, 
     ) -> usize {
         assert!(!path.is_empty(), "Relative path can not be empty because we ignore the node itself in the dependencies!");

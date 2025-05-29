@@ -3,10 +3,12 @@ use std::iter;
 use octa_force::{anyhow::{anyhow, bail}, glam::Vec3, OctaResult};
 use slotmap::Key;
 
-use super::{builder::{BU, IT}, collapse::{CollapseNode, CollapseNodeKey, Collapser, GridData, NodeDataType, NodeOperation, NodeOperationType, NumberData, PosData, PosSetData}, relative_path::LeafType, template::{NodeTemplateValue, TemplateAmmountType, TemplateIndex, TemplateNode}};
+use crate::volume::Volume;
+
+use super::{builder::{BU, IT}, collapse::{CollapseNode, CollapseNodeKey, Collapser, GridData, NodeDataType, NodeOperation, NodeOperationType, NumberData, PosData, PosSetData}, pos_set::PositionSet, relative_path::LeafType, template::{NodeTemplateValue, TemplateAmmountType, TemplateIndex, TemplateNode}};
 
 
-impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
+impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
 
     pub fn update_defined(&mut self, node_index: CollapseNodeKey, to_create_template_index: TemplateIndex) -> OctaResult<()> {
         let node = &self.nodes[node_index];
@@ -29,8 +31,15 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
                     NodeDataType::Number(data) => {
                         self.create_n_defined_nodes(node_index, to_create_template_index, data.value as usize)?;
                     },
-                    NodeDataType::PosSet(set) => {
-                        
+                    NodeDataType::PosSet(..) => {
+                        let node = &mut self.nodes[node_index];
+                        let data = match &mut node.data {
+                            NodeDataType::PosSet(pos_set_data) => pos_set_data,
+                            _ => unreachable!()
+                        };
+
+                        let points: Vec<Vec3> = data.set.get_points().into_iter().collect();
+                        self.create_pos_set_nodes(node_index, to_create_template_index, points)?; 
                     },
 
                 }
@@ -64,7 +73,7 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
         Ok(())
     }
 
-    fn create_pos_set_nodes (&mut self, node_index: CollapseNodeKey, to_create_template_index: TemplateIndex, mut points: Vec<Vec3>) -> OctaResult<()> { 
+    fn create_pos_set_nodes (&mut self, node_index: CollapseNodeKey, to_create_template_index: TemplateIndex, mut points: Vec<Vec3>) -> OctaResult<()> {
         let node = &self.nodes[node_index];
         let mut present_children = node.children.iter()
             .find(|(template_index, _)| *template_index == to_create_template_index)
@@ -226,7 +235,7 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
             NodeTemplateValue::PosSetHook
             | NodeTemplateValue::PosSet { .. } => {
                 NodeDataType::PosSet(PosSetData {
-
+                    set: PositionSet::default(),
                 })
             }
         };
@@ -248,7 +257,7 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
         self.push_new_node(new_node_template, depends, knows, defined_by, data)
     }
 
-    pub fn push_new_node(&mut self, new_node_template: &TemplateNode<I>, depends: Vec<(I, CollapseNodeKey)>, knows: Vec<(I, CollapseNodeKey)>, defined_by: CollapseNodeKey, data: NodeDataType) {
+    pub fn push_new_node(&mut self, new_node_template: &TemplateNode<I, V>, depends: Vec<(I, CollapseNodeKey)>, knows: Vec<(I, CollapseNodeKey)>, defined_by: CollapseNodeKey, data: NodeDataType<V>) {
         
         let index = self.nodes.insert(CollapseNode {
             template_index: new_node_template.index,

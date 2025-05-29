@@ -27,7 +27,7 @@ impl Volume for VecCSGTree {
             return AABB::default();
         }
         
-        self.set_all_aabbs(AABB_PADDING);
+        //self.set_all_aabbs(AABB_PADDING);
         self.nodes[0].aabb
     }
 }

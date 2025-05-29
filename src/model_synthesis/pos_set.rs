@@ -27,4 +27,9 @@ impl<V: Volume> PositionSet<V> {
     }
 }
 
+impl<V: Volume> Default for PositionSet<V> {
+    fn default() -> Self {
+        Self { volume: Default::default(), rule: PositionSetRule::Grid { spacing: f32::MAX } }
+    }
+}
 

@@ -48,9 +48,9 @@ impl VecCSGTree {
         let nodes = vec![
             VecCSGNode::new(VecCSGNodeData::Sphere(
                 Mat4::from_scale_rotation_translation(
-                    center,
-                    Quat::IDENTITY,
                     Vec3::ONE * radius,
+                    Quat::IDENTITY,
+                    center,
                 ),
                 MATERIAL_BASE,
             )),
@@ -61,7 +61,29 @@ impl VecCSGTree {
         };
 
         tree.set_parents(0, CSG_PARENT_NONE);
-        tree.set_all_aabbs(0);
+        tree.set_all_aabbs(0.0);
+
+        tree
+    }
+
+    pub fn new_disk(center: Vec3, radius: f32, height: f32) -> Self {
+        let nodes = vec![
+            VecCSGNode::new(VecCSGNodeData::Sphere(
+                Mat4::from_scale_rotation_translation(
+                    vec3(radius, radius, height),
+                    Quat::IDENTITY,
+                    center,
+                ),
+                MATERIAL_BASE,
+            )),
+        ];
+ 
+        let mut tree = VecCSGTree {
+            nodes,
+        };
+
+        tree.set_parents(0, CSG_PARENT_NONE);
+        tree.set_all_aabbs(0.0);
 
         tree
     }

@@ -5,8 +5,10 @@ use octa_force::egui_winit::winit::event::WindowEvent;
 use octa_force::engine::{Engine, EngineConfig, EngineFeatureValue};
 use octa_force::glam::uvec2;
 use octa_force::hot_reloading::HotReloadConfig;
-use octa_force::log::{error, trace};
+use octa_force::log::{self, error, info, trace};
+use octa_force::simplelog::{self, SimpleLogger};
 use octa_force::OctaResult;
+use reload::model_example::islands::IslandsState;
 use reload::{
     new_logic_state, new_render_state, on_recreate_swapchain, on_window_event, record_render_commands, update, LogicState, RenderState, NUM_FRAMES_IN_FLIGHT, USE_PROFILE
 };
@@ -18,6 +20,20 @@ const HEIGHT: u32 = 1080;
 const APP_NAME: &str = "Dynamic Voxels";
 
 fn main() {
+    #[cfg(feature = "profile_islands")]
+    {
+        SimpleLogger::init(log::LevelFilter::Debug, simplelog::Config::default());
+        let mut state = IslandsState::new();
+        state.run();
+
+        let collapser = state.collapser.unwrap(); 
+        info!("Node capacity: {}", collapser.nodes.capacity());
+        info!("Pending operations capacity: {}", collapser.pending_operations.capacity());
+        info!("Pending collapse operations capacity: {}", collapser.pending_collapse_opperations.capacity());
+
+        return;
+    }
+
     octa_force::run::<App>(EngineConfig {
         name: APP_NAME.to_string(),
         start_size: uvec2(WIDTH, HEIGHT),

@@ -8,14 +8,14 @@ use slotmap::{new_key_type, Key, SlotMap};
 
 use crate::{vec_csg_tree::tree::VecCSGTree, volume::Volume};
 
-use super::{builder::{BuilderNode, ModelSynthesisBuilder, BU, IT}, relative_path::{LeafType, RelativePathTree}, template::{NodeTemplateValue, TemplateAmmountType, TemplateIndex, TemplateNode, TemplateTree}};
+use super::{builder::{BuilderNode, ModelSynthesisBuilder, BU, IT}, pos_set::PositionSet, relative_path::{LeafType, RelativePathTree}, template::{NodeTemplateValue, TemplateAmmountType, TemplateIndex, TemplateNode, TemplateTree}};
 
 new_key_type! { pub struct CollapseNodeKey; }
 
 #[derive(Debug, Clone)]
-pub struct Collapser<'a, I: IT, U: BU> {
-    pub template: &'a TemplateTree<I>,
-    pub nodes: SlotMap<CollapseNodeKey, CollapseNode<I, U>>,
+pub struct Collapser<'a, I: IT, U: BU, V: Volume> {
+    pub template: &'a TemplateTree<I, V>,
+    pub nodes: SlotMap<CollapseNodeKey, CollapseNode<I, U, V>>,
     pub pending_operations: Vec<NodeOperation>,
     pub pending_collapse_opperations: Vec<CollapseOperation<I, U>>,
 }
@@ -34,7 +34,7 @@ pub enum NodeOperationType {
 }
 
 #[derive(Debug, Clone)]
-pub struct CollapseNode<I: IT, U: BU> {
+pub struct CollapseNode<I: IT, U: BU, V: Volume> {
     pub template_index: usize,
     pub identfier: I,
     pub level: usize,
@@ -42,15 +42,15 @@ pub struct CollapseNode<I: IT, U: BU> {
     pub depends: Vec<(I, CollapseNodeKey)>,
     pub knows: Vec<(I, CollapseNodeKey)>,
     pub defined_by: CollapseNodeKey,
-    pub data: NodeDataType,
+    pub data: NodeDataType<V>,
     pub next_reset: CollapseNodeKey,
     pub undo_data: U,
 }
 
 #[derive(Debug, Clone)]
-pub enum NodeDataType {
+pub enum NodeDataType<V: Volume> {
     Number(NumberData),
-    PosSet(PosSetData),
+    PosSet(PosSetData<V>),
     Pos(PosData),
     Build,
     None,
@@ -63,7 +63,8 @@ pub struct NumberData {
 }
 
 #[derive(Debug, Clone)]
-pub struct PosSetData {
+pub struct PosSetData<V: Volume> {
+    pub set: PositionSet<V>
 }
 
 #[derive(Debug, Clone)]
@@ -98,8 +99,8 @@ pub enum CollapseOperation<I, U> {
     }
 }
 
-impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
-    pub fn next(&mut self) -> OctaResult<Option<(CollapseOperation<I, U>, &mut Collapser<'a, I, U>)>> { 
+impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
+    pub fn next(&mut self) -> OctaResult<Option<(CollapseOperation<I, U>, &mut Collapser<'a, I, U, V>)>> { 
         if let Some(collapse_opperation) = self.pending_collapse_opperations.pop() {
             Ok(Some((collapse_opperation, self)))
 
@@ -169,7 +170,9 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
                             index: node_index
                         });
                     },
-                    NodeTemplateValue::PosSet(position_set) => todo!(),
+                    NodeTemplateValue::PosSet(position_set) => {
+                        pos_set_data.set = position_set.clone() 
+                    },
                     _ => unreachable!(),
                 }
             },
@@ -255,7 +258,7 @@ impl<'a, I: IT, U: BU> Collapser<'a, I, U> {
 }
 
 
-impl NodeDataType {
+impl<V: Volume> NodeDataType<V> {
     pub fn get_number_mut(&mut self) -> &mut NumberData {
         match self {
             NodeDataType::Number(d) => d,
@@ -279,13 +282,16 @@ impl NodeDataType {
 }
 
 
-impl<I: IT> TemplateTree<I> {
-    pub fn get_collaper<U: BU>(&self) -> Collapser<I, U> {
+
+impl<I: IT, V: Volume> TemplateTree<I, V> {
+    pub fn get_collaper<U: BU>(&self) -> Collapser<I, U, V> {
+        let inital_capacity = 10000000;
+
         let mut collapser = Collapser{
             template: self,
-            nodes: SlotMap::with_key(),
-            pending_operations: vec![],
-            pending_collapse_opperations: vec![],
+            nodes: SlotMap::with_capacity_and_key(inital_capacity),
+            pending_operations: Vec::with_capacity(inital_capacity),
+            pending_collapse_opperations: Vec::with_capacity(inital_capacity),
         };
 
         collapser.add_node(0, vec![], vec![], CollapseNodeKey::null());

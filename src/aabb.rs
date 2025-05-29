@@ -111,6 +111,7 @@ impl AABB {
     pub fn get_sampled_positions(self, step: f32) -> impl IntoIterator<Item = Vec3> {
         let min = (self.min / step).as_ivec3();
         let max = (self.max / step).as_ivec3();
+
         (min.x..=max.x)
             .flat_map(move |x| iter::repeat(x).zip(min.y..=max.y))
             .flat_map(move |(x, y)| iter::repeat((x, y)).zip(min.z..=max.z))

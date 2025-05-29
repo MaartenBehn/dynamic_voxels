@@ -1,20 +1,20 @@
 #![forbid(unused_must_use)]
 
-mod aabb;
-mod buddy_controller;
-mod vec_csg_tree;
-mod profiler;
-mod util;
-mod model_synthesis;
-mod voxel_grid;
-mod volume;
-mod csg_renderer;
-mod render_csg_tree;
-mod slot_map_csg_tree;
-mod model_debug_renderer;
-mod model_example;
-mod state_saver;
-mod voxel_tree64;
+pub mod aabb;
+pub mod buddy_controller;
+pub mod vec_csg_tree;
+pub mod profiler;
+pub mod util;
+pub mod model_synthesis;
+pub mod voxel_grid;
+pub mod volume;
+pub mod csg_renderer;
+pub mod render_csg_tree;
+pub mod slot_map_csg_tree;
+pub mod model_debug_renderer;
+pub mod model_example;
+pub mod state_saver;
+pub mod voxel_tree64;
 
 use crate::vec_csg_tree::tree::{VecCSGTree, VOXEL_SIZE};
 use crate::profiler::ShaderProfiler;
@@ -50,8 +50,8 @@ use std::time::{Duration, Instant};
 use std::{default, env};
 use model_synthesis::builder::{BuilderAmmount, ModelSynthesisBuilder, IT};
 
-#[cfg(feature="fence")]
 use model_example::fence::{self, FenceState};
+use model_example::islands::{self, IslandsState};
 
 pub const USE_PROFILE: bool = false;
 pub const NUM_FRAMES_IN_FLIGHT: usize = 2;
@@ -78,6 +78,13 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
     let mut camera = Camera::default();
 
     #[cfg(feature="fence")]
+    {
+        camera.position = Vec3::new(1.0, -10.0, 1.0); 
+        camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
+        camera.speed = 10.0 * VOXEL_SIZE;
+    }
+
+    #[cfg(feature="islands")]
     {
         camera.position = Vec3::new(1.0, -10.0, 1.0); 
         camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
@@ -116,23 +123,29 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
 pub struct RenderState {
     pub gui: Gui,
      
-    #[cfg(any(feature="fence", feature="render_example"))]
+    #[cfg(any(feature="fence", feature="islands", feature="render_example"))]
     pub data_controller: DataController,
     
-    #[cfg(any(feature="fence", feature="render_example"))]
+    #[cfg(any(feature="fence",feature="islands", feature="render_example"))]
     pub color_controller: ColorController,
     
-    #[cfg(any(feature="fence", feature="render_example"))]
+    #[cfg(any(feature="fence", feature="islands", feature="render_example"))]
     pub renderer: CSGRenderer,
 
-    #[cfg(any(feature="fence", feature="render_example"))]
+    #[cfg(any(feature="fence", feature="islands", feature="render_example"))]
     pub profiler: Option<ShaderProfiler>,
 
     #[cfg(feature="fence")]
     pub state_saver: StateSaver<FenceState>,
+   
+    #[cfg(feature="islands")]
+    pub state_saver: StateSaver<IslandsState>,
     
     #[cfg(feature="fence")]
     pub model_renderer: ModelDebugRenderer<fence::Identifier>,
+     
+    #[cfg(feature="islands")]
+    pub model_renderer: ModelDebugRenderer<islands::Identifier>,
     
     #[cfg(feature="tree64")]
     pub renderer: Tree64Renderer, 
@@ -158,13 +171,13 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         engine.in_flight_frames.num_frames,
     )?;
 
-    #[cfg(any(feature="fence", feature="render_example"))]
+    #[cfg(any(feature="fence", feature="islands", feature="render_example"))]
     let data_controller = DataController::new(&engine.context)?;
 
-    #[cfg(any(feature="fence", feature="render_example"))]
+    #[cfg(any(feature="fence", feature="islands", feature="render_example"))]
     let color_controller = ColorController::new(&engine.context)?;
 
-    #[cfg(any(feature="fence", feature="render_example"))]
+    #[cfg(any(feature="fence", feature="islands", feature="render_example"))]
     let profiler = if engine.context.shader_clock {
         Some(ShaderProfiler::new(
             &engine.context,
@@ -178,7 +191,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         None
     };
 
-    #[cfg(any(feature="fence", feature="render_example"))]
+    #[cfg(any(feature="fence", feature="islands", feature="render_example"))]
     let renderer = CSGRenderer::new(
         &engine.context,
         engine.get_resolution(),
@@ -205,6 +218,17 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     #[cfg(feature="fence")]
     let mut model_renderer = ModelDebugRenderer::default();
 
+
+    #[cfg(feature="islands")]
+    let island_state = IslandsState::new(); 
+    
+    #[cfg(feature="islands")]
+    let state_saver = StateSaver::from_state(island_state, 10);
+
+    #[cfg(feature="islands")]
+    let mut model_renderer = ModelDebugRenderer::default();
+
+
     #[cfg(feature="tree64")]
     let mut grid = VoxelGrid::new(UVec3::ONE * 4_u32.pow(4));
     
@@ -225,22 +249,22 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     Ok(RenderState {
         gui,
         
-        #[cfg(any(feature="fence", feature="render_example"))]
+        #[cfg(any(feature="fence", feature="islands", feature="render_example"))]
         data_controller,
         
-        #[cfg(any(feature="fence", feature="render_example"))]
+        #[cfg(any(feature="fence", feature="islands", feature="render_example"))]
         color_controller,
         
-        #[cfg(any(feature="fence", feature="render_example"))]
+        #[cfg(any(feature="fence", feature="islands", feature="render_example"))]
         renderer,
         
-        #[cfg(any(feature="fence", feature="render_example"))]
+        #[cfg(any(feature="fence", feature="islands", feature="render_example"))]
         profiler,
 
-        #[cfg(feature="fence")]
+        #[cfg(any(feature="fence", feature="islands"))]
         state_saver,
 
-        #[cfg(feature="fence")]
+        #[cfg(any(feature="fence", feature="islands"))]
         model_renderer,
 
         #[cfg(feature="tree64")]
@@ -263,15 +287,15 @@ pub fn update(
     logic_state.camera.update(&engine.controls, delta_time);
     //info!("Camera Pos: {} Dir: {}", logic_state.camera.position, logic_state.camera.direction);
 
-    #[cfg(any(feature="fence", feature="render_example"))]
+    #[cfg(any(feature="fence", feature="islands", feature="render_example"))]
     render_state
         .renderer
         .update(&logic_state.camera, engine.swapchain.size, time)?;
 
-    #[cfg(feature="fence")]
+    #[cfg(any(feature="fence", feature="islands"))]
     render_state.model_renderer.update_show(&engine.controls);
 
-    #[cfg(any(feature="fence", feature="render_example"))]
+    #[cfg(any(feature="fence", feature="islands", feature="render_example"))]
     if render_state.profiler.is_some() {
         render_state
             .profiler
@@ -280,11 +304,12 @@ pub fn update(
             .update(engine.get_current_in_flight_frame_index(), &engine.context)?;
     }
 
-    #[cfg(feature="fence")]
+    #[cfg(any(feature="fence", feature="islands"))]
     if render_state.state_saver.tick()? {
         let state = render_state.state_saver.get_state_mut();
         render_state.model_renderer.update(&mut state.collapser.as_mut().unwrap());
 
+        #[cfg(any(feature="fence"))]
         if let Some(csg) = state.csg.clone() {
             let vec_tree: VecCSGTree = csg.into();
             render_state.data_controller.set_render_csg_tree(&vec_tree.into())?;    
@@ -305,7 +330,7 @@ pub fn record_render_commands(
 
     let command_buffer = engine.get_current_command_buffer();
     
-    #[cfg(any(feature="fence", feature="render_example"))]
+    #[cfg(any(feature="fence", feature="islands", feature="render_example"))]
     render_state
         .renderer
         .render(command_buffer, engine.get_current_in_flight_frame_index(), &engine.swapchain)?;
@@ -330,7 +355,7 @@ pub fn record_render_commands(
         &engine.context,
         |ctx| {
             
-            #[cfg(any(feature="fence", feature="render_example"))]
+            #[cfg(any(feature="fence", feature="islands", feature="render_example"))]
             if render_state.profiler.is_some() {
                 render_state
                     .profiler
@@ -339,13 +364,13 @@ pub fn record_render_commands(
                     .gui_windows(ctx, engine.controls.mouse_left);
             }
 
-            #[cfg(feature="fence")]
+            #[cfg(any(feature="fence", feature="islands"))]
             render_state.state_saver.render(ctx);
 
-            #[cfg(feature="fence")]
+            #[cfg(any(feature="fence", feature="islands"))]
             let state = render_state.state_saver.get_state_mut();
              
-            #[cfg(feature="fence")]
+            #[cfg(any(feature="fence", feature="islands"))]
             render_state.model_renderer.render(ctx, state.collapser.as_mut().unwrap());
         },
     )?;
@@ -375,14 +400,14 @@ pub fn on_recreate_swapchain(
 ) -> OctaResult<()> {
     logic_state.camera.set_screen_size(engine.swapchain.size.as_vec2());
     
-    #[cfg(any(feature="fence", feature="render_example"))]
+    #[cfg(any(feature="fence", feature="islands", feature="render_example"))]
     render_state.renderer.on_recreate_swapchain(
         &engine.context,
         engine.get_num_frames_in_flight(),
         engine.swapchain.size,
     )?;
 
-    #[cfg(any(feature="fence", feature="render_example"))]
+    #[cfg(any(feature="fence", feature="islands", feature="render_example"))]
     if render_state.profiler.is_some() {
         render_state
             .profiler
