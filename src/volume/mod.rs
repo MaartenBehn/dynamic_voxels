@@ -12,4 +12,10 @@ pub trait Volume: Clone + Default {
     fn get_gradient_at_position(&self, pos: Vec3) -> Vec3;
 
     fn get_aabb(&mut self) -> AABB;
+    
+    fn get_grid_positions(&mut self, step: f32) -> impl IntoIterator<Item = Vec3> {
+        let aabb = self.get_aabb();
+        aabb.get_sampled_positions(step).into_iter()
+            .filter(|p| self.is_position_valid_vec3(p.to_owned()))
+    }
 } 

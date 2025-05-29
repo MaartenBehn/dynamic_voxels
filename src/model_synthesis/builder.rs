@@ -3,7 +3,7 @@ use octa_force::glam::Vec3;
 
 use std::{fmt::Debug, iter, marker::PhantomData, ops::RangeBounds};
 
-use crate::{vec_csg_tree::tree::VecCSGNode};
+use crate::{vec_csg_tree::tree::VecCSGNode, volume::Volume};
 
 use super::{collapse::CollapseNode, pos_set::PositionSet, relative_path::{self, RelativePathTree}, template::{NodeTemplateValue, TemplateTree}};
 
@@ -33,7 +33,7 @@ pub enum BuilderValue<I: IT, T>{
 #[derive(Debug, Clone)]
 pub struct BuilderNode<I: IT> {
     pub identifier: I,
-    pub value: NodeTemplateValue,
+    pub value: NodeTemplateValue<V: Volume>,
     pub depends: Vec<I>,
     pub knows: Vec<I>,
     pub ammount: BuilderAmmount<I>,
@@ -116,10 +116,10 @@ impl<I: IT> ModelSynthesisBuilder<I> {
         self
     }
 
-    pub fn position_set(
+    pub fn position_set<V: Volume>(
         mut self,
         identifier: I,
-        b: fn(NodeBuilder<I, PositionSet>) -> NodeBuilder<I, PositionSet>
+        b: fn(NodeBuilder<I, PositionSet<V>>) -> NodeBuilder<I, PositionSet<V>>
     ) -> Self {
         let mut builder = NodeBuilder {
             depends: vec![],
@@ -132,7 +132,7 @@ impl<I: IT> ModelSynthesisBuilder<I> {
 
         let node = BuilderNode {
             value: match builder.value {
-                BuilderValue::Const(s) => NodeTemplateValue::PosSet(s),
+                BuilderValue::Const(s) => NodeTemplateValue::new_position_set(s),
                 BuilderValue::Hook => NodeTemplateValue::PosHook,
                 _ => panic!("Position Set Value only supports: Const and Hook"),
             },
