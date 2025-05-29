@@ -18,7 +18,7 @@
     OPENSSL_INCLUDE_DIR = "${pkgs.openssl.dev}/include/";
 
     CARGO_BUILD_TARGET = rustTarget;
-    RUST_FEATURES = "profile_islands";
+    RUST_FEATURES = "tree64";
  
   };
 }

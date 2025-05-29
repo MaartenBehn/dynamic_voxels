@@ -1,8 +1,5 @@
-
-[vk::binding(0, 0)] __DynamicResource TextureHeap[];
-[vk::binding(1, 0)] __DynamicResource RWTextureHeap[];
-
-
+[[vk::binding(0, 0)]] __DynamicResource TextureHeap[];
+[[vk::binding(1, 0)]] __DynamicResource RWTextureHeap[];
 
 public struct ImageHandle<T> {
     uint DescriptorIndex;

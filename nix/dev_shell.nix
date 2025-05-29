@@ -12,6 +12,9 @@
 
         # For dependency graph
         graphviz
+        
+        # Shader debug
+        spirv-tools
       ];
 
       # Use faster linker for local build 

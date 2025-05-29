@@ -5,7 +5,7 @@
   inputs = {
     fenix.url = "github:nix-community/fenix";
     crane.url = "github:ipetkov/crane";
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/release-25.05";
   };
 
   outputs = { self, nixpkgs, crane, fenix }@c:
