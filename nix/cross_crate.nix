@@ -10,7 +10,7 @@
       };
       strictDeps = true;
       doCheck = false;
-      cargoExtraArgs = "--features ${env.RUST_FEATURES}"; 
+      cargoExtraArgs = "--features ${env.RUST_FEATURES} --release"; 
 
       # Required because ring crate is special. This also seems to have
       # fixed some issues with the x86_64-windows cross-compile :shrug:
