@@ -2274,6 +2274,7 @@ dependencies = [
 [[package]]
 name = "octa-force"
 version = "0.3.2"
+source = "git+https://github.com/MaartenBehn/octa-force-rs#bbd532d7d8b966aee2ac25a1c93348810de736aa"
 dependencies = [
  "anyhow",
  "ash",
