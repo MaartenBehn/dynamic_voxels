@@ -14,7 +14,7 @@ use octa_force::glam::{UVec2, Vec3};
 use octa_force::image::ImageReader;
 use octa_force::log::info;
 use octa_force::vulkan::ash::vk::{self, BufferDeviceAddressInfo, Format, PushConstantRange, ShaderStageFlags};
-use octa_force::vulkan::descriptor_heap::DescriptorHeap;
+use octa_force::vulkan::descriptor_heap::{DescriptorHandleValue, DescriptorHeap};
 use octa_force::vulkan::gpu_allocator::MemoryLocation;
 use octa_force::vulkan::sampler_pool::{SamplerPool, SamplerSetHandle};
 use octa_force::vulkan::{
@@ -40,6 +40,7 @@ pub struct DispatchParams {
     palette_ptr: u64,
     perf_stats_ptr: u64,
     max_bounces: u32,
+    blue_noise_tex: DescriptorHandleValue, 
 }
 
 #[allow(dead_code)]
@@ -173,6 +174,7 @@ impl Tree64Renderer {
             palette_ptr: self.palette.buffer.get_device_address(),
             perf_stats_ptr: self.perf_stats.buffer.get_device_address(),
             max_bounces: 0,
+            blue_noise_tex: self.blue_noise_tex.handle.value
         };
 
         buffer.push_constant(&self.pipeline_layout, ShaderStageFlags::COMPUTE, &dispatch_params);
