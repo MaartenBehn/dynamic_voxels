@@ -11,7 +11,7 @@
       strictDeps = true;
       doCheck = false;
       cargoExtraArgs = "--features ${env.RUST_FEATURES}"; 
-      CARGO_PROFILE = builtins.getEnv("CARGO_PROFILE");
+        #CARGO_PROFILE = builtins.getEnv("CARGO_PROFILE");
 
       # Required because ring crate is special. This also seems to have
       # fixed some issues with the x86_64-windows cross-compile :shrug:
