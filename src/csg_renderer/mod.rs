@@ -5,6 +5,7 @@ use crate::profiler::ShaderProfiler;
 use color_controller::ColorController;
 use octa_force::anyhow::Result;
 use octa_force::camera::Camera;
+use octa_force::engine::Engine;
 use octa_force::glam::{UVec2, Vec3};
 use octa_force::vulkan::ash::vk;
 use octa_force::vulkan::gpu_allocator::MemoryLocation;
@@ -202,8 +203,7 @@ impl CSGRenderer {
     pub fn render(
         &self,
         buffer: &CommandBuffer,
-        frame_index: usize,
-        swapchain: &Swapchain,
+        engine: &Engine,
     ) -> Result<()> {
         buffer.bind_compute_pipeline(&self.pipeline);
 
@@ -211,18 +211,18 @@ impl CSGRenderer {
             vk::PipelineBindPoint::COMPUTE,
             &self.pipeline_layout,
             0,
-            &[&self.descriptor_sets[frame_index]],
+            &[&self.descriptor_sets[engine.get_current_in_flight_frame_index()]],
         );
 
         buffer.dispatch(
-            (swapchain.size.x / RENDER_DISPATCH_GROUP_SIZE_X) + 1,
-            (swapchain.size.y / RENDER_DISPATCH_GROUP_SIZE_Y) + 1,
+            (engine.get_resolution().x / RENDER_DISPATCH_GROUP_SIZE_X) + 1,
+            (engine.get_resolution().y / RENDER_DISPATCH_GROUP_SIZE_Y) + 1,
             1,
         );
 
         buffer.swapchain_image_copy_from_compute_storage_image(
-            &self.storage_images[frame_index].image,
-            &swapchain.images_and_views[swapchain.current_index].image,
+            &self.storage_images[engine.get_current_in_flight_frame_index()].image,
+            &engine.get_current_swapchain_image_and_view().image,
         )?;
 
         Ok(())

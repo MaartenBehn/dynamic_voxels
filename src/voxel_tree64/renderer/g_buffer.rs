@@ -1,6 +1,6 @@
 use std::iter;
 
-use octa_force::{camera::Camera, glam::{IVec3, Mat4, UVec2, Vec3}, log::debug, vulkan::{ash::vk, descriptor_heap::{self, DescriptorHandle, DescriptorHandleValue, DescriptorHeap}, gpu_allocator::MemoryLocation, physical_device::PhysicalDeviceCapabilities, Buffer, Context, Image, ImageAndView, ImageBarrier, ImageView}, OctaResult};
+use octa_force::{camera::Camera, glam::{IVec3, Mat4, UVec2, Vec3}, log::debug, vulkan::{ash::vk, descriptor_heap::{self, DescriptorHandle, DescriptorHandleValue, DescriptorHeap}, gpu_allocator::MemoryLocation, physical_device::PhysicalDeviceCapabilities, Buffer, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, Image, ImageAndView, ImageBarrier, ImageView, WriteDescriptorSet, WriteDescriptorSetKind}, OctaResult};
 
 use crate::NUM_FRAMES_IN_FLIGHT;
 
@@ -13,16 +13,19 @@ pub struct ImageAndViewAndHandle {
 
 #[derive(Debug)]
 pub struct GBuffer {
-    pub history_len_tex: ImageAndViewAndHandle, 
-    pub albedo_tex: [ImageAndViewAndHandle; NUM_FRAMES_IN_FLIGHT],
-    pub irradiance_tex: [ImageAndViewAndHandle; NUM_FRAMES_IN_FLIGHT],
-    pub depth_tex: [ImageAndViewAndHandle; NUM_FRAMES_IN_FLIGHT],
-    pub moments_tex: [ImageAndViewAndHandle; NUM_FRAMES_IN_FLIGHT],
+    pub albedo_tex: [ImageAndView; NUM_FRAMES_IN_FLIGHT],
+    pub irradiance_tex: [ImageAndView; NUM_FRAMES_IN_FLIGHT],
+    pub depth_tex: [ImageAndView; NUM_FRAMES_IN_FLIGHT],
+    pub moments_tex: [ImageAndView; NUM_FRAMES_IN_FLIGHT],
+    pub history_len_tex: ImageAndView, 
 
     pub prev_proj_mat: Mat4,
     pub prev_position: Vec3,
 
     pub uniform_buffer: Buffer,
+    pub descriptor_pool: DescriptorPool,
+    pub descriptor_layout: DescriptorSetLayout,
+    pub descriptor_sets: Vec<DescriptorSet>, // Len of NUM_FRAMES_IN_FLIGHT
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -40,28 +43,81 @@ pub struct GBufferUniform {
     num_steady_frames: u32,
 
     prev_position_frac: Vec3,
-    albedo_tex: DescriptorHandleValue,
     
     position_delta: Vec3,
-    prev_albedo_tex: DescriptorHandleValue,
-    
-    irradiance_tex: [DescriptorHandleValue; NUM_FRAMES_IN_FLIGHT],
-    
-    depth_tex: [DescriptorHandleValue; NUM_FRAMES_IN_FLIGHT],
-    moments_tex: [DescriptorHandleValue; NUM_FRAMES_IN_FLIGHT],
-    
-    history_len_tex: DescriptorHandleValue, 
 }
 
 impl GBuffer {
-    pub fn new(context: &Context, res: UVec2, descriptor_heap: &mut DescriptorHeap, camera: &Camera) -> OctaResult<Self> {
+    pub fn new(context: &Context, res: UVec2, camera: &Camera) -> OctaResult<Self> {
 
+        let descriptor_pool = context.create_descriptor_pool(
+            NUM_FRAMES_IN_FLIGHT as u32,
+            &[
+                vk::DescriptorPoolSize {
+                    ty: vk::DescriptorType::STORAGE_IMAGE,
+                    descriptor_count: NUM_FRAMES_IN_FLIGHT as u32 * 10,
+                },
+            ],
+        )?;
+ 
         let (history_len_tex, 
             albedo_tex, 
             irradiance_tex,
             depth_tex, 
-            moments_tex) = Self::create_image_datas(context, res, descriptor_heap)?;
+            moments_tex) = Self::create_image_datas(context, res)?;
 
+        let textures = [
+            vec![
+                &albedo_tex[0], &albedo_tex[1],
+                &irradiance_tex[0], &irradiance_tex[1],
+                &depth_tex[0], &depth_tex[1],
+                &moments_tex[0], &moments_tex[1],
+                &history_len_tex,
+            ],
+            vec![
+                &albedo_tex[1], &albedo_tex[0],
+                &irradiance_tex[1], &irradiance_tex[0],
+                &depth_tex[1], &depth_tex[0],
+                &moments_tex[1], &moments_tex[0],
+                &history_len_tex,
+            ]
+        ];
+
+        let mut descriptor_layout_bindings = (0..textures[0].len())
+            .map(|i| vk::DescriptorSetLayoutBinding {
+                binding: i as u32,
+                descriptor_count: 1,
+                descriptor_type: vk::DescriptorType::STORAGE_IMAGE,
+                stage_flags: vk::ShaderStageFlags::COMPUTE,
+                ..Default::default()
+            })
+            .collect::<Vec<_>>();
+
+        let descriptor_layout =
+            context.create_descriptor_set_layout(&descriptor_layout_bindings)?;
+
+        let mut descriptor_sets = Vec::new();
+        for texture_set in textures {
+            let descriptor_set = descriptor_pool.allocate_set(&descriptor_layout)?;
+
+            let mut write_descriptor_sets = texture_set.iter()
+                .enumerate()
+                .map(|(i, tex)| 
+                    WriteDescriptorSet {
+                        binding: i as u32,
+                        kind: WriteDescriptorSetKind::StorageImage {
+                            layout: vk::ImageLayout::GENERAL,
+                            view: &tex.view,
+                        },
+                    })
+                .collect::<Vec<_>>();
+
+            descriptor_set.update(&write_descriptor_sets);
+
+            descriptor_sets.push(descriptor_set);
+        }
+
+ 
         let uniform_buffer = context.create_buffer(
             vk::BufferUsageFlags::UNIFORM_BUFFER | vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS, 
             MemoryLocation::CpuToGpu, 
@@ -77,25 +133,28 @@ impl GBuffer {
             irradiance_tex,
             depth_tex,
             moments_tex,
-            uniform_buffer,
 
             prev_proj_mat: proj_mat,
             prev_position: position,
+
+            uniform_buffer,
+            descriptor_pool,
+            descriptor_layout,
+            descriptor_sets,
         };
 
         Ok(g_buffer)
     }
 
-    fn create_image_datas(context: &Context, res: UVec2, descriptor_heap: &mut DescriptorHeap) -> 
-    OctaResult<(ImageAndViewAndHandle, [ImageAndViewAndHandle; 2], [ImageAndViewAndHandle; 2], [ImageAndViewAndHandle; 2], [ImageAndViewAndHandle; 2])> {
-        
+    fn create_image_datas(context: &Context, res: UVec2) -> 
+    OctaResult<(ImageAndView, [ImageAndView; 2], [ImageAndView; 2], [ImageAndView; 2], [ImageAndView; 2])> {
         //debug!("Supported Image Formats: {:?}", context.physical_device.supported_image_formats);
         //debug!("Supported Depth Formats: {:?}", context.physical_device.supported_depth_formats);
-
+         
         let base_flags = vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC;
 
         let mut create_image = |format: vk::Format, usage: vk::ImageUsageFlags|
-            -> OctaResult<ImageAndViewAndHandle> { 
+            -> OctaResult<ImageAndView> { 
             let image = context.create_image(
                 base_flags | usage, 
                 MemoryLocation::GpuOnly, 
@@ -104,12 +163,9 @@ impl GBuffer {
 
             let view = image.create_image_view(false)?;
             
-            let handle = descriptor_heap.create_image_handle(&view, base_flags | usage)?;
-
-            Ok(ImageAndViewAndHandle {
+            Ok(ImageAndView {
                 image,
                 view,
-                handle,
             })
         };
 
@@ -117,7 +173,7 @@ impl GBuffer {
             vk::Format::R8_UINT, vk::ImageUsageFlags::empty())?;
          
         let mut create_images = |format: vk::Format, usage: vk::ImageUsageFlags|
-            -> OctaResult<[ImageAndViewAndHandle; NUM_FRAMES_IN_FLIGHT]> {
+            -> OctaResult<[ImageAndView; NUM_FRAMES_IN_FLIGHT]> {
             Ok([create_image(format, usage)?, create_image(format, usage)?])
         };
        
@@ -133,7 +189,7 @@ impl GBuffer {
         
         let depth_tex =  create_images(
             vk::Format::R32_SFLOAT, vk::ImageUsageFlags::empty())?;
-        
+         
         let moments_tex =  create_images(
             vk::Format::R16G16_SFLOAT, vk::ImageUsageFlags::empty())?;
 
@@ -181,13 +237,6 @@ impl GBuffer {
 
             frame_no: frame_no as _,  
             num_steady_frames: 0, 
-
-            albedo_tex: self.albedo_tex[current_index].handle.value,
-            prev_albedo_tex: self.albedo_tex[last_index].handle.value, 
-            irradiance_tex: [self.irradiance_tex[current_index].handle.value, self.albedo_tex[last_index].handle.value], 
-            depth_tex: [self.depth_tex[current_index].handle.value, self.depth_tex[last_index].handle.value], 
-            moments_tex: [self.moments_tex[current_index].handle.value, self.moments_tex[last_index].handle.value], 
-            history_len_tex: self.history_len_tex.handle.value, 
         };
 
         self.uniform_buffer.copy_data_to_buffer(&[uniform])?;
@@ -198,12 +247,45 @@ impl GBuffer {
         Ok(())
     }
 
-    pub fn on_recreate_swapchain(&mut self, context: &Context, res: UVec2, descriptor_heap: &mut DescriptorHeap) -> OctaResult<()> {
+    pub fn on_recreate_swapchain(&mut self, context: &Context, res: UVec2) -> OctaResult<()> {
         let (history_len_tex, 
             albedo_tex, 
             irradiance_tex,
             depth_tex, 
-            moments_tex) = Self::create_image_datas(context, res, descriptor_heap)?;
+            moments_tex) = Self::create_image_datas(context, res)?;
+
+        let textures = [
+            vec![
+                &albedo_tex[0], &albedo_tex[1],
+                &irradiance_tex[0], &irradiance_tex[1],
+                &depth_tex[0], &depth_tex[1],
+                &moments_tex[0], &moments_tex[1],
+                &history_len_tex,
+            ],
+            vec![
+                &albedo_tex[1], &albedo_tex[0],
+                &irradiance_tex[1], &irradiance_tex[0],
+                &depth_tex[1], &depth_tex[0],
+                &moments_tex[1], &moments_tex[0],
+                &history_len_tex,
+            ]
+        ];
+
+        for (descriotor_set, texture_set) in self.descriptor_sets.iter().zip(textures) {
+            
+            let writes = texture_set.iter()
+                .enumerate()
+                .map(|(i, tex)| WriteDescriptorSet {
+                    binding: i as u32, 
+                    kind: WriteDescriptorSetKind::StorageImage {
+                        layout: vk::ImageLayout::GENERAL,
+                        view: &tex.view,
+                    },
+                })
+                .collect::<Vec<_>>();
+
+            descriotor_set.update(&writes);
+        }
 
         self.history_len_tex = history_len_tex;
         self.albedo_tex = albedo_tex;

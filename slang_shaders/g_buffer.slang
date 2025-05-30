@@ -1,4 +1,12 @@
-import texture_heap;
+[vk::binding(0, 0)] public RWTexture2D<float4> AlbedoTex;               // rgb: albedo, w: packed normal
+[vk::binding(1, 0)] public RWTexture2D<float4> PrevAlbedoTex;          
+[vk::binding(2, 0)] public RWTexture2D<float4> IrradianceTex;           // rgb: irradiance, w: variance 
+[vk::binding(3, 0)] public RWTexture2D<float4> PrevIrradianceTex;           
+[vk::binding(4, 0)] public RWTexture2D<float> DepthTex;           
+[vk::binding(5, 0)] public RWTexture2D<float> PrevDepthTex;           
+[vk::binding(6, 0)] public RWTexture2D<float2> MomentsTex;           
+[vk::binding(7, 0)] public RWTexture2D<float2> PrevMomentsTex;           
+[vk::binding(8, 0)] public RWTexture2D<uint> HistoryLenTex;           
 
 public struct GBufferUniforms {
   public float4x4 ProjMat, InvProjMat;
@@ -11,22 +19,16 @@ public struct GBufferUniforms {
   public uint NumSteadyFrames;
 
   public float3 HistoryOriginFrac;
-  public ImageHandle2D<float4> AlbedoTex;          // rgb: albedo, w: packed normal
+  uint fill_1;
 
   public float3 OriginDelta;
-  public ImageHandle2D<float4> PrevAlbedoTex;          // rgb: albedo, w: packed normal
-
-  public ImageHandle2D<float4> IrradianceTex, PrevIrradianceTex;  // rgb: irradiance, w: variance 
-  public ImageHandle2D<float> DepthTex, PrevDepthTex;
-
-  public ImageHandle2D<float2> MomentsTex, PrevMomentsTex;
-  public ImageHandle2D<uint> HistoryLenTex;
-
+  uint fill_2;
+ 
   public property uint2 RenderSize {
     [__ref]
     get {
       uint width, height;
-      AlbedoTex.Instance.GetDimensions(width, height);
+      AlbedoTex.GetDimensions(width, height);
       return uint2(width, height);
     }
   }

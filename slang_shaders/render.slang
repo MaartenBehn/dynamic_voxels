@@ -3,7 +3,6 @@ import utilits;
 import ray;
 import tree64;
 import g_buffer;
-import texture_heap;
 
 #include "perf_counters.h.slang"
 
@@ -11,14 +10,14 @@ static uint MaxBounces = 0;
 static int3 WorldOrigin = int3(0, 0, 0);
 static uint NumSteadyFrames = 0;
 
+[vk::binding(0, 1)] public Texture2D<uint2> StbnTexture;              
+
 public struct DispatchParams {
   VoxelTree tree;
   GBufferUniforms* GBuffer;
   Material* Palette;
   PerfStats* PerfCounters;
-
   uint MaxBounces;
-  TextureHandle2D<uint2> StbnTexture;
 };
 
 [vk::push_constant] DispatchParams pc;
@@ -33,7 +32,7 @@ void compute_main(uint2 pos: SV_DispatchThreadID) {
   float3 rayDir, rayPos;
   GetPrimaryRay(pos, rayPos, rayDir);
 
-  var blueNoise = BlueNoise(pc.StbnTexture.Instance, pos, pc.GBuffer->FrameNo);
+  var blueNoise = BlueNoise(StbnTexture, pos, pc.GBuffer->FrameNo);
 
   float3 irradiance = pc.MaxBounces == 0 ? 1.0 : 0.0;
   float3 throughput = 1.0;
@@ -55,9 +54,9 @@ void compute_main(uint2 pos: SV_DispatchThreadID) {
 
     if (bounceNo == 0) {
       if (hit.Miss) {
-        pc.GBuffer->AlbedoTex.Instance[pos] = float4(1.0);
+        AlbedoTex[pos] = float4(1.0);
         irradiance = GetSkyColor(rayDir, true);
-        pc.GBuffer->DepthTex.Instance[pos] = -1.0;
+        DepthTex[pos] = -1.0;
         break;
       }
       if (pc.MaxBounces == 0) {
@@ -66,11 +65,11 @@ void compute_main(uint2 pos: SV_DispatchThreadID) {
           hit.Normal.z != 0 ? 0.5 : 
           hit.Normal.y  < 0 ? 0.3 : 1.0;
       }
-      pc.GBuffer->AlbedoTex.Instance[pos] = PackAlbedo(albedo, hit.Normal, emission > 0.5);
+      AlbedoTex[pos] = PackAlbedo(albedo, hit.Normal, emission > 0.5);
 
       float4 projPos = mul(pc.GBuffer->ProjMat, float4(hit.Pos, 1.0));
       float depth = projPos.z / projPos.w;
-      pc.GBuffer->DepthTex.Instance[pos] = depth;
+      DepthTex[pos] = depth;
     } else {
       if (hit.Miss) {
         irradiance += GetSkyColor(rayDir, false) * throughput;
@@ -92,7 +91,7 @@ void compute_main(uint2 pos: SV_DispatchThreadID) {
   clockDiff = g_CurrTraversalIters;
 #endif
 
-  pc.GBuffer->IrradianceTex.Instance[pos] = float4(irradiance, clockDiff);
+  IrradianceTex[pos] = float4(irradiance, clockDiff);
 }
 
 void GetPrimaryRay(int2 screenPos, out float3 rayPos, out float3 rayDir) {

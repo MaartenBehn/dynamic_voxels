@@ -333,11 +333,11 @@ pub fn record_render_commands(
     #[cfg(any(feature="fence", feature="islands", feature="render_example"))]
     render_state
         .renderer
-        .render(command_buffer, engine.get_current_in_flight_frame_index(), &engine.swapchain)?;
+        .render(command_buffer, &engine)?;
 
 
     #[cfg(feature="tree64")]
-    render_state.renderer.render(command_buffer, &engine.swapchain, engine.in_flight_frames.current_index)?;
+    render_state.renderer.render(command_buffer, &engine)?;
 
     command_buffer.begin_rendering(
         &engine.get_current_swapchain_image_and_view().view,
