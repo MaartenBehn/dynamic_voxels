@@ -121,7 +121,7 @@ impl GBuffer {
 
  
         let uniform_buffer = context.create_buffer(
-            vk::BufferUsageFlags::UNIFORM_BUFFER | vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS, 
+            vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS, 
             MemoryLocation::CpuToGpu, 
             size_of::<GBufferUniform>() as _)?;
 
