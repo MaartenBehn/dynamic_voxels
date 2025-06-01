@@ -6,6 +6,12 @@ macro_rules! warn {
     }
 }
 
+fn warn_lines(text: String) {
+    for line in text.lines() {
+        warn!("{}", line)
+    }
+}
+
 fn main() {
     println!("cargo::rerun-if-changed=slang_shaders/*");
     
@@ -36,10 +42,10 @@ fn compile_shader(name: &str) {
     
     if cfg!(debug_assertions) {
         command.arg("-g3")
-            .arg("-O0") 
+            .arg("-O1") 
     } else {
-        command.arg("-g0")
-            .arg("-O3")
+        //command.arg("-g0").arg("-O3")
+        command.arg("-g3").arg("-O0")
     };
 
     let res = command.output();
@@ -51,7 +57,9 @@ fn compile_shader(name: &str) {
         let stderr = String::from_utf8(output.stderr).unwrap();
 
         if output.status.success() {
-            warn!("Compiled successfully {}.slang. \n {} {}", name, stdout, stderr);
+            warn!("Compiled successfully {}.slang.", name);
+            warn_lines(stdout);
+            warn_lines(stderr);
         } else {
             panic!("Compile failed {}.slang: {} {}", name, stdout, stderr);
         }

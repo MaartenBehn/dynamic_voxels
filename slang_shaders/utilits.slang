@@ -22,11 +22,11 @@ public struct Random {
 };
 
 public struct BlueNoise {
-    Texture2D<uint2> stbnTexture;
+    Texture2D<uint8_t2> stbnTexture;
     int3 tilePos;
     uint sampleIdx;
 
-    public __init(Texture2D<uint2> stbn, int2 samplePos, uint frameNo, uint sampleIdx_ = 0) {
+    public __init(Texture2D<uint8_t2> stbn, int2 samplePos, uint frameNo, uint sampleIdx_ = 0) {
         stbnTexture = stbn;
         tilePos = int3(samplePos, frameNo);
         sampleIdx = sampleIdx_ + (frameNo & ~63); // offset by frameNo to hide noise period

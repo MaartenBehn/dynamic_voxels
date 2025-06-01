@@ -10,7 +10,7 @@ static uint MaxBounces = 0;
 static int3 WorldOrigin = int3(0, 0, 0);
 static uint NumSteadyFrames = 0;
 
-[vk::binding(0, 1)] public Texture2D<uint2> StbnTexture;              
+[vk::binding(0, 1)] public uniform Texture2D<uint8_t2> StbnTexture;              
 
 public struct DispatchParams {
   VoxelTree tree;
