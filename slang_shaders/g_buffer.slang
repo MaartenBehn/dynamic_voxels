@@ -1,12 +1,12 @@
-[vk::binding(0, 0, R8G8B8A8_UNORM)] public RWTexture2D<float4> AlbedoTex;               // rgb: albedo, w: packed normal
-[vk::binding(1, 0, R8G8B8A8_UNORM)] public RWTexture2D<float4> PrevAlbedoTex;          
-[vk::binding(2, 0, R8G8B8A8_UNORM)] public RWTexture2D<float4> IrradianceTex;           // rgb: irradiance, w: variance 
-[vk::binding(3, 0, R8G8B8A8_UNORM)] public RWTexture2D<float4> PrevIrradianceTex;           
-[vk::binding(4, 0, R32_SFLOAT)]     public RWTexture2D<float> DepthTex;           
-[vk::binding(5, 0, R32_SFLOAT)]     public RWTexture2D<float> PrevDepthTex;           
-[vk::binding(6, 0, R16G16_SFLOAT)]  public RWTexture2D<float2> MomentsTex;           
-[vk::binding(7, 0, R16G16_SFLOAT)]  public RWTexture2D<float2> PrevMomentsTex;           
-[vk::binding(8, 0, R8_UINT)]        public RWTexture2D<uint> HistoryLenTex;           
+[vk::binding(0, 0)] public RWTexture2D<float4> AlbedoTex;               // rgb: albedo, w: packed normal
+[vk::binding(1, 0)] public RWTexture2D<float4> PrevAlbedoTex;          
+[vk::binding(2, 0)] public RWTexture2D<float4> IrradianceTex;           // rgb: irradiance, w: variance 
+[vk::binding(3, 0)] public RWTexture2D<float4> PrevIrradianceTex;           
+[vk::binding(4, 0)] public RWTexture2D<float> DepthTex;           
+[vk::binding(5, 0)] public RWTexture2D<float> PrevDepthTex;           
+[vk::binding(6, 0)] public RWTexture2D<float2> MomentsTex;           
+[vk::binding(7, 0)] public RWTexture2D<float2> PrevMomentsTex;           
+[vk::binding(8, 0)] public RWTexture2D<uint> HistoryLenTex;           
 
 public struct GBufferUniforms {
   public float4x4 ProjMat, InvProjMat;

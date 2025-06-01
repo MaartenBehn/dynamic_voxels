@@ -43,8 +43,10 @@ pub struct GBufferUniform {
     num_steady_frames: u32,
 
     prev_position_frac: Vec3,
+    fill_1: u32,
     
     position_delta: Vec3,
+    fill_2: u32,
 }
 
 impl GBuffer {
@@ -235,8 +237,13 @@ impl GBuffer {
             position_delta: position - self.prev_position,
 
             frame_no: frame_no as _,  
-            num_steady_frames: 0, 
+            num_steady_frames: 0,
+
+            fill_1: 0,
+            fill_2: 0,
         };
+
+        debug!("Writing g_buffer");
 
         self.uniform_buffer.copy_data_to_buffer(&[uniform])?;
 
