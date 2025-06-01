@@ -122,9 +122,8 @@ impl GBuffer {
  
         let uniform_buffer = context.create_buffer(
             vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS, 
-            MemoryLocation::CpuToGpu, 
+            MemoryLocation::GpuOnly, 
             size_of::<GBufferUniform>() as _)?;
-
 
         let proj_mat = camera.projection_matrix().mul_mat4(&camera.view_matrix());
         let position = camera.position;
@@ -220,7 +219,7 @@ impl GBuffer {
         Ok((history_len_tex, albedo_tex, irradiance_tex, depth_tex, moments_tex))
     }
  
-    pub fn push_uniform(&mut self, frame_no: usize, camera: &Camera) -> OctaResult<()> {
+    pub fn push_uniform(&mut self, frame_no: usize, camera: &Camera, context: &Context) -> OctaResult<()> {
         let proj_mat = camera.projection_matrix().mul_mat4(&camera.view_matrix());
         let inv_proj_mat = proj_mat.inverse();
         let position = camera.position;
@@ -245,7 +244,7 @@ impl GBuffer {
 
         debug!("Writing g_buffer");
 
-        self.uniform_buffer.copy_data_to_buffer(&[uniform])?;
+        context.copy_data_to_gpu_only_buffer(&[uniform], &self.uniform_buffer)?;
 
         self.prev_proj_mat = proj_mat;
         self.prev_position = position;
