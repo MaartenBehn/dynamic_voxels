@@ -218,8 +218,7 @@ impl GBuffer {
         Ok((history_len_tex, albedo_tex, irradiance_tex, depth_tex, moments_tex))
     }
  
-    pub fn push_uniform(&mut self, current_index: usize, frame_no: usize, camera: &Camera) -> OctaResult<()> {
-        let last_index = 1 - current_index;
+    pub fn push_uniform(&mut self, frame_no: usize, camera: &Camera) -> OctaResult<()> {
         let proj_mat = camera.projection_matrix().mul_mat4(&camera.view_matrix());
         let inv_proj_mat = proj_mat.inverse();
         let position = camera.position;

@@ -150,8 +150,8 @@ impl Tree64Renderer {
         })
     }
 
-    pub fn update(&mut self, current_index: usize, frame_no: usize, camera: &Camera) -> OctaResult<()> {
-        self.g_buffer.push_uniform(current_index, frame_no, camera)?;
+    pub fn update(&mut self, frame_no: usize, camera: &Camera) -> OctaResult<()> {
+        self.g_buffer.push_uniform(frame_no, camera)?;
 
         Ok(())
     }
