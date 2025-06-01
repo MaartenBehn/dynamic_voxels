@@ -5,7 +5,7 @@ import perf_counters;
 #define PERF_LEVEL_NORMAL 2
 #define PERF_LEVEL_HIGH 3
 
-#define PERF_TRACK_LEVEL  PERF_LEVEL_NORMAL
+#define PERF_TRACK_LEVEL  PERF_LEVEL_OFF
 
 #define PERF_PRECISE_ITER_HEATMAP  1
 

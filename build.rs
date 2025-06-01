@@ -42,7 +42,7 @@ fn compile_shader(name: &str) {
     
     if cfg!(debug_assertions) {
         command.arg("-g3")
-            .arg("-O1") 
+            .arg("-O0") 
     } else {
         //command.arg("-g0").arg("-O3")
         command.arg("-g3").arg("-O0")
