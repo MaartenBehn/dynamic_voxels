@@ -13,10 +13,10 @@ static uint NumSteadyFrames = 0;
 [vk::binding(0, 1)] public uniform Texture2D<uint8_t2> StbnTexture;              
 
 public struct DispatchParams {
-  VoxelTree tree;
   GBufferUniforms* GBuffer;
   Material* Palette;
   PerfStats* PerfCounters;
+  VoxelTree tree;
   uint MaxBounces;
 };
 

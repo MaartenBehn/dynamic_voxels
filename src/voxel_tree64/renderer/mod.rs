@@ -36,10 +36,10 @@ const RENDER_DISPATCH_GROUP_SIZE_Y: u32 = 8;
 
 #[repr(C)]
 pub struct DispatchParams {
-    tree: VoxelTreeData,
     g_buffer_ptr: u64,
     palette_ptr: u64,
     perf_stats_ptr: u64,
+    tree: VoxelTreeData,
     max_bounces: u32,
 }
 

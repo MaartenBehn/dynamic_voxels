@@ -17,9 +17,9 @@ public struct Node {
 }
 
 public struct VoxelTree {
-  public uint start_index;
   public Node* TreeNodes;
   public uint8_t* LeafData;
+  public uint start_index;
   
   public HitInfo RayCast(int3 position, float3 rayPos, float3 rayDir, bool coarse) {
     // Multiply world origin separately to minimize float rounding errors.

@@ -6,10 +6,9 @@ use super::Tree64Renderer;
 #[allow(dead_code)]
 #[repr(C)]
 pub struct VoxelTreeData {
-    pub origin: UVec3,
-    pub start_index: u32,
     pub nodes_ptr: u64,
     pub leaf_ptr: u64,
+    pub start_index: u32,
 }
 
 #[derive(Debug)]
@@ -22,7 +21,6 @@ pub struct VoxelTree64Buffer {
 impl VoxelTree64Buffer {
     pub fn get_data(&self) -> VoxelTreeData {
         VoxelTreeData {
-            origin: UVec3::ZERO,
             start_index: self.tree.root_state().index,
             nodes_ptr: self.nodes_buffer.get_device_address(),
             leaf_ptr: self.data_buffer.get_device_address(),
