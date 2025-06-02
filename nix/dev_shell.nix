@@ -15,6 +15,10 @@
         
         # Shader debug
         spirv-tools
+        renderdoc
+
+        # for vulkaninfo
+        vulkan-tools
       ];
 
       # Use faster linker for local build 
