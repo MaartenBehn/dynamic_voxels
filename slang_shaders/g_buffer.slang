@@ -7,6 +7,7 @@
 [vk::binding(6, 0)] public RWTexture2D<float2> MomentsTex;           
 [vk::binding(7, 0)] public RWTexture2D<float2> PrevMomentsTex;           
 [vk::binding(8, 0)] public RWTexture2D<uint> HistoryLenTex;           
+//[vk::binding(9, 0)] public RWTexture2D<float4> Output;           
 
 public struct GBufferUniforms {
   public float4x4 ProjMat, InvProjMat;

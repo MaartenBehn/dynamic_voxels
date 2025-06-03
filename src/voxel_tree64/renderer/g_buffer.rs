@@ -17,7 +17,7 @@ pub struct GBuffer {
     pub irradiance_tex: [ImageAndView; NUM_FRAMES_IN_FLIGHT],
     pub depth_tex: [ImageAndView; NUM_FRAMES_IN_FLIGHT],
     pub moments_tex: [ImageAndView; NUM_FRAMES_IN_FLIGHT],
-    pub history_len_tex: ImageAndView, 
+    pub history_len_tex: ImageAndView,
 
     pub prev_proj_mat: Mat4,
     pub prev_position: Vec3,
@@ -194,7 +194,7 @@ impl GBuffer {
         let moments_tex =  create_images(
             vk::Format::R16G16_SFLOAT, vk::ImageUsageFlags::empty())?;
 
-        
+
         let barriers = iter::once(&history_len_tex)
             .chain(albedo_tex.iter())
             .chain(irradiance_tex.iter())

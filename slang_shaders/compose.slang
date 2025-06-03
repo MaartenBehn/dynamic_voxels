@@ -6,26 +6,24 @@ enum DebugChannel { None, Albedo, Irradiance, Normals, HeatMap, Variance };
 
 struct DispatchParams {
   GBufferUniforms* GBuffer;
-  ImageHandle2D<float4> output;
   DebugChannel Channel;
   float2 HeatmapRange;
 };
 [vk::push_constant] DispatchParams pc;
 
-[vk::binding(0, 1)]
-[SamplerDesc(MagFilter.Linear, MinFilter.Linear, MipFilter.Linear, WrapMode.Repeat)]
-public SamplerState g_LinearSampler;
+//[vk::binding(0, 1)]
+//[SamplerDesc(MagFilter.Linear, MinFilter.Linear, MipFilter.Linear, WrapMode.Repeat)]
+//public SamplerState g_LinearSampler;
 
 [shader("compute")]
 [numthreads(8, 8)]
-void compute_main(float2 uv: TEXCOORD0) {
-  int2 pos = int2(uv * pc.GBuffer->RenderSize);
-  // float3 albedo = pc.GBuffer->AlbedoTex.Instance[pos].rgb;
-  // float3 irradiance = pc.GBuffer.IrradianceTex.Instance[pos].rgb;
+void compute_main(uint2 pos: SV_DispatchThreadID) {
+  float3 albedo = AlbedoTex[pos].rgb;
+  float3 irradiance = IrradianceTex[pos].rgb;
 
   // This is fine as long image was created with USE_SAMPLED
-  float3 albedo = reinterpret<TextureHandle2D>(pc.GBuffer->AlbedoTex).Instance.SampleLevel(g_LinearSampler, uv, 0).rgb;
-  float3 irradiance = reinterpret<TextureHandle2D>(pc.GBuffer->IrradianceTex).Instance.SampleLevel(g_LinearSampler, uv, 0).rgb;
+  //float3 albedo = AlbedoTex.SampleLevel(g_LinearSampler, uv, 0).rgb;
+  //float3 irradiance = IrradianceTex.SampleLevel(g_LinearSampler, uv, 0).rgb;
 
   float4 output;
   switch (pc.Channel) {
@@ -37,31 +35,37 @@ void compute_main(float2 uv: TEXCOORD0) {
       color = pow(color, 0.45);
 
       output = float4(color, 1.0);
+      break;
     }
     case DebugChannel.Albedo: {
       output = float4(albedo, 1.0);
+      break;
     }
     case DebugChannel.Irradiance: {
       output = float4(aces_approx(irradiance), 1.0);
+      break;
     }
     case DebugChannel.Normals: {
-      float3 normal = UnpackAlbedo(pc.GBuffer.AlbedoTex.Instance[pos]).Normal;
+      float3 normal = UnpackAlbedo(AlbedoTex[pos]).Normal;
       output = float4(normal * 0.5 + 0.5, 1.0);
+      break;
     }
     case DebugChannel.HeatMap: {
       // radiance.w == renderClocks unless overwritten by reproj / SVGF passes.
-      float iters = pc.GBuffer.IrradianceTex.Instance[pos].w;
+      float iters = IrradianceTex[pos].w;
       output = float4(viridis_inferno(iters, pc.HeatmapRange), 1);
+      break;
     }
     case DebugChannel.Variance: {
-      float variance = pc.GBuffer.IrradianceTex.Instance[pos].w;
+      float variance = IrradianceTex[pos].w;
       variance = sqrt(variance) * 3;
       // variance = imageLoad(u_DepthTex, pos).r * 0.1;
       output = float4(variance.xxx, 1.0);
+      break;
     }
   }
 
-  pc.output.Instance[pos] = output;
+  AlbedoTex[pos] = output;
 }
 
 

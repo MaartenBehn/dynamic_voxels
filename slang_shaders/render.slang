@@ -53,8 +53,8 @@ void compute_main(uint2 pos: SV_DispatchThreadID) {
 
     if (bounceNo == 0) {
       if (hit.Miss) {
-        //AlbedoTex[pos] = float4(1.0);
-        AlbedoTex[pos] = float4(GetSkyColor(rayDir, true), 1.0);
+        AlbedoTex[pos] = float4(1.0);
+        //AlbedoTex[pos] = float4(GetSkyColor(rayDir, true), 1.0);
         irradiance = GetSkyColor(rayDir, true);
         DepthTex[pos] = -1.0;
         break;

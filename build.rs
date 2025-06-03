@@ -16,7 +16,7 @@ fn main() {
     println!("cargo::rerun-if-changed=slang_shaders/*");
     
     compile_shader("render");
-    //compile_shader("compose");
+    compile_shader("compose");
 }
 
 fn compile_shader(name: &str) {
