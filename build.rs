@@ -44,8 +44,8 @@ fn compile_shader(name: &str) {
         command.arg("-g3")
             .arg("-O0") 
     } else {
-        //command.arg("-g0").arg("-O3")
-        command.arg("-g3").arg("-O0")
+        command.arg("-g0").arg("-O3")
+        //command.arg("-g3").arg("-O0")
     };
 
     let res = command.output();

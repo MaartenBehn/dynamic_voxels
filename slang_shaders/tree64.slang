@@ -28,7 +28,7 @@ public struct VoxelTree {
     float scale = 1.0 / (1 << TreeScale);
     float3 origin = position * scale + rayPos * scale + 1.0;
 
-    HitInfo hit = Traversal(origin, rayDir, coarse);
+    HitInfo hit = Traversal_OctMirror(origin, rayDir, coarse);
 
     if (hit.MaterialId != 0) {
       hit.Pos = (hit.Pos - 1.0 - position * scale) * (1 << TreeScale);
