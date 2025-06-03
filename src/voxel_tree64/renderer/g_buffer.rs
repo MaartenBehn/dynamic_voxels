@@ -1,6 +1,6 @@
 use std::iter;
 
-use octa_force::{camera::Camera, glam::{IVec3, Mat4, UVec2, Vec3}, log::debug, vulkan::{ash::vk, descriptor_heap::{self, DescriptorHandle, DescriptorHandleValue, DescriptorHeap}, gpu_allocator::MemoryLocation, physical_device::PhysicalDeviceCapabilities, Buffer, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, Image, ImageAndView, ImageBarrier, ImageView, WriteDescriptorSet, WriteDescriptorSetKind}, OctaResult};
+use octa_force::{camera::Camera, glam::{self, IVec3, Mat4, Quat, UVec2, Vec3}, log::debug, vulkan::{ash::vk, descriptor_heap::{self, DescriptorHandle, DescriptorHandleValue, DescriptorHeap}, gpu_allocator::MemoryLocation, physical_device::PhysicalDeviceCapabilities, Buffer, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, Image, ImageAndView, ImageBarrier, ImageView, WriteDescriptorSet, WriteDescriptorSetKind}, OctaResult};
 
 use crate::NUM_FRAMES_IN_FLIGHT;
 
@@ -36,7 +36,7 @@ pub struct GBufferUniform {
     prev_proj_mat: Mat4,
     prev_inv_proj_mat: Mat4,
 
-    position: IVec3,
+    position: Vec3,
     frame_no: u32,
 
     position_frac: Vec3,
@@ -219,18 +219,20 @@ impl GBuffer {
         Ok((history_len_tex, albedo_tex, irradiance_tex, depth_tex, moments_tex))
     }
  
-    pub fn push_uniform(&mut self, frame_no: usize, camera: &Camera, context: &Context) -> OctaResult<()> {
+    pub fn push_uniform(&mut self, frame_no: usize, camera: &Camera, context: &Context, res: UVec2) -> OctaResult<()> {
         let proj_mat = camera.projection_matrix().mul_mat4(&camera.view_matrix());
-        let inv_proj_mat = proj_mat.inverse();
+        let inv_proj_mat = Self::get_inverse_proj_screen_mat(proj_mat, res);
+        let prev_inv_proj_mat = Self::get_inverse_proj_screen_mat(self.prev_proj_mat, res);
+        
         let position = camera.position;
 
         let uniform = GBufferUniform { 
             proj_mat, 
             inv_proj_mat, 
             prev_proj_mat: self.prev_proj_mat, 
-            prev_inv_proj_mat: self.prev_proj_mat.inverse(), 
+            prev_inv_proj_mat: prev_inv_proj_mat, 
             
-            position: position.as_ivec3(),
+            position: position,
             position_frac: position.fract(),
             prev_position_frac: self.prev_position.fract(),
             position_delta: position - self.prev_position,
@@ -242,14 +244,22 @@ impl GBuffer {
             fill_2: 0,
         };
 
-        debug!("Writing g_buffer");
-
         context.copy_data_to_gpu_only_buffer(&[uniform], &self.uniform_buffer)?;
 
         self.prev_proj_mat = proj_mat;
         self.prev_position = position;
 
         Ok(())
+    }
+    
+    // Computes inverse projection matrix, scaled to take coordinates in range [0..viewSize] rather than [-1..1]
+    pub fn get_inverse_proj_screen_mat(proj_mat: Mat4, res: UVec2) -> Mat4 {
+        let mut inv_proj_mat = proj_mat.inverse();
+        let translation_mat = Mat4::from_scale_rotation_translation(
+            Vec3::new(2.0 / res.x as f32, 2.0 / res.y as f32, 1.0), 
+            Quat::IDENTITY,
+            Vec3::new(-1.0, -1.0 , 0.0));
+        inv_proj_mat.mul_mat4(&translation_mat)
     }
 
     pub fn on_recreate_swapchain(&mut self, context: &Context, res: UVec2) -> OctaResult<()> {

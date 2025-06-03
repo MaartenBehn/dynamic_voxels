@@ -41,6 +41,11 @@
         #vulkan-headers 
         #vulkan-loader
         #vulkan-validation-layers
+        
+        # For renderdoc x11 fallback
+        xorg.libX11
+        xorg.libXcursor
+        xorg.libXi
     ];
 
   VULKAN_SDK = "${pkgs.vulkan-headers}";

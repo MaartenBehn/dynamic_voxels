@@ -15,7 +15,7 @@ public struct GBufferUniforms {
   public float3 position;
   public uint FrameNo;
 
-  public float3 OriginFrac;
+  public float3 position_frac;
   public uint NumSteadyFrames;
 
   public float3 HistoryOriginFrac;

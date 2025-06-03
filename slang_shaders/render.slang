@@ -1,6 +1,5 @@
 import backend_common;
 import utilits;
-import ray;
 import tree64;
 import g_buffer;
 
@@ -29,7 +28,7 @@ void compute_main(uint2 pos: SV_DispatchThreadID) {
 
   uint64_t clockStart = clockARB();
 
-  float3 rayDir, rayPos;
+  float3 rayPos, rayDir;  
   GetPrimaryRay(pos, rayPos, rayDir);
 
   var blueNoise = BlueNoise(StbnTexture, pos, pc.GBuffer->FrameNo);
@@ -54,7 +53,8 @@ void compute_main(uint2 pos: SV_DispatchThreadID) {
 
     if (bounceNo == 0) {
       if (hit.Miss) {
-        AlbedoTex[pos] = float4(1.0);
+        //AlbedoTex[pos] = float4(1.0);
+        AlbedoTex[pos] = float4(GetSkyColor(rayDir, true), 1.0);
         irradiance = GetSkyColor(rayDir, true);
         DepthTex[pos] = -1.0;
         break;
@@ -101,7 +101,7 @@ void GetPrimaryRay(int2 screenPos, out float3 rayPos, out float3 rayDir) {
         pos += (MartinR2(pc.GBuffer->NumSteadyFrames) - 0.5) / easeWeight;
     }
     float4 far = mul(pc.GBuffer->InvProjMat, float4(pos, 1, 1));
-    rayPos = pc.GBuffer->OriginFrac;
+    rayPos = pc.GBuffer->position_frac;
     rayDir = normalize(far.xyz / far.w);
 }
 
