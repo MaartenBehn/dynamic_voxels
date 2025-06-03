@@ -2,7 +2,7 @@ import texture_heap;
 import g_buffer;
 import utilits;
 
-enum DebugChannel { None, Albedo, Irradiance, Normals, HeatMap, Variance };
+enum DebugChannel { None, Albedo, Irradiance, Normals, Depth, HeatMap, Variance };
 
 struct DispatchParams {
   GBufferUniforms* GBuffer;
@@ -48,6 +48,11 @@ void compute_main(uint2 pos: SV_DispatchThreadID) {
     case DebugChannel.Normals: {
       float3 normal = UnpackAlbedo(AlbedoTex[pos]).Normal;
       output = float4(normal * 0.5 + 0.5, 1.0);
+      break;
+    }
+    case DebugChannel.Depth: {
+      float depth = DepthTex[pos];
+      output = float4(float3(depth), 1.0);
       break;
     }
     case DebugChannel.HeatMap: {

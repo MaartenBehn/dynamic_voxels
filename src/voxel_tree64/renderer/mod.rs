@@ -72,6 +72,7 @@ pub enum DebugChannel {
     Albedo,
     Irradiance,
     Normals,
+    Depth,
     HeatMap,
     Variance,
 }
