@@ -58,8 +58,6 @@ fn main() {
             "storagePushConstant8".to_string(),
             "bufferDeviceAddress".to_string(),
             "shaderInt8".to_string(),
-            //"variablePointersStorageBuffer".to_string(),
-            //"variablePointers".to_string(),
             "shaderInt64".to_string(),
             "descriptorBindingStorageImageUpdateAfterBind".to_string(),
             "descriptorBindingSampledImageUpdateAfterBind".to_string(),
@@ -69,6 +67,10 @@ fn main() {
             "runtimeDescriptorArray".to_string(),
             "shaderBufferInt64Atomics".to_string(),
             "shaderInt16".to_string(),
+
+            // For DescriptorHeap
+            "variablePointersStorageBuffer".to_string(),
+            "variablePointers".to_string(),
             //"shaderFloat16".to_string(),
         ],
 

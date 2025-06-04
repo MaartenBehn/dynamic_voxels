@@ -2,6 +2,7 @@ import backend_common;
 import utilits;
 import tree64;
 import g_buffer;
+import texture_heap;
 
 #include "perf_counters.h.slang"
 
@@ -9,14 +10,13 @@ static uint MaxBounces = 0;
 static int3 WorldOrigin = int3(0, 0, 0);
 static uint NumSteadyFrames = 0;
 
-[vk::binding(0, 1)] public uniform Texture2D<uint8_t2> StbnTexture;              
-
 public struct DispatchParams {
   VoxelTree tree;
   GBufferUniforms* GBuffer;
   Material* Palette;
   PerfStats* PerfCounters;
   uint MaxBounces;
+  TextureHandle2D<uint8_t2> StbnTexture;
 };
 
 [vk::push_constant] DispatchParams pc;
@@ -25,13 +25,22 @@ public struct DispatchParams {
 [shader("compute")]
 [numthreads(8, 8)]
 void compute_main(uint2 pos: SV_DispatchThreadID) {
+  var AlbedoTex = pc.GBuffer.AlbedoTex.Instance;
+  var PrevAlbedoTex = pc.GBuffer.PrevAlbedoTex.Instance;
+  var IrradianceTex = pc.GBuffer.IrradianceTex.Instance;
+  var PrevIrradianceTex = pc.GBuffer.PrevIrradianceTex.Instance;
+  var DepthTex = pc.GBuffer.DepthTex.Instance;
+  var PrevDepthTex = pc.GBuffer.PrevDepthTex.Instance;
+  var MomentsTex = pc.GBuffer.MomentsTex.Instance;
+  var PrevMomentsTex = pc.GBuffer.PrevMomentsTex.Instance;
+  var HistoryLenTex = pc.GBuffer.HistoryLenTex.Instance;
 
   uint64_t clockStart = clockARB();
 
   float3 rayPos, rayDir;  
   GetPrimaryRay(pos, rayPos, rayDir);
 
-  var blueNoise = BlueNoise(StbnTexture, pos, pc.GBuffer->FrameNo);
+  var blueNoise = BlueNoise(pc.StbnTexture.Instance, pos, pc.GBuffer->FrameNo);
 
   float3 irradiance = pc.MaxBounces == 0 ? 1.0 : 0.0;
   float3 throughput = 1.0;

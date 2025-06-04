@@ -38,17 +38,15 @@ const RENDER_DISPATCH_GROUP_SIZE_Y: u32 = 8;
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct Tree64Renderer {
+    heap: DescriptorHeap,
     voxel_tree64_buffer: VoxelTree64Buffer,
     palette: Palette,
     
     g_buffer: GBuffer,
     perf_stats: FramePerfStats,
 
-    blue_noise_tex: ImageAndView,
-    pub descriptor_pool: DescriptorPool,
-    pub descriptor_layout: DescriptorSetLayout,
-    pub descriptor_set: DescriptorSet, 
-
+    blue_noise_tex: ImageAndViewAndHandle,
+   
     trace_ray_stage: ShaderStage<TraceRayDispatchParams>,
     denoise_stage: ShaderStage<DenoiseDispatchParams>,
     compose_stage: ShaderStage<ComposeDispatchParams>,
@@ -62,6 +60,7 @@ pub struct TraceRayDispatchParams {
     palette_ptr: u64,
     perf_stats_ptr: u64,
     max_bounces: u32,
+    blue_noise_tex: DescriptorHandleValue,
 }
 
 #[repr(C)]
@@ -98,11 +97,22 @@ impl Tree64Renderer {
         camera: &Camera,
     ) -> Result<Tree64Renderer> {
 
+        let mut heap = context.create_descriptor_heap(vec![
+            vk::DescriptorPoolSize {
+                ty: vk::DescriptorType::SAMPLED_IMAGE,
+                descriptor_count: 20,
+            },
+            vk::DescriptorPoolSize {
+                ty: vk::DescriptorType::STORAGE_IMAGE,
+                descriptor_count: 20,
+            },
+        ])?;
+
         let voxel_tree64_buffer = tree.into_buffer(context)?;
 
         let palette = Palette::new(context)?;
  
-        let g_buffer = GBuffer::new(context, res, camera)?;
+        let g_buffer = GBuffer::new(context, &mut heap,  res, camera)?;
 
         let perf_stats = FramePerfStats::new(context)?;
 
@@ -110,40 +120,12 @@ impl Tree64Renderer {
         let blue_noise_tex = context.create_texture_image_from_data(
             Format::R8G8_UINT, UVec2 { x: img.width(), y: img.height() }, img.as_bytes())?;
 
-        let descriptor_pool = context.create_descriptor_pool(
-            1,
-            &[
-                vk::DescriptorPoolSize {
-                    ty: vk::DescriptorType::SAMPLED_IMAGE,
-                    descriptor_count: 1,
-                },
-            ],
-        )?;
+        let blue_noise_handle = heap.create_image_handle(
+            &blue_noise_tex.view, 
+            vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC)?;
+        let blue_noise_tex = ImageAndViewAndHandle { image: blue_noise_tex.image, view: blue_noise_tex.view, handle: blue_noise_handle };    
 
-        let descriptor_layout_bindings = vec![vk::DescriptorSetLayoutBinding {
-                binding: 0,
-                descriptor_count: 1,
-                descriptor_type: vk::DescriptorType::SAMPLED_IMAGE,
-                stage_flags: vk::ShaderStageFlags::COMPUTE,
-                ..Default::default()
-            }
-        ];
-
-        let descriptor_layout =
-            context.create_descriptor_set_layout(&descriptor_layout_bindings)?;
-
-        let descriptor_set = descriptor_pool.allocate_set(&descriptor_layout)?;
-        let mut write_descriptor_sets = vec![WriteDescriptorSet {
-            binding: 0,
-            kind: WriteDescriptorSetKind::SampledImage {
-                layout: vk::ImageLayout::GENERAL,
-                view: &blue_noise_tex.view,
-            },
-        }];
-
-        descriptor_set.update(&write_descriptor_sets);
-
-        let sets = &[&g_buffer.descriptor_layout, &descriptor_layout];
+        let sets = &[&heap.layout];
         let push_constant_size = size_of::<TraceRayDispatchParams>()
             .max(size_of::<DenoiseDispatchParams>())
             .max(size_of::<ComposeDispatchParams>()) as u32;
@@ -162,8 +144,9 @@ impl Tree64Renderer {
             context, 
             include_bytes!("../../../slang_shaders/bin/compose.spv"), 
             sets, push_constant_size)?;
- 
+         
         Ok(Tree64Renderer {
+            heap,
             voxel_tree64_buffer,
             palette,
 
@@ -171,9 +154,6 @@ impl Tree64Renderer {
 
             perf_stats,
             blue_noise_tex,
-            descriptor_pool,
-            descriptor_layout,
-            descriptor_set,
 
             trace_ray_stage,
             denoise_stage,
@@ -201,7 +181,7 @@ impl Tree64Renderer {
             vk::PipelineBindPoint::COMPUTE,
             &self.trace_ray_stage.pipeline_layout,
             0,
-            &[&self.g_buffer.descriptor_sets[engine.get_current_in_flight_frame_index()], &self.descriptor_set],
+            &[&self.heap.set],
         );
 
         self.trace_ray_stage.render(buffer, TraceRayDispatchParams {
@@ -210,11 +190,14 @@ impl Tree64Renderer {
             palette_ptr: self.palette.buffer.get_device_address(),
             perf_stats_ptr: self.perf_stats.buffer.get_device_address(),
             max_bounces: 2,
+            blue_noise_tex: self.blue_noise_tex.handle.value,
         }, dispatch_size);
 
+        /*
         self.denoise_stage.render(buffer, DenoiseDispatchParams {
             g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
         }, dispatch_size);
+*/
 
         self.compose_stage.render(buffer, ComposeDispatchParams {
             g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
@@ -236,7 +219,7 @@ impl Tree64Renderer {
         num_frames: usize,
         res: UVec2,
     ) -> Result<()> {
-        self.g_buffer.on_recreate_swapchain(context, res)?;
+        self.g_buffer.on_recreate_swapchain(context, &mut self.heap, res)?;
 
         Ok(())
     }

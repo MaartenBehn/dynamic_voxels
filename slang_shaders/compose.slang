@@ -1,5 +1,6 @@
 import g_buffer;
 import utilits;
+import texture_heap;
 
 enum DebugChannel { None, Albedo, Irradiance, Normals, Depth, HeatMap, Variance };
 
@@ -10,6 +11,8 @@ struct DispatchParams {
 };
 [vk::push_constant] DispatchParams pc;
 
+
+
 //[vk::binding(0, 1)]
 //[SamplerDesc(MagFilter.Linear, MinFilter.Linear, MipFilter.Linear, WrapMode.Repeat)]
 //public SamplerState g_LinearSampler;
@@ -17,6 +20,16 @@ struct DispatchParams {
 [shader("compute")]
 [numthreads(8, 8)]
 void compute_main(uint2 pos: SV_DispatchThreadID) {
+  var AlbedoTex = pc.GBuffer.AlbedoTex.Instance;
+  var PrevAlbedoTex = pc.GBuffer.PrevAlbedoTex.Instance;
+  var IrradianceTex = pc.GBuffer.IrradianceTex.Instance;
+  var PrevIrradianceTex = pc.GBuffer.PrevIrradianceTex.Instance;
+  var DepthTex = pc.GBuffer.DepthTex.Instance;
+  var PrevDepthTex = pc.GBuffer.PrevDepthTex.Instance;
+  var MomentsTex = pc.GBuffer.MomentsTex.Instance;
+  var PrevMomentsTex = pc.GBuffer.PrevMomentsTex.Instance;
+  var HistoryLenTex = pc.GBuffer.HistoryLenTex.Instance;
+  
   float3 albedo = AlbedoTex[pos].rgb;
   float3 irradiance = IrradianceTex[pos].rgb;
 
