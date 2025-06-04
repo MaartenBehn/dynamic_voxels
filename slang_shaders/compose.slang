@@ -1,4 +1,3 @@
-import texture_heap;
 import g_buffer;
 import utilits;
 

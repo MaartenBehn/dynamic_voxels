@@ -3,6 +3,7 @@ pub mod voxel_tree64_buffer;
 pub mod palette;
 pub mod g_buffer;
 pub mod frame_perf_stats;
+pub mod shader_stage;
 
 use std::time::Duration;
 
@@ -11,7 +12,7 @@ use g_buffer::{GBuffer, ImageAndViewAndHandle};
 use octa_force::anyhow::Result;
 use octa_force::camera::Camera;
 use octa_force::engine::Engine;
-use octa_force::glam::{UVec2, Vec2, Vec3};
+use octa_force::glam::{uvec3, UVec2, Vec2, Vec3};
 use octa_force::image::ImageReader;
 use octa_force::log::info;
 use octa_force::vulkan::ash::vk::{self, BufferDeviceAddressInfo, Format, PushConstantRange, ShaderStageFlags};
@@ -24,6 +25,7 @@ use octa_force::vulkan::{
 use octa_force::{in_flight_frames, OctaResult};
 use palette::Palette;
 use render_data::RenderData;
+use shader_stage::ShaderStage;
 use voxel_tree64_buffer::{VoxelTree64Buffer, VoxelTreeData};
 
 use crate::NUM_FRAMES_IN_FLIGHT;
@@ -40,25 +42,21 @@ pub struct Tree64Renderer {
     palette: Palette,
     
     g_buffer: GBuffer,
-
-    render_push_constant_range: PushConstantRange,
-    render_pipeline_layout: PipelineLayout,
-    render_pipeline: ComputePipeline,
-
-    compose_push_constant_range: PushConstantRange,
-    compose_pipeline_layout: PipelineLayout,
-    compose_pipeline: ComputePipeline,
-
     perf_stats: FramePerfStats,
 
     blue_noise_tex: ImageAndView,
     pub descriptor_pool: DescriptorPool,
     pub descriptor_layout: DescriptorSetLayout,
     pub descriptor_set: DescriptorSet, 
+
+    trace_ray_stage: ShaderStage<TraceRayDispatchParams>,
+    denoise_stage: ShaderStage<DenoiseDispatchParams>,
+    compose_stage: ShaderStage<ComposeDispatchParams>,
 }
 
 #[repr(C)]
-pub struct RenderDispatchParams {
+#[derive(Debug)]
+pub struct TraceRayDispatchParams {
     tree: VoxelTreeData,
     g_buffer_ptr: u64,
     palette_ptr: u64,
@@ -66,7 +64,14 @@ pub struct RenderDispatchParams {
     max_bounces: u32,
 }
 
+#[repr(C)]
+#[derive(Debug)]
+pub struct DenoiseDispatchParams {
+    g_buffer_ptr: u64,
+}
+
 #[repr(u32)]
+#[derive(Debug)]
 pub enum DebugChannel {
     None, 
     Albedo,
@@ -78,6 +83,7 @@ pub enum DebugChannel {
 }
 
 #[repr(C)]
+#[derive(Debug)]
 pub struct ComposeDispatchParams {
     g_buffer_ptr: u64,
     debug_channel: DebugChannel,
@@ -135,65 +141,48 @@ impl Tree64Renderer {
             },
         }];
 
-        descriptor_set.update(&write_descriptor_sets); 
+        descriptor_set.update(&write_descriptor_sets);
+
+        let sets = &[&g_buffer.descriptor_layout, &descriptor_layout];
+        let push_constant_size = size_of::<TraceRayDispatchParams>()
+            .max(size_of::<DenoiseDispatchParams>())
+            .max(size_of::<ComposeDispatchParams>()) as u32;
         
-        let render_push_constant_range = PushConstantRange::default()
-            .offset(0)
-            .size(size_of::<RenderDispatchParams>() as _)
-            .stage_flags(ShaderStageFlags::COMPUTE);
+        let trace_ray_stage = ShaderStage::new(
+            context, 
+            include_bytes!("../../../slang_shaders/bin/trace_ray.spv"), 
+            sets, push_constant_size)?;
 
-        let render_pipeline_layout = context.create_pipeline_layout(
-            &[&g_buffer.descriptor_layout, &descriptor_layout],
-            &[render_push_constant_range])?;
+        let denoise_stage = ShaderStage::new(
+            context, 
+            include_bytes!("../../../slang_shaders/bin/temporal_denoise.spv"), 
+            sets, push_constant_size)?;
 
-        let render_pipeline = context.create_compute_pipeline(
-            &render_pipeline_layout,
-            ComputePipelineCreateInfo {
-                shader_source: include_bytes!("../../../slang_shaders/bin/render.spv"),
-            },
-        )?;
-
-
-        let compose_push_constant_range = PushConstantRange::default()
-            .offset(0)
-            .size(size_of::<RenderDispatchParams>() as _)
-            .stage_flags(ShaderStageFlags::COMPUTE);
-
-        let compose_pipeline_layout = context.create_pipeline_layout(
-            &[&g_buffer.descriptor_layout],
-            &[compose_push_constant_range])?;
-
-        let compose_pipeline = context.create_compute_pipeline(
-            &compose_pipeline_layout,
-            ComputePipelineCreateInfo {
-                shader_source: include_bytes!("../../../slang_shaders/bin/compose.spv"),
-            },
-        )?;
-
+        let compose_stage = ShaderStage::new(
+            context, 
+            include_bytes!("../../../slang_shaders/bin/compose.spv"), 
+            sets, push_constant_size)?;
+ 
         Ok(Tree64Renderer {
             voxel_tree64_buffer,
             palette,
 
             g_buffer,
 
-            render_push_constant_range,
-            render_pipeline_layout,
-            render_pipeline,
-
-            compose_push_constant_range,
-            compose_pipeline_layout,
-            compose_pipeline,
-
             perf_stats,
             blue_noise_tex,
             descriptor_pool,
             descriptor_layout,
-            descriptor_set
+            descriptor_set,
+
+            trace_ray_stage,
+            denoise_stage,
+            compose_stage,
         })
     }
 
-    pub fn update(&mut self, frame_no: usize, camera: &Camera, context: &Context, res: UVec2) -> OctaResult<()> {
-        self.g_buffer.push_uniform(frame_no, camera, context, res)?;
+    pub fn update(&mut self, camera: &Camera, context: &Context, res: UVec2) -> OctaResult<()> {
+        self.g_buffer.update(camera, context, res)?;
 
         Ok(())
     }
@@ -203,48 +192,35 @@ impl Tree64Renderer {
         buffer: &CommandBuffer,
         engine: &Engine,
     ) -> Result<()> {
+        let dispatch_size = uvec3(
+            (engine.get_resolution().x / RENDER_DISPATCH_GROUP_SIZE_X) + 1,
+            (engine.get_resolution().y / RENDER_DISPATCH_GROUP_SIZE_Y) + 1,
+            1);
+
         buffer.bind_descriptor_sets(
             vk::PipelineBindPoint::COMPUTE,
-            &self.render_pipeline_layout,
+            &self.trace_ray_stage.pipeline_layout,
             0,
             &[&self.g_buffer.descriptor_sets[engine.get_current_in_flight_frame_index()], &self.descriptor_set],
         );
 
-        buffer.bind_compute_pipeline(&self.render_pipeline);
-        
-        let dispatch_params = RenderDispatchParams {
+        self.trace_ray_stage.render(buffer, TraceRayDispatchParams {
             tree: self.voxel_tree64_buffer.get_data(),
             g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
             palette_ptr: self.palette.buffer.get_device_address(),
             perf_stats_ptr: self.perf_stats.buffer.get_device_address(),
-            max_bounces: 0,
-        };
+            max_bounces: 2,
+        }, dispatch_size);
 
-        buffer.push_constant(&self.render_pipeline_layout, ShaderStageFlags::COMPUTE, &dispatch_params); 
+        self.denoise_stage.render(buffer, DenoiseDispatchParams {
+            g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
+        }, dispatch_size);
 
-        buffer.dispatch(
-            (engine.get_resolution().x / RENDER_DISPATCH_GROUP_SIZE_X) + 1,
-            (engine.get_resolution().y / RENDER_DISPATCH_GROUP_SIZE_Y) + 1,
-            1,
-        );
-
-
-        buffer.bind_compute_pipeline(&self.compose_pipeline);
-
-        let dispatch_params = ComposeDispatchParams {
+        self.compose_stage.render(buffer, ComposeDispatchParams {
             g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
             debug_channel: DebugChannel::None,
             heat_map_range: Vec2 { x: 0.0, y: 256.0 }
-        };
-
-        buffer.push_constant(&self.compose_pipeline_layout, ShaderStageFlags::COMPUTE, &dispatch_params); 
-
-        buffer.dispatch(
-            (engine.get_resolution().x / RENDER_DISPATCH_GROUP_SIZE_X) + 1,
-            (engine.get_resolution().y / RENDER_DISPATCH_GROUP_SIZE_Y) + 1,
-            1,
-        );
-
+        }, dispatch_size); 
 
         buffer.swapchain_image_copy_from_compute_storage_image(
             &self.g_buffer.albedo_tex[engine.get_current_in_flight_frame_index()].image,

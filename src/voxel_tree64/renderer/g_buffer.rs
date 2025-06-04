@@ -1,6 +1,6 @@
 use std::iter;
 
-use octa_force::{camera::Camera, glam::{self, IVec3, Mat4, Quat, UVec2, Vec3}, log::debug, vulkan::{ash::vk, descriptor_heap::{self, DescriptorHandle, DescriptorHandleValue, DescriptorHeap}, gpu_allocator::MemoryLocation, physical_device::PhysicalDeviceCapabilities, Buffer, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, Image, ImageAndView, ImageBarrier, ImageView, WriteDescriptorSet, WriteDescriptorSetKind}, OctaResult};
+use octa_force::{camera::Camera, glam::{self, IVec3, Mat4, Quat, UVec2, Vec3}, log::{debug, info}, vulkan::{ash::vk, descriptor_heap::{self, DescriptorHandle, DescriptorHandleValue, DescriptorHeap}, gpu_allocator::MemoryLocation, physical_device::PhysicalDeviceCapabilities, Buffer, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, Image, ImageAndView, ImageBarrier, ImageView, WriteDescriptorSet, WriteDescriptorSetKind}, OctaResult};
 
 use crate::NUM_FRAMES_IN_FLIGHT;
 
@@ -26,6 +26,9 @@ pub struct GBuffer {
     pub descriptor_pool: DescriptorPool,
     pub descriptor_layout: DescriptorSetLayout,
     pub descriptor_sets: Vec<DescriptorSet>, // Len of NUM_FRAMES_IN_FLIGHT
+    
+    pub frame_no: u32,
+    pub num_steady_frames: u32,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -142,6 +145,8 @@ impl GBuffer {
             descriptor_pool,
             descriptor_layout,
             descriptor_sets,
+            frame_no: 0,
+            num_steady_frames: 0,
         };
 
         Ok(g_buffer)
@@ -219,12 +224,16 @@ impl GBuffer {
         Ok((history_len_tex, albedo_tex, irradiance_tex, depth_tex, moments_tex))
     }
  
-    pub fn push_uniform(&mut self, frame_no: usize, camera: &Camera, context: &Context, res: UVec2) -> OctaResult<()> {
+    pub fn update(&mut self, camera: &Camera, context: &Context, res: UVec2) -> OctaResult<()> {
         let proj_mat = camera.projection_matrix().mul_mat4(&camera.view_matrix());
         let inv_proj_mat = Self::get_inverse_proj_screen_mat(proj_mat, res);
         let prev_inv_proj_mat = Self::get_inverse_proj_screen_mat(self.prev_proj_mat, res);
         
         let position = camera.position;
+
+        if proj_mat != self.prev_proj_mat {
+            self.num_steady_frames = 0;
+        }
 
         let uniform = GBufferUniform { 
             proj_mat, 
@@ -237,8 +246,8 @@ impl GBuffer {
             prev_position_frac: self.prev_position.fract(),
             position_delta: position - self.prev_position,
 
-            frame_no: frame_no as _,  
-            num_steady_frames: 0,
+            frame_no: self.frame_no,  
+            num_steady_frames: self.num_steady_frames,
 
             fill_1: 0,
             fill_2: 0,
@@ -248,6 +257,8 @@ impl GBuffer {
 
         self.prev_proj_mat = proj_mat;
         self.prev_position = position;
+        self.frame_no = self.frame_no.wrapping_add(1);
+        self.num_steady_frames = self.num_steady_frames.wrapping_add(1);
 
         Ok(())
     }

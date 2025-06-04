@@ -317,7 +317,7 @@ pub fn update(
     }
 
     #[cfg(feature="tree64")]
-    render_state.renderer.update(0, &logic_state.camera, &engine.context, engine.swapchain.size)?;
+    render_state.renderer.update(&logic_state.camera, &engine.context, engine.swapchain.size)?;
 
     Ok(())
 }

@@ -15,8 +15,9 @@ fn warn_lines(text: String) {
 fn main() {
     println!("cargo::rerun-if-changed=slang_shaders/*");
     
-    compile_shader("render");
+    compile_shader("trace_ray");
     compile_shader("compose");
+    compile_shader("temporal_denoise");
 }
 
 fn compile_shader(name: &str) {

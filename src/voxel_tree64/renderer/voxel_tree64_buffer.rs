@@ -2,7 +2,7 @@ use octa_force::{glam::UVec3, log::info, vulkan::{ash::vk, gpu_allocator::Memory
 use crate::voxel_tree64::VoxelTree64;
 use super::Tree64Renderer;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 #[allow(dead_code)]
 #[repr(C)]
 pub struct VoxelTreeData {
