@@ -92,7 +92,7 @@ pub struct ComposeDispatchParams {
 impl Tree64Renderer {
     pub fn new(
         context: &Context,
-        res: UVec2,
+        swapchain: &Swapchain,
         tree: VoxelTree64,
         camera: &Camera,
     ) -> Result<Tree64Renderer> {
@@ -100,11 +100,11 @@ impl Tree64Renderer {
         let mut heap = context.create_descriptor_heap(vec![
             vk::DescriptorPoolSize {
                 ty: vk::DescriptorType::SAMPLED_IMAGE,
-                descriptor_count: 20,
+                descriptor_count: 30,
             },
             vk::DescriptorPoolSize {
                 ty: vk::DescriptorType::STORAGE_IMAGE,
-                descriptor_count: 20,
+                descriptor_count: 30,
             },
         ])?;
 
@@ -112,7 +112,7 @@ impl Tree64Renderer {
 
         let palette = Palette::new(context)?;
  
-        let g_buffer = GBuffer::new(context, &mut heap,  res, camera)?;
+        let g_buffer = GBuffer::new(context, &mut heap, camera, swapchain)?;
 
         let perf_stats = FramePerfStats::new(context)?;
 
@@ -161,8 +161,8 @@ impl Tree64Renderer {
         })
     }
 
-    pub fn update(&mut self, camera: &Camera, context: &Context, res: UVec2) -> OctaResult<()> {
-        self.g_buffer.update(camera, context, res)?;
+    pub fn update(&mut self, camera: &Camera, context: &Context, res: UVec2, in_flight_frame_index: usize, frame_index: usize) -> OctaResult<()> {
+        self.g_buffer.update(camera, context, res, in_flight_frame_index, frame_index)?;
 
         Ok(())
     }
@@ -198,28 +198,34 @@ impl Tree64Renderer {
             g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
         }, dispatch_size);
 */
-
+        
         self.compose_stage.render(buffer, ComposeDispatchParams {
             g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
             debug_channel: DebugChannel::None,
             heat_map_range: Vec2 { x: 0.0, y: 256.0 }
         }, dispatch_size); 
 
-        buffer.swapchain_image_copy_from_compute_storage_image(
-            &self.g_buffer.albedo_tex[engine.get_current_in_flight_frame_index()].image,
-            &engine.get_current_swapchain_image_and_view().image,
-        )?;
- 
+        match &self.g_buffer.output_tex {
+            g_buffer::OutputTexs::Storage(t) => {
+                buffer.swapchain_image_copy_from_compute_storage_image(
+                    &t[engine.get_current_in_flight_frame_index()].image,
+                    &engine.get_current_swapchain_image_and_view().image,
+                )?;
+            },
+            g_buffer::OutputTexs::Swapchain(..) => {
+                buffer.swapchain_image_after_blit_barrier(&engine.get_current_swapchain_image_and_view().image)?;
+            },
+        } 
+         
         Ok(())
     }
 
     pub fn on_recreate_swapchain(
         &mut self,
         context: &Context,
-        num_frames: usize,
-        res: UVec2,
+        swapchain: &Swapchain,
     ) -> Result<()> {
-        self.g_buffer.on_recreate_swapchain(context, &mut self.heap, res)?;
+        self.g_buffer.on_recreate_swapchain(context, &mut self.heap, swapchain)?;
 
         Ok(())
     }

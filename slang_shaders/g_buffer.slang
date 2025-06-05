@@ -20,6 +20,7 @@ public struct GBufferUniforms {
   public ImageHandle2D<float> DepthTex, PrevDepthTex;
   public ImageHandle2D<float2> MomentsTex, PrevMomentsTex;
   public ImageHandle2D<uint> HistoryLenTex;
+  public ImageHandle2D<float4> output_tex;          
  
   public property uint2 RenderSize {
     [__ref]

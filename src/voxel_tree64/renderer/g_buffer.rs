@@ -1,8 +1,14 @@
 use std::iter;
 
-use octa_force::{camera::Camera, glam::{self, IVec3, Mat4, Quat, UVec2, Vec3}, log::{debug, info}, vulkan::{ash::vk, descriptor_heap::{self, DescriptorHandle, DescriptorHandleValue, DescriptorHeap}, gpu_allocator::MemoryLocation, physical_device::PhysicalDeviceCapabilities, Buffer, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, Image, ImageAndView, ImageBarrier, ImageView, WriteDescriptorSet, WriteDescriptorSetKind}, OctaResult};
+use octa_force::{camera::Camera, glam::{self, IVec3, Mat4, Quat, UVec2, Vec3}, log::{debug, info}, vulkan::{ash::vk, descriptor_heap::{self, DescriptorHandle, DescriptorHandleValue, DescriptorHeap}, gpu_allocator::MemoryLocation, physical_device::PhysicalDeviceCapabilities, Buffer, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, Image, ImageAndView, ImageBarrier, ImageView, Swapchain, WriteDescriptorSet, WriteDescriptorSetKind}, OctaResult};
 
 use crate::NUM_FRAMES_IN_FLIGHT;
+
+#[derive(Debug)]
+pub enum OutputTexs {
+    Storage([ImageAndViewAndHandle; NUM_FRAMES_IN_FLIGHT]),
+    Swapchain(Vec<DescriptorHandle>)
+}
 
 #[derive(Debug)]
 pub struct ImageAndViewAndHandle {
@@ -18,6 +24,7 @@ pub struct GBuffer {
     pub depth_tex: [ImageAndViewAndHandle; NUM_FRAMES_IN_FLIGHT],
     pub moments_tex: [ImageAndViewAndHandle; NUM_FRAMES_IN_FLIGHT],
     pub history_len_tex: ImageAndViewAndHandle,
+    pub output_tex: OutputTexs, 
 
     pub prev_proj_mat: Mat4,
     pub prev_position: Vec3,
@@ -53,15 +60,17 @@ pub struct GBufferUniform {
     depth_tex: [DescriptorHandleValue; NUM_FRAMES_IN_FLIGHT],
     moments_tex: [DescriptorHandleValue; NUM_FRAMES_IN_FLIGHT],
     history_len_tex: DescriptorHandleValue,
+    output_tex: DescriptorHandleValue,
 }
 
 impl GBuffer {
-    pub fn new(context: &Context, heap: &mut DescriptorHeap, res: UVec2, camera: &Camera) -> OctaResult<Self> {
+    pub fn new(context: &Context, heap: &mut DescriptorHeap, camera: &Camera, swapchain: &Swapchain) -> OctaResult<Self> {
         let (history_len_tex, 
             albedo_tex, 
             irradiance_tex,
             depth_tex, 
-            moments_tex) = Self::create_image_datas(context, heap, res)?;
+            moments_tex,
+            output_tex) = Self::create_image_datas(context, heap, swapchain)?;
 
         let uniform_buffer = context.create_buffer(
             vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS, 
@@ -77,6 +86,7 @@ impl GBuffer {
             irradiance_tex,
             depth_tex,
             moments_tex,
+            output_tex,
 
             prev_proj_mat: proj_mat,
             prev_position: position,
@@ -89,8 +99,14 @@ impl GBuffer {
         Ok(g_buffer)
     }
 
-    fn create_image_datas(context: &Context, heap: &mut DescriptorHeap, res: UVec2) -> 
-    OctaResult<(ImageAndViewAndHandle, [ImageAndViewAndHandle; 2], [ImageAndViewAndHandle; 2], [ImageAndViewAndHandle; 2], [ImageAndViewAndHandle; 2])> {
+    fn create_image_datas(context: &Context, heap: &mut DescriptorHeap, swapchain: &Swapchain) -> OctaResult<(
+        ImageAndViewAndHandle, 
+        [ImageAndViewAndHandle; 2], 
+        [ImageAndViewAndHandle; 2], 
+        [ImageAndViewAndHandle; 2], 
+        [ImageAndViewAndHandle; 2],
+        OutputTexs,
+    )> {
         //debug!("Supported Image Formats: {:?}", context.physical_device.supported_image_formats);
         //debug!("Supported Depth Formats: {:?}", context.physical_device.supported_depth_formats);
          
@@ -102,7 +118,7 @@ impl GBuffer {
                 base_flags | usage, 
                 MemoryLocation::GpuOnly, 
                 format, 
-                res.x, res.y)?;
+                swapchain.size.x, swapchain.size.y)?;
 
             let view = image.create_image_view(false)?;
 
@@ -124,9 +140,8 @@ impl GBuffer {
         };
        
         let albedo_tex =  create_images(
-            context.physical_device.surface_format.format,   
-            //vk::Format::R8G8B8A8_UNORM, 
-            vk::ImageUsageFlags::COLOR_ATTACHMENT)?;
+            vk::Format::R8G8B8A8_UNORM, 
+            vk::ImageUsageFlags::empty())?;
         
         let irradiance_tex =  create_images(
             vk::Format::R8G8B8A8_UNORM, vk::ImageUsageFlags::empty())?;
@@ -138,6 +153,14 @@ impl GBuffer {
          
         let moments_tex =  create_images(
             vk::Format::R16G16_SFLOAT, vk::ImageUsageFlags::empty())?;
+
+        let output_images = if context.swapchain_supports_storage() {
+            OutputTexs::Swapchain(swapchain.images_and_views.iter()
+                    .map(|x| heap.create_image_handle(&x.view, vk::ImageUsageFlags::TRANSFER_DST | vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::STORAGE))
+                    .collect::<OctaResult<Vec<_>>>()?)
+        } else {
+            OutputTexs::Storage(create_images(context.physical_device.render_storage_image_format, vk::ImageUsageFlags::COLOR_ATTACHMENT)?)
+        };
 
 
         let barriers = iter::once(&history_len_tex)
@@ -161,10 +184,10 @@ impl GBuffer {
             cmd_buffer.pipeline_image_barriers(&barriers);
         })?;
 
-        Ok((history_len_tex, albedo_tex, irradiance_tex, depth_tex, moments_tex))
+        Ok((history_len_tex, albedo_tex, irradiance_tex, depth_tex, moments_tex, output_images))
     }
  
-    pub fn update(&mut self, camera: &Camera, context: &Context, res: UVec2) -> OctaResult<()> {
+    pub fn update(&mut self, camera: &Camera, context: &Context, res: UVec2, in_flight_frame_index: usize, frame_index: usize) -> OctaResult<()> {
         let proj_mat = camera.projection_matrix().mul_mat4(&camera.view_matrix());
         let inv_proj_mat = Self::get_inverse_proj_screen_mat(proj_mat, res);
         let prev_inv_proj_mat = Self::get_inverse_proj_screen_mat(self.prev_proj_mat, res);
@@ -175,7 +198,7 @@ impl GBuffer {
             self.num_steady_frames = 0;
         }
 
-        let current_index = (self.frame_no & 1) as usize;
+        let current_index = in_flight_frame_index;
         let last_index = 1 - current_index;
         let uniform = GBufferUniform { 
             proj_mat, 
@@ -196,7 +219,12 @@ impl GBuffer {
             irradiance_tex: [self.irradiance_tex[current_index].handle.value, self.albedo_tex[last_index].handle.value], 
             depth_tex: [self.depth_tex[current_index].handle.value, self.depth_tex[last_index].handle.value], 
             moments_tex: [self.moments_tex[current_index].handle.value, self.moments_tex[last_index].handle.value],
-            history_len_tex: self.history_len_tex.handle.value, 
+            history_len_tex: self.history_len_tex.handle.value,
+            
+            output_tex: match &self.output_tex {
+                OutputTexs::Storage(t) => t[current_index].handle.value,
+                OutputTexs::Swapchain(t) => t[frame_index].value,
+            } 
         };
 
         context.copy_data_to_gpu_only_buffer(&[uniform], &self.uniform_buffer)?;
@@ -219,18 +247,20 @@ impl GBuffer {
         inv_proj_mat.mul_mat4(&translation_mat)
     }
 
-    pub fn on_recreate_swapchain(&mut self, context: &Context, heap: &mut DescriptorHeap, res: UVec2) -> OctaResult<()> {
+    pub fn on_recreate_swapchain(&mut self, context: &Context, heap: &mut DescriptorHeap, swapchain: &Swapchain) -> OctaResult<()> {
         let (history_len_tex, 
             albedo_tex, 
             irradiance_tex,
             depth_tex, 
-            moments_tex) = Self::create_image_datas(context, heap, res)?;
+            moments_tex,
+            output_tex) = Self::create_image_datas(context, heap, swapchain)?;
         
         self.history_len_tex = history_len_tex;
         self.albedo_tex = albedo_tex;
         self.irradiance_tex = irradiance_tex;
         self.depth_tex = depth_tex;
         self.moments_tex = moments_tex;
+        self.output_tex = output_tex;
         
         Ok(())
     }

@@ -82,7 +82,7 @@ void compute_main(uint2 pos: SV_DispatchThreadID) {
     }
   }
 
-  AlbedoTex[pos] = output;
+  pc.GBuffer.output_tex.Instance[pos] = output;
 }
 
 

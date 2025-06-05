@@ -244,7 +244,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     #[cfg(feature="tree64")]
     let tree64: VoxelTree64 = grid.into();
     #[cfg(feature="tree64")]
-    let tree_renderer = Tree64Renderer::new(&engine.context, engine.swapchain.size, tree64, &logic_state.camera)?;
+    let tree_renderer = Tree64Renderer::new(&engine.context, &engine.swapchain, tree64, &logic_state.camera)?;
 
     Ok(RenderState {
         gui,
@@ -317,7 +317,12 @@ pub fn update(
     }
 
     #[cfg(feature="tree64")]
-    render_state.renderer.update(&logic_state.camera, &engine.context, engine.swapchain.size)?;
+    render_state.renderer.update(
+        &logic_state.camera, 
+        &engine.context, 
+        engine.get_resolution(), 
+        engine.get_current_in_flight_frame_index(), 
+        engine.get_current_frame_index())?;
 
     Ok(())
 }
@@ -428,8 +433,7 @@ pub fn on_recreate_swapchain(
         .renderer
             .on_recreate_swapchain(
                 &engine.context,
-                engine.swapchain.images_and_views.len(),
-                engine.swapchain.size,
+                &engine.swapchain,
             )?;
 
     Ok(())
