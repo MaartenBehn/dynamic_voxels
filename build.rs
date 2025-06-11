@@ -16,7 +16,7 @@ fn main() {
     println!("cargo::rerun-if-changed=slang_shaders/*");
     
     compile_shader("trace_ray");
-    compile_shader("compose");
+    compile_shader("blit");
     compile_shader("temporal_denoise");
 }
 

@@ -187,7 +187,15 @@ impl GBuffer {
         Ok((history_len_tex, albedo_tex, irradiance_tex, depth_tex, moments_tex, output_images))
     }
  
-    pub fn update(&mut self, camera: &Camera, context: &Context, res: UVec2, in_flight_frame_index: usize, frame_index: usize) -> OctaResult<()> {
+    pub fn update(
+        &mut self, 
+        camera: &Camera, 
+        context: &Context, 
+        res: UVec2, 
+        in_flight_frame_index: usize, 
+        frame_index: usize,
+        denoise_counters: bool,
+    ) -> OctaResult<()> {
         let proj_mat = camera.projection_matrix().mul_mat4(&camera.view_matrix());
         let inv_proj_mat = Self::get_inverse_proj_screen_mat(proj_mat, res);
         let prev_inv_proj_mat = Self::get_inverse_proj_screen_mat(self.prev_proj_mat, res);
@@ -196,6 +204,11 @@ impl GBuffer {
 
         if proj_mat != self.prev_proj_mat {
             self.num_steady_frames = 0;
+        }
+
+        if !denoise_counters {
+            self.num_steady_frames = 0;
+            self.frame_no = 0;
         }
 
         let current_index = in_flight_frame_index;
@@ -216,7 +229,7 @@ impl GBuffer {
 
             albedo_tex: self.albedo_tex[current_index].handle.value,
             prev_albedo_tex: self.albedo_tex[last_index].handle.value, 
-            irradiance_tex: [self.irradiance_tex[current_index].handle.value, self.albedo_tex[last_index].handle.value], 
+            irradiance_tex: [self.irradiance_tex[current_index].handle.value, self.irradiance_tex[last_index].handle.value], 
             depth_tex: [self.depth_tex[current_index].handle.value, self.depth_tex[last_index].handle.value], 
             moments_tex: [self.moments_tex[current_index].handle.value, self.moments_tex[last_index].handle.value],
             history_len_tex: self.history_len_tex.handle.value,

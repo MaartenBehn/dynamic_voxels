@@ -380,6 +380,9 @@ pub fn record_render_commands(
              
             #[cfg(any(feature="fence", feature="islands"))]
             render_state.model_renderer.render(ctx, state.collapser.as_mut().unwrap());
+
+            #[cfg(feature="tree64")]
+            render_state.renderer.render_ui(ctx);
         },
     )?;
 

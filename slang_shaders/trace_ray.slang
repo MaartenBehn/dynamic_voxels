@@ -6,10 +6,6 @@ import texture_heap;
 
 #include "perf_counters.h.slang"
 
-static uint MaxBounces = 0;
-static int3 WorldOrigin = int3(0, 0, 0);
-static uint NumSteadyFrames = 0;
-
 public struct DispatchParams {
   VoxelTree tree;
   GBufferUniforms* GBuffer;
@@ -63,7 +59,6 @@ void compute_main(uint2 pos: SV_DispatchThreadID) {
     if (bounceNo == 0) {
       if (hit.Miss) {
         AlbedoTex[pos] = float4(1.0);
-        //AlbedoTex[pos] = float4(GetSkyColor(rayDir, true), 1.0);
         irradiance = GetSkyColor(rayDir, true);
         DepthTex[pos] = -1.0;
         break;
@@ -119,8 +114,9 @@ void GetPrimaryRay(int2 screenPos, out float3 rayPos, out float3 rayDir) {
 //public SamplerState g_LinearSampler;
 
 float3 GetSkyColor(float3 dir, bool isPrimary) {
-    return float3(1, 1, 1);
-    // For light bounces, sample smaller mips to maybe improve cache coherency.
-    return dir;
-    //return pc.SkyTexture.Instance.SampleLevel(g_LinearSampler, dir, isPrimary ? 0 : 3) * (isPrimary?1:4);
+  return float3(1, 1, 1);
+
+  // For light bounces, sample smaller mips to maybe improve cache coherency.
+  return -dir;
+  //return pc.SkyTexture.Instance.SampleLevel(g_LinearSampler, dir, isPrimary ? 0 : 3) * (isPrimary?1:4);
 }

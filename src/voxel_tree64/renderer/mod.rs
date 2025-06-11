@@ -11,10 +11,12 @@ use frame_perf_stats::FramePerfStats;
 use g_buffer::{GBuffer, ImageAndViewAndHandle};
 use octa_force::anyhow::Result;
 use octa_force::camera::Camera;
+use octa_force::egui::{Align, Frame, Layout};
 use octa_force::engine::Engine;
 use octa_force::glam::{uvec3, UVec2, Vec2, Vec3};
-use octa_force::image::ImageReader;
+use octa_force::image::{GenericImageView, ImageReader};
 use octa_force::log::info;
+use octa_force::puffin_egui::puffin;
 use octa_force::vulkan::ash::vk::{self, BufferDeviceAddressInfo, Format, PushConstantRange, ShaderStageFlags};
 use octa_force::vulkan::descriptor_heap::{DescriptorHandleValue, DescriptorHeap};
 use octa_force::vulkan::gpu_allocator::MemoryLocation;
@@ -22,7 +24,7 @@ use octa_force::vulkan::sampler_pool::{SamplerPool, SamplerSetHandle};
 use octa_force::vulkan::{
     Buffer, CommandBuffer, ComputePipeline, ComputePipelineCreateInfo, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, ImageAndView, PipelineLayout, Swapchain, WriteDescriptorSet, WriteDescriptorSetKind
 };
-use octa_force::{in_flight_frames, OctaResult};
+use octa_force::{egui, in_flight_frames, OctaResult};
 use palette::Palette;
 use render_data::RenderData;
 use shader_stage::ShaderStage;
@@ -50,6 +52,12 @@ pub struct Tree64Renderer {
     trace_ray_stage: ShaderStage<TraceRayDispatchParams>,
     denoise_stage: ShaderStage<DenoiseDispatchParams>,
     compose_stage: ShaderStage<ComposeDispatchParams>,
+
+    debug_channel: DebugChannel,
+    max_bounces: usize,
+    heat_map_max: f32,
+    temporal_denoise: bool,
+    denoise_counters: bool,
 }
 
 #[repr(C)]
@@ -70,7 +78,7 @@ pub struct DenoiseDispatchParams {
 }
 
 #[repr(u32)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub enum DebugChannel {
     None, 
     Albedo,
@@ -117,8 +125,13 @@ impl Tree64Renderer {
         let perf_stats = FramePerfStats::new(context)?;
 
         let img = ImageReader::open("assets/stbn_vec2_2Dx1D_128x128x64_combined.png")?.decode()?;
+        let red_green_pixels = img.pixels()
+                .map(|(_, _, p)| [p.0[0], p.0[1]])
+                .flatten()
+                .collect::<Vec<_>>();
+
         let blue_noise_tex = context.create_texture_image_from_data(
-            Format::R8G8_UINT, UVec2 { x: img.width(), y: img.height() }, img.as_bytes())?;
+            Format::R8G8_UINT, UVec2 { x: img.width(), y: img.height() }, &red_green_pixels)?;
 
         let blue_noise_handle = heap.create_image_handle(
             &blue_noise_tex.view, 
@@ -142,7 +155,7 @@ impl Tree64Renderer {
 
         let compose_stage = ShaderStage::new(
             context, 
-            include_bytes!("../../../slang_shaders/bin/compose.spv"), 
+            include_bytes!("../../../slang_shaders/bin/blit.spv"), 
             sets, push_constant_size)?;
          
         Ok(Tree64Renderer {
@@ -158,11 +171,17 @@ impl Tree64Renderer {
             trace_ray_stage,
             denoise_stage,
             compose_stage,
+
+            debug_channel: DebugChannel::None,
+            max_bounces: 2,
+            heat_map_max: 20.0,
+            temporal_denoise: true,
+            denoise_counters: true,
         })
     }
 
     pub fn update(&mut self, camera: &Camera, context: &Context, res: UVec2, in_flight_frame_index: usize, frame_index: usize) -> OctaResult<()> {
-        self.g_buffer.update(camera, context, res, in_flight_frame_index, frame_index)?;
+        self.g_buffer.update(camera, context, res, in_flight_frame_index, frame_index, self.denoise_counters)?;
 
         Ok(())
     }
@@ -189,20 +208,20 @@ impl Tree64Renderer {
             g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
             palette_ptr: self.palette.buffer.get_device_address(),
             perf_stats_ptr: self.perf_stats.buffer.get_device_address(),
-            max_bounces: 2,
+            max_bounces: self.max_bounces as _,
             blue_noise_tex: self.blue_noise_tex.handle.value,
         }, dispatch_size);
 
-        /*
-        self.denoise_stage.render(buffer, DenoiseDispatchParams {
-            g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
-        }, dispatch_size);
-*/
-        
+        if self.temporal_denoise {
+            self.denoise_stage.render(buffer, DenoiseDispatchParams {
+                g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
+            }, dispatch_size);
+        }
+
         self.compose_stage.render(buffer, ComposeDispatchParams {
             g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
-            debug_channel: DebugChannel::None,
-            heat_map_range: Vec2 { x: 0.0, y: 256.0 }
+            debug_channel: self.debug_channel,
+            heat_map_range: Vec2 { x: 0.0, y: self.heat_map_max }
         }, dispatch_size); 
 
         match &self.g_buffer.output_tex {
@@ -220,6 +239,40 @@ impl Tree64Renderer {
         Ok(())
     }
 
+    pub fn render_ui(&mut self, ctx: &egui::Context) { 
+        egui::Window::new("Debug")
+            .show(ctx, |ui| {
+                egui::ComboBox::from_label("Channel")
+                    .selected_text(format!("{:?}", self.debug_channel))
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut self.debug_channel, DebugChannel::None, "None");
+                        ui.selectable_value(&mut self.debug_channel, DebugChannel::Albedo, "Albedo");
+                        ui.selectable_value(&mut self.debug_channel, DebugChannel::Irradiance, "Irradiance");
+                        ui.selectable_value(&mut self.debug_channel, DebugChannel::Depth, "Depth");
+                        ui.selectable_value(&mut self.debug_channel, DebugChannel::Normals, "Normals");
+                        ui.selectable_value(&mut self.debug_channel, DebugChannel::HeatMap, "HeatMap");
+                        ui.selectable_value(&mut self.debug_channel, DebugChannel::Variance, "Variance");
+                    }
+                    );
+                ui.add(egui::Slider::new(&mut self.max_bounces, 0..=10)
+                    .text("Max Bounces")
+                );
+                ui.add(egui::Slider::new(&mut self.heat_map_max, 0.0..=256.0)
+                    .text("Heat Map")
+                );
+                div(ui, |ui| {
+                    ui.checkbox(&mut self.temporal_denoise, "Temporal Denoise");
+                    ui.checkbox(&mut self.denoise_counters, "Jitter");
+                });
+
+                ui.separator();
+
+                ui.label(format!("GBuffer: {}", self.g_buffer.frame_no -1));
+                ui.label(format!("Steady : {}", self.g_buffer.num_steady_frames -1));
+
+            });
+    }
+
     pub fn on_recreate_swapchain(
         &mut self,
         context: &Context,
@@ -229,4 +282,10 @@ impl Tree64Renderer {
 
         Ok(())
     }
+}
+
+fn div(ui: &mut egui::Ui, add_contents: impl FnOnce(&mut egui::Ui)) {
+    Frame::none().show(ui, |ui| {
+        ui.with_layout(Layout::left_to_right(Align::TOP), add_contents);
+    });
 }
