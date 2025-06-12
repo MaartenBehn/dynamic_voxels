@@ -15,6 +15,7 @@ pub mod model_debug_renderer;
 pub mod model_example;
 pub mod state_saver;
 pub mod voxel_tree64;
+pub mod voxel_renderer;
 
 use crate::vec_csg_tree::tree::{VecCSGTree, VOXEL_SIZE};
 use crate::profiler::ShaderProfiler;

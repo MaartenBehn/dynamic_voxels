@@ -1,57 +1,60 @@
-public interface IRayCastable {
-    public HitInfo RayCast(int3 worldOrigin, float3 origin, float3 dir, bool coarse);
+public struct Random {
+    uint _state;
+
+    public __init(uint3 p) {
+        uint2 q = 1103515245U * p.xy;
+        uint n = q.x ^ (q.y >> 3U);
+        _state = n + p.z * 12345u;
+    }
+
+    // https://www.reedbeta.com/blog/hash-functions-for-gpu-rendering/
+    [__ref]
+    public uint NextU32() {
+        uint state = _state;
+        _state = _state * 747796405u + 2891336453u;
+        uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+        return (word >> 22u) ^ word;
+    }
+    [__ref]
+    public float NextFloat() {
+        return float(NextU32()) * (1.0 / 4294967296.0);
+    }
+};
+
+public struct BlueNoise {
+    Texture2D<uint8_t2> stbnTexture;
+    int3 tilePos;
+    uint sampleIdx;
+
+    public __init(Texture2D<uint8_t2> stbn, int2 samplePos, uint frameNo, uint sampleIdx_ = 0) {
+        stbnTexture = stbn;
+        tilePos = int3(samplePos, frameNo);
+        sampleIdx = sampleIdx_ + (frameNo & ~63); // offset by frameNo to hide noise period
+    }
+
+    // Returns 2 blue noise samples at the given position and internal increasing sample index.
+    // https://developer.nvidia.com/blog/rendering-in-real-time-with-spatiotemporal-blue-noise-textures-part-1/
+    [__ref]
+    public float2 GetSample() {
+        float2 sampleOffset = MartinR2(sampleIdx++);
+        int2 pos = (tilePos.xy + int2(sampleOffset * 128)) & 127;
+        pos.y += (tilePos.z & 63) * 128;
+
+        return (stbnTexture[pos] + 0.5) / 256.0;
+    }
+};
+
+// R2 quasirandom sequence
+public float2 MartinR2(uint index) {
+    return fract(index * float2(0.75487766624669276005, 0.56984029099805326591) + 0.5);
 }
 
-public struct HitInfo {
-    public float Dist;
-    public float3 Pos;
-    public float3 Normal;
-    public float2 FaceUV;
-    public uint MaterialId;
+public float3 GetSphereDir(float2 sample) {
+    float a = sample.x * 6.283185307179586;
+    float y = sample.y * 2 - 1;
 
-    public property bool Miss {
-        get { return MaterialId == 0; }
-    }
-}
-
-public static const int kDefaultOpaqueMaterialId = 254;
-
-public struct Material {
-    public uint2 Data;
-
-    public property float3 Color {
-        get {
-            uint3 mask = uint3(31, 63, 31);
-            float3 color = float3(Data.xxx >> uint3(11, 5, 0) & mask) / float3(mask);
-            return color * color;  // srgb gamma hack
-        }
-    }
-   
-    public property float Emission {
-        get {
-            return float(Data.x >> 16);
-        }
-    }
-  
-    public property float MetalFuzziness {
-        get {
-            return (Data.y & 255) / 255.0;
-        }
-    }
-}
-
-public float3 ClipRayToAABB(float3 origin, float3 dir, float3 bbMin, float3 bbMax) {
-    float3 invDir = 1.0 / dir;
-    float3 t1 = (bbMin - origin) * invDir;
-    float3 t2 = (bbMax - origin) * invDir;
-    float3 temp = t1;
-    t1 = min(temp, t2);
-    t2 = max(temp, t2);
-
-    float tmin = max(t1.x, max(t1.y, t1.z));
-    float tmax = min(t2.x, min(t2.y, t2.z));
-
-    return tmin > 0 && tmin < tmax ? origin + dir * tmin : origin;
+    float sy = sqrt(1.0 - y * y);
+    return float3(sin(a) * sy, y, cos(a) * sy);
 }
 
 // Returns linear index for 3D grid in XZY order. Sizes **must** be power of two.

@@ -1,6 +1,6 @@
 import texture_heap;         
 
-public struct GBufferUniforms {
+public struct GBuffer {
   public float4x4 ProjMat, InvProjMat;
   public float4x4 HistoryProjMat, HistoryInvProjMat;
 

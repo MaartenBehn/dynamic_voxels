@@ -15,10 +15,10 @@ fn warn_lines(text: String) {
 fn main() {
     println!("cargo::rerun-if-changed=slang_shaders/*");
     
-    compile_shader("trace_ray");
-    compile_shader("blit");
-    compile_shader("temporal_denoise");
-    compile_shader("a_tours_filter");
+    compile_shader("_trace_tree64");
+    compile_shader("_blit");
+    compile_shader("_temporal_denoise");
+    compile_shader("_a_tours_filter");
 }
 
 fn compile_shader(name: &str) {

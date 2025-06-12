@@ -1,11 +1,11 @@
 import g_buffer;
-import utilits;
 import texture_heap;
+import helper_color;
 
 enum DebugChannel { None, Albedo, Irradiance, Normals, Depth, HeatMap, Variance };
 
 struct DispatchParams {
-  GBufferUniforms* GBuffer;
+  GBuffer* GBuffer;
   DebugChannel Channel;
   float2 HeatmapRange;
 };

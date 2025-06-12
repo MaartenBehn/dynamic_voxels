@@ -5,14 +5,13 @@ use octa_force::{glam::UVec3, vulkan::{ash::vk::{PushConstantRange, ShaderStageF
 
 
 #[derive(Debug)]
-pub struct ShaderStage<D> {
+pub struct ShaderStage {
     pub push_constant_range: PushConstantRange,
     pub pipeline_layout: PipelineLayout,
     pub pipeline: ComputePipeline,
-    pub dispatch_params: PhantomData<D>,
 }
 
-impl<D> ShaderStage<D> {
+impl ShaderStage {
     pub fn new(
         context: &Context, 
         shader_bin: &[u8], 
@@ -39,11 +38,10 @@ impl<D> ShaderStage<D> {
             push_constant_range,
             pipeline_layout,
             pipeline,
-            dispatch_params: PhantomData::default(),
         })
     }
 
-    pub fn render(&self, buffer: &CommandBuffer, dispatch_params: D, dispatch_size: UVec3) {
+    pub fn render<D>(&self, buffer: &CommandBuffer, dispatch_params: D, dispatch_size: UVec3) {
         buffer.bind_compute_pipeline(&self.pipeline);
         buffer.push_constant(&self.pipeline_layout, ShaderStageFlags::COMPUTE, &dispatch_params); 
         buffer.dispatch(dispatch_size.x, dispatch_size.y, dispatch_size.z);

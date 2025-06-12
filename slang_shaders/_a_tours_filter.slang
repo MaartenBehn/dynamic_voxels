@@ -1,6 +1,6 @@
 import g_buffer;
 import texture_heap;
-import utilits;
+import helper_color;
 
 // SVGF-based denoising filter
 // - https://research.nvidia.com/publication/2017-07_spatiotemporal-variance-guided-filtering-real-time-reconstruction-path-traced
@@ -8,7 +8,7 @@ import utilits;
 // - https://diharaw.github.io/post/adventures_in_hybrid_rendering/
 
 struct DispatchParams {
-  GBufferUniforms* GBuffer;
+  GBuffer* GBuffer;
   ImageHandle2D<float4> InIrradianceTex, OutIrradianceTex;  // rgb: irradiance, w: variance 
   uint passIndex;
 };

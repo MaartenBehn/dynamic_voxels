@@ -1,9 +1,9 @@
 import g_buffer;
 import texture_heap;
-import utilits;
+import helper_color;
 
 struct DispatchParams {
-  GBufferUniforms* GBuffer;
+  GBuffer* GBuffer;
 };
 [vk::push_constant] DispatchParams pc;
 

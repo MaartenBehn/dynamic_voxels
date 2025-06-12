@@ -1,4 +1,5 @@
-import backend_common;
+import helper_ray;
+import helper_math;
 
 static uint TreeScale = 0;
 
@@ -16,7 +17,7 @@ public struct Node {
   }
 }
 
-public struct VoxelTree {
+public struct Tree64 {
   public Node* TreeNodes;
   public uint8_t* LeafData;
   public uint start_index;
