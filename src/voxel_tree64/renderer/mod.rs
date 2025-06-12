@@ -5,6 +5,7 @@ pub mod g_buffer;
 pub mod frame_perf_stats;
 pub mod shader_stage;
 
+use std::mem;
 use std::time::Duration;
 
 use frame_perf_stats::FramePerfStats;
@@ -50,14 +51,18 @@ pub struct Tree64Renderer {
     blue_noise_tex: ImageAndViewAndHandle,
    
     trace_ray_stage: ShaderStage<TraceRayDispatchParams>,
-    denoise_stage: ShaderStage<DenoiseDispatchParams>,
-    compose_stage: ShaderStage<ComposeDispatchParams>,
+    denoise_stage: ShaderStage<TemporalDenoiseDispatchParams>,
+    filter_stage: ShaderStage<AToursFilterDispatchParams>,
+    blit_stage: ShaderStage<ComposeDispatchParams>,
 
     debug_channel: DebugChannel,
     max_bounces: usize,
     heat_map_max: f32,
     temporal_denoise: bool,
     denoise_counters: bool,
+
+    filter_passes: usize,
+    temp_irradiance_tex: ImageAndViewAndHandle, 
 }
 
 #[repr(C)]
@@ -73,8 +78,17 @@ pub struct TraceRayDispatchParams {
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct DenoiseDispatchParams {
+pub struct TemporalDenoiseDispatchParams {
     g_buffer_ptr: u64,
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct AToursFilterDispatchParams {
+    g_buffer_ptr: u64,
+    in_irradiance_tex: DescriptorHandleValue,
+    out_irradiance_tex: DescriptorHandleValue,
+    pass_index: u32,
 }
 
 #[repr(u32)]
@@ -136,11 +150,28 @@ impl Tree64Renderer {
         let blue_noise_handle = heap.create_image_handle(
             &blue_noise_tex.view, 
             vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC)?;
-        let blue_noise_tex = ImageAndViewAndHandle { image: blue_noise_tex.image, view: blue_noise_tex.view, handle: blue_noise_handle };    
+        let blue_noise_tex = ImageAndViewAndHandle { image: blue_noise_tex.image, view: blue_noise_tex.view, handle: blue_noise_handle };   
+
+
+        let temp_irradiance_image = context.create_image(
+            vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC, 
+            MemoryLocation::GpuOnly, 
+            Format::R8G8B8A8_UNORM, 
+            swapchain.size.x, swapchain.size.y)?;
+
+        let temp_irradiance_view = temp_irradiance_image.create_image_view(false)?;
+
+        let temp_irradiance_handle = heap.create_image_handle(&temp_irradiance_view, vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC)?;
+
+        let temp_irradiance_tex = ImageAndViewAndHandle {
+            image: temp_irradiance_image,
+            view: temp_irradiance_view,
+            handle: temp_irradiance_handle,
+        };
 
         let sets = &[&heap.layout];
         let push_constant_size = size_of::<TraceRayDispatchParams>()
-            .max(size_of::<DenoiseDispatchParams>())
+            .max(size_of::<TemporalDenoiseDispatchParams>())
             .max(size_of::<ComposeDispatchParams>()) as u32;
         
         let trace_ray_stage = ShaderStage::new(
@@ -153,7 +184,12 @@ impl Tree64Renderer {
             include_bytes!("../../../slang_shaders/bin/temporal_denoise.spv"), 
             sets, push_constant_size)?;
 
-        let compose_stage = ShaderStage::new(
+        let filter_stage = ShaderStage::new(
+            context, 
+            include_bytes!("../../../slang_shaders/bin/a_tours_filter.spv"), 
+            sets, push_constant_size)?;
+
+        let blit_stage = ShaderStage::new(
             context, 
             include_bytes!("../../../slang_shaders/bin/blit.spv"), 
             sets, push_constant_size)?;
@@ -170,13 +206,16 @@ impl Tree64Renderer {
 
             trace_ray_stage,
             denoise_stage,
-            compose_stage,
+            filter_stage,
+            blit_stage,
 
             debug_channel: DebugChannel::None,
             max_bounces: 2,
             heat_map_max: 20.0,
             temporal_denoise: true,
             denoise_counters: true,
+            filter_passes: 0,
+            temp_irradiance_tex,
         })
     }
 
@@ -187,7 +226,7 @@ impl Tree64Renderer {
     }
 
     pub fn render(
-        &self,
+        &mut self,
         buffer: &CommandBuffer,
         engine: &Engine,
     ) -> Result<()> {
@@ -212,18 +251,41 @@ impl Tree64Renderer {
             blue_noise_tex: self.blue_noise_tex.handle.value,
         }, dispatch_size);
 
+
         if self.temporal_denoise {
-            self.denoise_stage.render(buffer, DenoiseDispatchParams {
+            self.denoise_stage.render(buffer, TemporalDenoiseDispatchParams {
                 g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
-            }, dispatch_size);
+            } ,dispatch_size);
         }
 
-        self.compose_stage.render(buffer, ComposeDispatchParams {
+        for i in 0..self.filter_passes {
+
+            let input_tex = if i % 2 == 0 {
+                self.g_buffer.irradiance_tex[engine.get_current_in_flight_frame_index()].handle.value
+            } else {
+                self.temp_irradiance_tex.handle.value 
+            };
+
+            let output_tex = if i % 2 == 0 {
+                self.temp_irradiance_tex.handle.value 
+            } else {
+                self.g_buffer.irradiance_tex[engine.get_current_in_flight_frame_index()].handle.value
+            };
+
+            self.filter_stage.render(buffer, AToursFilterDispatchParams {
+                g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
+                in_irradiance_tex: input_tex,
+                out_irradiance_tex: output_tex,
+                pass_index: i as _,
+            } ,dispatch_size);
+        }
+ 
+        self.blit_stage.render(buffer, ComposeDispatchParams {
             g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
             debug_channel: self.debug_channel,
             heat_map_range: Vec2 { x: 0.0, y: self.heat_map_max }
-        }, dispatch_size); 
-
+        }, dispatch_size);
+ 
         match &self.g_buffer.output_tex {
             g_buffer::OutputTexs::Storage(t) => {
                 buffer.swapchain_image_copy_from_compute_storage_image(
@@ -254,21 +316,30 @@ impl Tree64Renderer {
                         ui.selectable_value(&mut self.debug_channel, DebugChannel::Variance, "Variance");
                     }
                     );
-                ui.add(egui::Slider::new(&mut self.max_bounces, 0..=10)
-                    .text("Max Bounces")
-                );
                 ui.add(egui::Slider::new(&mut self.heat_map_max, 0.0..=256.0)
                     .text("Heat Map")
                 );
+                ui.add(egui::Slider::new(&mut self.max_bounces, 0..=10)
+                    .text("Max Bounces")
+                );
+                ui.separator();
+
                 div(ui, |ui| {
                     ui.checkbox(&mut self.temporal_denoise, "Temporal Denoise");
                     ui.checkbox(&mut self.denoise_counters, "Jitter");
                 });
 
-                ui.separator();
-
                 ui.label(format!("GBuffer: {}", self.g_buffer.frame_no -1));
                 ui.label(format!("Steady : {}", self.g_buffer.num_steady_frames -1));
+                
+                ui.separator();
+
+                ui.add(egui::Slider::new(&mut self.filter_passes, 0..=10)
+                    .text("Filter Passes")
+                );
+                if self.filter_passes % 2 == 1 {
+                    self.filter_passes += 1;
+                } 
 
             });
     }
@@ -279,6 +350,23 @@ impl Tree64Renderer {
         swapchain: &Swapchain,
     ) -> Result<()> {
         self.g_buffer.on_recreate_swapchain(context, &mut self.heap, swapchain)?;
+
+
+        let temp_irradiance_image = context.create_image(
+            vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC, 
+            MemoryLocation::GpuOnly, 
+            Format::R8G8B8A8_UNORM, 
+            swapchain.size.x, swapchain.size.y)?;
+
+        let temp_irradiance_view = temp_irradiance_image.create_image_view(false)?;
+
+        let temp_irradiance_handle = self.heap.create_image_handle(&temp_irradiance_view, vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC)?;
+
+        self.temp_irradiance_tex = ImageAndViewAndHandle {
+            image: temp_irradiance_image,
+            view: temp_irradiance_view,
+            handle: temp_irradiance_handle,
+        };
 
         Ok(())
     }

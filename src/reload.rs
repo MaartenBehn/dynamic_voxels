@@ -107,6 +107,7 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
         camera.direction = Vec3::new(-0.097770326, 0.98611856, -0.1342061).normalize();        
         
         camera.speed = 1.0;
+        camera.z_near = 0.001;
     }
 
     camera.z_far = 100.0;

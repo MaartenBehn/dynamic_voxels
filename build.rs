@@ -18,6 +18,7 @@ fn main() {
     compile_shader("trace_ray");
     compile_shader("blit");
     compile_shader("temporal_denoise");
+    compile_shader("a_tours_filter");
 }
 
 fn compile_shader(name: &str) {

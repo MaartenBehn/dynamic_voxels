@@ -79,3 +79,7 @@ public float3 viridis_inferno( float x, float2 range )
 		dot( x1.xyzw, float4( +0.014065206, +0.015360518, +1.605395918, -4.821108251 ) ) + dot( x2.xy, float2( +8.389314011, -4.193858954 ) ),
 		dot( x1.xyzw, float4( -0.019628385, +3.122510347, -5.893222355, +2.798380308 ) ) + dot( x2.xy, float2( -3.608884658, +4.324996022 ) ) );
 }
+
+public float GetLuminance(float3 color) {
+    return dot(color, float3(0.299, 0.587, 0.114));
+}
