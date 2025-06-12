@@ -23,6 +23,7 @@ render_example = []
 tree64 = []
 islands = []
 profile_islands = []
+tree64_scene = []
 
 [dependencies]
 shaders = { path="./shaders/" }
@@ -48,4 +49,6 @@ slotmap = "1.0.7"
 half = "2.6.0"
 
 tree64 = { git="https://github.com/expenses/tree64.git", version = "0.1.0" }
+bvh = "0.11.0"
+nalgebra = "=0.33.2"
 

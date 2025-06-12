@@ -1,7 +1,7 @@
 use std::iter;
 
 use feistel_permutation_rs::{DefaultBuildHasher, Permutation};
-use octa_force::glam::{ivec3, vec3, vec4, Mat4, Vec3, Vec4Swizzles};
+use octa_force::glam::{self, ivec3, vec3, vec4, Mat4, Vec3, Vec4Swizzles};
 
 use crate::{util::to_3d_i, voxel_grid::VoxelGrid};
 
@@ -32,8 +32,6 @@ impl AABB {
             min = min.min(transformed_corner);
             max = max.max(transformed_corner);
         }
-
-        
 
         AABB {
             min: min - padding,
@@ -142,5 +140,13 @@ impl Default for AABB {
             min: vec3(f32::INFINITY, f32::INFINITY, f32::INFINITY),
             max: vec3(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY),
         }
+    }
+}
+
+impl Into<bvh::aabb::Aabb<f32, 3>> for AABB {
+    fn into(self) -> bvh::aabb::Aabb<f32, 3> {
+        bvh::aabb::Aabb::with_bounds(
+            nalgebra::Point3::new(self.min.x, self.min.y, self.min.z),
+            nalgebra::Point3::new(self.max.x, self.max.y, self.max.z))
     }
 }

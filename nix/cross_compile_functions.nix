@@ -1,4 +1,4 @@
-{ targets_configs, nixpkgs, crane, fenix, ... }:
+{ lib, targets_configs, nixpkgs, crane, fenix, ... }:
 let
   # eachSystem [system] (system: ...)
   #

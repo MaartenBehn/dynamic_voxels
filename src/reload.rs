@@ -16,6 +16,7 @@ pub mod model_example;
 pub mod state_saver;
 pub mod voxel_tree64;
 pub mod voxel_renderer;
+pub mod scene;
 
 use crate::vec_csg_tree::tree::{VecCSGTree, VOXEL_SIZE};
 use crate::profiler::ShaderProfiler;
@@ -27,6 +28,7 @@ use model_synthesis::collapser_data::CollapserData;
 use model_synthesis::template::TemplateTree;
 use octa_force::engine::Engine;
 use render_csg_tree::base::RenderCSGTree;
+use scene::renderer::SceneRenderer;
 use slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey};
 use slotmap::Key;
 use state_saver::StateSaver;
@@ -101,11 +103,17 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
 
      #[cfg(feature="tree64")]
     {
-        //camera.position = Vec3::new(-0.66225964, -0.10641506, 0.803499); 
-        //camera.direction = Vec3::new(0.87766635, 0.373136, -0.30078444).normalize();        
+        camera.position = Vec3::new(-0.66225964, -0.10641506, 0.803499); 
+        camera.direction = Vec3::new(0.87766635, 0.373136, -0.30078444).normalize();        
         
-        camera.position = Vec3::new(0.04881219, -0.22088319, 0.057467535); 
-        camera.direction = Vec3::new(-0.097770326, 0.98611856, -0.1342061).normalize();        
+        camera.speed = 1.0;
+        camera.z_near = 0.001;
+    }
+
+    #[cfg(feature="tree64_scene")]
+    {
+        camera.position = Vec3::new(-0.66225964, -0.10641506, 0.803499); 
+        camera.direction = Vec3::new(0.87766635, 0.373136, -0.30078444).normalize();        
         
         camera.speed = 1.0;
         camera.z_near = 0.001;
@@ -150,7 +158,10 @@ pub struct RenderState {
     pub model_renderer: ModelDebugRenderer<islands::Identifier>,
     
     #[cfg(feature="tree64")]
-    pub renderer: Tree64Renderer, 
+    pub renderer: Tree64Renderer,
+    
+    #[cfg(feature="tree64_scene")]
+    pub renderer: SceneRenderer,
 }
 
 #[unsafe(no_mangle)]
@@ -233,13 +244,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
     #[cfg(feature="tree64")]
     let mut grid = VoxelGrid::new(UVec3::ONE * 4_u32.pow(4));
-    
-    #[cfg(feature="tree64")]
-    { 
-        grid.data[0] = 1;
-        grid.data[1] = 1;
-    }
-
+     
     #[cfg(feature="tree64")]
     grid.set_example_sphere();
 

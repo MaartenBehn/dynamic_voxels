@@ -12,7 +12,7 @@
 
         # For dependency graph
         graphviz
-        
+
         # Shader debug
         spirv-tools
         renderdoc
@@ -32,8 +32,8 @@
           pkgs.vulkan-loader
         ]);
 
-    LD_LIBRARY_PATH =with pkgs; lib.makeLibraryPath [
-      # load external libraries that you need in your rust project
+      LD_LIBRARY_PATH =with pkgs; lib.makeLibraryPath [
+        # load external libraries that you need in your rust project
         libxkbcommon
         #wayland-scanner.out
         #libGL
@@ -41,15 +41,15 @@
         #vulkan-headers 
         #vulkan-loader
         #vulkan-validation-layers
-        
+
         # For renderdoc x11 fallback
         xorg.libX11
         xorg.libXcursor
         xorg.libXi
-    ];
+      ];
 
-  VULKAN_SDK = "${pkgs.vulkan-headers}";
-  VK_LAYER_PATH = "${pkgs.vulkan-validation-layers}/share/vulkan/explicit_layer.d";
+      VULKAN_SDK = "${pkgs.vulkan-headers}";
+      VK_LAYER_PATH = "${pkgs.vulkan-validation-layers}/share/vulkan/explicit_layer.d";
 
     });
 }
