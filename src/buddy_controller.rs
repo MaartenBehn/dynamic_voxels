@@ -6,6 +6,7 @@ use std::iter;
 pub struct BuddyBufferAllocator {
     free_list: Vec<Vec<(usize, usize)>>,
     mp: HashMap<usize, usize>,
+    pub size: usize,
 }
 
 impl BuddyBufferAllocator {
@@ -14,16 +15,25 @@ impl BuddyBufferAllocator {
 
         let free_list: Vec<_> = iter::repeat(vec![])
             .take(n + 1)
-            .chain([vec![(0, size - 1)]].into_iter())
+            .chain([vec![]].into_iter())
             .collect();
 
         BuddyBufferAllocator {
             free_list,
             mp: Default::default(),
+            size,
         }
     }
 
+    pub fn clear(&mut self) {
+        self.free_list.iter_mut().for_each(|l| l.clear()); 
+        self.free_list.last_mut().unwrap().push((0, self.size - 1));
+        self.mp.clear();
+    }
+
     // From https://www.geeksforgeeks.org/buddy-memory-allocation-program-set-1-allocation/
+    /// In: size in byte
+    /// Out: start index and size of allocation
     pub fn alloc(&mut self, size: usize) -> OctaResult<(usize, usize)> {
         // Calculate index in free list
         // to search for block if available
@@ -73,6 +83,7 @@ impl BuddyBufferAllocator {
     }
 
     // From https://www.geeksforgeeks.org/buddy-memory-allocation-program-set-2-deallocation/?ref=ml_lbp
+    /// In: start index of allocation
     pub fn dealloc(&mut self, start: usize) -> OctaResult<()> {
         // If no such starting address available
         let size = self.mp.remove(&start);

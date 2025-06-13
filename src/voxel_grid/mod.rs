@@ -43,4 +43,8 @@ impl VoxelGrid {
             }
         }
     }
+
+    pub fn get(&self, pos: UVec3) -> u8 {
+        self.data[to_1d(pos, self.size)]
+    }
 }

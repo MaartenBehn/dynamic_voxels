@@ -15,7 +15,7 @@ impl tree64::VoxelModel<u8> for VoxelGrid {
             return None;
         }
 
-        let data = self.data[to_1d(pos, self.size)];
+        let data = self.get(pos);
         if (data == 0) {
             None
         } else {

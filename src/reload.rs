@@ -1,4 +1,5 @@
 #![forbid(unused_must_use)]
+extern crate self as dynamic_voxels;
 
 pub mod aabb;
 pub mod buddy_controller;
@@ -28,7 +29,6 @@ use model_synthesis::collapser_data::CollapserData;
 use model_synthesis::template::TemplateTree;
 use octa_force::engine::Engine;
 use render_csg_tree::base::RenderCSGTree;
-use scene::renderer::SceneRenderer;
 use slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey};
 use slotmap::Key;
 use state_saver::StateSaver;

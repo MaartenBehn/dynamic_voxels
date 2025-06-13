@@ -150,3 +150,21 @@ impl Into<bvh::aabb::Aabb<f32, 3>> for AABB {
             nalgebra::Point3::new(self.max.x, self.max.y, self.max.z))
     }
 }
+
+impl From<bvh::aabb::Aabb<f32, 3>> for AABB {
+    fn from(value: bvh::aabb::Aabb<f32, 3>) -> Self {
+        AABB {
+            min: vec3(value.min.x, value.min.y, value.min.z),
+            max: vec3(value.max.x, value.max.y, value.max.z),
+        }
+    }
+}
+
+impl From<&bvh::aabb::Aabb<f32, 3>> for AABB {
+    fn from(value: &bvh::aabb::Aabb<f32, 3>) -> Self {
+        AABB {
+            min: vec3(value.min.x, value.min.y, value.min.z),
+            max: vec3(value.max.x, value.max.y, value.max.z),
+        }
+    }
+}

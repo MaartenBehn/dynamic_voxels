@@ -28,19 +28,22 @@ public void GetPrimaryRay(int2 screenPos, out float3 rayPos, out float3 rayDir, 
     rayDir = normalize(far.xyz / far.w);
 }
 
-public float3 ClipRayToAABB(float3 origin, float3 dir, float3 bbMin, float3 bbMax) {
-  float3 invDir = 1.0 / dir;
-  float3 t1 = (bbMin - origin) * invDir;
-  float3 t2 = (bbMax - origin) * invDir;
-  float3 temp = t1;
-  t1 = min(temp, t2);
-  t2 = max(temp, t2);
+bool ray_clip_aabb(float3 origin, float3 inv_dir, float3 min_pos, float3 max_pos, out float t_min, out float t_max) {
+  float3 is_positive = float3(float(inv_dir.x > 0), float(inv_dir.y > 0), float(inv_dir.z >= 0));     
+  float3 is_negative = 1.0f - is_positive;
 
-  float tmin = max(t1.x, max(t1.y, t1.z));
-  float tmax = min(t2.x, min(t2.y, t2.z));
+  float3 left_side = is_positive * min_pos + is_negative * max_pos;
+  float3 right_side = is_positive * max_pos + is_negative * min_pos;
 
-  return tmin > 0 && tmin < tmax ? origin + dir * tmin : origin;
+  float3 left_side_times_one_over_dir = (left_side - origin) * inv_dir;
+  float3 right_side_times_one_over_dir = (right_side - origin) * inv_dir;
+
+  t_min = max(left_side_times_one_over_dir.x, max(left_side_times_one_over_dir.y, left_side_times_one_over_dir.z));
+  t_max = min(right_side_times_one_over_dir.x, min(right_side_times_one_over_dir.y, right_side_times_one_over_dir.z));
+ 
+  return t_max > 0 && t_max > t_min;
 }
+
 
 public static const int kDefaultOpaqueMaterialId = 254;
 
