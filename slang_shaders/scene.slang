@@ -22,19 +22,18 @@ public struct Tree64SceneObject {
 public struct Scene {
   uint8_t* start_ptr;
   uint bvh_offset;
-  uint root_object_index;
   uint bvh_len;
 
   public bool ray_cast(float3 origin, float3 ray_dir) {
-    SceneObject* bvh = start_ptr + bvh_offset;
-    uint current = root_object_index; 
+    SceneObject* bvh = (SceneObject*)(start_ptr + bvh_offset);
+    uint current = 0; 
     float3 inv_ray_dir = 1.0 / ray_dir;
 
     while (current < bvh_len) {
       SceneObject node = bvh[current];
 
       float t_min, t_max;
-      if (!ray_aabb_intersect(ray_pos, inv_ray_dir, node.min, node.max, t_min, t_max)) {
+      if (!ray_clip_intersect(origin, inv_ray_dir, node.min, node.max, t_min, t_max)) {
         current = node.node_exit;
         continue;
       }
@@ -47,6 +46,8 @@ public struct Scene {
         current++;
       }
     }
+
+    return false;
   } 
 }
 

@@ -1,27 +1,32 @@
 use octa_force::anyhow::bail;
+use octa_force::log::{debug, trace};
 use octa_force::OctaResult;
 use std::collections::HashMap;
 use std::iter;
 
+#[derive(Clone, Debug)]
 pub struct BuddyBufferAllocator {
     free_list: Vec<Vec<(usize, usize)>>,
     mp: HashMap<usize, usize>,
     pub size: usize,
+    min_n: usize,
 }
 
 impl BuddyBufferAllocator {
-    pub fn new(size: usize) -> Self {
-        let n = f32::ceil(f32::ln(size as f32) / f32::ln(2.0)) as usize;
+    pub fn new(size: usize, min_size: usize) -> Self {
+        let n = calc_n(size);        
+        let min_n = calc_n(min_size);
 
         let free_list: Vec<_> = iter::repeat(vec![])
-            .take(n + 1)
-            .chain([vec![]].into_iter())
+            .take(n - min_n)
+            .chain([vec![(0, size - 1)]].into_iter())
             .collect();
 
         BuddyBufferAllocator {
             free_list,
             mp: Default::default(),
             size,
+            min_n,
         }
     }
 
@@ -37,7 +42,7 @@ impl BuddyBufferAllocator {
     pub fn alloc(&mut self, size: usize) -> OctaResult<(usize, usize)> {
         // Calculate index in free list
         // to search for block if available
-        let n = f32::ceil(f32::ln(size as f32) / f32::ln(2.0)) as usize;
+        let n = calc_n(size).max(self.min_n) - self.min_n;
 
         let space = if !self.free_list[n].is_empty() {
             self.free_list[n].remove(0)
@@ -47,7 +52,7 @@ impl BuddyBufferAllocator {
                 .enumerate()
                 .find_map(|(i, free)| {
                     if !free.is_empty() {
-                        Some((i + n, free.remove(0)))
+                        Some((i + n + 1, free.remove(0)))
                     } else {
                         None
                     }
@@ -71,12 +76,11 @@ impl BuddyBufferAllocator {
             temp
         };
 
-        #[cfg(test)]
-        println!("Memory from {} to {} allocated", space.0, space.1);
-
         // map starting address with
         // size to make deallocating easy
         let size = space.1 - space.0 + 1;
+        debug!("Memory from {} to {} of size {} allocated", space.0, space.1, size);
+
         self.mp.insert(space.0, size);
 
         Ok((space.0, size))
@@ -91,13 +95,12 @@ impl BuddyBufferAllocator {
             bail!("Invalid start");
         }
         let size = size.unwrap().to_owned();
-
-        let n = f32::ceil(f32::ln(size as f32) / f32::ln(2.0)) as usize;
-
+        let n = calc_n(size).max(self.min_n) - self.min_n;
+        
         let space = (start, start + usize::pow(2, n as u32) - 1);
 
-        #[cfg(test)]
-        println!("Memory block from {} to {} freed", space.0, space.1);
+        debug!("Memory block from {} to {} of size {} freed", space.0, space.1, size);
+        
         self.free_list[n].push(space);
 
         // Calculate buddy number
@@ -145,12 +148,16 @@ impl BuddyBufferAllocator {
     }
 }
 
+pub fn calc_n(size: usize) -> usize {
+    f32::ceil(f32::ln(size as f32) / f32::ln(2.0)) as usize
+}
+
 mod test {
     use crate::buddy_controller::BuddyBufferAllocator;
 
     #[test]
     fn test_alloc() {
-        let mut buddy = BuddyBufferAllocator::new(128);
+        let mut buddy = BuddyBufferAllocator::new(128, 0);
         buddy.alloc(32).unwrap();
         buddy.alloc(7).unwrap();
         buddy.alloc(64).unwrap();
@@ -159,7 +166,7 @@ mod test {
 
     #[test]
     fn test_dealloc() {
-        let mut buddy = BuddyBufferAllocator::new(128);
+        let mut buddy = BuddyBufferAllocator::new(128, 0);
         buddy.alloc(16).unwrap();
         buddy.alloc(16).unwrap();
         buddy.alloc(16).unwrap();

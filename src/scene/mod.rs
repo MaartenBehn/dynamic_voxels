@@ -1,7 +1,8 @@
 pub mod tree64;
+pub mod renderer;
 
 use bvh::{aabb::{Aabb, Bounded}, bounding_hierarchy::{BHShape, BoundingHierarchy}, bvh::Bvh};
-use octa_force::{glam::{Mat4, Vec3}, log::info, vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
+use octa_force::{glam::{Mat4, Vec3}, log::{debug, info}, vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
 use slotmap::{new_key_type, SlotMap};
 use tree64::Tree64SceneObject;
 use crate::{aabb::AABB, buddy_controller::BuddyBufferAllocator, voxel_tree64::VoxelTree64};
@@ -10,28 +11,30 @@ use borrow::traits::*;
 
 new_key_type! { pub struct SceneObjectKey; }
 
-//#[derive(borrow::Partial)]
-//#[module(crate::scene)]
+#[derive(Debug)]
 pub struct Scene {
     pub buffer: Buffer,
     pub allocator: BuddyBufferAllocator,
     pub objects: Vec<SceneObject>,
     pub bvh: Bvh<f32, 3>,
+    pub bvh_allocation_start: usize,
+    pub bvh_len: usize,
 }
 
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct SceneData {
-  start_ptr: u64,
-  bvh_offset: u32,
-  root_object_index: u32,
+    start_ptr: u64,
+    bvh_offset: u32,
+    bvh_len: u32,
 }
 
+#[derive(Debug)]
 pub enum SceneObject {
     Tree64(Tree64SceneObject),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct SceneObjectData {
     min: Vec3,
@@ -41,10 +44,11 @@ pub struct SceneObjectData {
 }
 
 impl Scene {
-    pub fn from_objects(context: Context, mut objects: Vec<SceneObject>) -> OctaResult<Self> {
+    pub fn from_objects(context: &Context, mut objects: Vec<SceneObject>) -> OctaResult<Self> {
         
-        let buffer_size = 2_usize.pow(4);
+        let buffer_size = 2_usize.pow(20);
         info!("Scene Buffer size: {:.04} MB", buffer_size as f32 * 0.000001);
+        debug!("Scene Buffer size: {} byte", buffer_size);
 
         let buffer = context.create_buffer(
             vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS_KHR,
@@ -52,15 +56,18 @@ impl Scene {
             buffer_size as _,
         )?;
 
-        let allocator = BuddyBufferAllocator::new(buffer_size);
+        let allocator = BuddyBufferAllocator::new(buffer_size, 32);
 
-        let bvh = Bvh::build_par(&mut objects); 
+        let bvh = Bvh::build_par(&mut objects);
+        dbg!(&bvh);
 
         Ok(Scene {
             buffer,
             allocator,
             bvh,
             objects,
+            bvh_allocation_start: 0,
+            bvh_len: 0,
         })
     }
 
@@ -72,12 +79,12 @@ impl Scene {
         }
 
         let flat_bvh = self.bvh.flatten_custom(&|aabb, index, exit, shape| {
-            let aabb: AABB = aabb.into();
             let leaf = shape != u32::MAX;
 
             if leaf {
                 let object = &self.objects[shape as usize];
                 let nr = object.get_nr();
+                let aabb = object.get_aabb();
                 
                 SceneObjectData {
                     min: aabb.min,
@@ -86,6 +93,7 @@ impl Scene {
                     exit: exit << 1 | nr,
                 }
             } else {
+                let aabb: AABB = aabb.into();
                 SceneObjectData {
                     min: aabb.min,
                     child: index << 1,
@@ -94,11 +102,27 @@ impl Scene {
                 }
             } 
         });
+        dbg!(&flat_bvh);
 
-        let (start,  _) = self.allocator.alloc(flat_bvh.len() * size_of::<SceneObjectData>())?;
+        let flat_bvh_size =  flat_bvh.len() * size_of::<SceneObjectData>();
+        debug!("Flat BVH Size: {flat_bvh_size}");
+
+        let (start,  _) = self.allocator.alloc(flat_bvh_size)?;
         self.buffer.copy_data_to_buffer_without_aligment(&flat_bvh, start)?;
+        self.buffer.copy_data_to_buffer_without_aligment(&flat_bvh, 0)?;
+        self.bvh_allocation_start = start;
+        self.bvh_len = flat_bvh.len();
 
         Ok(())
+    }
+
+    pub fn get_data(&self) -> SceneData {
+        SceneData { 
+            start_ptr: self.buffer.get_device_address(), 
+            //bvh_offset: self.bvh_allocation_start as _,
+            bvh_offset: 0,
+            bvh_len: self.bvh_len as _,
+        }
     }
 }
 
@@ -123,16 +147,19 @@ impl SceneObject {
             SceneObject::Tree64(tree) => tree.alloc_start,
         }
     }
+
+    pub fn get_aabb(&self) -> AABB {
+        match self {
+            SceneObject::Tree64(tree64_scene_object) => {
+                AABB::from_box(&tree64_scene_object.mat, 0.0)
+            },
+        }
+    }
 }
 
 impl Bounded<f32,3> for SceneObject {
     fn aabb(&self) -> Aabb<f32,3> {
-        match self {
-            SceneObject::Tree64(tree64_scene_object) => {
-                let aabb = AABB::from_box(&tree64_scene_object.mat, 0.0);
-                aabb.into()
-            },
-        }
+        self.get_aabb().into()
     }
 }
 

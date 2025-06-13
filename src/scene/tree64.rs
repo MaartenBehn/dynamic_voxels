@@ -1,11 +1,12 @@
 
-use octa_force::{glam::{Mat4, Vec3}, vulkan::Buffer, OctaResult};
+use octa_force::{glam::{Mat4, Vec3}, log::debug, vulkan::Buffer, OctaResult};
 use slotmap::{new_key_type, SlotMap};
 
 use crate::{buddy_controller::BuddyBufferAllocator, voxel_tree64::VoxelTree64};
 
 new_key_type! { pub struct Tree64Key; }
 
+#[derive(Debug)]
 pub struct Tree64SceneObject {
     pub mat: Mat4,
     pub tree: VoxelTree64,
@@ -35,7 +36,9 @@ impl Tree64SceneObject {
     }
 
     pub fn push_to_buffer(&mut self, allocator: &mut BuddyBufferAllocator, buffer: &mut Buffer) -> OctaResult<()> {
-        let size = size_of::<Tree64SceneObjectData>() + self.tree.tree.nodes.len() + self.tree.tree.data.len(); 
+        let size = size_of::<Tree64SceneObjectData>() + self.tree.tree.nodes.len() + self.tree.tree.data.len();
+        debug!("Tree64 Obvject Size: {size}");
+
         let (start, _) = allocator.alloc(size)?;
         self.alloc_start = start;
 

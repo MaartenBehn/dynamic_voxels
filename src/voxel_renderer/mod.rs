@@ -52,7 +52,7 @@ pub struct VoxelRenderer {
     filter_stage: ShaderStage,
     blit_stage: ShaderStage,
 
-    debug_channel: DebugChannel,
+    pub debug_channel: DebugChannel,
     max_bounces: usize,
     heat_map_max: f32,
     temporal_denoise: bool,

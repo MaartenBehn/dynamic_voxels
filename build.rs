@@ -16,6 +16,7 @@ fn main() {
     println!("cargo::rerun-if-changed=slang_shaders/*");
     
     compile_shader("_trace_tree64");
+    compile_shader("_trace_scene");
     compile_shader("_blit");
     compile_shader("_temporal_denoise");
     compile_shader("_a_tours_filter");

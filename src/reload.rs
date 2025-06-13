@@ -29,6 +29,9 @@ use model_synthesis::collapser_data::CollapserData;
 use model_synthesis::template::TemplateTree;
 use octa_force::engine::Engine;
 use render_csg_tree::base::RenderCSGTree;
+use scene::renderer::SceneRenderer;
+use scene::tree64::Tree64SceneObject;
+use scene::{Scene, SceneObject};
 use slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey};
 use slotmap::Key;
 use state_saver::StateSaver;
@@ -110,10 +113,10 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
         camera.z_near = 0.001;
     }
 
-    #[cfg(feature="tree64_scene")]
+    #[cfg(feature="scene")]
     {
-        camera.position = Vec3::new(-0.66225964, -0.10641506, 0.803499); 
-        camera.direction = Vec3::new(0.87766635, 0.373136, -0.30078444).normalize();        
+        camera.position = Vec3::new(1.0, -10.0, 1.0); 
+        camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
         
         camera.speed = 1.0;
         camera.z_near = 0.001;
@@ -160,8 +163,8 @@ pub struct RenderState {
     #[cfg(feature="tree64")]
     pub renderer: Tree64Renderer,
     
-    #[cfg(feature="tree64_scene")]
-    pub renderer: SceneRenderer,
+    #[cfg(feature="scene")]
+    pub renderer: SceneRenderer
 }
 
 #[unsafe(no_mangle)]
@@ -242,16 +245,25 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     let mut model_renderer = ModelDebugRenderer::default();
 
 
-    #[cfg(feature="tree64")]
+    #[cfg(any(feature="tree64", feature="scene"))]
     let mut grid = VoxelGrid::new(UVec3::ONE * 4_u32.pow(4));
      
-    #[cfg(feature="tree64")]
+    #[cfg(any(feature="tree64", feature="scene"))]
     grid.set_example_sphere();
 
-    #[cfg(feature="tree64")]
+    #[cfg(any(feature="tree64", feature="scene"))]
     let tree64: VoxelTree64 = grid.into();
+    
     #[cfg(feature="tree64")]
     let tree_renderer = Tree64Renderer::new(&engine.context, &engine.swapchain, tree64, &logic_state.camera)?;
+
+    #[cfg(feature="scene")]
+    let mut scene = Scene::from_objects(&engine.context, vec![
+        SceneObject::Tree64(Tree64SceneObject::new(Mat4::IDENTITY, tree64))
+    ])?;
+
+    #[cfg(feature="scene")]
+    let scene_renderer = SceneRenderer::new(&engine.context, &engine.swapchain, scene, &logic_state.camera)?;
 
     Ok(RenderState {
         gui,
@@ -275,7 +287,10 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         model_renderer,
 
         #[cfg(feature="tree64")]
-        renderer: tree_renderer
+        renderer: tree_renderer,
+
+        #[cfg(feature="scene")]
+        renderer: scene_renderer,
     })
 }
 
@@ -323,7 +338,7 @@ pub fn update(
         }
     }
 
-    #[cfg(feature="tree64")]
+    #[cfg(any(feature="tree64", feature="scene"))]
     render_state.renderer.update(
         &logic_state.camera, 
         &engine.context, 
@@ -351,7 +366,7 @@ pub fn record_render_commands(
         .render(command_buffer, &engine)?;
 
 
-    #[cfg(feature="tree64")]
+    #[cfg(any(feature="tree64", feature="scene"))]
     render_state.renderer.render(command_buffer, &engine)?;
 
     command_buffer.begin_rendering(
@@ -388,7 +403,7 @@ pub fn record_render_commands(
             #[cfg(any(feature="fence", feature="islands"))]
             render_state.model_renderer.render(ctx, state.collapser.as_mut().unwrap());
 
-            #[cfg(feature="tree64")]
+            #[cfg(any(feature="tree64", feature="scene"))]
             render_state.renderer.render_ui(ctx);
         },
     )?;
@@ -438,7 +453,7 @@ pub fn on_recreate_swapchain(
             )?;
     }
 
-    #[cfg(feature="tree64")]
+    #[cfg(any(feature="tree64", feature="scene"))]
     render_state
         .renderer
             .on_recreate_swapchain(

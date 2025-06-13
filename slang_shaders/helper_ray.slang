@@ -28,7 +28,7 @@ public void GetPrimaryRay(int2 screenPos, out float3 rayPos, out float3 rayDir, 
     rayDir = normalize(far.xyz / far.w);
 }
 
-bool ray_clip_aabb(float3 origin, float3 inv_dir, float3 min_pos, float3 max_pos, out float t_min, out float t_max) {
+public bool ray_clip_intersect(float3 origin, float3 inv_dir, float3 min_pos, float3 max_pos, out float t_min, out float t_max) {
   float3 is_positive = float3(float(inv_dir.x > 0), float(inv_dir.y > 0), float(inv_dir.z >= 0));     
   float3 is_negative = 1.0f - is_positive;
 
