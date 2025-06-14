@@ -28,7 +28,7 @@ impl SceneRenderer {
             swapchain, 
             camera, 
             include_bytes!("../../../slang_shaders/bin/_trace_scene.spv"))?;
-        voxel_renderer.debug_channel = DebugChannel::Depth;
+        //voxel_renderer.debug_channel = DebugChannel::Depth;
 
         scene.init_buffer()?;
 

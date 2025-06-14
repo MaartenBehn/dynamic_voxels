@@ -97,6 +97,7 @@ pub enum DebugChannel {
     Depth,
     HeatMap,
     Variance,
+    All,
 }
 
 #[repr(C)]
@@ -310,6 +311,7 @@ impl VoxelRenderer {
                         ui.selectable_value(&mut self.debug_channel, DebugChannel::Normals, "Normals");
                         ui.selectable_value(&mut self.debug_channel, DebugChannel::HeatMap, "HeatMap");
                         ui.selectable_value(&mut self.debug_channel, DebugChannel::Variance, "Variance");
+                        ui.selectable_value(&mut self.debug_channel, DebugChannel::All, "All");
                     }
                     );
                 ui.add(egui::Slider::new(&mut self.heat_map_max, 0.0..=256.0)

@@ -1,5 +1,5 @@
 
-use octa_force::{glam::{Mat4, Vec3}, log::debug, vulkan::Buffer, OctaResult};
+use octa_force::{glam::{Mat4, Vec3, Vec4}, log::debug, vulkan::Buffer, OctaResult};
 use slotmap::{new_key_type, SlotMap};
 
 use crate::{buddy_controller::BuddyBufferAllocator, voxel_tree64::VoxelTree64};
@@ -19,8 +19,13 @@ pub struct Tree64SceneObject {
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct Tree64SceneObjectData {
+    pub x_axis: Vec4,
+    pub y_axis: Vec4,
+    pub z_axis: Vec4,
     pub data_start: u32,
     pub root_index: u32,
+    fill_1: u32,
+    fill_2: u32,
 }
 
 impl Tree64SceneObject {
@@ -46,8 +51,13 @@ impl Tree64SceneObject {
         self.data_start = self.nodes_start + self.tree.tree.nodes.len(); 
 
         let data = Tree64SceneObjectData {
+            x_axis: self.mat.x_axis,
+            y_axis: self.mat.y_axis,
+            z_axis: self.mat.z_axis,
             data_start: self.data_start as _,
             root_index: self.tree.tree.root_state().index,
+            fill_1: 0,
+            fill_2: 0,
         };
 
         buffer.copy_data_to_buffer_without_aligment(&[data], self.alloc_start)?;

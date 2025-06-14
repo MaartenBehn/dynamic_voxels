@@ -24,7 +24,7 @@ public void GetPrimaryRay(int2 screenPos, out float3 rayPos, out float3 rayDir, 
         pos += (MartinR2(g_buffer.NumSteadyFrames) - 0.5) / easeWeight;
     }
     float4 far = mul(g_buffer.InvProjMat, float4(pos, 1, 1));
-    rayPos = g_buffer.position_frac;
+    rayPos = g_buffer.position;
     rayDir = normalize(far.xyz / far.w);
 }
 

@@ -19,10 +19,10 @@ pub struct ImageAndViewAndHandle {
 
 #[derive(Debug)]
 pub struct GBuffer {
-    pub albedo_tex: [ImageAndViewAndHandle; NUM_FRAMES_IN_FLIGHT],
-    pub irradiance_tex: [ImageAndViewAndHandle; NUM_FRAMES_IN_FLIGHT],
-    pub depth_tex: [ImageAndViewAndHandle; NUM_FRAMES_IN_FLIGHT],
-    pub moments_tex: [ImageAndViewAndHandle; NUM_FRAMES_IN_FLIGHT],
+    pub albedo_tex: [ImageAndViewAndHandle; 2],
+    pub irradiance_tex: [ImageAndViewAndHandle; 2],
+    pub depth_tex: [ImageAndViewAndHandle; 2],
+    pub moments_tex: [ImageAndViewAndHandle; 2],
     pub history_len_tex: ImageAndViewAndHandle,
     pub output_tex: OutputTexs, 
 
@@ -45,20 +45,14 @@ pub struct GBufferUniform {
 
     position: Vec3,
     frame_no: u32,
-
-    position_frac: Vec3,
-    num_steady_frames: u32,
-
-    prev_position_frac: Vec3,
-    albedo_tex: DescriptorHandleValue,
     
     position_delta: Vec3,
-    prev_albedo_tex: DescriptorHandleValue,
+    num_steady_frames: u32,
 
-    irradiance_tex: [DescriptorHandleValue; NUM_FRAMES_IN_FLIGHT],
-
-    depth_tex: [DescriptorHandleValue; NUM_FRAMES_IN_FLIGHT],
-    moments_tex: [DescriptorHandleValue; NUM_FRAMES_IN_FLIGHT],
+    albedo_tex: [DescriptorHandleValue; 2],
+    irradiance_tex: [DescriptorHandleValue; 2],
+    depth_tex: [DescriptorHandleValue; 2],
+    moments_tex: [DescriptorHandleValue; 2],
     history_len_tex: DescriptorHandleValue,
     output_tex: DescriptorHandleValue,
 }
@@ -220,15 +214,12 @@ impl GBuffer {
             prev_inv_proj_mat: prev_inv_proj_mat, 
             
             position: position,
-            position_frac: position.fract(),
-            prev_position_frac: self.prev_position.fract(),
             position_delta: position - self.prev_position,
 
             frame_no: self.frame_no,  
             num_steady_frames: self.num_steady_frames,
 
-            albedo_tex: self.albedo_tex[current_index].handle.value,
-            prev_albedo_tex: self.albedo_tex[last_index].handle.value, 
+            albedo_tex: [self.albedo_tex[current_index].handle.value, self.albedo_tex[last_index].handle.value],
             irradiance_tex: [self.irradiance_tex[current_index].handle.value, self.irradiance_tex[last_index].handle.value], 
             depth_tex: [self.depth_tex[current_index].handle.value, self.depth_tex[last_index].handle.value], 
             moments_tex: [self.moments_tex[current_index].handle.value, self.moments_tex[last_index].handle.value],

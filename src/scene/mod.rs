@@ -108,10 +108,10 @@ impl Scene {
         debug!("Flat BVH Size: {flat_bvh_size}");
 
         let (start,  _) = self.allocator.alloc(flat_bvh_size)?;
-        self.buffer.copy_data_to_buffer_without_aligment(&flat_bvh, start)?;
-        self.buffer.copy_data_to_buffer_without_aligment(&flat_bvh, 0)?;
         self.bvh_allocation_start = start;
         self.bvh_len = flat_bvh.len();
+        
+        self.buffer.copy_data_to_buffer_without_aligment(&flat_bvh, self.bvh_allocation_start)?;
 
         Ok(())
     }
@@ -119,8 +119,7 @@ impl Scene {
     pub fn get_data(&self) -> SceneData {
         SceneData { 
             start_ptr: self.buffer.get_device_address(), 
-            //bvh_offset: self.bvh_allocation_start as _,
-            bvh_offset: 0,
+            bvh_offset: self.bvh_allocation_start as _,
             bvh_len: self.bvh_len as _,
         }
     }

@@ -1,39 +1,34 @@
 import helper_ray;
 import helper_math;
 
-static uint TreeScale = 0;
-
-public struct Node {
+struct Node {
   uint PackedData[3];
 
-  public property bool IsLeaf {
+  property bool IsLeaf {
   get { return (PackedData[0] & 1) != 0; }
   }
-  public property uint ChildPtr {
+  property uint ChildPtr {
   get { return PackedData[0] >> 1; }
   }
-  public property uint64_t PopMask {
+  property uint64_t PopMask {
   get { return PackedData[1] | uint64_t(PackedData[2]) << 32; }
   }
 }
 
 public struct Tree64 {
-  public Node* TreeNodes;
-  public uint8_t* LeafData;
-  public uint start_index;
+  Node* TreeNodes;
+  uint8_t* LeafData;
+  uint start_index;
   uint fill_1;
+
+  public __init(uint8_t* data, uint nodes_offset, uint data_offset, uint start_index) {
+    this.TreeNodes = (Node*)(data + nodes_offset);
+    this.LeafData = data + data_offset;
+    this.start_index = start_index;
+  }
   
-  public HitInfo RayCast(int3 position, float3 rayPos, float3 rayDir, bool coarse) {
-    // Multiply world origin separately to minimize float rounding errors.
-    // Compiler might mess with this, but oh well.
-    float scale = 1.0 / (1 << TreeScale);
-    float3 origin = position * scale + rayPos * scale + 1.0;
-
-    HitInfo hit = Traversal_OctMirror(origin, rayDir, coarse);
-
-    if (hit.MaterialId != 0) {
-      hit.Pos = (hit.Pos - 1.0 - position * scale) * (1 << TreeScale);
-    }
+  public HitInfo RayCast(float3 rayPos, float3 rayDir, bool coarse) {
+    HitInfo hit = Traversal_OctMirror(rayPos, rayDir, coarse);
     return hit;
   }
 

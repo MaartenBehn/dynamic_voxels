@@ -18,7 +18,7 @@ void compute_main(uint2 pos: SV_DispatchThreadID) {
   for (int bounce_no = 0; bounce_no <= pc.rm.max_bounces; bounce_no++) {
     rr.prepare_trace();
 
-    HitInfo hit = pc.tree.RayCast(int3(pc.rm.g_buffer.position), rr.ray_pos, rr.ray_dir, bounce_no != 0);
+    HitInfo hit = pc.tree.RayCast(rr.ray_pos, rr.ray_dir, bounce_no != 0);
     
     rr.after_trace(pos, hit, pc.rm, bounce_no);
   }

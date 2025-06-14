@@ -21,7 +21,6 @@ public struct RayRunner {
   public float3 irradiance;
   public float3 throughput;
 
-  [ForceInline]
   public __init(uint2 pos, RayManager rm) {
     clock_start = clockARB();
     blue_noise = BlueNoise(rm.stbn_texture.Instance, pos, rm.g_buffer.FrameNo);
@@ -32,13 +31,11 @@ public struct RayRunner {
     throughput = 1.0;
   }
 
-  [ForceInline]
   public void prepare_trace() {
     PERF_STAT_INC(RayCasts, 1);
     PERF_TIME_BEGIN(ClocksPerRay);
   }
   
-  [ForceInline]
   [mutating]
   public bool after_trace(uint2 pos, HitInfo hit, RayManager rm, uint bounce_no) {
     PERF_TIME_END(ClocksPerRay);
@@ -86,7 +83,6 @@ public struct RayRunner {
     return true;
   }
 
-  [ForceInline]
   public void finish(uint2 pos, RayManager rm) {
     uint64_t clock_end = clockARB();
     float clockDiff = (clock_end - clock_start) / 1000.0;

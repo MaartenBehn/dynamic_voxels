@@ -7,15 +7,10 @@ public struct GBuffer {
   public float3 position;
   public uint FrameNo;
 
-  public float3 position_frac;
+  public float3 OriginDelta;
   public uint NumSteadyFrames;
 
-  public float3 HistoryOriginFrac;
-  public ImageHandle2D<float4> AlbedoTex;          // rgb: albedo, w: packed normal
-
-  public float3 OriginDelta;
-  public ImageHandle2D<float4> PrevAlbedoTex;          // rgb: albedo, w: packed normal
-
+  public ImageHandle2D<float4> AlbedoTex, PrevAlbedoTex; // rgb: albedo, w: packed normal
   public ImageHandle2D<float4> IrradianceTex, PrevIrradianceTex;  // rgb: irradiance, w: variance 
   public ImageHandle2D<float> DepthTex, PrevDepthTex;
   public ImageHandle2D<float2> MomentsTex, PrevMomentsTex;
