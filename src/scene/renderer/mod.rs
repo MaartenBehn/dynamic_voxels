@@ -8,12 +8,14 @@ use super::{Scene, SceneData};
 pub struct SceneRenderer {
     pub scene: Scene,
     pub voxel_renderer: VoxelRenderer,
+    pub debug: bool,
 }
 
 #[repr(C)]
 pub struct SceneDispatchParams {
     ray_manager: RayManagerData,
     scene: SceneData,
+    debug: bool,
 }
 
 impl SceneRenderer {
@@ -29,12 +31,16 @@ impl SceneRenderer {
             camera, 
             include_bytes!("../../../slang_shaders/bin/_trace_scene.spv"))?;
         //voxel_renderer.debug_channel = DebugChannel::Depth;
+        voxel_renderer.max_bounces = 0;
+        voxel_renderer.temporal_denoise = false;
+        voxel_renderer.denoise_counters = false;
 
         scene.init_buffer()?;
 
         Ok(SceneRenderer {
             scene,
             voxel_renderer,
+            debug: true,
         })
     }
 
@@ -52,7 +58,9 @@ impl SceneRenderer {
         self.voxel_renderer.render(buffer, engine, SceneDispatchParams {
             ray_manager: self.voxel_renderer.get_ray_manager_data(),
             scene: self.scene.get_data(),
+            debug: self.debug,
         })?;
+        self.debug = false;
 
         Ok(())
     }

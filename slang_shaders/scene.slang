@@ -1,5 +1,6 @@
 import helper_ray;
 import tree64;
+import debug;
 
 public struct SceneObject {
   public float3 min;
@@ -16,14 +17,18 @@ public struct SceneObject {
 }
 
 public struct Tree64SceneObject {
-  float4 x_axis;
-  float4 y_axis;
-  float4 z_axis;
+  float3 x_axis;
   uint data_start;
+  float3 y_axis;
   uint root_index;
+  float3 z_axis;
   uint fill_1;
+  float3 w_axis;
   uint fill_2;
-  public property float4x4 mat { get { return float4x4(x_axis, y_axis, z_axis, float4(0,0,0,1)); } }
+
+  property float4x4 mat { get {  
+    return float4x4(float4(x_axis, 0), float4(y_axis, 0), float4(z_axis, 0), float4(w_axis, 1));
+  }}
 }
 
 public struct Scene {
@@ -38,21 +43,36 @@ public struct Scene {
 
     while (current < bvh_len) {
       SceneObject node = bvh[current];
+      debug("current: %d", current);
 
+      bool outside = false;
       float t_min, t_max;
       if (!ray_clip_intersect(ray_pos, inv_ray_dir, node.min, node.max, t_min, t_max)) {
         current = node.node_exit;
+        outside = true;
         continue;
       }
 
       if (node.leaf) {
         if (node.leaf_nr == 0) {
+          debug("object start: %d", node.object_start);
           Tree64SceneObject* tree_object = (Tree64SceneObject*)(start_ptr + node.object_start);
-          Tree64 tree = Tree64((uint8_t*)tree_object, 64, tree_object.data_start, tree_object.root_index); 
-           
-          HitInfo hit = tree.RayCast(ray_pos, ray_dir, bounce_no != 0);
-          hit.MaterialId = 1;
+          Tree64 tree = Tree64((uint8_t*)tree_object, 64, tree_object.data_start, tree_object.root_index);
+          
+          float4x4 mat = tree_object.mat;
+          float3 object_ray_pos = mul(float4(ray_pos, 1.0), mat).xyz;
+          float3 object_ray_dir = mul(float4(ray_dir, 0.0), mat).xyz;
+          
+          HitInfo hit = tree.RayCast(object_ray_pos, object_ray_dir, bounce_no != 0);
+          
           if (!hit.Miss) {
+            return hit;
+          }
+
+          if (!outside) {
+            hit.MaterialId = 3;
+            hit.Pos = ray_pos + ray_dir * t_min;
+            hit.Dist = t_min;
             return hit;
           }
         }

@@ -108,7 +108,9 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
     {
         camera.position = Vec3::new(-0.66225964, -0.10641506, 0.803499); 
         camera.direction = Vec3::new(0.87766635, 0.373136, -0.30078444).normalize();        
-        
+        camera.position = Vec3::new(0.2, -2.0, 1.0); 
+        camera.direction = Vec3::new(0.1, 1.0, -0.5).normalize();
+
         camera.speed = 1.0;
         camera.z_near = 0.001;
     }
@@ -246,10 +248,13 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
 
     #[cfg(any(feature="tree64", feature="scene"))]
-    let mut grid = VoxelGrid::new(UVec3::ONE * 4_u32.pow(4));
+    let mut grid = VoxelGrid::new(UVec3::ONE * 4_u32.pow(2));
      
     #[cfg(any(feature="tree64", feature="scene"))]
     grid.set_example_sphere();
+    
+    #[cfg(any(feature="tree64", feature="scene"))]
+    grid.set_corners();
 
     #[cfg(any(feature="tree64", feature="scene"))]
     let tree64: VoxelTree64 = grid.into();
@@ -259,7 +264,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
     #[cfg(feature="scene")]
     let mut scene = Scene::from_objects(&engine.context, vec![
-        SceneObject::Tree64(Tree64SceneObject::new(Mat4::IDENTITY, tree64))
+        SceneObject::Tree64(Tree64SceneObject::new(Mat4::from_euler(octa_force::glam::EulerRot::XZY, 0.0, 0.0, f32::to_radians(45.0)), tree64))
     ])?;
 
     #[cfg(feature="scene")]

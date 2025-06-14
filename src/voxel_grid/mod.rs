@@ -25,7 +25,7 @@ impl VoxelGrid {
 
     pub fn set_example_sphere(&mut self) {
         let center = self.size / 2;
-        let radius = (self.size.x as f32 / 2.0);
+        let radius = (self.size.x as f32 / 3.0);
         for x in 0..self.size.x {
             for y in 0..self.size.y {
                 for z in 0..self.size.z {
@@ -42,6 +42,18 @@ impl VoxelGrid {
                 }
             }
         }
+    }
+
+    pub fn set_corners(&mut self) {
+        for x in [1, self.size.x - 2] {
+            for y in [1, self.size.y - 2] {
+                for z in [1, self.size.z - 2] {
+                    let pos = uvec3(x as u32, y as u32, z as u32);
+                    let index = to_1d(pos, self.size);
+                    self.data[index] = 2;
+                }  
+            }  
+        }  
     }
 
     pub fn get(&self, pos: UVec3) -> u8 {

@@ -2,7 +2,7 @@ pub mod tree64;
 pub mod renderer;
 
 use bvh::{aabb::{Aabb, Bounded}, bounding_hierarchy::{BHShape, BoundingHierarchy}, bvh::Bvh};
-use octa_force::{glam::{Mat4, Vec3}, log::{debug, info}, vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
+use octa_force::{glam::{vec3, Mat4, Vec3}, log::{debug, info}, vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
 use slotmap::{new_key_type, SlotMap};
 use tree64::Tree64SceneObject;
 use crate::{aabb::AABB, buddy_controller::BuddyBufferAllocator, voxel_tree64::VoxelTree64};
@@ -102,7 +102,6 @@ impl Scene {
                 }
             } 
         });
-        dbg!(&flat_bvh);
 
         let flat_bvh_size =  flat_bvh.len() * size_of::<SceneObjectData>();
         debug!("Flat BVH Size: {flat_bvh_size}");
@@ -150,7 +149,7 @@ impl SceneObject {
     pub fn get_aabb(&self) -> AABB {
         match self {
             SceneObject::Tree64(tree64_scene_object) => {
-                AABB::from_box(&tree64_scene_object.mat, 0.0)
+                AABB::from_centered_size(&tree64_scene_object.mat, tree64_scene_object.tree.get_size())
             },
         }
     }

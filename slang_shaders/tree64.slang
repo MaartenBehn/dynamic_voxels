@@ -1,18 +1,13 @@
 import helper_ray;
 import helper_math;
+import debug;
 
 struct Node {
   uint PackedData[3];
 
-  property bool IsLeaf {
-  get { return (PackedData[0] & 1) != 0; }
-  }
-  property uint ChildPtr {
-  get { return PackedData[0] >> 1; }
-  }
-  property uint64_t PopMask {
-  get { return PackedData[1] | uint64_t(PackedData[2]) << 32; }
-  }
+  property bool IsLeaf { get { return (PackedData[0] & 1) != 0; } }
+  property uint ChildPtr { get { return PackedData[0] >> 1; } }
+  property uint64_t PopMask { get { return PackedData[1] | uint64_t(PackedData[2]) << 32; } }
 }
 
 public struct Tree64 {
@@ -23,12 +18,16 @@ public struct Tree64 {
 
   public __init(uint8_t* data, uint nodes_offset, uint data_offset, uint start_index) {
     this.TreeNodes = (Node*)(data + nodes_offset);
-    this.LeafData = data + data_offset;
+    this.LeafData = (uint8_t*)(data + data_offset);
     this.start_index = start_index;
+    debug("node offset: %d", nodes_offset);
+    debug("data offset: %d", data_offset);
+    debug("start_index: %d", start_index);
   }
   
   public HitInfo RayCast(float3 rayPos, float3 rayDir, bool coarse) {
-    HitInfo hit = Traversal_OctMirror(rayPos, rayDir, coarse);
+
+    HitInfo hit = Traversal(rayPos, rayDir, coarse);
     return hit;
   }
 
@@ -50,6 +49,7 @@ public struct Tree64 {
     int i;
 
     for (i = 0; i < 256; i++) {
+      debug("i: %d", i);
       if (coarse && i > 20 && node.IsLeaf) break;
       // Early out for too few lanes active doesn't help much and causes light
       // leaking or darkening, depending on whether we tell it's a hit or miss.

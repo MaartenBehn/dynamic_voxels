@@ -1,5 +1,5 @@
 
-use octa_force::{glam::{Mat4, Vec3, Vec4}, log::debug, vulkan::Buffer, OctaResult};
+use octa_force::{glam::{Mat4, Quat, Vec3, Vec4, Vec4Swizzles}, log::debug, vulkan::Buffer, OctaResult};
 use slotmap::{new_key_type, SlotMap};
 
 use crate::{buddy_controller::BuddyBufferAllocator, voxel_tree64::VoxelTree64};
@@ -16,15 +16,16 @@ pub struct Tree64SceneObject {
     pub data_start: usize,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct Tree64SceneObjectData {
-    pub x_axis: Vec4,
-    pub y_axis: Vec4,
-    pub z_axis: Vec4,
+    pub x_axis: Vec3,
     pub data_start: u32,
+    pub y_axis: Vec3,
     pub root_index: u32,
+    pub z_axis: Vec3,
     fill_1: u32,
+    pub w_axis: Vec3,
     fill_2: u32,
 }
 
@@ -50,15 +51,25 @@ impl Tree64SceneObject {
         self.nodes_start = self.alloc_start + size_of::<Tree64SceneObjectData>();
         self.data_start = self.nodes_start + self.tree.tree.nodes.len(); 
 
+        let mat = Mat4::from_scale_rotation_translation(
+            Vec3::ONE / self.tree.get_size(), 
+            Quat::IDENTITY,
+            //Quat::from_euler(octa_force::glam::EulerRot::XYZ, 0.0, 0.0, f32::to_radians(45.0)),
+            Vec3::splat(1.5),
+        ).mul_mat4(&self.mat);
+
         let data = Tree64SceneObjectData {
-            x_axis: self.mat.x_axis,
-            y_axis: self.mat.y_axis,
-            z_axis: self.mat.z_axis,
+            x_axis: mat.x_axis.xyz(),
+            y_axis: mat.y_axis.xyz(),
+            z_axis: mat.z_axis.xyz(),
+            w_axis: mat.w_axis.xyz(),
             data_start: self.data_start as _,
-            root_index: self.tree.tree.root_state().index,
+            root_index: self.tree.get_root_index() as _,
             fill_1: 0,
             fill_2: 0,
         };
+
+        dbg!(&self.tree.tree.nodes);
 
         buffer.copy_data_to_buffer_without_aligment(&[data], self.alloc_start)?;
         buffer.copy_data_to_buffer_without_aligment(&self.tree.tree.nodes, self.nodes_start)?;

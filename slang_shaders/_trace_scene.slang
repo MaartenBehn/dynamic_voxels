@@ -2,10 +2,12 @@ import ray_manager;
 import scene;
 import helper_ray;
 import texture_heap;
+import debug;
 
 public struct DispatchParams {
   RayManager rm;
   Scene scene;
+  bool debug;
 };
 
 [vk::push_constant] DispatchParams pc;
@@ -14,6 +16,10 @@ public struct DispatchParams {
 [shader("compute")]
 [numthreads(8, 8)]
 void compute_main(uint2 pos: SV_DispatchThreadID) {
+  if (pos.x == 500 && pos.y == 500) {
+    DEBUG_PRINT = pc.debug;
+  }
+
   RayRunner rr = RayRunner(pos, pc.rm);
  
   for (int bounce_no = 0; bounce_no <= pc.rm.max_bounces; bounce_no++) {

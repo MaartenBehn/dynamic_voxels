@@ -53,9 +53,8 @@ impl AABB {
         }
     }
 
-    pub fn from_voxel_gird(mat: &Mat4, grid: &VoxelGrid) -> AABB {
-
-        let size = vec4(grid.size.x as f32, grid.size.y as f32, grid.size.z as f32, 1.0);
+    pub fn from_centered_size(mat: &Mat4, size: Vec3) -> AABB {
+        let size = vec4(size.x as f32, size.y as f32, size.z as f32, 1.0);
 
         let corners = [
             vec4(-0.5, -0.5, -0.5, 1.0),
@@ -72,6 +71,33 @@ impl AABB {
         let mut max = vec3(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY);
         for corner in corners {
             let transformed_corner = mat.mul_vec4(size * corner).xyz();
+
+            min = min.min(transformed_corner);
+            max = max.max(transformed_corner);
+        }
+
+        AABB {
+            min: min,
+            max: max,
+        }
+    }
+
+    pub fn from_size(mat: &Mat4, size: Vec3) -> AABB {
+        let corners = [
+            vec4(0.0, 0.0, 0.0, 1.0),
+            vec4(0.0, 0.0, size.z, 1.0),
+            vec4(0.0, size.y, 0.0, 1.0),
+            vec4(0.0, size.y, size.z, 1.0),
+            vec4(size.x, 0.0, 0.0, 1.0),
+            vec4(size.x, 0.0, size.z, 1.0),
+            vec4(size.x, size.y, 0.0, 1.0),
+            vec4(size.x, size.y, size.z, 1.0),
+        ];
+
+        let mut min = vec3(f32::INFINITY, f32::INFINITY, f32::INFINITY);
+        let mut max = vec3(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY);
+        for corner in corners {
+            let transformed_corner = mat.mul_vec4(corner).xyz();
 
             min = min.min(transformed_corner);
             max = max.max(transformed_corner);

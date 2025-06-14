@@ -53,10 +53,10 @@ pub struct VoxelRenderer {
     blit_stage: ShaderStage,
 
     pub debug_channel: DebugChannel,
-    max_bounces: usize,
+    pub max_bounces: usize,
     heat_map_max: f32,
-    temporal_denoise: bool,
-    denoise_counters: bool,
+    pub temporal_denoise: bool,
+    pub denoise_counters: bool,
 
     filter_passes: usize,
     temp_irradiance_tex: ImageAndViewAndHandle, 

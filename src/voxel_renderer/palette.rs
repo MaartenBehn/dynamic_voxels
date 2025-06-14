@@ -19,6 +19,7 @@ impl Palette {
         let mut materials = [Material::default(); 256];
         materials[1].set_color(vec3(1.0, 1.0, 1.0));
         materials[2].set_color(vec3(0.5, 0.5, 0.5));
+        materials[3].set_color(vec3(1.0, 1.0, 0.5));
 
         let buffer = context.create_buffer(
             vk::BufferUsageFlags::UNIFORM_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS | vk::BufferUsageFlags::TRANSFER_DST, 
