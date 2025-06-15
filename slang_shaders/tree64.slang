@@ -26,6 +26,16 @@ public struct Tree64 {
   }
   
   public HitInfo RayCast(float3 rayPos, float3 rayDir, bool coarse) {
+    // Dirty check to make shure we are actually hitting the tree
+    // TODO Intigarte into Traversal and skip if we are in the Tree
+    float t_min, t_max;
+    if (!ray_clip_intersect(rayPos, 1 / rayDir, 1.0, 2.0, t_min, t_max)) {
+      HitInfo hit;
+      hit.MaterialId = 0;
+
+      return hit; 
+    }
+    rayPos += rayDir * t_min;
 
     HitInfo hit = Traversal(rayPos, rayDir, coarse);
     return hit;
@@ -42,9 +52,9 @@ public struct Tree64 {
     if (abs(dir.y) < 0.0001) dir.y = 0.0001;
     if (abs(dir.z) < 0.0001) dir.z = 0.0001;
 
-    float3 invDir = 1.0f / dir;
+    float3 invDir = 1.0f / dir; 
     float3 pos = clamp(origin, 1.0f, 1.9999999f);
-
+    
     float3 sideDist;
     int i;
 
@@ -62,8 +72,6 @@ public struct Tree64 {
         stack[scaleExp >> 1] = nodeIdx;
         nodeIdx = node.ChildPtr + popcnt_var64(node.PopMask, childIdx);
         node = TreeNodes[nodeIdx];
-        debug("Node index: %d", nodeIdx);
-
         scaleExp -= 2;
         childIdx = GetNodeCellIndex(pos, scaleExp);
       }
@@ -107,7 +115,6 @@ public struct Tree64 {
         scaleExp = diffExp;
         nodeIdx = stack[scaleExp >> 1];
         node = TreeNodes[nodeIdx];
-        debug("Node index: %d", nodeIdx);
       }
     }
     //PERF_STAT_INC(TraversalIters, i);
@@ -116,9 +123,10 @@ public struct Tree64 {
     hit.MaterialId = 0;
 
     if (node.IsLeaf && scaleExp <= 21) {
+      debug("Hit");
+
       int childIdx = GetNodeCellIndex(pos, scaleExp);
       hit.MaterialId = LeafData[node.ChildPtr + popcnt_var64(node.PopMask, childIdx)];
-      debug("Hit Leaf offset: %d value: %d child ptr: %d", node.ChildPtr + popcnt_var64(node.PopMask, childIdx), hit.MaterialId, node.ChildPtr);
       hit.Pos = pos;
 
       float tmax = min(min(sideDist.x, sideDist.y), sideDist.z);

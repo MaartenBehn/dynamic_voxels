@@ -1,7 +1,5 @@
 use octa_force::{camera::Camera, egui, engine::Engine, glam::UVec2, vulkan::{CommandBuffer, Context, Swapchain}, OctaResult};
-
 use crate::{voxel_renderer::{DebugChannel, RayManagerData, VoxelRenderer}, voxel_tree64::renderer::Tree64Renderer};
-
 use super::{Scene, SceneData};
 
 #[derive(Debug)]
@@ -60,7 +58,7 @@ impl SceneRenderer {
             scene: self.scene.get_data(),
             debug: self.debug,
         })?;
-        self.debug = false;
+        //self.debug = false;
 
         Ok(())
     }
