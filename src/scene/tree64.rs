@@ -42,14 +42,14 @@ impl Tree64SceneObject {
     }
 
     pub fn push_to_buffer(&mut self, allocator: &mut BuddyBufferAllocator, buffer: &mut Buffer) -> OctaResult<()> {
-        let size = size_of::<Tree64SceneObjectData>() + self.tree.tree.nodes.len() + self.tree.tree.data.len();
+        let size = size_of::<Tree64SceneObjectData>() + self.tree.get_nodes_size() + self.tree.get_nodes_data_size();
         debug!("Tree64 Obvject Size: {size}");
 
         let (start, _) = allocator.alloc(size)?;
         self.alloc_start = start;
 
         self.nodes_start = self.alloc_start + size_of::<Tree64SceneObjectData>();
-        self.data_start = self.nodes_start + self.tree.tree.nodes.len(); 
+        self.data_start = self.nodes_start + self.tree.get_nodes_size(); 
 
         let mat = Mat4::from_scale_rotation_translation(
             Vec3::ONE / self.tree.get_size(), 
@@ -69,11 +69,9 @@ impl Tree64SceneObject {
             fill_2: 0,
         };
 
-        dbg!(&self.tree.tree.nodes);
-
         buffer.copy_data_to_buffer_without_aligment(&[data], self.alloc_start)?;
-        buffer.copy_data_to_buffer_without_aligment(&self.tree.tree.nodes, self.nodes_start)?;
-        buffer.copy_data_to_buffer_without_aligment(&self.tree.tree.data, self.data_start)?;
+        buffer.copy_data_to_buffer_without_aligment(&self.tree.get_nodes(), self.nodes_start)?;
+        buffer.copy_data_to_buffer_without_aligment(&self.tree.get_data(), self.data_start)?;
 
         Ok(())
     }

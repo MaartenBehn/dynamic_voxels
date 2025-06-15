@@ -62,6 +62,7 @@ public struct Tree64 {
         stack[scaleExp >> 1] = nodeIdx;
         nodeIdx = node.ChildPtr + popcnt_var64(node.PopMask, childIdx);
         node = TreeNodes[nodeIdx];
+        debug("Node index: %d", nodeIdx);
 
         scaleExp -= 2;
         childIdx = GetNodeCellIndex(pos, scaleExp);
@@ -106,6 +107,7 @@ public struct Tree64 {
         scaleExp = diffExp;
         nodeIdx = stack[scaleExp >> 1];
         node = TreeNodes[nodeIdx];
+        debug("Node index: %d", nodeIdx);
       }
     }
     //PERF_STAT_INC(TraversalIters, i);
@@ -116,6 +118,7 @@ public struct Tree64 {
     if (node.IsLeaf && scaleExp <= 21) {
       int childIdx = GetNodeCellIndex(pos, scaleExp);
       hit.MaterialId = LeafData[node.ChildPtr + popcnt_var64(node.PopMask, childIdx)];
+      debug("Hit Leaf offset: %d value: %d child ptr: %d", node.ChildPtr + popcnt_var64(node.PopMask, childIdx), hit.MaterialId, node.ChildPtr);
       hit.Pos = pos;
 
       float tmax = min(min(sideDist.x, sideDist.y), sideDist.z);
