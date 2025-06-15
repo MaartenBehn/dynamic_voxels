@@ -45,11 +45,9 @@ public struct Scene {
       SceneObject node = bvh[current];
       debug("current: %d", current);
 
-      bool outside = false;
       float t_min, t_max;
       if (!ray_clip_intersect(ray_pos, inv_ray_dir, node.min, node.max, t_min, t_max)) {
         current = node.node_exit;
-        outside = true;
         continue;
       }
 
@@ -66,13 +64,6 @@ public struct Scene {
           HitInfo hit = tree.RayCast(object_ray_pos, object_ray_dir, bounce_no != 0);
           
           if (!hit.Miss) {
-            return hit;
-          }
-
-          if (!outside) {
-            hit.MaterialId = 3;
-            hit.Pos = ray_pos + ray_dir * t_min;
-            hit.Dist = t_min;
             return hit;
           }
         }

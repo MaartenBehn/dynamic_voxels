@@ -26,22 +26,42 @@ public struct Tree64 {
   }
   
   public HitInfo RayCast(float3 rayPos, float3 rayDir, bool coarse) {
-    // Dirty check to make shure we are actually hitting the tree
-    // TODO Intigarte into Traversal and skip if we are in the Tree
-    float t_min, t_max;
-    if (!ray_clip_intersect(rayPos, 1 / rayDir, 1.0, 2.0, t_min, t_max)) {
-      HitInfo hit;
-      hit.MaterialId = 0;
-
-      return hit; 
-    }
-    rayPos += rayDir * t_min;
-
-    HitInfo hit = Traversal(rayPos, rayDir, coarse);
+    HitInfo hit = Traversal_OctMirror(rayPos, rayDir, coarse);
     return hit;
   }
 
   HitInfo Traversal(float3 origin, float3 dir, bool coarse) {
+    float3 invDir = 1.0f / dir;
+
+    float3 min_pos = 1.0000001;
+    float3 max_pos = 1.9999999;
+    float3 sideDist, pos;
+    if (any(origin < min_pos) || any(origin > max_pos)) {
+      
+      float3 is_positive = float3(float(invDir.x > 0), float(invDir.y > 0), float(invDir.z >= 0));     
+      float3 is_negative = 1.0f - is_positive;
+
+      float3 left_side = is_positive * min_pos + is_negative * max_pos;
+      float3 right_side = is_positive * max_pos + is_negative * min_pos;
+
+      float3 left_side_times_one_over_dir = (left_side - origin) * invDir;
+      float3 right_side_times_one_over_dir = (right_side - origin) * invDir;
+
+      float t_min = max(left_side_times_one_over_dir.x, max(left_side_times_one_over_dir.y, left_side_times_one_over_dir.z));
+      float t_max = min(right_side_times_one_over_dir.x, min(right_side_times_one_over_dir.y, right_side_times_one_over_dir.z));
+ 
+      if (t_max < t_min) {
+        HitInfo hit;
+        hit.MaterialId = 0;
+
+        return hit; 
+      }
+      pos = origin + dir * t_min;
+      sideDist = -left_side_times_one_over_dir;
+    } else {
+      pos = origin;
+    }
+
     uint stack[11];
     int scaleExp = 21;  // 0.25
 
@@ -52,12 +72,7 @@ public struct Tree64 {
     if (abs(dir.y) < 0.0001) dir.y = 0.0001;
     if (abs(dir.z) < 0.0001) dir.z = 0.0001;
 
-    float3 invDir = 1.0f / dir; 
-    float3 pos = clamp(origin, 1.0f, 1.9999999f);
-    
-    float3 sideDist;
     int i;
-
     for (i = 0; i < 256; i++) {
       debug("i: %d", i);
       if (coarse && i > 20 && node.IsLeaf) break;
@@ -137,6 +152,42 @@ public struct Tree64 {
   }
 
   HitInfo Traversal_OctMirror(float3 origin, float3 dir, bool coarse) {
+
+    float3 invDir = 1.0f / dir;
+
+    float3 min_pos = 1.0000001;
+    float3 max_pos = 1.9999999;
+    float3 sideDist, pos;
+    if (any(origin < 1.0 || origin >= 2.0)) {
+      
+      float3 is_positive = float3(float(invDir.x > 0), float(invDir.y > 0), float(invDir.z >= 0));     
+      float3 is_negative = 1.0f - is_positive;
+
+      float3 left_side = is_positive * min_pos + is_negative * max_pos;
+      float3 right_side = is_positive * max_pos + is_negative * min_pos;
+
+      float3 left_side_times_one_over_dir = (left_side - origin) * invDir;
+      float3 right_side_times_one_over_dir = (right_side - origin) * invDir;
+
+      float t_min = max(left_side_times_one_over_dir.x, max(left_side_times_one_over_dir.y, left_side_times_one_over_dir.z));
+      float t_max = min(right_side_times_one_over_dir.x, min(right_side_times_one_over_dir.y, right_side_times_one_over_dir.z));
+ 
+      if (t_max < t_min) {
+        HitInfo hit;
+        hit.MaterialId = 0;
+
+        return hit; 
+      }
+      pos = origin + dir * t_min;
+      origin = GetMirroredPos(origin, dir, true);
+      pos = GetMirroredPos(pos, dir, false);
+
+      sideDist = -left_side_times_one_over_dir;
+    } else {
+      origin = GetMirroredPos(origin, dir, false);
+      pos = origin;
+    }
+
     uint groupId = spirv_asm {
       OpCapability VariablePointers;
       result:$$uint = OpLoad builtin(LocalInvocationIndex:uint);
@@ -149,7 +200,7 @@ public struct Tree64 {
     uint nodeIdx = start_index; // root
     Node node = TreeNodes[nodeIdx];
 
-    float3 invDir = 1.0f / -abs(dir);
+    invDir = 1.0f / -abs(dir);
     uint mirrorMask = 0;
 
     // Mirror coordinates to negative ray octant
@@ -157,13 +208,8 @@ public struct Tree64 {
     if (dir.y > 0) mirrorMask |= 3 << 4;
     if (dir.z > 0) mirrorMask |= 3 << 2;
 
-    origin = GetMirroredPos(origin, dir, true);
-    float3 pos = clamp(origin, 1.0f, 1.9999999f);
-
-    float3 sideDist;
     int childIdx;
     int i;
-
     for (i = 0; i < 256; i++) {
       if (coarse && i > 20 && node.IsLeaf) break;
 
@@ -227,11 +273,11 @@ public struct Tree64 {
 
   // Computes `dir > 0 ? 3.0 - pos : pos`
   // with special case to avoid rounding.
-  static float3 GetMirroredPos(float3 pos, float3 dir, bool rangeCheck) {
+  static float3 GetMirroredPos(float3 pos, float3 dir, bool outside) {
     float3 mirrored = asfloat(asuint(pos) ^ 0x7FFFFF);
     // XOR'ing will only work if the coords are in range [1.0, 2.0),
     // so just fallback to the original subtraction if that's not the case.
-    if (rangeCheck && any(pos < 1.0 || pos >= 2.0)) mirrored = 3.0 - pos;
+    if (outside) mirrored = 3.0 - pos;
     return select(dir > 0, mirrored, pos);
   }
 
