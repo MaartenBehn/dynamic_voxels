@@ -33,13 +33,14 @@ public struct Tree64 {
   HitInfo Traversal(float3 origin, float3 dir, bool coarse) {
     float3 invDir = 1.0f / dir;
 
-    float3 min_pos = 1.0000001;
-    float3 max_pos = 1.9999999;
     float3 sideDist, pos;
-    if (any(origin < min_pos) || any(origin > max_pos)) {
+    if (any(origin < 1.0 || origin >= 2.0)) {
       
       float3 is_positive = float3(float(invDir.x > 0), float(invDir.y > 0), float(invDir.z >= 0));     
       float3 is_negative = 1.0f - is_positive;
+      
+      float3 min_pos = 1.0000001;
+      float3 max_pos = 1.9999999;
 
       float3 left_side = is_positive * min_pos + is_negative * max_pos;
       float3 right_side = is_positive * max_pos + is_negative * min_pos;
@@ -155,13 +156,14 @@ public struct Tree64 {
 
     float3 invDir = 1.0f / dir;
 
-    float3 min_pos = 1.0000001;
-    float3 max_pos = 1.9999999;
     float3 sideDist, pos;
     if (any(origin < 1.0 || origin >= 2.0)) {
       
       float3 is_positive = float3(float(invDir.x > 0), float(invDir.y > 0), float(invDir.z >= 0));     
       float3 is_negative = 1.0f - is_positive;
+      
+      float3 min_pos = 1.0000001;
+      float3 max_pos = 1.9999999;
 
       float3 left_side = is_positive * min_pos + is_negative * max_pos;
       float3 right_side = is_positive * max_pos + is_negative * min_pos;
