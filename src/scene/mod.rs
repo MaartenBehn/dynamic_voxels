@@ -103,6 +103,8 @@ impl Scene {
             } 
         });
 
+        dbg!(&flat_bvh);
+
         let flat_bvh_size =  flat_bvh.len() * size_of::<SceneObjectData>();
         debug!("Flat BVH Size: {flat_bvh_size}");
 

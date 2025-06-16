@@ -24,8 +24,8 @@ impl tree64::VoxelModel<u8> for VoxelGrid {
     }
 }
 
-impl From<VoxelGrid> for VoxelTree64 {
-    fn from(value: VoxelGrid) -> Self {
+impl From<&VoxelGrid> for VoxelTree64 {
+    fn from(value: &VoxelGrid) -> Self {
         let tree = tree64::Tree64::new(value);
 
         Self {

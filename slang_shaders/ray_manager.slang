@@ -64,9 +64,9 @@ public struct RayRunner {
       }
       rm.g_buffer.AlbedoTex.Instance[pos] = PackAlbedo(albedo, hit.Normal, emission > 0.5);
 
-      float4 projPos = mul(rm.g_buffer.ProjMat, float4(hit.Pos, 1.0));
-      float depth = projPos.z / projPos.w;
-      rm.g_buffer.DepthTex.Instance[pos] = depth;
+      //float4 projPos = mul(rm.g_buffer.ProjMat, float4(hit.Pos, 1.0));
+      //float depth = projPos.z / projPos.w;
+      rm.g_buffer.DepthTex.Instance[pos] = hit.t;
     } else {
       if (hit.Miss) {
         irradiance += GetSkyColor(ray_dir, false) * throughput;

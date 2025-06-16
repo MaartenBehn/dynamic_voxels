@@ -41,3 +41,4 @@ impl VoxelTree64 {
         self.tree.data.len() * size_of::<u8>()
     }
 }
+

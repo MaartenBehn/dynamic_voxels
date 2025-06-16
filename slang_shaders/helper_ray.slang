@@ -6,11 +6,17 @@ public interface IRayCastable {
 }
 
 public struct HitInfo {
-  public float Dist;
+  public float t;
   public float3 Pos;
   public float3 Normal;
-  public float2 FaceUV;
   public uint MaterialId;
+
+  public __init() {
+    t = float::maxValue;
+    Pos = 0;
+    Normal = 0;
+    MaterialId = 0;
+  }
 
   public property bool Miss {
     get { return MaterialId == 0; }

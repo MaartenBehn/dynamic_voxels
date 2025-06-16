@@ -20,27 +20,33 @@ public struct Tree64 {
     this.TreeNodes = (Node*)(data + nodes_offset);
     this.LeafData = (uint8_t*)(data + data_offset);
     this.start_index = start_index;
-    debug("node offset: %d", nodes_offset);
-    debug("data offset: %d", data_offset);
-    debug("start_index: %d", start_index);
+    //debug("node offset: %d", nodes_offset);
+    //debug("data offset: %d", data_offset);
+    //debug("start_index: %d", start_index);
   }
   
   public HitInfo RayCast(float3 rayPos, float3 rayDir, bool coarse) {
-    HitInfo hit = Traversal_OctMirror(rayPos, rayDir, coarse);
+    HitInfo hit = Traversal(rayPos, rayDir, coarse);
     return hit;
   }
 
   HitInfo Traversal(float3 origin, float3 dir, bool coarse) {
+    
+    if (abs(dir.x) < 0.0001) dir.x = 0.0001;
+    if (abs(dir.y) < 0.0001) dir.y = 0.0001;
+    if (abs(dir.z) < 0.0001) dir.z = 0.0001;
+
     float3 invDir = 1.0f / dir;
 
     float3 sideDist, pos;
+    float t_min;
     if (any(origin < 1.0 || origin >= 2.0)) {
       
       float3 is_positive = float3(float(invDir.x > 0), float(invDir.y > 0), float(invDir.z >= 0));     
       float3 is_negative = 1.0f - is_positive;
       
-      float3 min_pos = 1.0000001;
-      float3 max_pos = 1.9999999;
+      float3 min_pos = 1.0001;
+      float3 max_pos = 1.9999;
 
       float3 left_side = is_positive * min_pos + is_negative * max_pos;
       float3 right_side = is_positive * max_pos + is_negative * min_pos;
@@ -48,17 +54,15 @@ public struct Tree64 {
       float3 left_side_times_one_over_dir = (left_side - origin) * invDir;
       float3 right_side_times_one_over_dir = (right_side - origin) * invDir;
 
-      float t_min = max(left_side_times_one_over_dir.x, max(left_side_times_one_over_dir.y, left_side_times_one_over_dir.z));
+      t_min = max(left_side_times_one_over_dir.x, max(left_side_times_one_over_dir.y, left_side_times_one_over_dir.z));
       float t_max = min(right_side_times_one_over_dir.x, min(right_side_times_one_over_dir.y, right_side_times_one_over_dir.z));
  
       if (t_max < t_min) {
         HitInfo hit;
-        hit.MaterialId = 0;
-
         return hit; 
       }
       pos = origin + dir * t_min;
-      sideDist = -left_side_times_one_over_dir;
+      sideDist = left_side_times_one_over_dir;
     } else {
       pos = origin;
     }
@@ -69,13 +73,10 @@ public struct Tree64 {
     uint nodeIdx = start_index; // root
     Node node = TreeNodes[nodeIdx];
 
-    if (abs(dir.x) < 0.0001) dir.x = 0.0001;
-    if (abs(dir.y) < 0.0001) dir.y = 0.0001;
-    if (abs(dir.z) < 0.0001) dir.z = 0.0001;
-
+   
     int i;
     for (i = 0; i < 256; i++) {
-      debug("i: %d", i);
+      //debug("i: %d", i);
       if (coarse && i > 20 && node.IsLeaf) break;
       // Early out for too few lanes active doesn't help much and causes light
       // leaking or darkening, depending on whether we tell it's a hit or miss.
@@ -136,18 +137,23 @@ public struct Tree64 {
     //PERF_STAT_INC(TraversalIters, i);
 
     HitInfo hit;
-    hit.MaterialId = 0;
 
     if (node.IsLeaf && scaleExp <= 21) {
-      debug("Hit");
 
       int childIdx = GetNodeCellIndex(pos, scaleExp);
       hit.MaterialId = LeafData[node.ChildPtr + popcnt_var64(node.PopMask, childIdx)];
       hit.Pos = pos;
-
-      float tmax = min(min(sideDist.x, sideDist.y), sideDist.z);
-      bool3 sideMask = tmax >= sideDist;
-      hit.Normal = select(sideMask, -sign(dir), 0.0);
+   
+      if (i > 0){
+        float t_max = min(min(sideDist.x, sideDist.y), sideDist.z);
+        hit.t = t_max;
+        bool3 sideMask = t_max >= sideDist;
+        hit.Normal = select(sideMask, -sign(dir), 0.0);
+      } else {
+        hit.t = t_min;
+        bool3 sideMask = t_min <= sideDist;
+        hit.Normal = select(sideMask, -sign(dir), 0.0);
+      }
     }
     return hit;
   }
@@ -258,7 +264,6 @@ public struct Tree64 {
     //PERF_STAT_INC(TraversalIters, i);
 
     HitInfo hit;
-    hit.MaterialId = 0;
 
     if (node.IsLeaf && scaleExp <= 21) {
       pos = GetMirroredPos(pos, dir, false);

@@ -117,8 +117,8 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
 
     #[cfg(feature="scene")]
     {
-        camera.position = Vec3::new(0.2, -2.0, 1.0); 
-        camera.direction = Vec3::new(0.1, 1.0, -0.5).normalize();
+        camera.position = Vec3::new(-5.495738, -2.1880345, -0.033795714); 
+        camera.direction = Vec3::new(0.50361323, 0.85740614, 0.10596458).normalize();
         
         camera.speed = 1.0;
         camera.z_near = 0.001;
@@ -257,14 +257,22 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     grid.set_corners();
 
     #[cfg(any(feature="tree64", feature="scene"))]
-    let tree64: VoxelTree64 = grid.into();
+    let tree64: VoxelTree64 = (&grid).into();
+    
+    #[cfg(any(feature="tree64", feature="scene"))]
+    let tree64_2: VoxelTree64 = (&grid).into();
     
     #[cfg(feature="tree64")]
     let tree_renderer = Tree64Renderer::new(&engine.context, &engine.swapchain, tree64, &logic_state.camera)?;
 
     #[cfg(feature="scene")]
     let mut scene = Scene::from_objects(&engine.context, vec![
-        SceneObject::Tree64(Tree64SceneObject::new(Mat4::from_euler(octa_force::glam::EulerRot::XZY, 0.0, 0.0, f32::to_radians(45.0)), tree64))
+        SceneObject::Tree64(
+            Tree64SceneObject::new(
+                Mat4::from_euler(
+                    octa_force::glam::EulerRot::XZY, 0.0, 0.0, f32::to_radians(45.0)), tree64)
+        ),
+        SceneObject::Tree64(Tree64SceneObject::new(Mat4::from_translation(vec3(0.0, 10.0, 0.0)), tree64_2))
     ])?;
 
     #[cfg(feature="scene")]

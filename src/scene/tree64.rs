@@ -12,21 +12,20 @@ pub struct Tree64SceneObject {
     pub tree: VoxelTree64,
     pub bvh_index: usize,
     pub alloc_start: usize,
-    pub nodes_start: usize, // startof buddy allo
-    pub data_start: usize,
 }
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct Tree64SceneObjectData {
     pub x_axis: Vec3,
-    pub data_start: u32,
+    pub data_offset: u32,
     pub y_axis: Vec3,
     pub root_index: u32,
     pub z_axis: Vec3,
     fill_1: u32,
     pub w_axis: Vec3,
     fill_2: u32,
+    pub inv_mat: Mat4
 }
 
 impl Tree64SceneObject {
@@ -36,8 +35,6 @@ impl Tree64SceneObject {
             tree,
             bvh_index: 0,
             alloc_start: 0,
-            nodes_start: 0,
-            data_start: 0, 
         }
     }
 
@@ -48,30 +45,32 @@ impl Tree64SceneObject {
         let (start, _) = allocator.alloc(size)?;
         self.alloc_start = start;
 
-        self.nodes_start = self.alloc_start + size_of::<Tree64SceneObjectData>();
-        self.data_start = self.nodes_start + self.tree.get_nodes_size(); 
+        let nodes_start = self.alloc_start + size_of::<Tree64SceneObjectData>();
+        let data_offset = size_of::<Tree64SceneObjectData>() + self.tree.get_nodes_size(); 
+        let data_start = self.alloc_start + data_offset; 
 
         let mat = Mat4::from_scale_rotation_translation(
             Vec3::ONE / self.tree.get_size(), 
             Quat::IDENTITY,
             //Quat::from_euler(octa_force::glam::EulerRot::XYZ, 0.0, 0.0, f32::to_radians(45.0)),
             Vec3::splat(1.5),
-        ).mul_mat4(&self.mat);
+        ).mul_mat4(&self.mat.inverse());
 
         let data = Tree64SceneObjectData {
             x_axis: mat.x_axis.xyz(),
             y_axis: mat.y_axis.xyz(),
             z_axis: mat.z_axis.xyz(),
             w_axis: mat.w_axis.xyz(),
-            data_start: self.data_start as _,
+            data_offset: data_offset as _,
             root_index: self.tree.get_root_index() as _,
             fill_1: 0,
             fill_2: 0,
+            inv_mat: mat.inverse(),
         };
 
         buffer.copy_data_to_buffer_without_aligment(&[data], self.alloc_start)?;
-        buffer.copy_data_to_buffer_without_aligment(&self.tree.get_nodes(), self.nodes_start)?;
-        buffer.copy_data_to_buffer_without_aligment(&self.tree.get_data(), self.data_start)?;
+        buffer.copy_data_to_buffer_without_aligment(&self.tree.get_nodes(), nodes_start)?;
+        buffer.copy_data_to_buffer_without_aligment(&self.tree.get_data(), data_start)?;
 
         Ok(())
     }
