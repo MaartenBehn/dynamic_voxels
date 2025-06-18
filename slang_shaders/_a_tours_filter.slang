@@ -69,6 +69,9 @@ void compute_main(int2 pos: SV_DispatchThreadID) {
   pc.OutIrradianceTex.Instance[pos] = sumIrradiance;
 }
 
+// From https://github.com/NVIDIAGameWorks/Falcor/blob/master/Source/RenderPasses/SVGFPass/SVGFAtrous.ps.slang
+// computes a 3x3 gaussian blur of the variance, centered around
+// the current pixel
 float getFilteredVariance(int2 pos) {
   const float kernel[2][2] = {
     { 1.0 / 4.0, 1.0 / 8.0 },

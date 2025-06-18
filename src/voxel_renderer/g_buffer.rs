@@ -44,9 +44,8 @@ pub struct GBufferUniform {
     prev_inv_proj_mat: Mat4,
 
     position: Vec3,
-    frame_no: u32,
-    
-    position_delta: Vec3,
+
+    frame_no: u32, 
     num_steady_frames: u32,
 
     albedo_tex: [DescriptorHandleValue; 2],
@@ -214,7 +213,6 @@ impl GBuffer {
             prev_inv_proj_mat: prev_inv_proj_mat, 
             
             position: position,
-            position_delta: position - self.prev_position,
 
             frame_no: self.frame_no,  
             num_steady_frames: self.num_steady_frames,

@@ -2,12 +2,11 @@ import texture_heap;
 
 public struct GBuffer {
   public float4x4 ProjMat, InvProjMat;
-  public float4x4 HistoryProjMat, HistoryInvProjMat;
+  public float4x4 PrevProjMat, PrevInvProjMat;
 
   public float3 position;
-  public uint FrameNo;
 
-  public float3 OriginDelta;
+  public uint FrameNo;
   public uint NumSteadyFrames;
 
   public ImageHandle2D<float4> AlbedoTex, PrevAlbedoTex; // rgb: albedo, w: packed normal

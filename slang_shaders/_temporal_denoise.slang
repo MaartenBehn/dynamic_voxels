@@ -4,6 +4,8 @@ import helper_color;
 
 struct DispatchParams {
   GBuffer* GBuffer;
+  float plane_dist;
+  uint static_accum_number;
 };
 [vk::push_constant] DispatchParams pc;
 
@@ -13,11 +15,13 @@ struct DispatchParams {
 void compute_main(int2 pos: SV_DispatchThreadID) {
   // If camera is steady, just do basic accumulation so the edge stopping
   // functions won't get in the way to anti-aliasing jitters.
+  
   if (pc.GBuffer->NumSteadyFrames > 0) {
     StaticAccum(pos);
     pc.GBuffer.MomentsTex.Instance[pos] = float2(0);
     return;
   }
+
   if (!Reproject(pos)) {
     pc.GBuffer.HistoryLenTex.Instance[pos] = 0;
     pc.GBuffer.MomentsTex.Instance[pos] = float2(0);
@@ -27,12 +31,13 @@ void compute_main(int2 pos: SV_DispatchThreadID) {
 void StaticAccum(int2 pos) {
   uint historyLen = pc.GBuffer.HistoryLenTex.Instance[pos] + 1;
   float weight = 1.0 / historyLen;
-  pc.GBuffer.HistoryLenTex.Instance[pos] = min(255, historyLen);
+  pc.GBuffer.HistoryLenTex.Instance[pos] = min(pc.static_accum_number, historyLen);
 
   float4 prevIrradiance = pc.GBuffer.PrevIrradianceTex.Instance[pos];
   float4 currIrradiance = pc.GBuffer.IrradianceTex.Instance[pos];
-  pc.GBuffer.IrradianceTex.Instance[pos] = lerp(prevIrradiance, currIrradiance, weight);
+  pc.GBuffer.IrradianceTex.Instance[pos] = float4(lerp(prevIrradiance.rgb, currIrradiance.rgb, weight), 0);
 
+  // anti-aliasing from the jittering
   float4 prevAlbedo = pc.GBuffer.PrevAlbedoTex.Instance[pos];
   float4 currAlbedo = pc.GBuffer.AlbedoTex.Instance[pos];
   pc.GBuffer.AlbedoTex.Instance[pos] = float4(lerp(prevAlbedo, currAlbedo, weight).rgb, currAlbedo.w);
@@ -43,7 +48,7 @@ bool Reproject(int2 pos) {
 
   float3 worldPos = GetWorldPos(pos, depth, pc.GBuffer->InvProjMat);
 
-  float2 prevPos = GetHistoryPos(worldPos);
+  float2 prevPos = GetPrevPos(worldPos);
   int2 prevPosi = int2(prevPos);
   float2 prevPosf = fract(prevPos);
 
@@ -97,6 +102,7 @@ bool Reproject(int2 pos) {
 }
 
 bool IsValidSample(int2 samplePos, float3 centerWorldPos, AlbedoData centerSurface) {
+
   // Normal check
   AlbedoData sampleSurface = UnpackAlbedo(pc.GBuffer.PrevAlbedoTex.Instance[samplePos]);
   if (dot(centerSurface.Normal, sampleSurface.Normal) < 0.5 || centerSurface.Emissive != sampleSurface.Emissive) return false;
@@ -104,10 +110,10 @@ bool IsValidSample(int2 samplePos, float3 centerWorldPos, AlbedoData centerSurfa
   // Plane distance check (ReBLUR)
   float sampleDepth = pc.GBuffer.PrevDepthTex.Instance[samplePos].r;
   if (sampleDepth <= 0.0) return false;  // sky
-  float3 sampleWorldPos = GetWorldPos(samplePos, sampleDepth, pc.GBuffer->HistoryInvProjMat);
+  float3 sampleWorldPos = GetWorldPos(samplePos, sampleDepth, pc.GBuffer->PrevInvProjMat);
 
-  float planeDist = abs(dot(centerWorldPos - sampleWorldPos + pc.GBuffer->OriginDelta, centerSurface.Normal));
-  if (planeDist > 2.0) return false;
+  float planeDist = abs(dot(centerWorldPos - sampleWorldPos, centerSurface.Normal));
+  if (planeDist > pc.plane_dist) return false;
 
   return true;
 }
@@ -116,8 +122,8 @@ float3 GetWorldPos(int2 screenPos, float depth, float4x4 invProj) {
   float4 worldPos = mul(invProj, float4(screenPos, depth, 1.0));
   return worldPos.xyz / worldPos.w;
 }
-float2 GetHistoryPos(float3 worldPos) {
-  float4 prevNDC = mul(pc.GBuffer->HistoryProjMat, float4(worldPos + pc.GBuffer->OriginDelta, 1.0));
+float2 GetPrevPos(float3 worldPos) {
+  float4 prevNDC = mul(pc.GBuffer->PrevProjMat, float4(worldPos, 1.0));
   float2 prevUV = prevNDC.xy / prevNDC.w;
   prevUV = prevUV * 0.5 + 0.5;
 

@@ -57,6 +57,8 @@ pub struct VoxelRenderer {
     heat_map_max: f32,
     pub temporal_denoise: bool,
     pub denoise_counters: bool,
+    pub plane_dist: f32,
+    static_accum_number: u32,
 
     filter_passes: usize,
     temp_irradiance_tex: ImageAndViewAndHandle, 
@@ -76,6 +78,8 @@ pub struct RayManagerData {
 #[derive(Debug)]
 pub struct TemporalDenoiseDispatchParams {
     g_buffer_ptr: u64,
+    plane_dist: f32,
+    static_accum_number: u32,
 }
 
 #[repr(C)]
@@ -208,8 +212,10 @@ impl VoxelRenderer {
             heat_map_max: 20.0,
             temporal_denoise: true,
             denoise_counters: true,
-            filter_passes: 0,
+            filter_passes: 2,
             temp_irradiance_tex,
+            plane_dist: 0.020,
+            static_accum_number: 20,
         })
     }
 
@@ -252,6 +258,8 @@ impl VoxelRenderer {
         if self.temporal_denoise {
             self.denoise_stage.render(buffer, TemporalDenoiseDispatchParams {
                 g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
+                plane_dist: self.plane_dist,
+                static_accum_number: self.static_accum_number,
             } ,dispatch_size);
         }
 
@@ -327,8 +335,19 @@ impl VoxelRenderer {
                     ui.checkbox(&mut self.denoise_counters, "Jitter");
                 });
 
-                ui.label(format!("GBuffer: {}", self.g_buffer.frame_no -1));
+                ui.separator();
+                
+                ui.label(format!("Frame: {}", self.g_buffer.frame_no -1));
                 ui.label(format!("Steady : {}", self.g_buffer.num_steady_frames -1));
+                
+                ui.add(egui::Slider::new(&mut self.plane_dist, 0.001..=0.1)
+                    .logarithmic(true)
+                    .text("Plane Dist")
+                );
+
+                ui.add(egui::Slider::new(&mut self.static_accum_number, 10..=255)
+                    .text("Static Accum Number")
+                );
                 
                 ui.separator();
 
