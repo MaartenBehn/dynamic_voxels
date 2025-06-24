@@ -45,7 +45,6 @@ public struct Scene {
     HitInfo hit;
     while (current < bvh_len) {
       SceneObject node = bvh[current];
-      //debug("current: %d", current);
 
       float t_min, t_max;
       if (!ray_clip_intersect(ray_pos, inv_ray_dir, node.min, node.max, t_min, t_max)) {
@@ -55,21 +54,19 @@ public struct Scene {
 
       if (node.leaf) {
         if (node.leaf_nr == 0) {
-          //debug("object start: %d", node.object_start);
           Tree64SceneObject* tree_object = (Tree64SceneObject*)(start_ptr + node.object_start);
           Tree64 tree = Tree64((uint8_t*)tree_object, 128, tree_object.data_start, tree_object.root_index);
           
           float4x4 mat = tree_object.mat;
           float3 object_ray_pos = mul(float4(ray_pos, 1.0), mat).xyz;
           float3 object_ray_dir = mul(float4(ray_dir, 0.0), mat).xyz;
-          
+           
           HitInfo hit_new = tree.RayCast(object_ray_pos, object_ray_dir, bounce_no != 0);
 
           float4x4 inv_mat = tree_object.inv_mat;
           hit_new.Pos = mul(float4(hit_new.Pos, 1.0), inv_mat).xyz; 
-          hit_new.Normal = mul(float4(hit_new.Normal, 0.0), inv_mat).xyz; 
+          hit_new.Normal = mul(float4(hit_new.Normal, 0.0), inv_mat).xyz;
 
-          //hit.MaterialId = 3;
           if (!hit_new.Miss && (hit.t >= hit_new.t)) {
             hit = hit_new;
           }

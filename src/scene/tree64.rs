@@ -1,5 +1,5 @@
 
-use octa_force::{glam::{Mat4, Quat, Vec3, Vec4, Vec4Swizzles}, log::debug, vulkan::Buffer, OctaResult};
+use octa_force::{glam::{vec3, vec4, Mat4, Quat, Vec3, Vec4, Vec4Swizzles}, log::debug, vulkan::Buffer, OctaResult};
 use slotmap::{new_key_type, SlotMap};
 
 use crate::{buddy_controller::BuddyBufferAllocator, voxel_tree64::VoxelTree64};
@@ -65,7 +65,7 @@ impl Tree64SceneObject {
             root_index: self.tree.get_root_index() as _,
             fill_1: 0,
             fill_2: 0,
-            inv_mat: mat.inverse(),
+            inv_mat: mat.inverse().transpose(),
         };
 
         buffer.copy_data_to_buffer_without_aligment(&[data], self.alloc_start)?;

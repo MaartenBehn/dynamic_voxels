@@ -267,12 +267,14 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
     #[cfg(feature="scene")]
     let mut scene = Scene::from_objects(&engine.context, vec![
-        SceneObject::Tree64(
+        /*SceneObject::Tree64(
             Tree64SceneObject::new(
                 Mat4::from_euler(
                     octa_force::glam::EulerRot::XZY, 0.0, 0.0, f32::to_radians(45.0)), tree64)
         ),
-        SceneObject::Tree64(Tree64SceneObject::new(Mat4::from_translation(vec3(0.0, 10.0, 0.0)), tree64_2))
+*/
+        SceneObject::Tree64(Tree64SceneObject::new(Mat4::from_translation(vec3(0.0, 10.0, 0.0)), tree64)),
+        SceneObject::Tree64(Tree64SceneObject::new(Mat4::IDENTITY, tree64_2))
     ])?;
 
     #[cfg(feature="scene")]

@@ -20,6 +20,7 @@ public struct Tree64 {
     this.TreeNodes = (Node*)(data + nodes_offset);
     this.LeafData = (uint8_t*)(data + data_offset);
     this.start_index = start_index;
+    fill_1 = 0;
     //debug("node offset: %d", nodes_offset);
     //debug("data offset: %d", data_offset);
     //debug("start_index: %d", start_index);

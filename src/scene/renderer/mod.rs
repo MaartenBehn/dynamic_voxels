@@ -28,10 +28,6 @@ impl SceneRenderer {
             swapchain, 
             camera, 
             include_bytes!("../../../slang_shaders/bin/_trace_scene.spv"))?;
-        //voxel_renderer.debug_channel = DebugChannel::Depth;
-        voxel_renderer.max_bounces = 0;
-        voxel_renderer.temporal_denoise = false;
-        voxel_renderer.denoise_counters = false;
 
         scene.init_buffer()?;
 
