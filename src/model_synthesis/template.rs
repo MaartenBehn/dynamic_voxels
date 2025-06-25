@@ -3,7 +3,7 @@ use std::{iter, ops::RangeBounds};
 use feistel_permutation_rs::{DefaultBuildHasher, Permutation};
 use octa_force::glam::Vec3;
 
-use crate::{model_synthesis::relative_path::RelativePathTree, volume::Volume};
+use crate::{model_synthesis::relative_path::RelativePathTree, volume::VolumeQureyPos};
 
 use super::{builder::{BuilderAmmount, BuilderNode, ModelSynthesisBuilder, IT}, pos_set::PositionSet};
 
@@ -12,12 +12,13 @@ pub const TEMPLATE_INDEX_ROOT: TemplateIndex = 0;
 pub const AMMOUNT_PATH_INDEX: usize = 0;
 
 #[derive(Debug, Clone)]
-pub struct TemplateTree<I: IT, V: Volume> {
-    pub nodes: Vec<TemplateNode<I, V>> 
+pub struct TemplateTree<I: IT, V: VolumeQureyPos> {
+    pub nodes: Vec<TemplateNode<I, V>>,
+    pub max_level: usize,
 }
 
 #[derive(Debug, Clone)]
-pub enum NodeTemplateValue<V: Volume> {
+pub enum NodeTemplateValue<V: VolumeQureyPos> {
     Groupe {},
     NumberRangeHook,
     NumberRange {
@@ -33,7 +34,7 @@ pub enum NodeTemplateValue<V: Volume> {
 }
 
 #[derive(Debug, Clone)]
-pub struct TemplateNode<I: IT, V: Volume> {
+pub struct TemplateNode<I: IT, V: VolumeQureyPos> {
     pub identifier: I,
     pub index: TemplateIndex,
     pub value: NodeTemplateValue<V>,
@@ -57,7 +58,7 @@ pub enum TemplateAmmountType{
     Value,
 }
 
-impl<I: IT, V: Volume> TemplateTree<I, V> {
+impl<I: IT, V: VolumeQureyPos> TemplateTree<I, V> {
     pub fn new_from_builder(builder: &ModelSynthesisBuilder<I, V>) -> TemplateTree<I, V> {
         let mut nodes = vec![TemplateNode { 
             identifier: I::default(),
@@ -122,6 +123,7 @@ impl<I: IT, V: Volume> TemplateTree<I, V> {
 
         let mut tree = TemplateTree {
             nodes,
+            max_level: 0,
         };
 
         // Set create paths und levels
@@ -164,6 +166,7 @@ impl<I: IT, V: Volume> TemplateTree<I, V> {
 
         let node_level = max_level + 1;
         self.nodes[index].level = node_level;
+        self.max_level = self.max_level.max(node_level);
 
         node_level
     } 
@@ -179,7 +182,7 @@ impl<I: IT, V: Volume> TemplateTree<I, V> {
     }
 }
 
-impl<V: Volume> NodeTemplateValue<V> {
+impl<V: VolumeQureyPos> NodeTemplateValue<V> {
     pub fn new_group() -> NodeTemplateValue<V> {
         NodeTemplateValue::Groupe {}
     }

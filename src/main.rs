@@ -24,12 +24,11 @@ fn main() {
     #[cfg(feature = "profile_islands")]
     {
         SimpleLogger::init(log::LevelFilter::Debug, simplelog::Config::default());
-        let mut state = IslandsState::new();
+        let mut state = IslandsState::new(true);
         state.run();
 
         let collapser = state.collapser.unwrap(); 
         info!("Node capacity: {}", collapser.nodes.capacity());
-        info!("Pending operations capacity: {}", collapser.pending_operations.capacity());
         info!("Pending collapse operations capacity: {}", collapser.pending_collapse_opperations.capacity());
 
         return;

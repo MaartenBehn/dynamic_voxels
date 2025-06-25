@@ -1,7 +1,7 @@
 
 use octa_force::{glam::{vec3, Mat4, Quat, Vec3}, log::{error, info}, OctaResult};
 
-use crate::{model_synthesis::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder, IT}, collapse::{CollapseOperation, Collapser}, collapser_data::CollapserData, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree}, slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey}, state_saver::State, vec_csg_tree::tree::{VecCSGNode, VecCSGTree, VOXEL_SIZE}};
+use crate::{fast_pos_query_csg_tree::tree::FastPosQueryCSGTree, model_synthesis::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder, IT}, collapse::{CollapseOperation, Collapser}, collapser_data::CollapserData, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree}, slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey}, state_saver::State, vec_csg_tree::tree::{VecCSGNode, VecCSGTree, VOXEL_SIZE}};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Identifier {
@@ -18,12 +18,12 @@ impl IT for Identifier {}
 
 #[derive(Clone, Debug)]
 pub struct IslandsState {
-    pub template: TemplateTree<Identifier, VecCSGTree>,
-    pub collapser: Option<CollapserData<Identifier, SlotMapCSGTreeKey, VecCSGTree>>,
+    pub template: TemplateTree<Identifier, FastPosQueryCSGTree>,
+    pub collapser: Option<CollapserData<Identifier, SlotMapCSGTreeKey, FastPosQueryCSGTree>>,
 }
 
 impl IslandsState {
-    pub fn new() -> Self {
+    pub fn new(profile: bool) -> Self {
         let mut wfc_builder = ModelSynthesisBuilder::new()
             .number_range(Identifier::MinIslandDistance, |b|{b
                 .ammount(BuilderAmmount::OneGlobal)
@@ -43,8 +43,8 @@ impl IslandsState {
             .position_set(Identifier::IslandRoot, |b| {b
                 .ammount(BuilderAmmount::OneGlobal)
                 .value(BuilderValue::Const(PositionSet::new(
-                    VecCSGTree::new_disk(Vec3::ZERO, 20.0, 0.1), 
-                    PositionSetRule::Grid { spacing: 0.1 })))
+                    FastPosQueryCSGTree::from(VecCSGTree::new_disk(Vec3::ZERO, 20.0, 0.1)), 
+                    PositionSetRule::Grid { spacing: (if profile { 0.1 } else { 10.0 }) })))
             })
 
             .pos(Identifier::IslandPos, |b| {b
@@ -78,7 +78,7 @@ impl IslandsState {
     }
 
     pub fn handle_hook( 
-        collapser: &mut Collapser<Identifier, SlotMapCSGTreeKey, VecCSGTree>,
+        collapser: &mut Collapser<Identifier, SlotMapCSGTreeKey, FastPosQueryCSGTree>,
         hook: CollapseOperation<Identifier, SlotMapCSGTreeKey>, 
     ) {
         match hook {

@@ -6,25 +6,18 @@ use octa_force::{anyhow::{anyhow, bail, ensure}, glam::{vec3, IVec3, Vec3}, log:
 use slotmap::{new_key_type, Key, SlotMap};
 
 
-use crate::{vec_csg_tree::tree::VecCSGTree, volume::Volume};
+use crate::{model_synthesis::pending_operations::NodeOperation, vec_csg_tree::tree::VecCSGTree, volume::VolumeQureyPos};
 
-use super::{builder::{BuilderNode, ModelSynthesisBuilder, BU, IT}, pos_set::PositionSet, relative_path::{LeafType, RelativePathTree}, template::{NodeTemplateValue, TemplateAmmountType, TemplateIndex, TemplateNode, TemplateTree}};
+use super::{builder::{BuilderNode, ModelSynthesisBuilder, BU, IT}, pending_operations::PendingOperations, pos_set::PositionSet, relative_path::{LeafType, RelativePathTree}, template::{NodeTemplateValue, TemplateAmmountType, TemplateIndex, TemplateNode, TemplateTree}};
 
 new_key_type! { pub struct CollapseNodeKey; }
 
 #[derive(Debug, Clone)]
-pub struct Collapser<'a, I: IT, U: BU, V: Volume> {
+pub struct Collapser<'a, I: IT, U: BU, V: VolumeQureyPos> {
     pub template: &'a TemplateTree<I, V>,
     pub nodes: SlotMap<CollapseNodeKey, CollapseNode<I, U, V>>,
-    pub pending_operations: Vec<NodeOperation>,
+    pub pending_operations: PendingOperations,
     pub pending_collapse_opperations: Vec<CollapseOperation<I, U>>,
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd)]
-pub struct NodeOperation {
-    pub level: usize,
-    pub index: CollapseNodeKey,
-    pub typ: NodeOperationType,
 }
 
 #[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
@@ -34,7 +27,7 @@ pub enum NodeOperationType {
 }
 
 #[derive(Debug, Clone)]
-pub struct CollapseNode<I: IT, U: BU, V: Volume> {
+pub struct CollapseNode<I: IT, U: BU, V: VolumeQureyPos> {
     pub template_index: usize,
     pub identfier: I,
     pub level: usize,
@@ -48,7 +41,7 @@ pub struct CollapseNode<I: IT, U: BU, V: Volume> {
 }
 
 #[derive(Debug, Clone)]
-pub enum NodeDataType<V: Volume> {
+pub enum NodeDataType<V: VolumeQureyPos> {
     Number(NumberData),
     PosSet(PosSetData<V>),
     Pos(PosData),
@@ -63,7 +56,7 @@ pub struct NumberData {
 }
 
 #[derive(Debug, Clone)]
-pub struct PosSetData<V: Volume> {
+pub struct PosSetData<V: VolumeQureyPos> {
     pub set: PositionSet<V>
 }
 
@@ -99,12 +92,14 @@ pub enum CollapseOperation<I, U> {
     }
 }
 
-impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
-    pub fn next(&mut self) -> OctaResult<Option<(CollapseOperation<I, U>, &mut Collapser<'a, I, U, V>)>> { 
-        if let Some(collapse_opperation) = self.pending_collapse_opperations.pop() {
-            Ok(Some((collapse_opperation, self)))
+impl<'a, I: IT, U: BU, V: VolumeQureyPos> Collapser<'a, I, U, V> {
+    pub fn next(&mut self) -> OctaResult<Option<(CollapseOperation<I, U>, &mut Collapser<'a, I, U, V>)>> {
 
-        } else if let Some(operation) = self.pending_operations.pop() {
+        if let Some(collapse_opperation) = self.pending_collapse_opperations.pop() {
+            return Ok(Some((collapse_opperation, self)));
+        } 
+
+        if let Some(operation) = self.pending_operations.pop() {
             match operation.typ {
                 NodeOperationType::CollapseValue => {
                     let opperation = self.collapse_node(operation.index)?;
@@ -144,9 +139,8 @@ impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
                             let next_reset = node.next_reset;
                             self.reset_node(next_reset)?;
 
-                            self.insert_opperation(NodeOperation {
-                                index: node_index,
-                                level: template_node.level,
+                            self.pending_operations.push(template_node.level, NodeOperation { 
+                                index: node_index, 
                                 typ: NodeOperationType::CollapseValue,
                             });
 
@@ -203,15 +197,15 @@ impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
 
     fn push_pending_defineds(&mut self, node_index: CollapseNodeKey) {
         let node = &self.nodes[node_index];
-        let template_node = &self.template.nodes[node.template_index]; 
+        let template_node = &self.template.nodes[node.template_index];
+
         for ammount in template_node.defines_ammount.iter() {
             let new_node_template = &self.template.nodes[ammount.index];
 
-            self.insert_opperation(NodeOperation{
-                level: new_node_template.level,
-                index: node_index,
+            self.pending_operations.push(new_node_template.level, NodeOperation { 
+                index: node_index, 
                 typ: NodeOperationType::UpdateDefined(ammount.index),
-            }); 
+            });
         }
     }
 
@@ -224,9 +218,8 @@ impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
         info!("{:?} Collapse Faild {:?}", index, node.identfier);
 
         let level = self.template.nodes[node.template_index].level;
-        
-        Self::insert_opperation_unpacked(&mut self.pending_operations, NodeOperation{
-            level,
+
+        self.pending_operations.push(level, NodeOperation {
             index,
             typ: NodeOperationType::CollapseValue,
         });
@@ -258,7 +251,7 @@ impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
 }
 
 
-impl<V: Volume> NodeDataType<V> {
+impl<V: VolumeQureyPos> NodeDataType<V> {
     pub fn get_number_mut(&mut self) -> &mut NumberData {
         match self {
             NodeDataType::Number(d) => d,
@@ -283,26 +276,18 @@ impl<V: Volume> NodeDataType<V> {
 
 
 
-impl<I: IT, V: Volume> TemplateTree<I, V> {
+impl<I: IT, V: VolumeQureyPos> TemplateTree<I, V> {
     pub fn get_collaper<U: BU>(&self) -> Collapser<I, U, V> {
-        let inital_capacity = 10000000;
+        let inital_capacity = 1000;
 
         let mut collapser = Collapser{
             template: self,
             nodes: SlotMap::with_capacity_and_key(inital_capacity),
-            pending_operations: Vec::with_capacity(inital_capacity),
+            pending_operations: PendingOperations::new(self.max_level),
             pending_collapse_opperations: Vec::with_capacity(inital_capacity),
         };
 
         collapser.add_node(0, vec![], vec![], CollapseNodeKey::null());
         collapser
-    }
-}
-
-impl Ord for NodeOperation {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        other.level.cmp(&self.level)
-            .then(other.typ.cmp(&self.typ))
-            .then(other.index.cmp(&self.index))
     }
 }

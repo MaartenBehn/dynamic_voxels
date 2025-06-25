@@ -3,7 +3,7 @@ use octa_force::glam::Vec3;
 
 use std::{fmt::Debug, iter, marker::PhantomData, ops::RangeBounds};
 
-use crate::{vec_csg_tree::tree::VecCSGNode, volume::Volume};
+use crate::{vec_csg_tree::tree::VecCSGNode, volume::VolumeQureyPos};
 
 use super::{collapse::CollapseNode, pos_set::PositionSet, relative_path::{self, RelativePathTree}, template::{NodeTemplateValue, TemplateTree}};
 
@@ -11,7 +11,7 @@ pub trait IT: Debug + Copy + Eq + Default {}
 pub trait BU: Debug + Copy + Default {}
 
 #[derive(Debug, Clone)]
-pub struct ModelSynthesisBuilder<I: IT, V: Volume> {
+pub struct ModelSynthesisBuilder<I: IT, V: VolumeQureyPos> {
     pub nodes: Vec<BuilderNode<I, V>>,
 }
 
@@ -30,7 +30,7 @@ pub enum BuilderValue<T>{
 }
 
 #[derive(Debug, Clone)]
-pub struct BuilderNode<I: IT, V: Volume> {
+pub struct BuilderNode<I: IT, V: VolumeQureyPos> {
     pub identifier: I,
     pub value: NodeTemplateValue<V>,
     pub depends: Vec<I>,
@@ -46,7 +46,7 @@ pub struct NodeBuilder<I: IT, T> {
     pub value: BuilderValue<T> 
 }
 
-impl<I: IT, V: Volume> ModelSynthesisBuilder<I, V> {
+impl<I: IT, V: VolumeQureyPos> ModelSynthesisBuilder<I, V> {
     pub fn new() -> ModelSynthesisBuilder<I, V> {
         ModelSynthesisBuilder {
             nodes: vec![],
@@ -84,10 +84,10 @@ impl<I: IT, V: Volume> ModelSynthesisBuilder<I, V> {
         self
     }
 
-    pub fn number_range<R: RangeBounds<i32>>(
+    pub fn number_range<R: RangeBounds<i32>, F: Fn(NodeBuilder<I, R>) -> NodeBuilder<I, R>>(
         mut self,
         identifier: I,
-        b: fn(NodeBuilder<I, R>) -> NodeBuilder<I, R>
+        b: F, 
     ) -> Self {
         let mut builder = NodeBuilder {
             depends: vec![],
@@ -114,11 +114,12 @@ impl<I: IT, V: Volume> ModelSynthesisBuilder<I, V> {
         self
     }
 
-    pub fn position_set(
+    pub fn position_set<F: Fn(NodeBuilder<I, PositionSet<V>>) -> NodeBuilder<I, PositionSet<V>>>(
         mut self,
         identifier: I,
-        b: fn(NodeBuilder<I, PositionSet<V>>) -> NodeBuilder<I, PositionSet<V>>
+        b: F, 
     ) -> Self {
+
         let mut builder = NodeBuilder {
             depends: vec![],
             knows: vec![],
@@ -144,10 +145,10 @@ impl<I: IT, V: Volume> ModelSynthesisBuilder<I, V> {
         self
     }
 
-    pub fn pos(
+    pub fn pos<F: Fn(NodeBuilder<I, Vec3>) -> NodeBuilder<I, Vec3>>(
         mut self,
         identifier: I,
-        b: fn(NodeBuilder<I, Vec3>) -> NodeBuilder<I, Vec3>
+        b: F,
     ) -> Self {
         let mut builder = NodeBuilder {
             depends: vec![],
@@ -174,10 +175,10 @@ impl<I: IT, V: Volume> ModelSynthesisBuilder<I, V> {
         self
     }
  
-    pub fn build(
+    pub fn build<F: Fn(NodeBuilder<I, ()>) -> NodeBuilder<I, ()>>(
         mut self, 
         identifier: I,
-        b: fn(NodeBuilder<I, ()>) -> NodeBuilder<I, ()>
+        b: F, 
     ) -> Self {
         let mut builder = NodeBuilder {
             depends: vec![],
@@ -230,7 +231,7 @@ impl<I: IT, T> NodeBuilder<I, T> {
     }
 }
 
-impl<I: IT, V: Volume> ModelSynthesisBuilder<I, V> {
+impl<I: IT, V: VolumeQureyPos> ModelSynthesisBuilder<I, V> {
     pub fn get_node_index_by_identifier(&self, identifier: I) -> usize {
         self.nodes.iter()
             .position(|n| n.identifier == identifier)
@@ -242,7 +243,7 @@ impl<I: IT, V: Volume> ModelSynthesisBuilder<I, V> {
     }
 }
 
-impl<V: Volume> NodeTemplateValue<V> {
+impl<V: VolumeQureyPos> NodeTemplateValue<V> {
     pub fn get_number_min(&self) -> i32 {
         match self {
             NodeTemplateValue::NumberRange { min, .. } => *min,

@@ -3,12 +3,12 @@ use std::iter;
 use octa_force::{anyhow::{anyhow, bail}, glam::Vec3, OctaResult};
 use slotmap::Key;
 
-use crate::volume::Volume;
+use crate::volume::VolumeQureyPos;
 
-use super::{builder::{BU, IT}, collapse::{CollapseNode, CollapseNodeKey, Collapser, GridData, NodeDataType, NodeOperation, NodeOperationType, NumberData, PosData, PosSetData}, pos_set::PositionSet, relative_path::LeafType, template::{NodeTemplateValue, TemplateAmmountType, TemplateIndex, TemplateNode}};
+use super::{builder::{BU, IT}, collapse::{CollapseNode, CollapseNodeKey, Collapser, GridData, NodeDataType, NodeOperationType, NumberData, PosData, PosSetData}, pending_operations::NodeOperation, pos_set::PositionSet, relative_path::LeafType, template::{NodeTemplateValue, TemplateAmmountType, TemplateIndex, TemplateNode}};
 
 
-impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
+impl<'a, I: IT, U: BU, V: VolumeQureyPos> Collapser<'a, I, U, V> {
 
     pub fn update_defined(&mut self, node_index: CollapseNodeKey, to_create_template_index: TemplateIndex) -> OctaResult<()> {
         let node = &self.nodes[node_index];
@@ -285,12 +285,10 @@ impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
             };
 
         }
-
-        self.insert_opperation(NodeOperation {
-            level: new_node_template.level,
-            index,
-            typ: NodeOperationType::CollapseValue,
-        });
+        
+        self.pending_operations.push(new_node_template.level, NodeOperation { 
+                index: index, 
+                typ: NodeOperationType::CollapseValue,
+            });
     }
-
 }

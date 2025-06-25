@@ -1,13 +1,13 @@
 use octa_force::{anyhow::{self, ensure, anyhow}, log::info, OctaResult};
 use slotmap::Key;
 
-use crate::{model_synthesis::collapse::{CollapseOperation, NodeOperation, NodeOperationType}, volume::Volume};
+use crate::{model_synthesis::{collapse::{CollapseOperation, NodeOperationType}, pending_operations::NodeOperation}, volume::VolumeQureyPos};
 
 use super::{builder::{BU, IT}, collapse::{CollapseNodeKey, Collapser}};
 
 
 
-impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
+impl<'a, I: IT, U: BU, V: VolumeQureyPos> Collapser<'a, I, U, V> {
 
     pub fn reset_node(&mut self, node_index: CollapseNodeKey) -> OctaResult<()> {
         let node = self.get_node_ref_from_node_index(node_index)?;
@@ -27,9 +27,9 @@ impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
         }
 
         let node = self.get_node_ref_from_node_index(node_index)?; 
-        self.insert_opperation(NodeOperation {
-            index: node_index,
-            level: node_template.level,
+        
+        self.pending_operations.push(node_template.level, NodeOperation { 
+            index: node_index, 
             typ: NodeOperationType::CollapseValue,
         });
 
@@ -46,10 +46,9 @@ impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
 
         info!("{:?} Delete {:?}", node_index, node.identfier);
 
-        self.pending_operations = self.pending_operations.iter()
-            .filter(|opperation| opperation.index != node_index)
-            .copied()
-            .collect();
+        let template_node = self.get_template_from_node_ref(&node);
+
+        self.pending_operations.delete(template_node.level, node_index);
 
         for (_, depends) in node.depends.iter() {
             let depends_node = self.get_node_mut_from_node_index(*depends);
@@ -85,11 +84,10 @@ impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
         if recreate {
             let node_template = self.get_template_from_node_ref(&node); 
             if self.has_index(node.defined_by) {
-
-                self.insert_opperation(NodeOperation {
-                    index: node.defined_by,
-                    level: node_template.level,
-                    typ: NodeOperationType::UpdateDefined(node.template_index)
+                
+                self.pending_operations.push(node_template.level, NodeOperation { 
+                    index: node.defined_by, 
+                    typ: NodeOperationType::UpdateDefined(node.template_index),
                 });
             } 
         }

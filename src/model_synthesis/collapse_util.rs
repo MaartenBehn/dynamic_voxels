@@ -2,29 +2,12 @@ use octa_force::{anyhow::anyhow, glam::Vec3, OctaResult};
 use slotmap::SlotMap;
 use octa_force::log::info;
 
-use crate::volume::Volume;
+use crate::volume::VolumeQureyPos;
 
-use super::{builder::{BU, IT}, collapse::{CollapseNodeKey, Collapser, CollapseNode, NodeDataType, NodeOperation}, template::{TemplateNode, TemplateTree}};
+use super::{builder::{BU, IT}, collapse::{CollapseNodeKey, Collapser, CollapseNode, NodeDataType}, template::{TemplateNode, TemplateTree}};
 
 
-impl<'a, I: IT, U: BU, V: Volume> Collapser<'a, I, U, V> {
-
-    pub fn insert_opperation(&mut self, opperation: NodeOperation) {
-        let res = self.pending_operations.binary_search(&opperation);
-        if let Err(index) = res {
-            //info!("Insert {:?}", opperation);
-            self.pending_operations.insert(index, opperation);
-        } 
-    }
-
-    pub fn insert_opperation_unpacked(pending_operations: &mut Vec<NodeOperation>, opperation: NodeOperation) {
-        let res = pending_operations.binary_search(&opperation);
-        if let Err(index) = res {
-            //info!("Insert {:?}", opperation);
-            pending_operations.insert(index, opperation);
-        } 
-    }
-
+impl<'a, I: IT, U: BU, V: VolumeQureyPos> Collapser<'a, I, U, V> { 
     pub fn has_index(&self, node_index: CollapseNodeKey) -> bool {
         self.nodes.contains_key(node_index)
     }

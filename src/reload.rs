@@ -18,6 +18,7 @@ pub mod state_saver;
 pub mod voxel_tree64;
 pub mod voxel_renderer;
 pub mod scene;
+pub mod fast_pos_query_csg_tree;
 
 use crate::vec_csg_tree::tree::{VecCSGTree, VOXEL_SIZE};
 use crate::profiler::ShaderProfiler;
@@ -238,7 +239,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
 
     #[cfg(feature="islands")]
-    let island_state = IslandsState::new(); 
+    let island_state = IslandsState::new(false); 
     
     #[cfg(feature="islands")]
     let state_saver = StateSaver::from_state(island_state, 10);
