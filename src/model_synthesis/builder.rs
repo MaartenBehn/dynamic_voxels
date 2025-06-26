@@ -84,7 +84,7 @@ impl<I: IT, V: VolumeQureyPos> ModelSynthesisBuilder<I, V> {
         self
     }
 
-    pub fn number_range<R: RangeBounds<i32>, F: Fn(NodeBuilder<I, R>) -> NodeBuilder<I, R>>(
+    pub fn number_range<R: RangeBounds<i32>, F: FnOnce(NodeBuilder<I, R>) -> NodeBuilder<I, R>>(
         mut self,
         identifier: I,
         b: F, 
@@ -114,7 +114,7 @@ impl<I: IT, V: VolumeQureyPos> ModelSynthesisBuilder<I, V> {
         self
     }
 
-    pub fn position_set<F: Fn(NodeBuilder<I, PositionSet<V>>) -> NodeBuilder<I, PositionSet<V>>>(
+    pub fn position_set<F: FnOnce(NodeBuilder<I, PositionSet<V>>) -> NodeBuilder<I, PositionSet<V>>>(
         mut self,
         identifier: I,
         b: F, 
@@ -145,7 +145,7 @@ impl<I: IT, V: VolumeQureyPos> ModelSynthesisBuilder<I, V> {
         self
     }
 
-    pub fn pos<F: Fn(NodeBuilder<I, Vec3>) -> NodeBuilder<I, Vec3>>(
+    pub fn pos<F: FnOnce(NodeBuilder<I, Vec3>) -> NodeBuilder<I, Vec3>>(
         mut self,
         identifier: I,
         b: F,
@@ -175,7 +175,7 @@ impl<I: IT, V: VolumeQureyPos> ModelSynthesisBuilder<I, V> {
         self
     }
  
-    pub fn build<F: Fn(NodeBuilder<I, ()>) -> NodeBuilder<I, ()>>(
+    pub fn build<F: FnOnce(NodeBuilder<I, ()>) -> NodeBuilder<I, ()>>(
         mut self, 
         identifier: I,
         b: F, 
