@@ -5,7 +5,7 @@ use bvh::{aabb::{Aabb, Bounded}, bounding_hierarchy::{BHShape, BoundingHierarchy
 use octa_force::{glam::{vec3, Mat4, Vec3}, log::{debug, info}, vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
 use slotmap::{new_key_type, SlotMap};
 use static_dag64::StaticDAG64SceneObject;
-use crate::{aabb::AABB, buddy_controller::BuddyBufferAllocator, static_voxel_dag64::StaticVoxelDAG64};
+use crate::{aabb::AABB, multi_data_buffer::buddy_controller::BuddyBufferAllocator, static_voxel_dag64::StaticVoxelDAG64};
 
 new_key_type! { pub struct SceneObjectKey; }
 

@@ -153,7 +153,8 @@ pub fn calc_n(size: usize) -> usize {
 }
 
 mod test {
-    use crate::buddy_controller::BuddyBufferAllocator;
+    use crate::multi_data_buffer::buddy_controller::BuddyBufferAllocator;
+
 
     #[test]
     fn test_alloc() {

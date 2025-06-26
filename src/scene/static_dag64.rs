@@ -2,7 +2,7 @@
 use octa_force::{glam::{vec3, vec4, Mat4, Quat, Vec3, Vec4, Vec4Swizzles}, log::debug, vulkan::Buffer, OctaResult};
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{buddy_controller::BuddyBufferAllocator, static_voxel_dag64::StaticVoxelDAG64};
+use crate::{multi_data_buffer::buddy_controller::BuddyBufferAllocator, static_voxel_dag64::StaticVoxelDAG64};
 
 new_key_type! { pub struct Tree64Key; }
 

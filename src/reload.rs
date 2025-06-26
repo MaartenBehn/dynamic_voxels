@@ -2,7 +2,6 @@
 extern crate self as dynamic_voxels;
 
 pub mod aabb;
-pub mod buddy_controller;
 pub mod vec_csg_tree;
 pub mod profiler;
 pub mod util;
@@ -20,6 +19,7 @@ pub mod voxel_dag64;
 pub mod voxel_renderer;
 pub mod scene;
 pub mod fast_pos_query_csg_tree;
+pub mod multi_data_buffer;
 
 use crate::vec_csg_tree::tree::{VecCSGTree, VOXEL_SIZE};
 use crate::profiler::ShaderProfiler;
