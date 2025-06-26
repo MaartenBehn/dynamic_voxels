@@ -31,8 +31,6 @@ use shader_stage::ShaderStage;
 
 use crate::NUM_FRAMES_IN_FLIGHT;
 
-use super::VoxelTree64;
-
 const RENDER_DISPATCH_GROUP_SIZE_X: u32 = 8;
 const RENDER_DISPATCH_GROUP_SIZE_Y: u32 = 8;
 

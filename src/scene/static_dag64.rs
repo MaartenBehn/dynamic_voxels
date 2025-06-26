@@ -2,21 +2,21 @@
 use octa_force::{glam::{vec3, vec4, Mat4, Quat, Vec3, Vec4, Vec4Swizzles}, log::debug, vulkan::Buffer, OctaResult};
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{buddy_controller::BuddyBufferAllocator, voxel_tree64::VoxelTree64};
+use crate::{buddy_controller::BuddyBufferAllocator, static_voxel_dag64::StaticVoxelDAG64};
 
 new_key_type! { pub struct Tree64Key; }
 
 #[derive(Debug)]
-pub struct Tree64SceneObject {
+pub struct StaticDAG64SceneObject {
     pub mat: Mat4,
-    pub tree: VoxelTree64,
+    pub tree: StaticVoxelDAG64,
     pub bvh_index: usize,
     pub alloc_start: usize,
 }
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct Tree64SceneObjectData {
+pub struct StaticDAG64SceneObjectData {
     pub x_axis: Vec3,
     pub data_offset: u32,
     pub y_axis: Vec3,
@@ -28,8 +28,8 @@ pub struct Tree64SceneObjectData {
     pub inv_mat: Mat4
 }
 
-impl Tree64SceneObject {
-    pub fn new(mat: Mat4, tree: VoxelTree64) -> Self {
+impl StaticDAG64SceneObject {
+    pub fn new(mat: Mat4, tree: StaticVoxelDAG64) -> Self {
         Self {
             mat,
             tree,
@@ -39,24 +39,23 @@ impl Tree64SceneObject {
     }
 
     pub fn push_to_buffer(&mut self, allocator: &mut BuddyBufferAllocator, buffer: &mut Buffer) -> OctaResult<()> {
-        let size = size_of::<Tree64SceneObjectData>() + self.tree.get_nodes_size() + self.tree.get_nodes_data_size();
+        let size = size_of::<StaticDAG64SceneObjectData>() + self.tree.get_nodes_size() + self.tree.get_nodes_data_size();
         debug!("Tree64 Obvject Size: {size}");
 
         let (start, _) = allocator.alloc(size)?;
         self.alloc_start = start;
 
-        let nodes_start = self.alloc_start + size_of::<Tree64SceneObjectData>();
-        let data_offset = size_of::<Tree64SceneObjectData>() + self.tree.get_nodes_size(); 
+        let nodes_start = self.alloc_start + size_of::<StaticDAG64SceneObjectData>();
+        let data_offset = size_of::<StaticDAG64SceneObjectData>() + self.tree.get_nodes_size(); 
         let data_start = self.alloc_start + data_offset; 
 
         let mat = Mat4::from_scale_rotation_translation(
             Vec3::ONE / self.tree.get_size(), 
             Quat::IDENTITY,
-            //Quat::from_euler(octa_force::glam::EulerRot::XYZ, 0.0, 0.0, f32::to_radians(45.0)),
             Vec3::splat(1.5),
         ).mul_mat4(&self.mat.inverse());
 
-        let data = Tree64SceneObjectData {
+        let data = StaticDAG64SceneObjectData {
             x_axis: mat.x_axis.xyz(),
             y_axis: mat.y_axis.xyz(),
             z_axis: mat.z_axis.xyz(),

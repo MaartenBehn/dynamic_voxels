@@ -1,4 +1,4 @@
-pub mod voxel_tree64_buffer;
+pub mod static_dag64_buffer;
 
 use std::mem;
 use std::time::Duration;
@@ -19,40 +19,40 @@ use octa_force::vulkan::{
     Buffer, CommandBuffer, ComputePipeline, ComputePipelineCreateInfo, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, ImageAndView, PipelineLayout, Swapchain, WriteDescriptorSet, WriteDescriptorSetKind
 };
 use octa_force::{egui, in_flight_frames, OctaResult};
-use voxel_tree64_buffer::{VoxelTree64Buffer, Tree64Data};
+use static_dag64_buffer::{StaticDAG64Buffer, StaticDAG64Data};
 
 use crate::voxel_renderer::shader_stage::ShaderStage;
 use crate::voxel_renderer::{self, RayManagerData, VoxelRenderer};
 use crate::NUM_FRAMES_IN_FLIGHT;
 
-use super::VoxelTree64;
+use super::StaticVoxelDAG64;
 
 const RENDER_DISPATCH_GROUP_SIZE_X: u32 = 8;
 const RENDER_DISPATCH_GROUP_SIZE_Y: u32 = 8;
 
 #[allow(dead_code)]
 #[derive(Debug)]
-pub struct Tree64Renderer {
-    voxel_tree64_buffer: VoxelTree64Buffer,
+pub struct StaticDAG64Renderer {
+    voxel_tree64_buffer: StaticDAG64Buffer,
     voxel_renderer: VoxelRenderer,
 }
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct Trace64DispatchParams {
+pub struct TraceStaticDAG64DispatchParams {
     ray_manager: RayManagerData,
-    tree64: Tree64Data,
+    tree64: StaticDAG64Data,
 }
 
-impl Tree64Renderer {
+impl StaticDAG64Renderer {
     pub fn new(
         context: &Context,
         swapchain: &Swapchain,
-        tree: VoxelTree64,
+        tree: StaticVoxelDAG64,
         camera: &Camera,
-    ) -> Result<Tree64Renderer> {
+    ) -> Result<StaticDAG64Renderer> {
  
-        let voxel_renderer = VoxelRenderer::new::<Trace64DispatchParams>(
+        let voxel_renderer = VoxelRenderer::new::<TraceStaticDAG64DispatchParams>(
             context, 
             swapchain, 
             camera, 
@@ -60,7 +60,7 @@ impl Tree64Renderer {
 
         let voxel_tree64_buffer = tree.into_buffer(context)?;
         
-        Ok(Tree64Renderer {
+        Ok(StaticDAG64Renderer {
             voxel_tree64_buffer,
             voxel_renderer,
         })
@@ -77,7 +77,7 @@ impl Tree64Renderer {
         buffer: &CommandBuffer,
         engine: &Engine,
     ) -> OctaResult<()> {
-        self.voxel_renderer.render(buffer, engine, Trace64DispatchParams {
+        self.voxel_renderer.render(buffer, engine, TraceStaticDAG64DispatchParams {
             ray_manager: self.voxel_renderer.get_ray_manager_data(),
             tree64: self.voxel_tree64_buffer.get_data(),
         })?;

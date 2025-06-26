@@ -2,7 +2,7 @@ use octa_force::glam::UVec3;
 
 use crate::{util::to_1d, voxel_grid::VoxelGrid};
 
-use super::VoxelTree64;
+use super::StaticVoxelDAG64;
 
 impl tree64::VoxelModel<u8> for VoxelGrid {
     fn dimensions(&self) -> [u32; 3] {
@@ -24,7 +24,7 @@ impl tree64::VoxelModel<u8> for VoxelGrid {
     }
 }
 
-impl From<&VoxelGrid> for VoxelTree64 {
+impl From<&VoxelGrid> for StaticVoxelDAG64 {
     fn from(value: &VoxelGrid) -> Self {
         let tree = tree64::Tree64::new(value);
 

@@ -4,7 +4,7 @@ use std::{borrow::Cow, marker::PhantomData, time::Instant};
 use egui_node_graph2::{DataTypeTrait, Graph, GraphEditorState, InputParamKind, NodeDataTrait, NodeId, NodeResponse, NodeTemplateIter, NodeTemplateTrait, UserResponseTrait, WidgetValueTrait};
 use octa_force::{controls::Controls, egui, log::debug, OctaResult};
 
-use crate::{model_synthesis::{builder::{BU, IT}, collapse::{CollapseNode, CollapseNodeKey, Collapser}, collapser_data::CollapserData}, slot_map_csg_tree::tree::SlotMapCSGTreeKey, vec_csg_tree::tree::VecCSGTree, volume::Volume};
+use crate::{model_synthesis::{builder::{BU, IT}, collapse::{CollapseNode, CollapseNodeKey, Collapser}, collapser_data::CollapserData}, slot_map_csg_tree::tree::SlotMapCSGTreeKey, vec_csg_tree::tree::VecCSGTree};
 
 type UserState<I> = CollapserData<I, SlotMapCSGTreeKey, VecCSGTree>;
 

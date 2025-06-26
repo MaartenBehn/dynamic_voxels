@@ -15,7 +15,8 @@ pub mod slot_map_csg_tree;
 pub mod model_debug_renderer;
 pub mod model_example;
 pub mod state_saver;
-pub mod voxel_tree64;
+pub mod static_voxel_dag64;
+pub mod voxel_dag64;
 pub mod voxel_renderer;
 pub mod scene;
 pub mod fast_pos_query_csg_tree;
@@ -31,11 +32,11 @@ use model_synthesis::template::TemplateTree;
 use octa_force::engine::Engine;
 use render_csg_tree::base::RenderCSGTree;
 use scene::renderer::SceneRenderer;
-use scene::tree64::Tree64SceneObject;
 use scene::{Scene, SceneObject};
 use slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey};
 use slotmap::Key;
 use state_saver::StateSaver;
+use static_voxel_dag64::renderer::StaticDAG64Renderer;
 use vec_csg_tree::tree::{VecCSGNode, VecCSGNodeData};
 use kiddo::SquaredEuclidean;
 use model_synthesis::collapse::{CollapseOperation, Collapser};
@@ -50,8 +51,6 @@ use octa_force::vulkan::ash::vk::AttachmentLoadOp;
 use octa_force::vulkan::Fence;
 use octa_force::{log, OctaResult};
 use voxel_grid::VoxelGrid;
-use voxel_tree64::renderer::Tree64Renderer;
-use voxel_tree64::VoxelTree64;
 use std::f32::consts::PI;
 use std::time::{Duration, Instant};
 use std::{default, env};
@@ -164,7 +163,7 @@ pub struct RenderState {
     pub model_renderer: ModelDebugRenderer<islands::Identifier>,
     
     #[cfg(feature="tree64")]
-    pub renderer: Tree64Renderer,
+    pub renderer: StaticDAG64Renderer,
     
     #[cfg(feature="scene")]
     pub renderer: SceneRenderer
@@ -264,7 +263,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     let tree64_2: VoxelTree64 = (&grid).into();
     
     #[cfg(feature="tree64")]
-    let tree_renderer = Tree64Renderer::new(&engine.context, &engine.swapchain, tree64, &logic_state.camera)?;
+    let tree_renderer = StaticDAG64Renderer::new(&engine.context, &engine.swapchain, tree64, &logic_state.camera)?;
 
     #[cfg(feature="scene")]
     let mut scene = Scene::from_objects(&engine.context, vec![

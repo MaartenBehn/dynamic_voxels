@@ -305,27 +305,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "borrow"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33a048e7eb937480bfd4789ff34bae24a581577e61d59cf4407e2410de481da8"
-dependencies = [
- "borrow-macro",
-]
-
-[[package]]
-name = "borrow-macro"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "19842c39336deb26aafe9c76362ab67f47d6c9ee0b0d61b249289320010a32a9"
-dependencies = [
- "itertools 0.13.0",
- "proc-macro2",
- "quote",
- "syn 2.0.101",
-]
-
-[[package]]
 name = "built"
 version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -740,8 +719,6 @@ checksum = "d8b14ccef22fc6f5a8f4d7d768562a182c04ce9a3b3157b91390b52ddfdf1a76"
 name = "dynamic_voxels"
 version = "0.1.0"
 dependencies = [
- "arrayvec",
- "borrow",
  "bvh",
  "egui_node_graph2",
  "fast_poisson",

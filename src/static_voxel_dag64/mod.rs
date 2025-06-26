@@ -6,11 +6,11 @@ pub mod from_voxel_grid;
 pub mod renderer;
 
 #[derive(Debug)]
-pub struct VoxelTree64 {
+pub struct StaticVoxelDAG64 {
     tree: tree64::Tree64<u8>    
 }
 
-impl VoxelTree64 {
+impl StaticVoxelDAG64 {
     pub fn get_size(&self) -> Vec3 {
         let size = self.get_size_u32();
         Vec3::splat(size as f32)

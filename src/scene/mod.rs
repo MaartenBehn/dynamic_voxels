@@ -1,13 +1,11 @@
-pub mod tree64;
+pub mod static_dag64;
 pub mod renderer;
 
 use bvh::{aabb::{Aabb, Bounded}, bounding_hierarchy::{BHShape, BoundingHierarchy}, bvh::Bvh};
 use octa_force::{glam::{vec3, Mat4, Vec3}, log::{debug, info}, vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
 use slotmap::{new_key_type, SlotMap};
-use tree64::Tree64SceneObject;
-use crate::{aabb::AABB, buddy_controller::BuddyBufferAllocator, voxel_tree64::VoxelTree64};
-use borrow::partial as p;
-use borrow::traits::*;
+use static_dag64::StaticDAG64SceneObject;
+use crate::{aabb::AABB, buddy_controller::BuddyBufferAllocator, static_voxel_dag64::StaticVoxelDAG64};
 
 new_key_type! { pub struct SceneObjectKey; }
 
@@ -31,7 +29,7 @@ pub struct SceneData {
 
 #[derive(Debug)]
 pub enum SceneObject {
-    Tree64(Tree64SceneObject),
+    StaticDAG64(StaticDAG64SceneObject),
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -130,13 +128,13 @@ impl Scene {
 impl SceneObject {
     pub fn get_nr(&self) -> u32 {
         match self {
-            SceneObject::Tree64(..) => 0,
+            SceneObject::StaticDAG64(..) => 0,
         }
     }
 
     pub fn push_to_buffer(&mut self, allocator: &mut BuddyBufferAllocator, buffer: &mut Buffer) -> OctaResult<()> {
         match self {
-            SceneObject::Tree64(tree) => {
+            SceneObject::StaticDAG64(tree) => {
                 tree.push_to_buffer(allocator, buffer)
             },
         }
@@ -144,13 +142,13 @@ impl SceneObject {
 
     pub fn get_start(&self) -> usize {
         match self {
-            SceneObject::Tree64(tree) => tree.alloc_start,
+            SceneObject::StaticDAG64(tree) => tree.alloc_start,
         }
     }
 
     pub fn get_aabb(&self) -> AABB {
         match self {
-            SceneObject::Tree64(tree64_scene_object) => {
+            SceneObject::StaticDAG64(tree64_scene_object) => {
                 AABB::from_centered_size(&tree64_scene_object.mat, tree64_scene_object.tree.get_size())
             },
         }
@@ -166,13 +164,13 @@ impl Bounded<f32,3> for SceneObject {
 impl BHShape<f32,3> for SceneObject {
     fn set_bh_node_index(&mut self, index: usize) {
         match self {
-            SceneObject::Tree64(tree64_scene_object) => tree64_scene_object.bvh_index = index,
+            SceneObject::StaticDAG64(tree64_scene_object) => tree64_scene_object.bvh_index = index,
         }
     }
 
     fn bh_node_index(&self) -> usize {
         match self {
-            SceneObject::Tree64(tree64_scene_object) => tree64_scene_object.bvh_index,
+            SceneObject::StaticDAG64(tree64_scene_object) => tree64_scene_object.bvh_index,
         }
     }
 }

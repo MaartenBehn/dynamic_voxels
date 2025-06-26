@@ -30,3 +30,10 @@ pub fn to_3d_i(index: usize, size: IVec3) -> IVec3 {
     ivec3(x, y, z)
 }
 
+pub fn count_ones_variable(value: u64, index: u32) -> u32 {
+    (value & ((1 << index) - 1)).count_ones()
+}
+
+pub fn set_bit(mask: u64, index: u32, value: bool) -> u64 {
+    (mask & !(1 << index)) | ((value as u64) << index)
+}
