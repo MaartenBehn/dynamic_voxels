@@ -128,40 +128,51 @@ impl<T: Copy + Default> AllocatedVec<T> for SplitAllocatedVec<T> {
 }
 
 impl<T> SplitAllocatedVec<T> {
-    pub fn optimize_free(&mut self) {
+    pub fn optimize_free_ranges(&mut self) {
         for alloc in self.allocations.iter_mut() {
-            if !alloc.needs_free_optimization {
-                continue;
-            }
-
-            alloc.free_ranges.sort_by(|a, b| a.0.cmp(&b.0));
-            for i in (0..alloc.free_ranges.len()).rev().skip(1) {
-                let range = alloc.free_ranges[i];
-                let last_range = alloc.free_ranges[i+1];
-
-                if range.1 >= last_range.0 {
-                    alloc.free_ranges.swap_remove(i+1);
-                    alloc.free_ranges[i] = (range.0, last_range.1.max(range.0));
-                }
-            }
-            alloc.needs_free_optimization = false;
+            alloc.optimize_free_ranges();            
         }
     }
 
-    pub fn optimize_changed(&mut self) {
+    pub fn optimize_changed_ranges(&mut self) {
         for alloc in self.allocations.iter_mut() { 
-            alloc.changed_ranges.sort_by(|a, b| a.0.cmp(&b.0));
-            for i in (0..alloc.changed_ranges.len()).rev().skip(1) {
-                let range = alloc.changed_ranges[i];
-                let last_range = alloc.changed_ranges[i+1];
+            alloc.optimize_changed_ranges();
+        }
+    }
+}
 
-                if range.1 >= last_range.0 {
-                    alloc.changed_ranges.swap_remove(i+1);
-                    alloc.changed_ranges[i] = (range.0, last_range.1.max(range.0));
-                }
+impl<T> SplitAllocation<T> {
+    pub fn optimize_free_ranges(&mut self) {
+        if !self.needs_free_optimization {
+            return;
+        }
+
+        self.free_ranges.sort_by(|a, b| a.0.cmp(&b.0));
+        for i in (0..self.free_ranges.len()).rev().skip(1) {
+            let range = self.free_ranges[i];
+            let last_range = self.free_ranges[i+1];
+
+            if range.1 >= last_range.0 {
+                self.free_ranges.swap_remove(i+1);
+                self.free_ranges[i] = (range.0, last_range.1.max(range.0));
+            }
+        }
+        self.needs_free_optimization = false;
+    }
+
+    pub fn optimize_changed_ranges(&mut self) {
+        self.changed_ranges.sort_by(|a, b| a.0.cmp(&b.0));
+        for i in (0..self.changed_ranges.len()).rev().skip(1) {
+            let range = self.changed_ranges[i];
+            let last_range = self.changed_ranges[i+1];
+
+            if range.1 >= last_range.0 {
+                self.changed_ranges.swap_remove(i+1);
+                self.changed_ranges[i] = (range.0, last_range.1.max(range.0));
             }
         }
     }
+
 }
 
 impl<T> Default for SplitAllocatedVec<T> {
