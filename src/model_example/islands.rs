@@ -23,7 +23,7 @@ pub struct IslandsState {
     pub collapser: Option<CollapserData<Identifier, SlotMapCSGTreeKey, FastPosQueryCSGTree>>,
 }
 
-#[cfg(feature="islands")]
+#[cfg(not(feature="profile_islands"))]
 #[derive(Clone, Debug)]
 pub struct IslandsState {
     pub template: TemplateTree<Identifier, VecCSGTree>,

@@ -196,7 +196,7 @@ impl CSGRenderer {
             camera.direction,
             res,
             time.as_secs_f32(),
-        )])?;
+        )]);
         Ok(())
     }
 

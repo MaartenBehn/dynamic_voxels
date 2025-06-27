@@ -29,7 +29,7 @@ impl DataController {
         Ok(DataController { buffer })
     }
 
-    pub fn set_render_csg_tree(&self, tree: &RenderCSGTree) -> OctaResult<()> {
-        self.buffer.copy_data_to_buffer(&tree.data)
+    pub fn set_render_csg_tree(&self, tree: &RenderCSGTree) {
+        self.buffer.copy_data_to_buffer(&tree.data);
     }
 }

@@ -6,11 +6,11 @@ use super::VoxelGrid;
 
 
 impl VolumeQureyPosValue for VoxelGrid {
-    fn get_value(&self, pos: UVec3) -> bool {
+    fn get_value(&self, pos: UVec3) -> u8 {
         self.data[to_1d(pos, self.size)]
     }
 
-    fn get_size(&mut self) -> UVec3 {
+    fn get_size(&self) -> UVec3 {
         self.size
     }
 }

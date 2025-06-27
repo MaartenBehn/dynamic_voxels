@@ -9,7 +9,6 @@ pub struct StaticDAG64Data {
     pub nodes_ptr: u64,
     pub leaf_ptr: u64,
     pub start_index: u32,
-    fill_1: u32,
 }
 
 #[derive(Debug)]
@@ -25,7 +24,6 @@ impl StaticDAG64Buffer {
             start_index: self.tree.root_state().index,
             nodes_ptr: self.nodes_buffer.get_device_address(),
             leaf_ptr: self.data_buffer.get_device_address(),
-            fill_1: 0,
         }
     }
 }

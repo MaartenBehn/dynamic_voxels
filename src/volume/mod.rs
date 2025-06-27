@@ -24,8 +24,8 @@ pub trait VolumeQureyPosValid: Clone + Default + Debug {
     }
 }
 
-pub trait VolumeQureyPosValue: Clone + Default + Debug {
-    fn get_value(&self, pos: UVec3) -> bool;
-    fn get_size(&mut self) -> UVec3;
+pub trait VolumeQureyPosValue {
+    fn get_value(&self, pos: UVec3) -> u8;
+    fn get_size(&self) -> UVec3;
 }
 

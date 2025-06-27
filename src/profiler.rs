@@ -94,7 +94,7 @@ impl ShaderProfiler {
         profiler_in_buffer.copy_data_to_buffer(&[ProfilerInData {
             active_pixel_x: active_sample_pixel.x,
             active_pixel_y: active_sample_pixel.y,
-        }])?;
+        }]);
 
         let out_data_len = scopes.len() * 5;
         let profiler_size: usize = size_of::<u32>() * out_data_len;
@@ -305,7 +305,7 @@ impl ShaderProfiler {
 
         let data: Vec<u32> = self
             .profiler_out_buffer
-            .get_data_from_buffer(self.out_data_len)?;
+            .get_data_from_buffer(self.out_data_len);
 
         let total_start =
             data[self.main_scope * 5 + 1] as u64 + (data[self.main_scope * 5 + 2] as u64) << 32;
@@ -373,20 +373,20 @@ impl ShaderProfiler {
                     &self.last_colors[offset_pos..],
                     0,
                     align_of::<u32>(),
-                )?;
+                );
             self.result_overview_images_staging_buffers[staging_result_image_2]
                 .copy_data_to_buffer_complex(
                     &self.last_colors[..offset_pos],
                     upper_index,
                     align_of::<u32>(),
-                )?;
+                );
         } else {
             self.result_overview_images_staging_buffers[staging_result_image_2]
                 .copy_data_to_buffer_complex(
                     &self.last_colors,
                     offset as usize,
                     align_of::<u32>(),
-                )?;
+                );
         }
 
         context.copy_live_egui_texture_staging_buffer_to_image(
@@ -437,7 +437,7 @@ impl ShaderProfiler {
             .copy_data_to_buffer(&[ProfilerInData {
                 active_pixel_x: self.active_pixel.x,
                 active_pixel_y: self.active_pixel.y,
-            }])?;
+            }]);
 
         Ok(())
     }
@@ -542,7 +542,7 @@ impl ShaderProfiler {
                 context.create_live_egui_texture_image(format, self.sample_res)?;
 
             // Clear image
-            result_staging_buffer.copy_data_to_buffer(&vec![0; num_pixel])?;
+            result_staging_buffer.copy_data_to_buffer(&vec![0; num_pixel]);
             context.copy_live_egui_texture_staging_buffer_to_image(
                 &result_staging_buffer,
                 &result_image.image,

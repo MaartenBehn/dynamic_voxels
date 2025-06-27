@@ -10,21 +10,24 @@ struct Node {
   property uint64_t PopMask { get { return PackedData[1] | uint64_t(PackedData[2]) << 32; } }
 }
 
+public Tree64 tree_from_static_dag(uint8_t* data, uint nodes_offset, uint data_offset, uint start_index) {
+  Tree64 this = Tree64();
+  this.TreeNodes = (Node*)(data + nodes_offset);
+  this.LeafData = (uint8_t*)(data + data_offset);
+  this.start_index = start_index;
+
+  //debug("node offset: %d", nodes_offset);
+  //debug("data offset: %d", data_offset);
+  //debug("start_index: %d", start_index);
+
+  return this;
+}
+
+
 public struct Tree64 {
   Node* TreeNodes;
   uint8_t* LeafData;
   uint start_index;
-  uint fill_1;
-
-  public __init(uint8_t* data, uint nodes_offset, uint data_offset, uint start_index) {
-    this.TreeNodes = (Node*)(data + nodes_offset);
-    this.LeafData = (uint8_t*)(data + data_offset);
-    this.start_index = start_index;
-    fill_1 = 0;
-    //debug("node offset: %d", nodes_offset);
-    //debug("data offset: %d", data_offset);
-    //debug("start_index: %d", start_index);
-  }
   
   public HitInfo RayCast(float3 rayPos, float3 rayDir, bool coarse) {
     HitInfo hit = Traversal(rayPos, rayDir, coarse);

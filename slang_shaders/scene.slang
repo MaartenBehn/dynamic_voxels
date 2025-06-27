@@ -55,7 +55,7 @@ public struct Scene {
       if (node.leaf) {
         if (node.leaf_nr == 0) {
           Tree64SceneObject* tree_object = (Tree64SceneObject*)(start_ptr + node.object_start);
-          Tree64 tree = Tree64((uint8_t*)tree_object, 128, tree_object.data_start, tree_object.root_index);
+          Tree64 tree = tree_from_static_dag((uint8_t*)tree_object, 128, tree_object.data_start, tree_object.root_index);
           
           float4x4 mat = tree_object.mat;
           float3 object_ray_pos = mul(float4(ray_pos, 1.0), mat).xyz;
