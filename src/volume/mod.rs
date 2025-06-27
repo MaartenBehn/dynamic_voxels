@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use octa_force::glam::{IVec3, Vec3};
+use octa_force::glam::{IVec3, UVec3, Vec3};
 
 use crate::aabb::AABB;
 
@@ -12,7 +12,7 @@ pub trait VolumeGradient {
     fn get_gradient_at_position(&self, pos: Vec3) -> Vec3;
 }
 
-pub trait VolumeQureyPos: Clone + Default + Debug {
+pub trait VolumeQureyPosValid: Clone + Default + Debug {
     fn is_position_valid_vec3(&self, pos: Vec3) -> bool;
     
     fn get_aabb(&mut self) -> AABB;
@@ -23,3 +23,9 @@ pub trait VolumeQureyPos: Clone + Default + Debug {
             .filter(|p| self.is_position_valid_vec3(p.to_owned()))
     }
 }
+
+pub trait VolumeQureyPosValue: Clone + Default + Debug {
+    fn get_value(&self, pos: UVec3) -> bool;
+    fn get_size(&mut self) -> UVec3;
+}
+

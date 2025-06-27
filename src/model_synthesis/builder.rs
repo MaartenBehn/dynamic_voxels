@@ -3,7 +3,7 @@ use octa_force::glam::Vec3;
 
 use std::{fmt::Debug, iter, marker::PhantomData, ops::RangeBounds};
 
-use crate::{vec_csg_tree::tree::VecCSGNode, volume::VolumeQureyPos};
+use crate::{vec_csg_tree::tree::VecCSGNode, volume::VolumeQureyPosValid};
 
 use super::{collapse::CollapseNode, pos_set::PositionSet, relative_path::{self, RelativePathTree}, template::{NodeTemplateValue, TemplateTree}};
 
@@ -11,7 +11,7 @@ pub trait IT: Debug + Copy + Eq + Default {}
 pub trait BU: Debug + Copy + Default {}
 
 #[derive(Debug, Clone)]
-pub struct ModelSynthesisBuilder<I: IT, V: VolumeQureyPos> {
+pub struct ModelSynthesisBuilder<I: IT, V: VolumeQureyPosValid> {
     pub nodes: Vec<BuilderNode<I, V>>,
 }
 
@@ -30,7 +30,7 @@ pub enum BuilderValue<T>{
 }
 
 #[derive(Debug, Clone)]
-pub struct BuilderNode<I: IT, V: VolumeQureyPos> {
+pub struct BuilderNode<I: IT, V: VolumeQureyPosValid> {
     pub identifier: I,
     pub value: NodeTemplateValue<V>,
     pub depends: Vec<I>,
@@ -46,7 +46,7 @@ pub struct NodeBuilder<I: IT, T> {
     pub value: BuilderValue<T> 
 }
 
-impl<I: IT, V: VolumeQureyPos> ModelSynthesisBuilder<I, V> {
+impl<I: IT, V: VolumeQureyPosValid> ModelSynthesisBuilder<I, V> {
     pub fn new() -> ModelSynthesisBuilder<I, V> {
         ModelSynthesisBuilder {
             nodes: vec![],
@@ -231,7 +231,7 @@ impl<I: IT, T> NodeBuilder<I, T> {
     }
 }
 
-impl<I: IT, V: VolumeQureyPos> ModelSynthesisBuilder<I, V> {
+impl<I: IT, V: VolumeQureyPosValid> ModelSynthesisBuilder<I, V> {
     pub fn get_node_index_by_identifier(&self, identifier: I) -> usize {
         self.nodes.iter()
             .position(|n| n.identifier == identifier)
@@ -243,7 +243,7 @@ impl<I: IT, V: VolumeQureyPos> ModelSynthesisBuilder<I, V> {
     }
 }
 
-impl<V: VolumeQureyPos> NodeTemplateValue<V> {
+impl<V: VolumeQureyPosValid> NodeTemplateValue<V> {
     pub fn get_number_min(&self) -> i32 {
         match self {
             NodeTemplateValue::NumberRange { min, .. } => *min,

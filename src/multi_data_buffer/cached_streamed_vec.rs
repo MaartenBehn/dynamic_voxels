@@ -7,15 +7,15 @@ use super::{allocated_vec::{AllocatedVec, AllocatedVecIndex}, buddy_buffer_alloc
 
 
 #[derive(Debug)]
-pub struct StreamedSplitVec<T> {
-    allocations: Vec<StreamedAllocation>,
-    full_allocations: Vec<StreamedAllocation>,
+pub struct CachedStreamedVec<T> {
+    allocations: Vec<CachedStreamedAllocation>,
+    full_allocations: Vec<CachedStreamedAllocation>,
     pub minimum_allocation_size: usize,
     phantom: PhantomData<T>,
 }
 
 #[derive(Debug)]
-struct StreamedAllocation {
+struct CachedStreamedAllocation {
     allocation: BuddyAllocation,
     start_index: usize,
     capacity: usize,
@@ -24,7 +24,19 @@ struct StreamedAllocation {
     needs_free_optimization: bool,
 }
 
-impl<T: Copy + Default> AllocatedVec<T> for StreamedSplitVec<T> {
+#[derive(Debug, Clone, Copy, PartialOrd, Ord, Eq, PartialEq)]
+struct CompactRange {
+    start: u32,
+    length: u8,
+}
+
+impl CompactRange {
+    fn as_range(&self) -> std::ops::Range<usize> {
+        self.start as usize..self.start as usize + self.length as usize
+    }
+}
+
+impl<T: Copy + Default> AllocatedVec<T> for CachedStreamedVec<T> {
     fn push(&mut self, mut values: &[T], allocator: &mut BuddyBufferAllocator, buffer: &mut Buffer) -> OctaResult<Vec<AllocatedVecIndex>> {
         let mut res = Vec::with_capacity(values.len());
         let data = buffer.get_mapped_slice::<T>();
@@ -74,7 +86,7 @@ impl<T: Copy + Default> AllocatedVec<T> for StreamedSplitVec<T> {
         res.extend(range);
 
         if values.len() < capacity {
-            self.allocations.push(StreamedAllocation {
+            self.allocations.push(CachedStreamedAllocation {
                 allocation,
                 start_index,
                 capacity, 
@@ -83,7 +95,7 @@ impl<T: Copy + Default> AllocatedVec<T> for StreamedSplitVec<T> {
                 needs_free_optimization: false,
             });
         } else {
-            self.full_allocations.push(StreamedAllocation {
+            self.full_allocations.push(CachedStreamedAllocation {
                 allocation,
                 start_index,
                 capacity,
@@ -135,7 +147,7 @@ impl<T: Copy + Default> AllocatedVec<T> for StreamedSplitVec<T> {
     }
 }
 
-impl StreamedAllocation {
+impl CachedStreamedAllocation {
     pub fn optimize_free_ranges(&mut self) {
         if !self.needs_free_optimization {
             return;
@@ -155,7 +167,7 @@ impl StreamedAllocation {
     } 
 }
 
-impl<T> Default for StreamedSplitVec<T> {
+impl<T> Default for CachedStreamedVec<T> {
     fn default() -> Self {
         Self { 
             allocations: vec![],

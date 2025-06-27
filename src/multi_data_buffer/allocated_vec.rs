@@ -2,7 +2,6 @@ use octa_force::{vulkan::Buffer, OctaResult};
 
 use super::buddy_buffer_allocator::BuddyBufferAllocator;
 
-
 pub type AllocatedVecIndex = usize;
 
 pub trait AllocatedVec<T>: Default {

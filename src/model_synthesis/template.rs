@@ -3,7 +3,7 @@ use std::{iter, ops::RangeBounds};
 use feistel_permutation_rs::{DefaultBuildHasher, Permutation};
 use octa_force::glam::Vec3;
 
-use crate::{model_synthesis::relative_path::RelativePathTree, volume::VolumeQureyPos};
+use crate::{model_synthesis::relative_path::RelativePathTree, volume::VolumeQureyPosValid};
 
 use super::{builder::{BuilderAmmount, BuilderNode, ModelSynthesisBuilder, IT}, pos_set::PositionSet};
 
@@ -12,13 +12,13 @@ pub const TEMPLATE_INDEX_ROOT: TemplateIndex = 0;
 pub const AMMOUNT_PATH_INDEX: usize = 0;
 
 #[derive(Debug, Clone)]
-pub struct TemplateTree<I: IT, V: VolumeQureyPos> {
+pub struct TemplateTree<I: IT, V: VolumeQureyPosValid> {
     pub nodes: Vec<TemplateNode<I, V>>,
     pub max_level: usize,
 }
 
 #[derive(Debug, Clone)]
-pub enum NodeTemplateValue<V: VolumeQureyPos> {
+pub enum NodeTemplateValue<V: VolumeQureyPosValid> {
     Groupe {},
     NumberRangeHook,
     NumberRange {
@@ -34,7 +34,7 @@ pub enum NodeTemplateValue<V: VolumeQureyPos> {
 }
 
 #[derive(Debug, Clone)]
-pub struct TemplateNode<I: IT, V: VolumeQureyPos> {
+pub struct TemplateNode<I: IT, V: VolumeQureyPosValid> {
     pub identifier: I,
     pub index: TemplateIndex,
     pub value: NodeTemplateValue<V>,
@@ -58,7 +58,7 @@ pub enum TemplateAmmountType{
     Value,
 }
 
-impl<I: IT, V: VolumeQureyPos> TemplateTree<I, V> {
+impl<I: IT, V: VolumeQureyPosValid> TemplateTree<I, V> {
     pub fn new_from_builder(builder: &ModelSynthesisBuilder<I, V>) -> TemplateTree<I, V> {
         let mut nodes = vec![TemplateNode { 
             identifier: I::default(),
@@ -182,7 +182,7 @@ impl<I: IT, V: VolumeQureyPos> TemplateTree<I, V> {
     }
 }
 
-impl<V: VolumeQureyPos> NodeTemplateValue<V> {
+impl<V: VolumeQureyPosValid> NodeTemplateValue<V> {
     pub fn new_group() -> NodeTemplateValue<V> {
         NodeTemplateValue::Groupe {}
     }

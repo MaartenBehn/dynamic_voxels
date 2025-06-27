@@ -3,12 +3,12 @@ use std::iter;
 use octa_force::{anyhow::{anyhow, bail}, glam::Vec3, log::debug, OctaResult};
 use slotmap::Key;
 
-use crate::volume::VolumeQureyPos;
+use crate::volume::VolumeQureyPosValid;
 
 use super::{builder::{BU, IT}, collapse::{CollapseNode, CollapseNodeKey, Collapser, GridData, NodeDataType, NodeOperationType, NumberData, PosData, PosSetData}, pending_operations::NodeOperation, pos_set::PositionSet, relative_path::LeafType, template::{NodeTemplateValue, TemplateAmmountType, TemplateIndex, TemplateNode}};
 
 
-impl<'a, I: IT, U: BU, V: VolumeQureyPos> Collapser<'a, I, U, V> {
+impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> {
 
     pub fn update_defined(&mut self, node_index: CollapseNodeKey, to_create_template_index: TemplateIndex) -> OctaResult<()> {
         let node = &self.nodes[node_index];

@@ -1,13 +1,13 @@
 use octa_force::{anyhow::{self, ensure, anyhow}, log::info, OctaResult};
 use slotmap::Key;
 
-use crate::{model_synthesis::{collapse::{CollapseOperation, NodeOperationType}, pending_operations::NodeOperation}, volume::VolumeQureyPos};
+use crate::{model_synthesis::{collapse::{CollapseOperation, NodeOperationType}, pending_operations::NodeOperation}, volume::VolumeQureyPosValid};
 
 use super::{builder::{BU, IT}, collapse::{CollapseNodeKey, Collapser}};
 
 
 
-impl<'a, I: IT, U: BU, V: VolumeQureyPos> Collapser<'a, I, U, V> {
+impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> {
 
     pub fn reset_node(&mut self, node_index: CollapseNodeKey) -> OctaResult<()> {
         let node = self.get_node_ref_from_node_index(node_index)?;

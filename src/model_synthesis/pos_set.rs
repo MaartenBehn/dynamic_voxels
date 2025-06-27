@@ -1,6 +1,6 @@
 use octa_force::glam::{Mat4, Vec3};
 
-use crate::{aabb::AABB, volume::VolumeQureyPos};
+use crate::{aabb::AABB, volume::VolumeQureyPosValid};
 
 #[derive(Debug, Clone)]
 pub enum PositionSetRule {
@@ -9,12 +9,12 @@ pub enum PositionSetRule {
 }
 
 #[derive(Debug, Clone)]
-pub struct PositionSet<V: VolumeQureyPos> {
+pub struct PositionSet<V: VolumeQureyPosValid> {
     volume: V,
     rule: PositionSetRule, 
 }
 
-impl<V: VolumeQureyPos> PositionSet<V> {
+impl<V: VolumeQureyPosValid> PositionSet<V> {
     pub fn new(volume: V, rule: PositionSetRule) -> Self {
         Self { volume, rule }
     }
@@ -27,7 +27,7 @@ impl<V: VolumeQureyPos> PositionSet<V> {
     }
 }
 
-impl<V: VolumeQureyPos> Default for PositionSet<V> {
+impl<V: VolumeQureyPosValid> Default for PositionSet<V> {
     fn default() -> Self {
         Self { volume: Default::default(), rule: PositionSetRule::Grid { spacing: f32::MAX } }
     }

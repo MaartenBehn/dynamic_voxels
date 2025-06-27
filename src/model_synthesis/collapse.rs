@@ -6,14 +6,14 @@ use octa_force::{anyhow::{anyhow, bail, ensure}, glam::{vec3, IVec3, Vec3}, log:
 use slotmap::{new_key_type, Key, SlotMap};
 
 
-use crate::{model_synthesis::pending_operations::NodeOperation, vec_csg_tree::tree::VecCSGTree, volume::VolumeQureyPos};
+use crate::{model_synthesis::pending_operations::NodeOperation, vec_csg_tree::tree::VecCSGTree, volume::VolumeQureyPosValid};
 
 use super::{builder::{BuilderNode, ModelSynthesisBuilder, BU, IT}, pending_operations::PendingOperations, pos_set::PositionSet, relative_path::{LeafType, RelativePathTree}, template::{NodeTemplateValue, TemplateAmmountType, TemplateIndex, TemplateNode, TemplateTree}};
 
 new_key_type! { pub struct CollapseNodeKey; }
 
 #[derive(Debug, Clone)]
-pub struct Collapser<'a, I: IT, U: BU, V: VolumeQureyPos> {
+pub struct Collapser<'a, I: IT, U: BU, V: VolumeQureyPosValid> {
     pub template: &'a TemplateTree<I, V>,
     pub nodes: SlotMap<CollapseNodeKey, CollapseNode<I, U, V>>,
     pub pending_operations: PendingOperations,
@@ -27,7 +27,7 @@ pub enum NodeOperationType {
 }
 
 #[derive(Debug, Clone)]
-pub struct CollapseNode<I: IT, U: BU, V: VolumeQureyPos> {
+pub struct CollapseNode<I: IT, U: BU, V: VolumeQureyPosValid> {
     pub template_index: usize,
     pub identfier: I,
     pub level: usize,
@@ -41,7 +41,7 @@ pub struct CollapseNode<I: IT, U: BU, V: VolumeQureyPos> {
 }
 
 #[derive(Debug, Clone)]
-pub enum NodeDataType<V: VolumeQureyPos> {
+pub enum NodeDataType<V: VolumeQureyPosValid> {
     Number(NumberData),
     PosSet(PosSetData<V>),
     Pos(PosData),
@@ -56,7 +56,7 @@ pub struct NumberData {
 }
 
 #[derive(Debug, Clone)]
-pub struct PosSetData<V: VolumeQureyPos> {
+pub struct PosSetData<V: VolumeQureyPosValid> {
     pub set: PositionSet<V>
 }
 
@@ -92,7 +92,7 @@ pub enum CollapseOperation<I, U> {
     }
 }
 
-impl<'a, I: IT, U: BU, V: VolumeQureyPos> Collapser<'a, I, U, V> {
+impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> {
     pub fn next(&mut self) -> OctaResult<Option<(CollapseOperation<I, U>, &mut Collapser<'a, I, U, V>)>> {
 
         if let Some(collapse_opperation) = self.pending_collapse_opperations.pop() {
@@ -251,7 +251,7 @@ impl<'a, I: IT, U: BU, V: VolumeQureyPos> Collapser<'a, I, U, V> {
 }
 
 
-impl<V: VolumeQureyPos> NodeDataType<V> {
+impl<V: VolumeQureyPosValid> NodeDataType<V> {
     pub fn get_number_mut(&mut self) -> &mut NumberData {
         match self {
             NodeDataType::Number(d) => d,
@@ -276,7 +276,7 @@ impl<V: VolumeQureyPos> NodeDataType<V> {
 
 
 
-impl<I: IT, V: VolumeQureyPos> TemplateTree<I, V> {
+impl<I: IT, V: VolumeQureyPosValid> TemplateTree<I, V> {
     pub fn get_collaper<U: BU>(&self) -> Collapser<I, U, V> {
         let inital_capacity = 1000;
 

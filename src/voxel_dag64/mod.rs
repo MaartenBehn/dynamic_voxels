@@ -1,6 +1,7 @@
 // based on https://github.com/expenses/tree64 
 
 pub mod node;
+pub mod from_voxel_gird;
 
 use node::VoxelDAG64Node;
 

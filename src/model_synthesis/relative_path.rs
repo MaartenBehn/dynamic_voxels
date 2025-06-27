@@ -1,7 +1,7 @@
 
 use std::{collections::VecDeque, usize};
 
-use crate::volume::{VolumeQureyPos};
+use crate::volume::{VolumeQureyPosValid};
 
 use super::{builder::{BuilderNode, ModelSynthesisBuilder, NodeBuilder, BU, IT}, template::{TemplateIndex, TemplateNode, TemplateTree}};
 
@@ -28,7 +28,7 @@ pub enum LeafType {
 }
 
 impl RelativePathTree {
-    pub fn get_paths_to_other_dependcies_from_parent<I: IT, V: VolumeQureyPos>(
+    pub fn get_paths_to_other_dependcies_from_parent<I: IT, V: VolumeQureyPosValid>(
         tree: &TemplateTree<I, V>, 
         parent_index: TemplateIndex, 
         dependencies: &[TemplateIndex], 
@@ -135,7 +135,7 @@ impl RelativePathTree {
         path_tree
     }
 
-    fn copy_path<I: IT, V: VolumeQureyPos>(
+    fn copy_path<I: IT, V: VolumeQureyPosValid>(
         &mut self, 
         node: &TemplateNode<I, V>, 
         path: &Vec<RelativePathStep>, 

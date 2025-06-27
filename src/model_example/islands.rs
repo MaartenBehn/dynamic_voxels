@@ -1,7 +1,7 @@
 
 use octa_force::{glam::{vec3, Mat4, Quat, Vec3}, log::{error, info}, OctaResult};
 
-use crate::{fast_pos_query_csg_tree::tree::FastPosQueryCSGTree, model_synthesis::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder, IT}, collapse::{CollapseOperation, Collapser}, collapser_data::CollapserData, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree}, slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey}, state_saver::State, vec_csg_tree::tree::{VecCSGNode, VecCSGTree, VOXEL_SIZE}, volume::VolumeQureyPos};
+use crate::{fast_pos_query_csg_tree::tree::FastPosQueryCSGTree, model_synthesis::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder, IT}, collapse::{CollapseOperation, Collapser}, collapser_data::CollapserData, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree}, slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey}, state_saver::State, vec_csg_tree::tree::{VecCSGNode, VecCSGTree, VOXEL_SIZE}, volume::VolumeQureyPosValid};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Identifier {
@@ -92,7 +92,7 @@ impl IslandsState {
         Ok(())
     }
 
-    pub fn handle_hook<V: VolumeQureyPos>(
+    pub fn handle_hook<V: VolumeQureyPosValid>(
         collapser: &mut Collapser<Identifier, SlotMapCSGTreeKey, V>,
         hook: CollapseOperation<Identifier, SlotMapCSGTreeKey>, 
     ) {

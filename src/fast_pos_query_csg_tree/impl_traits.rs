@@ -1,8 +1,8 @@
-use crate::volume::VolumeQureyPos;
+use crate::volume::VolumeQureyPosValid;
 
 use super::tree::FastPosQueryCSGTree;
 
-impl VolumeQureyPos for FastPosQueryCSGTree {
+impl VolumeQureyPosValid for FastPosQueryCSGTree {
     fn is_position_valid_vec3(&self, pos: octa_force::glam::Vec3) -> bool {
         self.at_pos_internal(pos, 0)
     }

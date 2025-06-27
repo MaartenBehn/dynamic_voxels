@@ -2,12 +2,12 @@ use octa_force::{anyhow::anyhow, glam::Vec3, OctaResult};
 use slotmap::SlotMap;
 use octa_force::log::info;
 
-use crate::volume::VolumeQureyPos;
+use crate::volume::VolumeQureyPosValid;
 
 use super::{builder::{BU, IT}, collapse::{CollapseNodeKey, Collapser, CollapseNode, NodeDataType}, template::{TemplateNode, TemplateTree}};
 
 
-impl<'a, I: IT, U: BU, V: VolumeQureyPos> Collapser<'a, I, U, V> { 
+impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> { 
     pub fn has_index(&self, node_index: CollapseNodeKey) -> bool {
         self.nodes.contains_key(node_index)
     }

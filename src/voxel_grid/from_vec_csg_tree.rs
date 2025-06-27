@@ -1,6 +1,6 @@
 use octa_force::{anyhow::bail, glam::uvec3, OctaResult};
 
-use crate::{csg_renderer::color_controller::{MATERIAL_BASE, MATERIAL_NONE}, util::to_1d, vec_csg_tree::tree::VecCSGTree, volume::{ VolumeQureyPos}};
+use crate::{csg_renderer::color_controller::{MATERIAL_BASE, MATERIAL_NONE}, util::to_1d, vec_csg_tree::tree::VecCSGTree, volume::{ VolumeQureyPosValid}};
 
 use super::VoxelGrid;
 

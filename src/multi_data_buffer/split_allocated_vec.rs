@@ -127,7 +127,7 @@ impl<T: Copy + Default> AllocatedVec<T> for SplitAllocatedVec<T> {
             alloc.optimize_changed_ranges();
 
             for (start, end) in alloc.changed_ranges.iter() {
-                buffer.copy_data_to_buffer_without_aligment(&alloc.data[*start..*end], alloc.allocation.start + start + alloc.padding)?;
+                buffer.copy_data_to_buffer_without_aligment(&alloc.data[*start..*end], alloc.allocation.start + start + alloc.padding);
             }
         }
 

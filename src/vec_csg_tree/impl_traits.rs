@@ -1,6 +1,6 @@
 use octa_force::glam::{IVec3, Vec3};
 
-use crate::{aabb::AABB, volume::{VolumeGradient, VolumeQureyPos, VolumeRandomPos}};
+use crate::{aabb::AABB, volume::{VolumeGradient, VolumeQureyPosValid, VolumeRandomPos}};
 
 use super::tree::{VecCSGTree, AABB_PADDING};
 
@@ -16,7 +16,7 @@ impl VolumeGradient for VecCSGTree {
     }
 }
 
-impl VolumeQureyPos for VecCSGTree {
+impl VolumeQureyPosValid for VecCSGTree {
     fn is_position_valid_vec3(&self, pos: Vec3) -> bool {
         self.at_pos(pos)
     }
