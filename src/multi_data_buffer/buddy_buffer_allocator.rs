@@ -1,11 +1,26 @@
 use octa_force::anyhow::bail;
-use octa_force::log::{debug, trace};
+use octa_force::egui::mutex::Mutex;
+use octa_force::log::{debug, error, trace};
 use octa_force::OctaResult;
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::iter;
+use std::sync::Arc;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct BuddyBufferAllocator {
+    inner: Arc<Mutex<BuddyAllocator>>,
+}
+
+#[derive(Clone)]
+pub struct BuddyAllocation {
+    inner: Arc<Mutex<BuddyAllocator>>,
+    pub start: usize,
+    pub size: usize,
+} 
+
+#[derive(Debug)]
+struct BuddyAllocator {
     free_list: Vec<Vec<(usize, usize)>>,
     mp: HashMap<usize, usize>,
     pub size: usize,
@@ -14,6 +29,33 @@ pub struct BuddyBufferAllocator {
 
 impl BuddyBufferAllocator {
     pub fn new(size: usize, min_size: usize) -> Self {
+        Self {
+            inner: Arc::new(Mutex::new(BuddyAllocator::new(size, min_size))),
+        }
+    }
+
+    pub fn alloc(&mut self, size: usize) -> OctaResult<BuddyAllocation> {
+        let (start, size) = self.inner.lock().alloc(size)?;
+
+        Ok(BuddyAllocation {
+            inner: self.inner.to_owned(),
+            start,
+            size,
+        })
+    }
+}
+
+impl Drop for BuddyAllocation {
+    fn drop(&mut self) {
+        let res = self.inner.lock().dealloc(self.start);
+        if let Err(e) = res {
+            error!("Buddy Allocation Drop failed with: {e}")
+        }
+    }
+}
+
+impl BuddyAllocator {
+    fn new(size: usize, min_size: usize) -> Self {
         let n = calc_n(size);        
         let min_n = calc_n(min_size);
 
@@ -22,7 +64,7 @@ impl BuddyBufferAllocator {
             .chain([vec![(0, size - 1)]].into_iter())
             .collect();
 
-        BuddyBufferAllocator {
+        BuddyAllocator {
             free_list,
             mp: Default::default(),
             size,
@@ -30,7 +72,7 @@ impl BuddyBufferAllocator {
         }
     }
 
-    pub fn clear(&mut self) {
+    fn clear(&mut self) {
         self.free_list.iter_mut().for_each(|l| l.clear()); 
         self.free_list.last_mut().unwrap().push((0, self.size - 1));
         self.mp.clear();
@@ -39,7 +81,7 @@ impl BuddyBufferAllocator {
     // From https://www.geeksforgeeks.org/buddy-memory-allocation-program-set-1-allocation/
     /// In: size in byte
     /// Out: start index and size of allocation
-    pub fn alloc(&mut self, size: usize) -> OctaResult<(usize, usize)> {
+    fn alloc(&mut self, size: usize) -> OctaResult<(usize, usize)> {
         // Calculate index in free list
         // to search for block if available
         let n = calc_n(size).max(self.min_n) - self.min_n;
@@ -88,7 +130,7 @@ impl BuddyBufferAllocator {
 
     // From https://www.geeksforgeeks.org/buddy-memory-allocation-program-set-2-deallocation/?ref=ml_lbp
     /// In: start index of allocation
-    pub fn dealloc(&mut self, start: usize) -> OctaResult<()> {
+    fn dealloc(&mut self, start: usize) -> OctaResult<()> {
         // If no such starting address available
         let size = self.mp.remove(&start);
         if size.is_none() {
@@ -148,17 +190,34 @@ impl BuddyBufferAllocator {
     }
 }
 
-pub fn calc_n(size: usize) -> usize {
+fn calc_n(size: usize) -> usize {
     f32::ceil(f32::ln(size as f32) / f32::ln(2.0)) as usize
 }
 
-mod test {
-    use crate::multi_data_buffer::buddy_controller::BuddyBufferAllocator;
+impl Debug for BuddyBufferAllocator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BuddyBufferAllocator")
+            .field("inner", &self.inner.lock())
+            .finish()
+    }
+}
 
+impl Debug for BuddyAllocation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BuddyAllocation")
+            .field("inner", &self.inner.lock())
+            .field("start", &self.start)
+            .field("size", &self.size)
+            .finish()
+    }
+}
+
+mod test {
+    use crate::multi_data_buffer::buddy_buffer_allocator::BuddyAllocator;
 
     #[test]
     fn test_alloc() {
-        let mut buddy = BuddyBufferAllocator::new(128, 0);
+        let mut buddy = BuddyAllocator::new(128, 0);
         buddy.alloc(32).unwrap();
         buddy.alloc(7).unwrap();
         buddy.alloc(64).unwrap();
@@ -167,7 +226,7 @@ mod test {
 
     #[test]
     fn test_dealloc() {
-        let mut buddy = BuddyBufferAllocator::new(128, 0);
+        let mut buddy = BuddyAllocator::new(128, 0);
         buddy.alloc(16).unwrap();
         buddy.alloc(16).unwrap();
         buddy.alloc(16).unwrap();

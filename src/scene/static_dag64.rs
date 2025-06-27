@@ -2,7 +2,7 @@
 use octa_force::{glam::{vec3, vec4, Mat4, Quat, Vec3, Vec4, Vec4Swizzles}, log::debug, vulkan::Buffer, OctaResult};
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{multi_data_buffer::buddy_controller::BuddyBufferAllocator, static_voxel_dag64::StaticVoxelDAG64};
+use crate::{multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, static_voxel_dag64::StaticVoxelDAG64};
 
 new_key_type! { pub struct Tree64Key; }
 
@@ -11,7 +11,7 @@ pub struct StaticDAG64SceneObject {
     pub mat: Mat4,
     pub tree: StaticVoxelDAG64,
     pub bvh_index: usize,
-    pub alloc_start: usize,
+    pub allocation: Option<BuddyAllocation>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -34,7 +34,7 @@ impl StaticDAG64SceneObject {
             mat,
             tree,
             bvh_index: 0,
-            alloc_start: 0,
+            allocation: None,
         }
     }
 
@@ -42,12 +42,11 @@ impl StaticDAG64SceneObject {
         let size = size_of::<StaticDAG64SceneObjectData>() + self.tree.get_nodes_size() + self.tree.get_nodes_data_size();
         debug!("Tree64 Obvject Size: {size}");
 
-        let (start, _) = allocator.alloc(size)?;
-        self.alloc_start = start;
+        self.allocation = Some(allocator.alloc(size)?);
 
-        let nodes_start = self.alloc_start + size_of::<StaticDAG64SceneObjectData>();
+        let nodes_start = self.get_allocation().start + size_of::<StaticDAG64SceneObjectData>();
         let data_offset = size_of::<StaticDAG64SceneObjectData>() + self.tree.get_nodes_size(); 
-        let data_start = self.alloc_start + data_offset; 
+        let data_start = self.get_allocation().start + data_offset; 
 
         let mat = Mat4::from_scale_rotation_translation(
             Vec3::ONE / self.tree.get_size(), 
@@ -67,7 +66,7 @@ impl StaticDAG64SceneObject {
             inv_mat: mat.inverse().transpose(),
         };
 
-        buffer.copy_data_to_buffer_without_aligment(&[data], self.alloc_start)?;
+        buffer.copy_data_to_buffer_without_aligment(&[data], self.get_allocation().start)?;
         buffer.copy_data_to_buffer_without_aligment(&self.tree.get_nodes(), nodes_start)?;
         buffer.copy_data_to_buffer_without_aligment(&self.tree.get_data(), data_start)?;
 
@@ -75,3 +74,12 @@ impl StaticDAG64SceneObject {
     }
 }
 
+impl StaticDAG64SceneObject {
+    pub fn get_mut_allocation(&mut self) -> &mut BuddyAllocation {
+        self.allocation.as_mut().unwrap()
+    }
+
+    pub fn get_allocation(&self) -> &BuddyAllocation {
+        self.allocation.as_ref().unwrap()
+    }
+}

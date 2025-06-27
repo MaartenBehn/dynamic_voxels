@@ -5,7 +5,7 @@ use bvh::{aabb::{Aabb, Bounded}, bounding_hierarchy::{BHShape, BoundingHierarchy
 use octa_force::{glam::{vec3, Mat4, Vec3}, log::{debug, info}, vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
 use slotmap::{new_key_type, SlotMap};
 use static_dag64::StaticDAG64SceneObject;
-use crate::{aabb::AABB, multi_data_buffer::buddy_controller::BuddyBufferAllocator, static_voxel_dag64::StaticVoxelDAG64};
+use crate::{aabb::AABB, multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, static_voxel_dag64::StaticVoxelDAG64};
 
 new_key_type! { pub struct SceneObjectKey; }
 
@@ -15,7 +15,7 @@ pub struct Scene {
     pub allocator: BuddyBufferAllocator,
     pub objects: Vec<SceneObject>,
     pub bvh: Bvh<f32, 3>,
-    pub bvh_allocation_start: usize,
+    pub bvh_allocation: BuddyAllocation,
     pub bvh_len: usize,
 }
 
@@ -48,39 +48,25 @@ impl Scene {
         info!("Scene Buffer size: {:.04} MB", buffer_size as f32 * 0.000001);
         debug!("Scene Buffer size: {} byte", buffer_size);
 
-        let buffer = context.create_buffer(
+        let mut buffer = context.create_buffer(
             vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS_KHR,
             MemoryLocation::CpuToGpu,
             buffer_size as _,
         )?;
 
-        let allocator = BuddyBufferAllocator::new(buffer_size, 32);
+        let mut allocator = BuddyBufferAllocator::new(buffer_size, 32);
 
         let bvh = Bvh::build_par(&mut objects);
-        dbg!(&bvh);
 
-        Ok(Scene {
-            buffer,
-            allocator,
-            bvh,
-            objects,
-            bvh_allocation_start: 0,
-            bvh_len: 0,
-        })
-    }
-
-    pub fn init_buffer(&mut self) -> OctaResult<()> {
-        self.allocator.clear();
-
-        for object in self.objects.iter_mut() {
-            object.push_to_buffer(&mut self.allocator, &mut self.buffer)?;
+        for object in objects.iter_mut() {
+            object.push_to_buffer(&mut allocator, &mut buffer)?;
         }
 
-        let flat_bvh = self.bvh.flatten_custom(&|aabb, index, exit, shape| {
+        let flat_bvh = bvh.flatten_custom(&|aabb, index, exit, shape| {
             let leaf = shape != u32::MAX;
 
             if leaf {
-                let object = &self.objects[shape as usize];
+                let object = &objects[shape as usize];
                 let nr = object.get_nr();
                 let aabb = object.get_aabb();
                 
@@ -106,19 +92,30 @@ impl Scene {
         let flat_bvh_size =  flat_bvh.len() * size_of::<SceneObjectData>();
         debug!("Flat BVH Size: {flat_bvh_size}");
 
-        let (start,  _) = self.allocator.alloc(flat_bvh_size)?;
-        self.bvh_allocation_start = start;
-        self.bvh_len = flat_bvh.len();
+        let bvh_allocation = allocator.alloc(flat_bvh_size)?;
+        let bvh_len = flat_bvh.len();
         
-        self.buffer.copy_data_to_buffer_without_aligment(&flat_bvh, self.bvh_allocation_start)?;
+        buffer.copy_data_to_buffer_without_aligment(&flat_bvh, bvh_allocation.start)?;
 
+        Ok(Scene {
+            buffer,
+            allocator,
+            objects,
+            bvh,
+            bvh_allocation,
+            bvh_len,
+        })
+    }
+
+    pub fn init_buffer(&mut self) -> OctaResult<()> {
+        
         Ok(())
     }
 
     pub fn get_data(&self) -> SceneData {
         SceneData { 
             start_ptr: self.buffer.get_device_address(), 
-            bvh_offset: self.bvh_allocation_start as _,
+            bvh_offset: self.bvh_allocation.start as _,
             bvh_len: self.bvh_len as _,
         }
     }
@@ -142,7 +139,7 @@ impl SceneObject {
 
     pub fn get_start(&self) -> usize {
         match self {
-            SceneObject::StaticDAG64(tree) => tree.alloc_start,
+            SceneObject::StaticDAG64(tree) => tree.get_allocation().start,
         }
     }
 

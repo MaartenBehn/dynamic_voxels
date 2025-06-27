@@ -1,7 +1,9 @@
 
 use std::{iter};
 
-use octa_force::{log::error, vulkan::Buffer, OctaResult};
+use free_ranges::{FreeRanges, Range};
+use nalgebra::Norm;
+use octa_force::{itertools::Itertools, log::error, vulkan::Buffer, OctaResult};
 
 use super::{allocated_vec::{AllocatedVec, AllocatedVecIndex}, buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}};
 
@@ -19,8 +21,8 @@ struct SplitAllocation<T> {
     start_index: usize,
     padding: usize,
     data: Vec<T>,
-    free_ranges: Vec<(usize, usize)>,
-    changed_ranges: Vec<(usize, usize)>,
+    free_ranges: FreeRanges,
+    changed_ranges: FreeRanges,
     needs_free_optimization: bool,
 }
 
