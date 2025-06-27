@@ -724,7 +724,6 @@ dependencies = [
  "fast_poisson",
  "fastrand",
  "feistel-permutation-rs",
- "free-ranges",
  "half",
  "kiddo",
  "nalgebra",

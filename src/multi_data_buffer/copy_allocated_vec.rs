@@ -35,6 +35,10 @@ impl<T: Copy> AllocatedVec<T> for CopyAllocatedVec<T> {
     fn flush(&mut self, buffer: &mut Buffer) -> OctaResult<()> {
         buffer.copy_data_to_buffer_without_aligment(&self.data, self.allocation.as_ref().unwrap().start)
     }
+
+    fn optimize(&mut self) {
+        
+    }
 }
 
 impl<T> Default for CopyAllocatedVec<T> {

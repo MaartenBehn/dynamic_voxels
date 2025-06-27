@@ -133,18 +133,10 @@ impl<T: Copy + Default> AllocatedVec<T> for SplitAllocatedVec<T> {
 
         Ok(())
     }
-}
 
-impl<T> SplitAllocatedVec<T> {
-    pub fn optimize_free_ranges(&mut self) {
+    fn optimize(&mut self) {
         for alloc in self.allocations.iter_mut() {
             alloc.optimize_free_ranges();            
-        }
-    }
-
-    pub fn optimize_changed_ranges(&mut self) {
-        for alloc in self.allocations.iter_mut() { 
-            alloc.optimize_changed_ranges();
         }
     }
 }
