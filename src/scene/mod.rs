@@ -136,7 +136,7 @@ impl SceneObject {
     pub fn get_nr(&self) -> u32 {
         match self {
             SceneObject::StaticDAG64(..) => 0,
-            SceneObject::DAG64(..) => 1,
+            SceneObject::DAG64(..) => 0,
         }
     }
 
@@ -157,12 +157,11 @@ impl SceneObject {
     pub fn get_aabb(&self) -> AABB {
         match self {
             SceneObject::StaticDAG64(dag) => {
-                AABB::from_centered_size(&dag.mat, dag.tree.get_size())
+                AABB::from_centered_size(&dag.mat, dag.dag.get_size())
             },
             SceneObject::DAG64(dag) => {
                 AABB::from_centered_size(&dag.mat, dag.dag.get_size())
             },
-
         }
     }
 }

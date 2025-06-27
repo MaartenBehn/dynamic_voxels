@@ -20,11 +20,11 @@ pub struct DAG64SceneObjectData {
     pub x_axis: Vec3,
     pub root_index: u32,
     pub y_axis: Vec3,
-    fill_0: u32,
+    pub node_start: u32,
     pub z_axis: Vec3,
-    fill_1: u32,
+    pub data_start: u32,
     pub w_axis: Vec3,
-    fill_2: u32,
+    pub fill: u32,
     pub inv_mat: Mat4
 }
 
@@ -54,11 +54,13 @@ impl DAG64SceneObject {
             y_axis: mat.y_axis.xyz(),
             z_axis: mat.z_axis.xyz(),
             w_axis: mat.w_axis.xyz(),
-            root_index: self.dag.root_index as _,
-            fill_0: 0,
-            fill_1: 0,
-            fill_2: 0,
             inv_mat: mat.inverse().transpose(),
+            
+            root_index: self.dag.root_index as _,
+            node_start: 0,
+            data_start: 0,
+            
+            fill: 0,
         };
 
         buffer.copy_data_to_buffer_without_aligment(&[data], self.get_allocation().start);
