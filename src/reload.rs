@@ -31,6 +31,7 @@ use model_synthesis::collapser_data::CollapserData;
 use model_synthesis::template::TemplateTree;
 use octa_force::engine::Engine;
 use render_csg_tree::base::RenderCSGTree;
+use scene::dag64::DAG64SceneObject;
 use scene::renderer::SceneRenderer;
 use scene::static_dag64::StaticDAG64SceneObject;
 use scene::{Scene, SceneObject};
@@ -52,6 +53,7 @@ use octa_force::puffin_egui::puffin;
 use octa_force::vulkan::ash::vk::AttachmentLoadOp;
 use octa_force::vulkan::Fence;
 use octa_force::{log, OctaResult};
+use voxel_dag64::{from_voxel_gird, VoxelDAG64};
 use voxel_grid::VoxelGrid;
 use std::f32::consts::PI;
 use std::time::{Duration, Instant};
@@ -260,23 +262,20 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
     #[cfg(any(feature="tree64", feature="scene"))]
     let tree64: StaticVoxelDAG64 = (&grid).into();
+
+    #[cfg(feature="scene")]
+    let mut scene = Scene::new(&engine.context)?;
     
-    #[cfg(any(feature="tree64", feature="scene"))]
-    let tree64_2: StaticVoxelDAG64 = (&grid).into();
+    #[cfg(feature="scene")]
+    let tree64_2 = VoxelDAG64::from_pos_query(&grid, &mut scene.allocator)?;
     
     #[cfg(feature="tree64")]
     let tree_renderer = StaticDAG64Renderer::new(&engine.context, &engine.swapchain, tree64, &logic_state.camera)?;
 
     #[cfg(feature="scene")]
-    let mut scene = Scene::from_objects(&engine.context, vec![
-        /*SceneObject::Tree64(
-            Tree64SceneObject::new(
-                Mat4::from_euler(
-                    octa_force::glam::EulerRot::XZY, 0.0, 0.0, f32::to_radians(45.0)), tree64)
-        ),
-*/
+    scene.add_objects(vec![
         SceneObject::StaticDAG64(StaticDAG64SceneObject::new(Mat4::from_translation(vec3(0.0, 10.0, 0.0)), tree64)),
-        SceneObject::StaticDAG64(StaticDAG64SceneObject::new(Mat4::IDENTITY, tree64_2))
+        SceneObject::DAG64(DAG64SceneObject::new(Mat4::IDENTITY, tree64_2))
     ])?;
 
     #[cfg(feature="scene")]

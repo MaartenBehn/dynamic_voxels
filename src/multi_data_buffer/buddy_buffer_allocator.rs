@@ -120,9 +120,9 @@ impl BuddyAllocator {
 
         // map starting address with
         // size to make deallocating easy
-        let size = space.1 - space.0 + 1;
-        debug!("Memory from {} to {} of size {} allocated", space.0, space.1, size);
+        debug!("Memory from {} to {} for {} bytes allocated", space.0, space.1, size);
 
+        let size = space.1 - space.0 + 1;
         self.mp.insert(space.0, size);
 
         Ok((space.0, size))
@@ -141,7 +141,7 @@ impl BuddyAllocator {
         
         let space = (start, start + usize::pow(2, n as u32) - 1);
 
-        debug!("Memory block from {} to {} of size {} freed", space.0, space.1, size);
+        debug!("Memory block from {} to {} freed", space.0, space.1);
         
         self.free_list[n].push(space);
 
@@ -205,7 +205,7 @@ impl Debug for BuddyBufferAllocator {
 impl Debug for BuddyAllocation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BuddyAllocation")
-            .field("inner", &self.inner.lock())
+            .field("inner", &())
             .field("start", &self.start)
             .field("size", &self.size)
             .finish()

@@ -45,8 +45,7 @@ pub struct SceneObjectData {
 }
 
 impl Scene {
-    pub fn from_objects(context: &Context, mut objects: Vec<SceneObject>) -> OctaResult<Self> {
-        
+    pub fn new(context: &Context) -> OctaResult<Self> {
         let buffer_size = 2_usize.pow(20);
         info!("Scene Buffer size: {:.04} MB", buffer_size as f32 * 0.000001);
         debug!("Scene Buffer size: {} byte", buffer_size);
@@ -58,18 +57,36 @@ impl Scene {
         )?;
 
         let mut allocator = BuddyBufferAllocator::new(buffer_size, 32);
+        let bvh = Bvh::build::<SceneObject>(&mut []);
+        let bvh_allocation = allocator.alloc(1024)?;
 
-        let bvh = Bvh::build_par(&mut objects);
+        Ok(Scene {
+            buffer,
+            allocator,
+            objects: vec![],
+            bvh,
+            bvh_allocation,
+            bvh_len: 0,
+        })
 
+    }
+
+    pub fn add_objects(&mut self, mut objects: Vec<SceneObject>) -> OctaResult<()> {
+       
         for object in objects.iter_mut() {
-            object.push_to_buffer(&mut allocator, &mut buffer)?;
+            object.push_to_buffer(&mut self.allocator, &mut self.buffer)?;
         }
 
-        let flat_bvh = bvh.flatten_custom(&|aabb, index, exit, shape| {
+        self.objects.append(&mut objects);
+        drop(objects);
+
+        self.bvh = Bvh::build_par(&mut self.objects);
+        
+        let flat_bvh = self.bvh.flatten_custom(&|aabb, index, exit, shape| {
             let leaf = shape != u32::MAX;
 
             if leaf {
-                let object = &objects[shape as usize];
+                let object = &self.objects[shape as usize];
                 let nr = object.get_nr();
                 let aabb = object.get_aabb();
                 
@@ -90,31 +107,21 @@ impl Scene {
             } 
         });
 
-        dbg!(&flat_bvh);
-
+        self.bvh_len = flat_bvh.len();
         let flat_bvh_size =  flat_bvh.len() * size_of::<SceneObjectData>();
         debug!("Flat BVH Size: {flat_bvh_size}");
 
-        let bvh_allocation = allocator.alloc(flat_bvh_size)?;
-        let bvh_len = flat_bvh.len();
-        
-        buffer.copy_data_to_buffer_without_aligment(&flat_bvh, bvh_allocation.start);
+        if self.bvh_allocation.size < flat_bvh_size {
+            self.bvh_allocation = self.allocator.alloc(flat_bvh_size)?;
+        }
 
-        Ok(Scene {
-            buffer,
-            allocator,
-            objects,
-            bvh,
-            bvh_allocation,
-            bvh_len,
-        })
-    }
+        self.buffer.copy_data_to_buffer_without_aligment(&flat_bvh, self.bvh_allocation.start);
 
-    pub fn init_buffer(&mut self) -> OctaResult<()> {
-        
+        dbg!(&self);
+
         Ok(())
     }
-
+ 
     pub fn get_data(&self) -> SceneData {
         SceneData { 
             start_ptr: self.buffer.get_device_address(), 

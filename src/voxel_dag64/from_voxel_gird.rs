@@ -1,11 +1,11 @@
-use octa_force::{glam::UVec3, OctaResult};
+use octa_force::{glam::UVec3, log::debug, OctaResult};
 
-use crate::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, volume::VolumeQureyPosValue, voxel_grid::VoxelGrid};
+use crate::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, util::to_1d, volume::VolumeQureyPosValue, voxel_grid::VoxelGrid};
 
 use super::{node::VoxelDAG64Node, VoxelDAG64};
 
 impl VoxelDAG64 {
-    fn from_pos_query<M: VolumeQureyPosValue>(model: &M, allocator: &mut BuddyBufferAllocator) -> OctaResult<Self> {
+    pub fn from_pos_query<M: VolumeQureyPosValue>(model: &M, allocator: &mut BuddyBufferAllocator) -> OctaResult<Self> {
         let dims = model.get_size();
         let mut scale = dims[0].max(dims[1]).max(dims[2]).next_power_of_two();
         scale = scale.max(4);
@@ -22,7 +22,10 @@ impl VoxelDAG64 {
         };
 
         let root = this.insert_from_pos_query_recursive(model, UVec3::ZERO, levels, allocator)?;
-        this.root_index = this.nodes.push(&[root], allocator)? as _; 
+        this.root_index = this.nodes.push(&[root], allocator)? as _;
+
+        this.nodes.optimize();
+        this.data.optimize();
 
         Ok(this)
     }
@@ -45,7 +48,7 @@ impl VoxelDAG64 {
                     for x in 0..4 {
                         let pos = UVec3::new(x, y, z);
                         let index = offset + pos;
-                        let value = model.get_value(pos);
+                        let value = model.get_value(index);
 
                         if value != 0 {
                             vec.push(value);
@@ -55,6 +58,7 @@ impl VoxelDAG64 {
                 }
             }
 
+            debug!("Level: {node_level} offset: {offset} Leafs: {bitmask}");
             Ok(VoxelDAG64Node::new(true, self.data.push(&vec, allocator)? as u32, bitmask))
         } else {
             let new_scale = 4_u32.pow(node_level as u32 - 1);
@@ -78,6 +82,7 @@ impl VoxelDAG64 {
                 }
             }
 
+            debug!("Level: {node_level} offset: {offset} Nodes: {bitmask}");
             Ok(VoxelDAG64Node::new(false, self.nodes.push(&nodes, allocator)? as u32, bitmask))
         }
     }

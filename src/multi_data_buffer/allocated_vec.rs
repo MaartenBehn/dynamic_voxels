@@ -1,4 +1,5 @@
 
+use core::fmt;
 use std::{iter};
 
 use octa_force::{log::error, vulkan::Buffer, OctaResult};
@@ -23,34 +24,44 @@ struct Allocation<T> {
     needs_free_optimization: bool,
 }
 
-impl<T: Copy + Default> AllocatedVec<T> {
+impl<T: Copy + Default + fmt::Debug> AllocatedVec<T> {
     pub fn push(&mut self, mut values: &[T], allocator: &mut BuddyBufferAllocator) -> OctaResult<usize> {
 
         // Fill exsiting allocations
         for alloc in self.allocations.iter_mut() {
-            while let Some((start, end)) = alloc.free_ranges.pop() {
-                let len = end - start;
-                if values.len() >= len {
+            for (start, end) in alloc.free_ranges.iter_mut() {
+                let len = *end - *start;
+                if values.len() > len {
                     continue;
                 }
 
-                let new_start = start + values.len();
-                alloc.data[start..new_start].copy_from_slice(values);
-                alloc.free_ranges.push((new_start, end));
-                alloc.changed_ranges.push((start, new_start));
+                let new_start = *start + values.len();
+                alloc.data[*start..new_start].copy_from_slice(values);
 
-                return Ok(alloc.start_index + start);
+                alloc.changed_ranges.push((*start, new_start));
+                let res = alloc.start_index + *start; 
+
+                (*start) = new_start;
+                alloc.needs_free_optimization = true;
+
+                return Ok(res);
             }
         }
 
-        let allocation = allocator.alloc(self.minimum_allocation_size.max(values.len()))?;
+        let allocation = allocator.alloc(self.minimum_allocation_size.max(values.len() * size_of::<T>()))?;
 
         let capacity = allocation.size / size_of::<T>();
-        let padding = allocation.start % size_of::<T>();
-        let start_index = allocation.start / size_of::<T>() + (padding != 0) as usize; 
+
+        let mut padding = allocation.start % size_of::<T>();
+        let mut start_index = allocation.start / size_of::<T>();;
+        if padding != 0 {
+            padding = size_of::<T>() - padding;
+            start_index += 1;
+        }
+
         let mut data = Vec::with_capacity(capacity); 
         data.extend_from_slice(values);
-        data[(values.len()..)].fill(T::default());
+        data.resize(capacity, T::default());
 
         if values.len() < capacity {
             self.allocations.push(Allocation {
@@ -92,16 +103,15 @@ impl<T: Copy + Default> AllocatedVec<T> {
         error!("Allocated Index {index} not found!");
     }
 
-    pub fn flush(&mut self, buffer: &mut Buffer) -> OctaResult<()> {
+    pub fn flush(&mut self, buffer: &mut Buffer) {
         for alloc in self.allocations.iter_mut() {
             alloc.optimize_changed_ranges();
 
             for (start, end) in alloc.changed_ranges.iter() {
                 buffer.copy_data_to_buffer_without_aligment(&alloc.data[*start..*end], alloc.allocation.start + start + alloc.padding);
             }
+            alloc.changed_ranges.clear();
         }
-
-        Ok(())
     }
 
     pub fn optimize(&mut self) {
@@ -125,8 +135,15 @@ impl<T> Allocation<T> {
             if range.1 >= last_range.0 {
                 self.free_ranges.swap_remove(i+1);
                 self.free_ranges[i] = (range.0, last_range.1.max(range.0));
+            } else if last_range.0 == last_range.1 {
+                self.free_ranges.swap_remove(i+1);
             }
         }
+
+        if !self.free_ranges.is_empty() && self.free_ranges[0].0 == self.free_ranges[0].1 {
+            self.free_ranges.swap_remove(0);
+        }
+
         self.needs_free_optimization = false;
     }
 

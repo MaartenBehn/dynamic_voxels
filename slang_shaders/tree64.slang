@@ -16,13 +16,20 @@ public Tree64 tree_from_static_dag(uint8_t* data, uint nodes_offset, uint data_o
   this.LeafData = (uint8_t*)(data + data_offset);
   this.start_index = start_index;
 
-  //debug("node offset: %d", nodes_offset);
-  //debug("data offset: %d", data_offset);
-  //debug("start_index: %d", start_index);
-
   return this;
 }
 
+public Tree64 tree_from_dag(uint8_t* data, uint start_index) {
+  Tree64 this = Tree64();
+  this.TreeNodes = (Node*)data;
+  this.LeafData = data;
+  this.start_index = start_index;
+
+  debug("start index %d", this.start_index);
+  debug("Root Node Ptr %d Is leaf %d", this.TreeNodes[this.start_index].ChildPtr, this.TreeNodes[this.start_index].IsLeaf);
+
+  return this;
+}
 
 public struct Tree64 {
   Node* TreeNodes;

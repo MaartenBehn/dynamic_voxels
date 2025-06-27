@@ -29,8 +29,6 @@ impl SceneRenderer {
             camera, 
             include_bytes!("../../../slang_shaders/bin/_trace_scene.spv"))?;
 
-        scene.init_buffer()?;
-
         Ok(SceneRenderer {
             scene,
             voxel_renderer,
