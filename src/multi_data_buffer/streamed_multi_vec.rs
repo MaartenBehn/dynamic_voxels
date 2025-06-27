@@ -7,37 +7,23 @@ use super::{allocated_vec::{AllocatedVec, AllocatedVecIndex}, buddy_buffer_alloc
 
 
 #[derive(Debug)]
-pub struct CachedStreamedVec<T> {
-    allocations: Vec<CachedStreamedAllocation>,
-    full_allocations: Vec<CachedStreamedAllocation>,
+pub struct StreamedMultiVec<T> {
+    allocations: Vec<StreamedMultiAllocation>,
     pub minimum_allocation_size: usize,
     phantom: PhantomData<T>,
 }
 
 #[derive(Debug)]
-struct CachedStreamedAllocation {
+struct StreamedMultiAllocation {
     allocation: BuddyAllocation,
     start_index: usize,
     capacity: usize,
     padding: usize,
     free_ranges: Vec<(usize, usize)>,
     needs_free_optimization: bool,
-    cache: hashbrown::HashTable<CompactRange>,
 }
 
-#[derive(Debug, Clone, Copy, PartialOrd, Ord, Eq, PartialEq)]
-struct CompactRange {
-    start: u32,
-    length: u8,
-}
-
-impl CompactRange {
-    fn as_range(&self) -> std::ops::Range<usize> {
-        self.start as usize..self.start as usize + self.length as usize
-    }
-}
-
-impl<T: Copy + Default> AllocatedVec<T> for CachedStreamedVec<T> {
+impl<T: Copy + Default> AllocatedVec<T> for StreamedMultiVec<T> {
     fn push(&mut self, mut values: &[T], allocator: &mut BuddyBufferAllocator, buffer: &mut Buffer) -> OctaResult<Vec<AllocatedVecIndex>> {
         let mut res = Vec::with_capacity(values.len());
         let data = buffer.get_mapped_slice::<T>();
@@ -47,28 +33,22 @@ impl<T: Copy + Default> AllocatedVec<T> for CachedStreamedVec<T> {
             while let Some((start, end)) = alloc.free_ranges.pop() {
                 let len = end - start;
                 if values.len() >= len {
-                    let (a, b) = values.split_at(len);
-                    values = b;
-
-                    let range = (alloc.start_index + start)..(alloc.start_index + end); 
-                    data[range].copy_from_slice(a);
-                    res.extend(range);
-
-                } else {
-                    let new_start = start + values.len();
-                    
-                    let range = (alloc.start_index + start)..(alloc.start_index + new_start); 
-                    data[range].copy_from_slice(a);
-                    res.extend(range);
-
-                    alloc.free_ranges.push((new_start, end));
-
-                    self.allocations.push(alloc);
-                    return Ok(res);
+                   continue; 
                 }
+
+                let new_start = start + values.len();
+
+                let range = (alloc.start_index + start)..(alloc.start_index + new_start); 
+                data[range].copy_from_slice(a);
+                res.extend(range);
+
+                alloc.free_ranges.push((new_start, end));
+
+                self.allocations.push(alloc);
+                return Ok(res);
             }
 
-            self.full_allocations.push(alloc);
+            self.allocations.push(alloc);
         }
 
         if values.is_empty() {
@@ -87,24 +67,22 @@ impl<T: Copy + Default> AllocatedVec<T> for CachedStreamedVec<T> {
         res.extend(range);
 
         if values.len() < capacity {
-            self.allocations.push(CachedStreamedAllocation {
+            self.allocations.push(StreamedMultiAllocation {
                 allocation,
                 start_index,
                 capacity, 
                 padding,
                 free_ranges: vec![(values.len(), capacity)], 
                 needs_free_optimization: false,
-                cache: Default::default(),
             });
         } else {
-            self.full_allocations.push(CachedStreamedAllocation {
+            self.full_allocations.push(StreamedMultiAllocation {
                 allocation,
                 start_index,
                 capacity,
                 padding,
                 free_ranges: vec![],
                 needs_free_optimization: false,
-                cache: Default::default(),
             });
         }
 
@@ -150,7 +128,7 @@ impl<T: Copy + Default> AllocatedVec<T> for CachedStreamedVec<T> {
     }
 }
 
-impl CachedStreamedAllocation {
+impl StreamedMultiAllocation {
     pub fn optimize_free_ranges(&mut self) {
         if !self.needs_free_optimization {
             return;
@@ -170,7 +148,7 @@ impl CachedStreamedAllocation {
     } 
 }
 
-impl<T> Default for CachedStreamedVec<T> {
+impl<T> Default for StreamedMultiVec<T> {
     fn default() -> Self {
         Self { 
             allocations: vec![],
