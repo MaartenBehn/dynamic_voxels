@@ -11,7 +11,7 @@
   outputs = { self, nixpkgs, crane, fenix }@c:
     let  
       config = builtins.foldl' 
-        (c: a: c // (import a c) )         # extend config with configs from paths
+        (c: a: c // (import a c) )    # extend config with configs from paths
         (c // { lib = nixpkgs.lib; }) # inital config 
         [
           ./nix/targets_config.nix

@@ -56,7 +56,7 @@ impl StaticDAG64Renderer {
             context, 
             swapchain, 
             camera, 
-            include_bytes!("../../../slang_shaders/bin/_trace_tree64.spv"))?;
+            include_bytes!("../../../shaders/slang/bin/_trace_tree64.spv"))?;
 
         let voxel_tree64_buffer = tree.into_buffer(context)?;
         

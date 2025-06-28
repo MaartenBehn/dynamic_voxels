@@ -109,7 +109,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "shaders"
+name = "shaders_glsl"
 version = "0.1.0"
 dependencies = [
  "glsl_compiler",

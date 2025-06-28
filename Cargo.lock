@@ -730,7 +730,7 @@ dependencies = [
  "kiddo",
  "nalgebra",
  "octa-force",
- "shaders",
+ "shaders_glsl",
  "simple-easing",
  "slotmap",
  "tree64",
@@ -3172,7 +3172,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "shaders"
+name = "shaders_glsl"
 version = "0.1.0"
 dependencies = [
  "glsl_compiler",

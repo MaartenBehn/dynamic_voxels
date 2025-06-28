@@ -27,7 +27,7 @@ impl SceneRenderer {
             context, 
             swapchain, 
             camera, 
-            include_bytes!("../../../slang_shaders/bin/_trace_scene.spv"))?;
+            include_bytes!("../../../shaders/slang/bin/_trace_scene.spv"))?;
 
         Ok(SceneRenderer {
             scene,

@@ -26,7 +26,7 @@ profile_islands = []
 scene = []
 
 [dependencies]
-shaders = { path="./shaders/" }
+shaders_glsl = { path="./shaders/glsl" }
 
 octa-force = { path = "../octa-force-rs" }
 # octa-force = { version = "0.3.2", git = "https://github.com/MaartenBehn/octa-force-rs" }

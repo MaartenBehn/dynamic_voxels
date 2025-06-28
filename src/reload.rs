@@ -180,9 +180,9 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     
     let (shader_bin, profile_scopes): (&[u8], &[&str]) = 
         if USE_PROFILE && engine.context.shader_clock {
-            shaders::trace_ray_profile()
+            shaders_glsl::trace_ray_profile()
         } else {
-            shaders::trace_ray()
+            shaders_glsl::trace_ray()
         };
 
     let mut gui = Gui::new(
