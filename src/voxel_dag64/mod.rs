@@ -4,14 +4,14 @@ pub mod node;
 pub mod from_voxel_gird;
 
 use node::VoxelDAG64Node;
-use octa_force::glam::Vec3;
+use octa_force::{glam::Vec3, log::{debug, info}};
 
-use crate::multi_data_buffer::{allocated_vec::AllocatedVec};
+use crate::{multi_data_buffer::{allocated_vec::AllocatedVec, full_search_allocated_vec::FullSearchAllocatedVec, kmp_search_allocated_vec::KmpSearchAllocatedVec}, util::to_mb};
 
 #[derive(Debug)]
 pub struct VoxelDAG64 {
-    pub nodes: AllocatedVec<VoxelDAG64Node>,
-    pub data: AllocatedVec<u8>,
+    pub nodes: KmpSearchAllocatedVec<VoxelDAG64Node>,
+    pub data: KmpSearchAllocatedVec<u8>,
 
     pub levels: u8,
     pub root_index: u32,
@@ -25,5 +25,14 @@ impl VoxelDAG64 {
 
     pub fn get_size_u32(&self) -> u32 {
         4_u32.pow(self.levels as u32 - 1)
+    }
+
+    pub fn print_memory_info(&self) { 
+        info!("VoxelDAG64: nodes {} MB over {} blocks, data {} MB over {} blocks", 
+            to_mb(self.nodes.get_memory_size()),
+            self.nodes.get_num_allocations(),
+            to_mb(self.data.get_memory_size()),
+            self.data.get_num_allocations()
+        );
     }
 }

@@ -25,6 +25,13 @@ struct Allocation<T> {
 }
 
 impl<T: Copy + Default + fmt::Debug> AllocatedVec<T> {
+    pub fn new(minimum_allocation_size: usize) -> Self {
+        Self { 
+            allocations: vec![],
+            minimum_allocation_size,
+        }
+    } 
+
     pub fn push(&mut self, mut values: &[T], allocator: &mut BuddyBufferAllocator) -> OctaResult<usize> {
 
         // Fill exsiting allocations
@@ -118,6 +125,16 @@ impl<T: Copy + Default + fmt::Debug> AllocatedVec<T> {
         for alloc in self.allocations.iter_mut() {
             alloc.optimize_free_ranges();            
         }
+    }
+
+    pub fn get_memory_size(&self) -> usize {
+        self.allocations.iter()
+            .map(|alloc| alloc.allocation.size )
+            .sum()
+    }
+
+    pub fn get_num_allocations(&self) -> usize {
+        self.allocations.len()
     }
 }
 

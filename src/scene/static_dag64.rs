@@ -26,7 +26,6 @@ impl StaticDAG64SceneObject {
 
     pub fn push_to_buffer(&mut self, allocator: &mut BuddyBufferAllocator, buffer: &mut Buffer) -> OctaResult<()> {
         let size = size_of::<DAG64SceneObjectData>() + self.dag.get_nodes_size() + self.dag.get_nodes_data_size();
-        debug!("Tree64 Obvject Size: {size}");
 
         self.allocation = Some(allocator.alloc(size)?);
 
@@ -56,6 +55,8 @@ impl StaticDAG64SceneObject {
         buffer.copy_data_to_buffer_without_aligment(&[data], self.get_allocation().start);
         buffer.copy_data_to_buffer_without_aligment(&self.dag.get_nodes(), nodes_start);
         buffer.copy_data_to_buffer_without_aligment(&self.dag.get_data(), data_start);
+
+        self.dag.print_memory_info();
 
         Ok(())
     }

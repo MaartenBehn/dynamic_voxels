@@ -1,6 +1,6 @@
-use octa_force::glam::Vec3;
+use octa_force::{glam::Vec3, log::info};
 
-use crate::voxel_grid::VoxelGrid;
+use crate::{util::to_mb, voxel_grid::VoxelGrid};
 
 pub mod from_voxel_grid;
 pub mod renderer;
@@ -39,6 +39,13 @@ impl StaticVoxelDAG64 {
 
     pub fn get_nodes_data_size(&self) -> usize {
         self.tree.data.len() * size_of::<u8>()
+    }
+
+    pub fn print_memory_info(&self) { 
+        info!("StaticVoxelDAG64: nodes {} MB, data {} MB", 
+            to_mb(self.get_nodes_size()),
+            to_mb(self.get_nodes_data_size())
+        );
     }
 }
 

@@ -175,6 +175,9 @@ pub struct RenderState {
 
 #[unsafe(no_mangle)]
 pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> OctaResult<RenderState> {
+      let now = Instant::now();
+
+
     #[cfg(debug_assertions)]
     puffin::profile_function!();
     
@@ -252,7 +255,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
 
     #[cfg(any(feature="tree64", feature="scene"))]
-    let mut grid = VoxelGrid::new(UVec3::ONE * 4_u32.pow(2));
+    let mut grid = VoxelGrid::new(UVec3::ONE * 4_u32.pow(4));
      
     #[cfg(any(feature="tree64", feature="scene"))]
     grid.set_example_sphere();
@@ -274,12 +277,15 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
     #[cfg(feature="scene")]
     scene.add_objects(vec![
-        SceneObject::StaticDAG64(StaticDAG64SceneObject::new(Mat4::from_translation(vec3(0.0, 10.0, 0.0)), tree64)),
-        SceneObject::DAG64(DAG64SceneObject::new(Mat4::IDENTITY, tree64_2))
+        SceneObject::StaticDAG64(StaticDAG64SceneObject::new(Mat4::from_translation(vec3(0.0, 30.0, 0.0)), tree64)),
+        SceneObject::DAG64(DAG64SceneObject::new(Mat4::from_translation(vec3(-50.0, 30.0, 0.0)), tree64_2))
     ])?;
 
     #[cfg(feature="scene")]
     let scene_renderer = SceneRenderer::new(&engine.context, &engine.swapchain, scene, &logic_state.camera)?;
+
+    let elapsed = now.elapsed();
+    info!("Render State took {:.2?} to build.", elapsed);
 
     Ok(RenderState {
         gui,

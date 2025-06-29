@@ -67,6 +67,8 @@ impl DAG64SceneObject {
         self.dag.nodes.flush(buffer);
         self.dag.data.flush(buffer);
 
+        self.dag.print_memory_info();
+
         Ok(())
     }
 }

@@ -1,6 +1,6 @@
 use octa_force::{glam::UVec3, log::debug, OctaResult};
 
-use crate::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, util::to_1d, volume::VolumeQureyPosValue, voxel_grid::VoxelGrid};
+use crate::{multi_data_buffer::{buddy_buffer_allocator::BuddyBufferAllocator, full_search_allocated_vec::FullSearchAllocatedVec, kmp_search_allocated_vec::KmpSearchAllocatedVec}, util::to_1d, volume::VolumeQureyPosValue, voxel_grid::VoxelGrid};
 
 use super::{node::VoxelDAG64Node, VoxelDAG64};
 
@@ -15,8 +15,8 @@ impl VoxelDAG64 {
 
         let levels = scale.ilog(4) as _;
         let mut this = Self {
-            nodes: Default::default(),
-            data: Default::default(),
+            nodes: KmpSearchAllocatedVec::new(100 * size_of::<VoxelDAG64Node>()),
+            data: KmpSearchAllocatedVec::new(64),
             levels,
             root_index: 0,
         };
@@ -58,7 +58,6 @@ impl VoxelDAG64 {
                 }
             }
 
-            debug!("Level: {node_level} offset: {offset} Leafs: {bitmask}");
             Ok(VoxelDAG64Node::new(true, self.data.push(&vec, allocator)? as u32, bitmask))
         } else {
             let new_scale = 4_u32.pow(node_level as u32 - 1);
@@ -82,7 +81,6 @@ impl VoxelDAG64 {
                 }
             }
 
-            debug!("Level: {node_level} offset: {offset} Nodes: {bitmask}");
             Ok(VoxelDAG64Node::new(false, self.nodes.push(&nodes, allocator)? as u32, bitmask))
         }
     }

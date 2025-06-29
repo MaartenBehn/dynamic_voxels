@@ -56,4 +56,6 @@ nalgebra = "=0.33.2"
 
 ## For own DAG64 implementation
 arrayvec = "0.7.6"
-hashbrown = "0.15.2"
+
+rayon = "1.10.0"
+

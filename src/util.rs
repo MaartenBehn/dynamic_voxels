@@ -37,3 +37,11 @@ pub fn count_ones_variable(value: u64, index: u32) -> u32 {
 pub fn set_bit(mask: u64, index: u32, value: bool) -> u64 {
     (mask & !(1 << index)) | ((value as u64) << index)
 }
+
+pub fn to_mb(size: usize) -> f32 {
+    size as f32 * 0.000001
+}
+
+pub fn to_kb(size: usize) -> f32 {
+    size as f32 * 0.001
+}
