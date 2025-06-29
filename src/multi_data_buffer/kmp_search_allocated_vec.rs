@@ -52,32 +52,57 @@ impl<T: Copy + Default + fmt::Debug + Sync + Eq> KmpSearchAllocatedVec<T> {
             return Ok(alloc.start_index + start);
         }
 
-        // TODO find with best hits
-        let res = self.allocations.iter_mut()
-            .find_map(|alloc| {
+        let mut smallest_free_range = None;
 
+        // Find the best used range where a prefix fits
+        let res = self.allocations.iter_mut()
+            .enumerate()
+            .map(|(alloc_nr, alloc)| {
                 let (last_start, last_end) = alloc.used_ranges.last().unwrap();
 
                 alloc.used_ranges.iter()
                     .tuple_windows::<(_, _)>()
                     .enumerate()
                     .map(|(i, ((a_start, a_end), (b_start, _)))| (i, *a_start, *a_end, *b_start - *a_end))
+                    // Add the last used range with the space to the end
                     .chain(iter::once((alloc.used_ranges.len() -1, *last_start, *last_end, alloc.data.len() - *last_end)))
-                    .find_map(|(i, start, end, size)| {
+                    .map(|(i, start, end, size)| {
+                        
+                        if size >= values.len() {
+                            if let Some((_ , _, i, free_size)) = smallest_free_range {
+                                if free_size > size {
+                                    smallest_free_range = Some((alloc_nr, end, i, size));
+                                }
+                            } else {
+                                smallest_free_range = Some((alloc_nr, end, i, size));
+                            }
+                        } 
+                        
                         kmp_find_prefix_with_lsp_table(
                             values, 
                             &alloc.data[start..end], 
                             size, &kmp_lsp)
-                        .map(|(start, hits)| (start, i))
+                        .map_or((0, None), |(start, hits)| (hits, Some((start, i))))
                     })
-                    .map(|(start, i)| (alloc, start, i))
-            });
+                    .max_by(|a, b| a.0.cmp(&b.0))
+                    .map_or((0, None), |(hits, res)| 
+                        (hits, res.map(|(start, i)| (alloc, start, i))))
 
-        if let Some((alloc, start, used_range_index)) = res {
+            })
+            .max_by(|a, b| 
+                a.0.cmp(&b.0))
+            .map(|(hits, res)| {
+                if let Some((alloc, start, i)) = res { Some((hits, alloc, start, i)) } else { None }
+            })
+            .flatten();
+
+
+        if let Some((hits, alloc, start, used_range_index)) = res {
             let end = start + values.len();
             let (range_start, range_end) = &mut alloc.used_ranges[used_range_index];
 
             let wild_card_size = *range_end - start;
+
             alloc.data[*range_end..end].copy_from_slice(&values[wild_card_size..]);
             (*range_end) = end;
 
@@ -91,6 +116,25 @@ impl<T: Copy + Default + fmt::Debug + Sync + Eq> KmpSearchAllocatedVec<T> {
 
             return Ok(alloc.start_index + start);
         }
+
+        if let Some((alloc_nr, start, used_range_index,_)) = smallest_free_range {
+            let end = start + values.len();
+            let alloc = &mut self.allocations[alloc_nr];
+            let (range_start, range_end) = &mut alloc.used_ranges[used_range_index];
+
+            alloc.data[start..end].copy_from_slice(&values);
+            (*range_end) = end;
+
+            let next_used_range =  alloc.used_ranges.get_mut(used_range_index + 1);
+            if let Some((next_start, _)) = next_used_range {
+                if end >= *next_start {
+                    (*next_start) = start;
+                    alloc.used_ranges.remove(used_range_index);
+                }
+            }
+
+            return Ok(alloc.start_index + start);
+        } 
         
         let allocation = allocator.alloc(self.minimum_allocation_size.max(values.len() * size_of::<T>()))?;
 

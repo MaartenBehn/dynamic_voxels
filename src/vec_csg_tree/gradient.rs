@@ -51,7 +51,7 @@ pub fn get_gradient_of_uint_sphere(to_pos: Vec3) -> Vec3 {
     to_pos
 }
 
-/**
+/*
 *          |
 *  x---------------x
 *  |       |       |
@@ -67,7 +67,7 @@ pub fn get_gradient_of_uint_sphere(to_pos: Vec3) -> Vec3 {
 * From: https://github.com/MaartenBehn/distance3d/blob/master/distance3d/distance/_plane.py
 *    t = np.dot(plane_normal, point - plane_point)
 *    closest_point_plane = point - t * plane_normal
-**/
+*/
 pub fn get_gradient_of_unit_box(to_pos: Vec3) -> Vec3 {
     let normal = to_pos.signum();
 

@@ -15,7 +15,7 @@ impl VoxelDAG64 {
 
         let levels = scale.ilog(4) as _;
         let mut this = Self {
-            nodes: KmpSearchAllocatedVec::new(100 * size_of::<VoxelDAG64Node>()),
+            nodes: KmpSearchAllocatedVec::new(2000 * size_of::<VoxelDAG64Node>()),
             data: KmpSearchAllocatedVec::new(64),
             levels,
             root_index: 0,

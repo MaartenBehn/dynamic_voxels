@@ -8,3 +8,4 @@ strace.out
 /result
 perf.data
 perf.data.old
+/proptest-regressions

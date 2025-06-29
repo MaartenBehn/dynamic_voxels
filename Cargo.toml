@@ -17,6 +17,14 @@ name = "reload"
 path = "src/reload.rs"
 crate-type = ["rlib", "dylib"]
 
+[[bench]]
+name = "static_tree64_build"
+harness = false
+
+[[bench]]
+name = "tree64_build"
+harness = false
+
 [features]
 fence = []
 render_example = []
@@ -58,4 +66,9 @@ nalgebra = "=0.33.2"
 arrayvec = "0.7.6"
 
 rayon = "1.10.0"
+
+[dev-dependencies]
+proptest = "0.9.6"
+criterion = { version = "0.5", features = ["html_reports"] }
+
 

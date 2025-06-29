@@ -175,7 +175,6 @@ pub struct RenderState {
 
 #[unsafe(no_mangle)]
 pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> OctaResult<RenderState> {
-      let now = Instant::now();
 
 
     #[cfg(debug_assertions)]
@@ -268,13 +267,12 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
     #[cfg(feature="scene")]
     let mut scene = Scene::new(&engine.context)?;
-    
+   
+    let now = Instant::now();
+
     #[cfg(feature="scene")]
     let tree64_2 = VoxelDAG64::from_pos_query(&grid, &mut scene.allocator)?;
     
-    #[cfg(feature="tree64")]
-    let tree_renderer = StaticDAG64Renderer::new(&engine.context, &engine.swapchain, tree64, &logic_state.camera)?;
-
     #[cfg(feature="scene")]
     scene.add_objects(vec![
         SceneObject::StaticDAG64(StaticDAG64SceneObject::new(Mat4::from_translation(vec3(0.0, 30.0, 0.0)), tree64)),
@@ -285,7 +283,10 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     let scene_renderer = SceneRenderer::new(&engine.context, &engine.swapchain, scene, &logic_state.camera)?;
 
     let elapsed = now.elapsed();
-    info!("Render State took {:.2?} to build.", elapsed);
+    info!("Tree Build took {:.2?}", elapsed);
+
+    #[cfg(feature="tree64")]
+    let tree_renderer = StaticDAG64Renderer::new(&engine.context, &engine.swapchain, tree64, &logic_state.camera)?;
 
     Ok(RenderState {
         gui,
