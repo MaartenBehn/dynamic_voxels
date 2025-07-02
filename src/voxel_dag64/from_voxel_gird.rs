@@ -1,6 +1,6 @@
 use octa_force::{glam::UVec3, log::debug, OctaResult};
 
-use crate::{multi_data_buffer::{buddy_buffer_allocator::BuddyBufferAllocator, full_search_allocated_vec::FullSearchAllocatedVec, kmp_search_allocated_vec::KmpSearchAllocatedVec}, util::to_1d, volume::VolumeQureyPosValue, voxel_grid::VoxelGrid};
+use crate::{multi_data_buffer::{buddy_buffer_allocator::BuddyBufferAllocator, cache_allocated_vec::CacheAllocatedVec, full_search_allocated_vec::FullSearchAllocatedVec, kmp_search_allocated_vec::KmpSearchAllocatedVec}, util::to_1d, volume::VolumeQureyPosValue, voxel_grid::VoxelGrid};
 
 use super::{node::VoxelDAG64Node, VoxelDAG64};
 
@@ -15,8 +15,8 @@ impl VoxelDAG64 {
 
         let levels = scale.ilog(4) as _;
         let mut this = Self {
-            nodes: KmpSearchAllocatedVec::new(2000 * size_of::<VoxelDAG64Node>()),
-            data: KmpSearchAllocatedVec::new(64),
+            nodes: CacheAllocatedVec::new(2000 * size_of::<VoxelDAG64Node>()),
+            data: CacheAllocatedVec::new(64),
             levels,
             root_index: 0,
         };
@@ -83,5 +83,23 @@ impl VoxelDAG64 {
 
             Ok(VoxelDAG64Node::new(false, self.nodes.push(&nodes, allocator)? as u32, bitmask))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use octa_force::glam::UVec3;
+
+    use crate::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, voxel_dag64::VoxelDAG64, voxel_grid::VoxelGrid};
+
+    #[test]
+    pub fn test() {
+        let mut grid = VoxelGrid::new(UVec3::ONE * 4_u32.pow(4)); 
+        grid.set_example_sphere();
+        grid.set_corners();
+
+        let buffer_size = 2_usize.pow(30);
+        let mut allocator = BuddyBufferAllocator::new(buffer_size, 32);
+        let tree64: VoxelDAG64 = VoxelDAG64::from_pos_query(&grid, &mut allocator).unwrap();
     }
 }

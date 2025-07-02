@@ -1,7 +1,7 @@
 use crate::util::count_ones_variable;
 
 #[repr(C, packed)]
-#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct VoxelDAG64Node {
     pub is_leaf_and_ptr: u32,
     pub pop_mask: u64,
