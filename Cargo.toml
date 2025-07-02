@@ -64,8 +64,9 @@ nalgebra = "=0.33.2"
 
 ## For own DAG64 implementation
 arrayvec = "0.7.6"
-
 rayon = "1.10.0"
+hashbrown = "0.15.2"
+fnv = "1.0.7"
 
 [dev-dependencies]
 proptest = "0.9.6"
