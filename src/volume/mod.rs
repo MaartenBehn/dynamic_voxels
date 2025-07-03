@@ -29,3 +29,12 @@ pub trait VolumeQureyPosValue {
     fn get_size(&self) -> UVec3;
 }
 
+pub enum VolumeQureyAABBResult {
+    Full(u8),
+    Mixed,
+}
+
+pub trait VolumeQureyAABB {
+    fn get_aabb(&self, aabb: AABB) -> VolumeQureyAABBResult;
+    fn get_size(&self) -> UVec3;
+}

@@ -8,6 +8,7 @@ use octa_force::{itertools::Itertools, log::{debug, error}, vulkan::Buffer, Octa
 use super::{buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, kmp::{kmp_find, kmp_find_prefix_with_lsp_table, kmp_find_with_lsp_table, kmp_table}};
 
 const EXTRA_FULL_CHECK: bool = false;
+const KMP_PREFIX: bool = false;
 
 #[derive(Debug)]
 pub struct CacheAllocatedVec<T, Hasher = fnv::FnvBuildHasher> {
@@ -99,23 +100,39 @@ impl<T: Copy + Default + fmt::Debug + Sync + Eq + std::hash::Hash, Hasher: std::
                     .map(|(i, ((a_start, a_end), (b_start, _)))| (i, *a_start, *a_end, *b_start - *a_end))
                     // Add the last used range with the space to the end
                     .chain(iter::once((alloc.used_ranges.len() -1, *last_start, *last_end, alloc.data.len() - *last_end)))
-                    .map(|(i, start, end, size)| {
+                    .map(|(used_range_index, start, end, free_range_size)| {
                         
-                        if size >= values.len() {
-                            if let Some((_ , _, i, free_size)) = smallest_free_range {
-                                if free_size > size {
-                                    smallest_free_range = Some((alloc_nr, end, i, size));
+                        if free_range_size >= values.len() {
+                            if let Some((_ , _, _, free_size)) = smallest_free_range {
+                                if free_size > free_range_size {
+                                    smallest_free_range = Some((alloc_nr, end, used_range_index, free_range_size));
                                 }
                             } else {
-                                smallest_free_range = Some((alloc_nr, end, i, size));
+                                smallest_free_range = Some((alloc_nr, end, used_range_index, free_range_size));
                             }
                         } 
-                        
-                        kmp_find_prefix_with_lsp_table(
-                            values, 
-                            &alloc.data[start..end], 
-                            size, &kmp_lsp, !EXTRA_FULL_CHECK)
-                        .map_or((0, None), |(start, hits)| (hits, Some((start, i))))
+
+                        if KMP_PREFIX {
+                            kmp_find_prefix_with_lsp_table(
+                                values, 
+                                &alloc.data[start..end], 
+                                free_range_size, &kmp_lsp, !EXTRA_FULL_CHECK)
+                                .map_or((0, None), |(start, hits)| (hits, Some((start, used_range_index))))
+                        } else {
+
+                            let min = values.len().saturating_sub(free_range_size).max(1);
+                            let mut res = (0, None);
+                            for i in (min..=values.len()).rev() {
+                                let slice_to_match = &values[..i];
+
+                                if alloc.data[start..end].ends_with(slice_to_match) {
+                                    res = (i, Some((end - i, used_range_index)));
+                                    break;
+                                }
+                            }
+                            res
+                        }
+
                     })
                     .max_by(|a, b| a.0.cmp(&b.0))
                     .map_or((0, None), |(hits, res)| 
@@ -129,14 +146,11 @@ impl<T: Copy + Default + fmt::Debug + Sync + Eq + std::hash::Hash, Hasher: std::
             })
             .flatten();
 
-
         if let Some((hits, alloc, start, used_range_index)) = res {
             let end = start + values.len();
             let (range_start, range_end) = &mut alloc.used_ranges[used_range_index];
 
-            let wild_card_size = *range_end - start;
-
-            alloc.data[*range_end..end].copy_from_slice(&values[wild_card_size..]);
+            alloc.data[*range_end..end].copy_from_slice(&values[hits..]);
             (*range_end) = end;
 
             let range =  CompactRange {

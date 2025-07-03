@@ -1,6 +1,6 @@
-use octa_force::glam::{IVec3, Vec3};
+use octa_force::glam::{IVec3, UVec3, Vec3};
 
-use crate::{aabb::AABB, volume::{VolumeGradient, VolumeQureyPosValid, VolumeRandomPos}};
+use crate::{aabb::AABB, volume::{VolumeGradient, VolumeQureyAABB, VolumeQureyAABBResult, VolumeQureyPosValid, VolumeRandomPos}};
 
 use super::tree::{VecCSGTree, AABB_PADDING};
 
@@ -29,3 +29,18 @@ impl VolumeQureyPosValid for VecCSGTree {
         self.nodes[0].aabb
     }
 }
+
+impl VolumeQureyAABB for VecCSGTree {
+    fn get_aabb(&self, aabb: AABB) -> VolumeQureyAABBResult {
+       VolumeQureyAABBResult::Mixed 
+    }
+
+    fn get_size(&self) -> UVec3 {
+        if self.nodes.is_empty() {
+            return UVec3::ZERO;
+        }
+
+        (self.nodes[0].aabb.max - self.nodes[0].aabb.min).as_uvec3()
+    }
+}
+

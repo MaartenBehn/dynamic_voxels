@@ -15,7 +15,6 @@ fn criterion_benchmark(c: &mut Criterion) {
     grid.set_example_sphere();
     grid.set_corners();
 
-
     c.bench_with_input(
         BenchmarkId::new("build tree 64 from grid", "sphere grid ^4"), 
         &grid, 
@@ -25,3 +24,4 @@ fn criterion_benchmark(c: &mut Criterion) {
 
 criterion_group!(benches, criterion_benchmark);
 criterion_main!(benches);
+

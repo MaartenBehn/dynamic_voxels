@@ -2,6 +2,7 @@ extern crate reload as dynamic_voxels;
 
 use bvh::bvh::Bvh;
 use dynamic_voxels::multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator;
+use dynamic_voxels::static_voxel_dag64::StaticVoxelDAG64;
 use dynamic_voxels::voxel_dag64::VoxelDAG64;
 use dynamic_voxels::voxel_grid::VoxelGrid;
 use octa_force::binding::r#trait::BindingTrait;
@@ -39,13 +40,17 @@ fn main() {
 
     #[cfg(feature = "profile_dag")]
     {
-        let mut grid = VoxelGrid::new(UVec3::ONE * 4_u32.pow(4)); 
+        let mut grid = VoxelGrid::new(UVec3::ONE * 4_u32.pow(5)); 
         grid.set_example_sphere();
         grid.set_corners();
 
         let buffer_size = 2_usize.pow(30);
         let mut allocator = BuddyBufferAllocator::new(buffer_size, 32);
         let tree64: VoxelDAG64 = VoxelDAG64::from_pos_query(&grid, &mut allocator).unwrap();
+        dbg!(tree64.root_index);
+        
+        //let tree64: StaticVoxelDAG64 = (&grid).into();
+        //dbg!(tree64.get_root_index());
 
         return;
     }
