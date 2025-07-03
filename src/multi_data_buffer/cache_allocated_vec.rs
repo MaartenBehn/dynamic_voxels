@@ -70,28 +70,13 @@ impl<T: Copy + Default + fmt::Debug + Sync + Eq + std::hash::Hash, Hasher: std::
         }
 
         let kmp_lsp = kmp_table(values);
-
-        if EXTRA_FULL_CHECK {
-            let res = self.allocations.iter_mut()
-                .find_map(|alloc| {
-                    alloc.used_ranges.iter()
-                        .find_map(|(start, end)| {
-                            kmp_find_with_lsp_table(values, &alloc.data[*start..*end], &kmp_lsp)
-                        })
-                        .map(|start| (alloc, start))
-                });
-
-            if let Some((alloc, start)) = res {
-                return Ok(alloc.start_index + start);
-            }
-        }
         
         let mut smallest_free_range = None;
 
         // Find the best used range where a prefix fits
         let res = self.allocations.iter_mut()
             .enumerate()
-            .map(|(alloc_nr, alloc)| {
+            .map(|(alloc_index, alloc)| {
                 let (last_start, last_end) = alloc.used_ranges.last().unwrap();
 
                 alloc.used_ranges.iter()
@@ -105,50 +90,35 @@ impl<T: Copy + Default + fmt::Debug + Sync + Eq + std::hash::Hash, Hasher: std::
                         if free_range_size >= values.len() {
                             if let Some((_ , _, _, free_size)) = smallest_free_range {
                                 if free_size > free_range_size {
-                                    smallest_free_range = Some((alloc_nr, end, used_range_index, free_range_size));
+                                    smallest_free_range = Some((alloc_index, end, used_range_index, free_range_size));
                                 }
                             } else {
-                                smallest_free_range = Some((alloc_nr, end, used_range_index, free_range_size));
+                                smallest_free_range = Some((alloc_index, end, used_range_index, free_range_size));
                             }
                         } 
 
-                        if KMP_PREFIX {
-                            kmp_find_prefix_with_lsp_table(
-                                values, 
-                                &alloc.data[start..end], 
-                                free_range_size, &kmp_lsp, !EXTRA_FULL_CHECK)
-                                .map_or((0, None), |(start, hits)| (hits, Some((start, used_range_index))))
-                        } else {
+                        let min = values.len().saturating_sub(free_range_size).max(1);
+                        for i in (min..=values.len()).rev() {
+                            let slice_to_match = &values[..i];
 
-                            let min = values.len().saturating_sub(free_range_size).max(1);
-                            let mut res = (0, None);
-                            for i in (min..=values.len()).rev() {
-                                let slice_to_match = &values[..i];
-
-                                if alloc.data[start..end].ends_with(slice_to_match) {
-                                    res = (i, Some((end - i, used_range_index)));
-                                    break;
-                                }
+                            if alloc.data[start..end].ends_with(slice_to_match) {
+                                return (i, alloc_index, used_range_index);
                             }
-                            res
                         }
-
+                        (0, 0, 0)
                     })
                     .max_by(|a, b| a.0.cmp(&b.0))
-                    .map_or((0, None), |(hits, res)| 
-                        (hits, res.map(|(start, i)| (alloc, start, i))))
-
+                    .unwrap_or((0, 0, 0))
             })
-            .max_by(|a, b| 
-                a.0.cmp(&b.0))
-            .map(|(hits, res)| {
-                if let Some((alloc, start, i)) = res { Some((hits, alloc, start, i)) } else { None }
-            })
+            .max_by(|a, b| a.0.cmp(&b.0))
+            .map(|v| if v.0 != 0 { Some(v) } else { None })
             .flatten();
 
-        if let Some((hits, alloc, start, used_range_index)) = res {
-            let end = start + values.len();
+        if let Some((hits, alloc_index, used_range_index)) = res {
+            let alloc = &mut self.allocations[alloc_index];
             let (range_start, range_end) = &mut alloc.used_ranges[used_range_index];
+            let start = *range_end - hits;
+            let end = start + values.len();
 
             alloc.data[*range_end..end].copy_from_slice(&values[hits..]);
             (*range_end) = end;
