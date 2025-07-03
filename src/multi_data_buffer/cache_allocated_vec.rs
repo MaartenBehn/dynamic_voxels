@@ -69,8 +69,6 @@ impl<T: Copy + Default + fmt::Debug + Sync + Eq + std::hash::Hash, Hasher: std::
             return Ok(alloc.start_index + r.start as usize);
         }
 
-        let kmp_lsp = kmp_table(values);
-        
         let mut smallest_free_range = None;
 
         // Find the best used range where a prefix fits
@@ -98,24 +96,25 @@ impl<T: Copy + Default + fmt::Debug + Sync + Eq + std::hash::Hash, Hasher: std::
                         } 
 
                         let min = values.len().saturating_sub(free_range_size).max(1);
-                        for i in (min..=values.len()).rev() {
-                            let slice_to_match = &values[..i];
+                        for hits in (min..=values.len()).rev() {
+                            let slice_to_match = &values[..hits];
 
                             if alloc.data[start..end].ends_with(slice_to_match) {
-                                return (i, alloc_index, used_range_index);
+                                return (hits, used_range_index);
                             }
                         }
-                        (0, 0, 0)
+                        (0, 0)
                     })
                     .max_by(|a, b| a.0.cmp(&b.0))
-                    .unwrap_or((0, 0, 0))
+                    .map(|(hits, used_range_index)| (hits, Some(alloc), used_range_index))
+                    .unwrap_or((0, None, 0))
             })
             .max_by(|a, b| a.0.cmp(&b.0))
             .map(|v| if v.0 != 0 { Some(v) } else { None })
             .flatten();
 
-        if let Some((hits, alloc_index, used_range_index)) = res {
-            let alloc = &mut self.allocations[alloc_index];
+        if let Some((hits, alloc, used_range_index)) = res {
+            let alloc = alloc.unwrap();
             let (range_start, range_end) = &mut alloc.used_ranges[used_range_index];
             let start = *range_end - hits;
             let end = start + values.len();
