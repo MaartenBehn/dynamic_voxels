@@ -81,7 +81,7 @@ impl<T: Copy + Default + fmt::Debug + Sync + Eq> KmpSearchAllocatedVec<T> {
                         kmp_find_prefix_with_lsp_table(
                             values, 
                             &alloc.data[start..end], 
-                            size, &kmp_lsp)
+                            size, &kmp_lsp, false)
                         .map_or((0, None), |(start, hits)| (hits, Some((start, i))))
                     })
                     .max_by(|a, b| a.0.cmp(&b.0))

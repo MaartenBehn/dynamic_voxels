@@ -32,6 +32,7 @@ tree64 = []
 islands = []
 profile_islands = []
 scene = []
+profile_dag = []
 
 [dependencies]
 shaders_glsl = { path="./shaders/glsl" }

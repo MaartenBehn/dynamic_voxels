@@ -1,10 +1,13 @@
 extern crate reload as dynamic_voxels;
 
 use bvh::bvh::Bvh;
+use dynamic_voxels::multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator;
+use dynamic_voxels::voxel_dag64::VoxelDAG64;
+use dynamic_voxels::voxel_grid::VoxelGrid;
 use octa_force::binding::r#trait::BindingTrait;
 use octa_force::egui_winit::winit::event::WindowEvent;
 use octa_force::engine::{Engine, EngineConfig, EngineFeatureValue};
-use octa_force::glam::uvec2;
+use octa_force::glam::{uvec2, UVec3};
 use octa_force::hot_reloading::HotReloadConfig;
 use octa_force::log::{self, error, info, trace};
 use octa_force::simplelog::{self, SimpleLogger};
@@ -30,6 +33,19 @@ fn main() {
         let collapser = state.collapser.unwrap(); 
         info!("Node capacity: {}", collapser.nodes.capacity());
         info!("Pending collapse operations capacity: {}", collapser.pending_collapse_opperations.capacity());
+
+        return;
+    }
+
+    #[cfg(feature = "profile_dag")]
+    {
+        let mut grid = VoxelGrid::new(UVec3::ONE * 4_u32.pow(4)); 
+        grid.set_example_sphere();
+        grid.set_corners();
+
+        let buffer_size = 2_usize.pow(30);
+        let mut allocator = BuddyBufferAllocator::new(buffer_size, 32);
+        let tree64: VoxelDAG64 = VoxelDAG64::from_pos_query(&grid, &mut allocator).unwrap();
 
         return;
     }

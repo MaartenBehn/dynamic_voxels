@@ -82,10 +82,10 @@ impl BuddyAllocator {
     /// In: size in byte
     /// Out: start index and size of allocation
     fn alloc(&mut self, size: usize) -> OctaResult<(usize, usize)> {
+
         // Calculate index in free list
         // to search for block if available
         let n = calc_n(size).max(self.min_n) - self.min_n;
-
         let space = if !self.free_list[n].is_empty() {
             self.free_list[n].remove(0)
         } else {
@@ -216,14 +216,26 @@ mod test {
     use crate::multi_data_buffer::buddy_buffer_allocator::BuddyAllocator;
 
     #[test]
-    fn test_alloc() {
-        let mut buddy = BuddyAllocator::new(128, 0);
-        buddy.alloc(32).unwrap();
-        buddy.alloc(7).unwrap();
-        buddy.alloc(64).unwrap();
-        assert!(buddy.alloc(56).is_err());
+    fn test_same_size_alloc() {
+        let mut buddy = BuddyAllocator::new(32, 0);
+        assert_eq!(buddy.alloc(8).unwrap(), (0, 8));
+        assert_eq!(buddy.alloc(8).unwrap(), (8, 8));
+        assert_eq!(buddy.alloc(8).unwrap(), (16, 8));
+        assert_eq!(buddy.alloc(8).unwrap(), (24, 8));
+        assert!(buddy.alloc(8).is_err());
     }
 
+    #[test]
+    fn test_differnet_size_alloc() {
+        let mut buddy = BuddyAllocator::new(32, 0);
+        assert_eq!(buddy.alloc(8).unwrap(), (0, 8));
+        assert_eq!(buddy.alloc(4).unwrap(), (8, 4));
+        assert_eq!(buddy.alloc(8).unwrap(), (16, 8));
+        assert_eq!(buddy.alloc(4).unwrap(), (12, 4));
+        assert_eq!(buddy.alloc(8).unwrap(), (24, 8));
+        assert!(buddy.alloc(1).is_err());
+    }
+ 
     #[test]
     fn test_dealloc() {
         let mut buddy = BuddyAllocator::new(128, 0);

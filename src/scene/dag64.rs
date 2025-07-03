@@ -63,6 +63,8 @@ impl DAG64SceneObject {
             fill: 0,
         };
 
+        //dbg!(&self.dag);
+
         buffer.copy_data_to_buffer_without_aligment(&[data], self.get_allocation().start);
         self.dag.nodes.flush(buffer);
         self.dag.data.flush(buffer);

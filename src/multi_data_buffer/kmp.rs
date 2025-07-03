@@ -60,15 +60,15 @@ where
     None
 }
 
-pub fn kmp_find_prefix<N, H>(needle: &[N], haystack: &[H], wild_card_size: usize) -> Option<(usize, usize)>
+pub fn kmp_find_prefix<N, H>(needle: &[N], haystack: &[H], wild_card_size: usize, full_check: bool) -> Option<(usize, usize)>
 where
     N: PartialEq + fmt::Debug,
     H: PartialEq<N> + fmt::Debug,
 {
-    kmp_find_prefix_with_lsp_table(needle, haystack, wild_card_size,&kmp_table(needle))
+    kmp_find_prefix_with_lsp_table(needle, haystack, wild_card_size,&kmp_table(needle), full_check)
 }
 
-pub fn kmp_find_prefix_with_lsp_table<N, H>(needle: &[N], haystack: &[H], wild_card_size: usize,  lsp: &[usize]) -> Option<(usize, usize)>
+pub fn kmp_find_prefix_with_lsp_table<N, H>(needle: &[N], haystack: &[H], wild_card_size: usize,  lsp: &[usize], full_check: bool) -> Option<(usize, usize)>
 where
     N: PartialEq + fmt::Debug,
     H: PartialEq<N> + fmt::Debug,
@@ -76,11 +76,10 @@ where
     let mut needle_pos: usize = 0;
     let mut best_index = None;
 
-    let start = haystack.len().saturating_sub(needle.len() - 1);
+    let start = haystack.len().saturating_sub(needle.len() - if full_check { 0 } else { 1 });
     let wildcard_end = haystack.len() + wild_card_size;
     
     for (haystack_pos, haystack_char) in haystack[start..].iter().enumerate() {
-
         if (haystack_pos + needle.len() - needle_pos) > wildcard_end {
             return None;
         }  
@@ -154,6 +153,7 @@ mod tests {
                 &['h','a','l','l','o','3','2'],
                 &['l','o','l','h','a','l','l','o'],
                 2,
+                false
             ),
             Some((3, 5))
         )
@@ -166,6 +166,7 @@ mod tests {
                 &['h','a','a','l','o','3','2'],
                 &['l','o','l','h','a','l','l','o'],
                 2,
+                false
             ),
             None
         )
@@ -178,6 +179,7 @@ mod tests {
                 &['h','a','l','l','o'],
                 &['l','o','l','h'],
                 4,
+                false
             ),
             Some((3, 1))
         )
@@ -190,6 +192,7 @@ mod tests {
                 &['h','a','l','l','o'],
                 &['l','o','l'],
                 4,
+                false
             ),
             None
         )
@@ -202,6 +205,7 @@ mod tests {
                 &['h','a','l','l','o'],
                 &['l','o','l','h'],
                 3,
+                false
             ),
             None
         )
@@ -214,6 +218,7 @@ mod tests {
                 &['h','a','l','l','o'],
                 &['h','a','l','l','o'],
                 10,
+                false
             ),
             None
         )
@@ -226,6 +231,7 @@ mod tests {
                 &['h','a','l','l','o'],
                 &['a', 'b', 'h','a','l','l','o'],
                 10,
+                false
             ),
             None
         )
@@ -238,6 +244,7 @@ mod tests {
                 &['h','a','l','l','o'],
                 &['a', 'b', 'h','h','h','h','b'],
                 10,
+                false
             ),
             None
         )
@@ -250,6 +257,7 @@ mod tests {
                 &['h','a','l','l','o'],
                 &['a', 'b', 'h','a','l','l','b'],
                 10,
+                false
             ),
             None
         )
@@ -262,6 +270,7 @@ mod tests {
                 &['h','a','l','l','o'],
                 &['h', 'a'],
                 10,
+                false
             ),
             Some((0, 2))
         )
@@ -274,6 +283,7 @@ mod tests {
                 &['h','a','l','l','o'],
                 &['a','a','h', 'a'],
                 10,
+                false
             ),
             Some((2, 2))
         )

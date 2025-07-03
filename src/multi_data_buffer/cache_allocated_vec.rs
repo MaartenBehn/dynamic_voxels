@@ -7,6 +7,7 @@ use octa_force::{itertools::Itertools, log::{debug, error}, vulkan::Buffer, Octa
 
 use super::{buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, kmp::{kmp_find, kmp_find_prefix_with_lsp_table, kmp_find_with_lsp_table, kmp_table}};
 
+const EXTRA_FULL_CHECK: bool = false;
 
 #[derive(Debug)]
 pub struct CacheAllocatedVec<T, Hasher = fnv::FnvBuildHasher> {
@@ -37,7 +38,7 @@ impl CompactRange {
     }
 }
 
-impl<T: Copy + Default + fmt::Debug + Sync + Eq + std::hash::Hash, Hasher: std::hash::BuildHasher + Default> CacheAllocatedVec<T, Hasher> {
+impl<T: Copy + Default + fmt::Debug + Sync + Eq + std::hash::Hash, Hasher: std::hash::BuildHasher + Default + fmt::Debug> CacheAllocatedVec<T, Hasher> {
     pub fn new(minimum_allocation_size: usize) -> Self {
         Self { 
             allocations: vec![],
@@ -67,8 +68,24 @@ impl<T: Copy + Default + fmt::Debug + Sync + Eq + std::hash::Hash, Hasher: std::
             return Ok(alloc.start_index + r.start as usize);
         }
 
-        let mut smallest_free_range = None;
         let kmp_lsp = kmp_table(values);
+
+        if EXTRA_FULL_CHECK {
+            let res = self.allocations.iter_mut()
+                .find_map(|alloc| {
+                    alloc.used_ranges.iter()
+                        .find_map(|(start, end)| {
+                            kmp_find_with_lsp_table(values, &alloc.data[*start..*end], &kmp_lsp)
+                        })
+                        .map(|start| (alloc, start))
+                });
+
+            if let Some((alloc, start)) = res {
+                return Ok(alloc.start_index + start);
+            }
+        }
+        
+        let mut smallest_free_range = None;
 
         // Find the best used range where a prefix fits
         let res = self.allocations.iter_mut()
@@ -97,7 +114,7 @@ impl<T: Copy + Default + fmt::Debug + Sync + Eq + std::hash::Hash, Hasher: std::
                         kmp_find_prefix_with_lsp_table(
                             values, 
                             &alloc.data[start..end], 
-                            size, &kmp_lsp)
+                            size, &kmp_lsp, !EXTRA_FULL_CHECK)
                         .map_or((0, None), |(start, hits)| (hits, Some((start, i))))
                     })
                     .max_by(|a, b| a.0.cmp(&b.0))
@@ -163,7 +180,6 @@ impl<T: Copy + Default + fmt::Debug + Sync + Eq + std::hash::Hash, Hasher: std::
 
             return Ok(alloc.start_index + start);
         } 
-
 
         let allocation = allocator.alloc(self.minimum_allocation_size.max(values.len() * size_of::<T>()))?;
 
