@@ -2,7 +2,8 @@ use std::fmt::Debug;
 
 use octa_force::glam::{IVec3, UVec3, Vec3};
 
-use crate::aabb::AABB;
+use crate::util::aabb::AABB;
+
 
 pub trait VolumeRandomPos {
     fn get_random_valid_position(&self, search_size: f32) -> Option<Vec3>;
@@ -36,5 +37,6 @@ pub enum VolumeQureyAABBResult {
 
 pub trait VolumeQureyAABB {
     fn get_aabb(&self, aabb: AABB) -> VolumeQureyAABBResult;
-    fn get_size(&self) -> UVec3;
+    fn get_offset(&self) -> Vec3;
+    fn get_size(&self) -> Vec3;
 }

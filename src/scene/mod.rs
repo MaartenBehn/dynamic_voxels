@@ -7,7 +7,8 @@ use dag64::DAG64SceneObject;
 use octa_force::{glam::{vec3, Mat4, Vec3}, log::{debug, info}, vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
 use slotmap::{new_key_type, SlotMap};
 use static_dag64::StaticDAG64SceneObject;
-use crate::{aabb::AABB, multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, static_voxel_dag64::StaticVoxelDAG64, util::to_mb};
+
+use crate::{multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, util::{aabb::AABB, math::to_mb}};
 
 new_key_type! { pub struct SceneObjectKey; }
 

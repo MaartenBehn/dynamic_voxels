@@ -1,7 +1,7 @@
 use std::hint::black_box;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use octa_force::glam::UVec3;
-use reload::{static_voxel_dag64::StaticVoxelDAG64, voxel_grid::VoxelGrid};
+use reload::voxel::{grid::VoxelGrid, static_dag64::StaticVoxelDAG64};
 
 fn build_from_grid(grid: &VoxelGrid) -> StaticVoxelDAG64 {
     let tree64: StaticVoxelDAG64 = grid.into();

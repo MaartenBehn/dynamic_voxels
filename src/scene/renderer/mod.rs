@@ -1,5 +1,6 @@
 use octa_force::{camera::Camera, egui, engine::Engine, glam::UVec2, vulkan::{CommandBuffer, Context, Swapchain}, OctaResult};
-use crate::{voxel_renderer::{DebugChannel, RayManagerData, VoxelRenderer}, static_voxel_dag64::renderer::StaticDAG64Renderer};
+use crate::voxel::renderer::{RayManagerData, VoxelRenderer};
+
 use super::{Scene, SceneData};
 
 #[derive(Debug)]

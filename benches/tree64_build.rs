@@ -1,7 +1,7 @@
 use std::hint::black_box;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use octa_force::glam::UVec3;
-use reload::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, voxel_dag64::VoxelDAG64, voxel_grid::VoxelGrid};
+use reload::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, voxel::{dag64::VoxelDAG64, grid::VoxelGrid}};
 
 fn build_from_grid(grid: &VoxelGrid) -> VoxelDAG64 {
     let buffer_size = 2_usize.pow(30);
