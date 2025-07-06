@@ -225,14 +225,21 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     let mut model_renderer = ModelDebugRenderer::default();
 
 
-    #[cfg(any(feature="tree64", feature="scene"))]
+    #[cfg(any(feature="tree64"))]
     let mut grid = VoxelGrid::new(UVec3::ONE * 4_u32.pow(4));
      
-    #[cfg(any(feature="tree64", feature="scene"))]
+    #[cfg(any(feature="tree64"))]
     grid.set_example_sphere();
     
-    #[cfg(any(feature="tree64", feature="scene"))]
+    #[cfg(any(feature="tree64"))]
     grid.set_corners();
+
+    #[cfg(any(feature="tree64"))]
+    let tree64: StaticVoxelDAG64 = (&grid).into();
+
+    #[cfg(feature="tree64")]
+    let tree_renderer = StaticDAG64Renderer::new(&engine.context, &engine.swapchain, tree64, &logic_state.camera)?;
+
 
     #[cfg(feature="scene")]
     let mut scene = Scene::new(&engine.context)?;
@@ -241,31 +248,22 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     let csg: FastQueryCSGTree<u8> = VecCSGTree::new_sphere(Vec3::ZERO, 100.0).into();
 
     let now = Instant::now();
+ 
+    #[cfg(feature="scene")]
+    let tree64 = VoxelDAG64::from_aabb_query(&csg, &mut scene.allocator)?;
 
-    #[cfg(any(feature="tree64", feature="scene"))]
-    let tree64: StaticVoxelDAG64 = (&grid).into();
-   
-    #[cfg(feature="scene")]
-    let tree64_2 = VoxelDAG64::from_pos_query(&grid, &mut scene.allocator)?;
-    
-    #[cfg(feature="scene")]
-    //let tree64_2 = VoxelDAG64::from_aabb_query(&csg, &mut scene.allocator)?;
+    let elapsed = now.elapsed();
+    info!("Tree Build took {:.2?}", elapsed);
      
     #[cfg(feature="scene")]
     scene.add_objects(vec![
-        SceneObject::DAG64(DAG64SceneObject::new(Mat4::from_translation(vec3(0.0, 30.0, 0.0)), tree64_2))
+        SceneObject::DAG64(DAG64SceneObject::new(Mat4::from_translation(vec3(0.0, 30.0, 0.0)), tree64))
     ])?;
 
     #[cfg(feature="scene")]
     let scene_renderer = SceneRenderer::new(&engine.context, &engine.swapchain, scene, &logic_state.camera)?;
 
-    let elapsed = now.elapsed();
-    info!("Tree Build took {:.2?}", elapsed);
-
-    #[cfg(feature="tree64")]
-    let tree_renderer = StaticDAG64Renderer::new(&engine.context, &engine.swapchain, tree64, &logic_state.camera)?;
-
-    Ok(RenderState {
+        Ok(RenderState {
         gui,
         
         #[cfg(any(feature="fence", feature="islands", feature="render_example"))]
