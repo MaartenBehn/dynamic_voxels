@@ -4,7 +4,7 @@ use std::iter;
 use octa_force::{glam::Mat4, log::{debug, error, info}, puffin_egui::puffin};
 
 
-use crate::csg::{fast_pos_query_csg_tree::tree::CSG_PARENT_NONE, renderer::data_controller::MAX_DATA_BUFFER_SIZE, vec_csg_tree::tree::{VecCSGNodeData, VecCSGTree, AABB_PADDING}};
+use crate::csg::{fast_query_csg_tree::tree::CSG_PARENT_NONE, renderer::data_controller::MAX_DATA_BUFFER_SIZE, vec_csg_tree::tree::{VecCSGNodeData, VecCSGTree}};
 
 use super::base::{RenderCSGTree, CSG_CHILD_TYPE_BOX, CSG_CHILD_TYPE_BRICK_NODE, CSG_CHILD_TYPE_INTERSECT, CSG_CHILD_TYPE_MAT, CSG_CHILD_TYPE_REMOVE, CSG_CHILD_TYPE_SPHERE, CSG_CHILD_TYPE_UNION, CSG_CHILD_TYPE_VOXEL_GRID, CSG_DATA_AABB_SIZE, CSG_DATA_TRANSFORM_SIZE};
 
@@ -15,7 +15,7 @@ impl From<VecCSGTree> for RenderCSGTree {
         puffin::profile_function!();
 
         value.set_parents(0, CSG_PARENT_NONE);
-        value.set_all_aabbs(AABB_PADDING);
+        value.set_all_aabbs();
 
         let mut data = vec![0];
         (data, data[0]) = value.add_data(0, data);

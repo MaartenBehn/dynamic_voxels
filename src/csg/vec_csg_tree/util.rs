@@ -1,4 +1,4 @@
-use octa_force::glam::{vec3, vec4, Vec3, Vec4Swizzles};
+use octa_force::glam::{vec3, vec4, Vec3, Vec4, Vec4Swizzles};
 
 
 use crate::util::aabb::AABB;
@@ -11,14 +11,14 @@ impl VecCSGTree {
 
         aabb.get_random_sampled_positions(grid_size)
             .into_iter()
-            .find(|&pos| self.at_pos(pos))
+            .find(|&pos| self.at_pos(Vec4::from((pos, 1.0))))
     }
 
-    pub(super) fn at_pos(&self, pos: Vec3) -> bool {
+    pub(super) fn at_pos(&self, pos: Vec4) -> bool {
         self.at_pos_internal(pos, 0)
     }
 
-    fn at_pos_internal(&self, pos: Vec3, index: usize) -> bool {
+    fn at_pos_internal(&self, pos: Vec4, index: usize) -> bool {
         let node = &self.nodes[index];
 
         match node.data { 
@@ -33,17 +33,16 @@ impl VecCSGTree {
             }
             VecCSGNodeData::Mat(_, c) => self.at_pos_internal(pos, c),
             VecCSGNodeData::Box(mat, _) => {
-                let pos = mat.inverse().mul_vec4(vec4(pos.x, pos.y, pos.z, 1.0)).xyz();
+                let pos = mat.inverse().mul_vec4(pos);
 
-                let aabb = AABB {
-                    min: vec3(-0.5, -0.5, -0.5),
-                    max: vec3(0.5, 0.5, 0.5),
-                };
+                let aabb = AABB::new(
+                    vec3(-0.5, -0.5, -0.5),
+                    vec3(0.5, 0.5, 0.5));
 
                 aabb.pos_in_aabb(pos)
             }
             VecCSGNodeData::Sphere(mat, _) => {
-                let pos = mat.inverse().mul_vec4(vec4(pos.x, pos.y, pos.z, 1.0)).xyz();
+                let pos = mat.inverse().mul_vec4(pos).xyz();
 
                 pos_in_sphere(pos, vec3(0.0, 0.0, 0.0), 1.0)
             }

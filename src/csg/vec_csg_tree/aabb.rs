@@ -9,12 +9,12 @@ use super::tree::{VecCSGNode, VecCSGNodeData, VecCSGTree};
 
 impl VecCSGTree {
     
-    pub fn set_all_aabbs(&mut self, padding: f32) {
+    pub fn set_all_aabbs(&mut self) {
         #[cfg(debug_assertions)]
         puffin::profile_function!();
 
         let mut propergate_ids = vec![];
-        self.set_primitive_aabbs(0, &Mat4::IDENTITY, &mut propergate_ids, padding);
+        self.set_primitive_aabbs(0, &Mat4::IDENTITY, &mut propergate_ids);
         
         propergate_ids = self.get_id_parents(&propergate_ids);
         while !propergate_ids.is_empty() {
@@ -30,42 +30,39 @@ impl VecCSGTree {
         }
     }
 
-    pub fn set_primitive_aabbs(&mut self, i: usize, base_mat: &Mat4, changed_nodes: &mut Vec<usize>, padding: f32) {
+    pub fn set_primitive_aabbs(&mut self, i: usize, base_mat: &Mat4, changed_nodes: &mut Vec<usize>) {
         let node = &self.nodes[i];
         match &node.data {
             VecCSGNodeData::Union(c1, c2)
             | VecCSGNodeData::Remove(c1, c2) 
             | VecCSGNodeData::Intersect(c1, c2) => {
                 let (c1, c2) = (*c1, *c2); // To please borrow checker
-                self.set_primitive_aabbs(c1, base_mat, changed_nodes, padding);
-                self.set_primitive_aabbs(c2, base_mat, changed_nodes, padding);
+                self.set_primitive_aabbs(c1, base_mat, changed_nodes);
+                self.set_primitive_aabbs(c2, base_mat, changed_nodes);
             },
             VecCSGNodeData::Mat(mat, c1) => {
                 let mat = mat.mul_mat4(base_mat);
-                self.set_primitive_aabbs(*c1, &mat, changed_nodes, padding);
+                self.set_primitive_aabbs(*c1, &mat, changed_nodes);
             },
             VecCSGNodeData::Box(mat, ..) => {
                 let mat = mat.mul_mat4(base_mat);
-                self.nodes[i].aabb = AABB::from_box(&mat, padding);
+                self.nodes[i].aabb = AABB::from_box(&mat);
                 changed_nodes.push(i);
             },
             VecCSGNodeData::Sphere(mat, ..) => {
                 let mat = mat.mul_mat4(base_mat);
-                self.nodes[i].aabb = AABB::from_sphere(&mat, padding);
+                self.nodes[i].aabb = AABB::from_sphere(&mat);
                 changed_nodes.push(i);
             },
             VecCSGNodeData::VoxelGrid(grid, pos) => {
-                self.nodes[i].aabb = AABB{
-                    min: (grid.size / 2).as_vec3() * -1.0 + pos.as_vec3(),
-                    max: (grid.size / 2).as_vec3() + pos.as_vec3(),
-                };
+                self.nodes[i].aabb = AABB::new(
+                    (grid.size / 2).as_vec3() * -1.0 + pos.as_vec3(),
+                    (grid.size / 2).as_vec3() + pos.as_vec3());
+
                 changed_nodes.push(i);
             }
             VecCSGNodeData::All(_) => {
-                self.nodes[i].aabb = AABB{
-                    min: Vec3::NEG_INFINITY, 
-                    max: Vec3::INFINITY,
-                };
+                self.nodes[i].aabb = AABB::infinte();
                 changed_nodes.push(i);
             },
         }

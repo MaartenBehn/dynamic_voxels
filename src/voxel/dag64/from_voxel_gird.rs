@@ -7,7 +7,7 @@ use super::{node::VoxelDAG64Node, VoxelDAG64};
 
 impl VoxelDAG64 {
     pub fn from_pos_query<M: VolumeQureyPosValue>(model: &M, allocator: &mut BuddyBufferAllocator) -> OctaResult<Self> {
-        let dims = model.get_size();
+        let dims = model.get_size().as_uvec3();
         let mut scale = dims[0].max(dims[1]).max(dims[2]).next_power_of_two();
         scale = scale.max(4);
         if scale.ilog2() % 2 == 1 {
@@ -49,7 +49,7 @@ impl VoxelDAG64 {
                     for x in 0..4 {
                         let pos = UVec3::new(x, y, z);
                         let index = offset + pos;
-                        let value = model.get_value(index);
+                        let value = model.get_value_u(index);
 
                         if value != 0 {
                             vec.push(value);

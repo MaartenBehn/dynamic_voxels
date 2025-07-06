@@ -18,6 +18,6 @@
     OPENSSL_INCLUDE_DIR = "${pkgs.openssl.dev}/include/";
 
     CARGO_BUILD_TARGET = rustTarget;
-    RUST_FEATURES = "scene"; 
+    RUST_FEATURES = "profile_dag"; 
   };
 }

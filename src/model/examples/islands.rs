@@ -1,7 +1,7 @@
 
 use octa_force::{glam::{vec3, Mat4, Quat, Vec3}, log::{error, info}, OctaResult};
 
-use crate::{csg::{fast_pos_query_csg_tree::tree::FastPosQueryCSGTree, slot_map_csg_tree::tree::SlotMapCSGTreeKey, vec_csg_tree::tree::VecCSGTree}, model::generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder, IT}, collapse::{CollapseOperation, Collapser}, collapser_data::CollapserData, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree}, util::state_saver::State, volume::VolumeQureyPosValid};
+use crate::{csg::{fast_query_csg_tree::tree::FastQueryCSGTree, slot_map_csg_tree::tree::SlotMapCSGTreeKey, vec_csg_tree::tree::VecCSGTree}, model::generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder, IT}, collapse::{CollapseOperation, Collapser}, collapser_data::CollapserData, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree}, util::state_saver::State, volume::VolumeQureyPosValid};
 
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -20,8 +20,8 @@ impl IT for Identifier {}
 #[cfg(feature="profile_islands")]
 #[derive(Clone, Debug)]
 pub struct IslandsState {
-    pub template: TemplateTree<Identifier, FastPosQueryCSGTree>,
-    pub collapser: Option<CollapserData<Identifier, SlotMapCSGTreeKey, FastPosQueryCSGTree>>,
+    pub template: TemplateTree<Identifier, FastQueryCSGTree<()>>,
+    pub collapser: Option<CollapserData<Identifier, SlotMapCSGTreeKey, FastQueryCSGTree<()>>>,
 }
 
 #[cfg(not(feature="profile_islands"))]
@@ -38,7 +38,7 @@ impl IslandsState {
         let island_volume = VecCSGTree::new_disk(Vec3::ZERO, 20.0, 0.1);
         
         #[cfg(feature="profile_islands")]
-        let island_volume = FastPosQueryCSGTree::from(island_volume);
+        let island_volume = FastQueryCSGTree::from(island_volume);
 
         let mut wfc_builder = ModelSynthesisBuilder::new()
             .number_range(Identifier::MinIslandDistance, |b|{b

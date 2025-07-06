@@ -8,8 +8,6 @@ use crate::csg::renderer::color_controller::{Material, MATERIAL_BASE};
 use crate::util::aabb::AABB;
 use crate::voxel::grid::VoxelGrid;
 
-
-pub const AABB_PADDING: f32 = 0.0;
 pub const VOXEL_SIZE: f32 = 10.0;
 
 pub const CSG_PARENT_NONE: usize = usize::MAX;
@@ -62,7 +60,7 @@ impl VecCSGTree {
         };
 
         tree.set_parents(0, CSG_PARENT_NONE);
-        tree.set_all_aabbs(0.0);
+        tree.set_all_aabbs();
 
         tree
     }
@@ -84,7 +82,7 @@ impl VecCSGTree {
         };
 
         tree.set_parents(0, CSG_PARENT_NONE);
-        tree.set_all_aabbs(0.0);
+        tree.set_all_aabbs();
 
         tree
     }
@@ -135,7 +133,7 @@ impl VecCSGTree {
         };
 
         tree.set_parents(0, CSG_PARENT_NONE);
-        tree.set_all_aabbs(AABB_PADDING);
+        tree.set_all_aabbs();
 
         tree
     }
@@ -182,7 +180,7 @@ impl VecCSGTree {
         };
 
         tree.set_parents(0, CSG_PARENT_NONE);
-        tree.set_all_aabbs(AABB_PADDING);
+        tree.set_all_aabbs();
 
         tree
     }
@@ -215,7 +213,7 @@ impl VecCSGTree {
             nodes,
         };
         tree.set_parents(0, CSG_PARENT_NONE);
-        tree.set_all_aabbs(AABB_PADDING);
+        tree.set_all_aabbs();
 
         tree
     }

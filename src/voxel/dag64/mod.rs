@@ -2,6 +2,7 @@
 
 pub mod node;
 pub mod from_voxel_gird;
+pub mod from_csg;
 
 use node::VoxelDAG64Node;
 use octa_force::{glam::Vec3, log::{debug, info}};

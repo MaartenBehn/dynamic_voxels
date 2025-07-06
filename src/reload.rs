@@ -9,6 +9,8 @@ pub mod util;
 pub mod volume;
 pub mod voxel;
 
+use csg::fast_query_csg_tree::tree::FastQueryCSGTree;
+use csg::vec_csg_tree::tree::VecCSGTree;
 use octa_force::engine::Engine;
 use scene::dag64::DAG64SceneObject;
 use scene::renderer::SceneRenderer;
@@ -232,21 +234,26 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     #[cfg(any(feature="tree64", feature="scene"))]
     grid.set_corners();
 
-    #[cfg(any(feature="tree64", feature="scene"))]
-    let tree64: StaticVoxelDAG64 = (&grid).into();
-
     #[cfg(feature="scene")]
     let mut scene = Scene::new(&engine.context)?;
-   
+
+    #[cfg(feature="scene")]
+    let csg: FastQueryCSGTree<u8> = VecCSGTree::new_sphere(Vec3::ZERO, 100.0).into();
+
     let now = Instant::now();
 
+    #[cfg(any(feature="tree64", feature="scene"))]
+    let tree64: StaticVoxelDAG64 = (&grid).into();
+   
     #[cfg(feature="scene")]
     let tree64_2 = VoxelDAG64::from_pos_query(&grid, &mut scene.allocator)?;
     
     #[cfg(feature="scene")]
+    //let tree64_2 = VoxelDAG64::from_aabb_query(&csg, &mut scene.allocator)?;
+     
+    #[cfg(feature="scene")]
     scene.add_objects(vec![
-        SceneObject::StaticDAG64(StaticDAG64SceneObject::new(Mat4::from_translation(vec3(0.0, 30.0, 0.0)), tree64)),
-        SceneObject::DAG64(DAG64SceneObject::new(Mat4::from_translation(vec3(-50.0, 30.0, 0.0)), tree64_2))
+        SceneObject::DAG64(DAG64SceneObject::new(Mat4::from_translation(vec3(0.0, 30.0, 0.0)), tree64_2))
     ])?;
 
     #[cfg(feature="scene")]
