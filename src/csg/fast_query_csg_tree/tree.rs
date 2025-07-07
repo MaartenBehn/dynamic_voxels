@@ -1,4 +1,4 @@
-use octa_force::glam::{ivec3, uvec3, vec3, vec4, EulerRot, IVec3, Mat4, Quat, UVec3, Vec3, Vec4, Vec4Swizzles};
+use octa_force::glam::{ivec3, uvec3, vec3, vec4, EulerRot, IVec3, Mat4, Quat, UVec3, Vec3, Vec3A, Vec4, Vec4Swizzles};
 use octa_force::log::{error, info};
 use octa_force::puffin_egui::puffin;
 use std::f32::consts::PI;
@@ -49,7 +49,7 @@ impl<T: Copy> FastQueryCSGTree<T> {
                 aabb.pos_in_aabb(pos)
             }
             FastQueryCSGNodeData::Sphere(mat, ..) => {
-                let pos = mat.mul_vec4(pos).xyz();
+                let pos = Vec3A::from(mat.mul_vec4(pos));
 
                 pos.length_squared() < 1.0
             }
@@ -96,7 +96,7 @@ impl FastQueryCSGTree<u8> {
                 else { 0 }
             }
             FastQueryCSGNodeData::Sphere(mat, v) => {
-                let pos = mat.mul_vec4(pos).xyz();
+                let pos = Vec3A::from(mat.mul_vec4(pos));
 
                 if pos.length_squared() < 1.0 { v }
                 else { 0 }

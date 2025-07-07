@@ -43,7 +43,7 @@ fn main() {
         let buffer_size = 2_usize.pow(30);
         let mut allocator = BuddyBufferAllocator::new(buffer_size, 32);
 
-        let USE_CSG = false;
+        let USE_CSG = true;
         let tree64 = if USE_CSG {
             let csg: FastQueryCSGTree<u8> = VecCSGTree::new_sphere(Vec3::ZERO, 100.0).into();
             VoxelDAG64::from_aabb_query(&csg, &mut allocator).unwrap()

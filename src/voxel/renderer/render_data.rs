@@ -11,7 +11,7 @@ pub struct RenderData {
 impl RenderData {
     pub fn new(cam: &Camera, res: UVec2) -> RenderData {
         let mut data = RenderData { packed_data: [0.0; 8] };
-        data.set_pos(cam.position);
+        data.set_pos(cam.position.as_vec3());
         data.set_dir(cam.direction);
         data.set_res(res.as_vec2());
 

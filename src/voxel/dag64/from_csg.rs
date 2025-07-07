@@ -45,13 +45,11 @@ impl VoxelDAG64 {
 
         if node_level == 1 {
             let scale = 4_u32.pow(node_level as u32) as f32;
-            dbg!(scale);
             let aabb = AABB::new_a(
                 offset, 
                 offset + vec3a(scale, scale, scale));
 
             let res = model.get_aabb_value(aabb);
-            dbg!(res);
 
             match res {
                 VolumeQureyAABBResult::Full(v) => {
@@ -84,14 +82,11 @@ impl VoxelDAG64 {
             }
         } else {
             let scale = 4_u32.pow(node_level as u32) as f32;
-            dbg!(scale);
             let aabb = AABB::new_a(
                 offset, 
                 offset + vec3a(scale, scale, scale));
 
-            dbg!(aabb);
             let res = model.get_aabb_value(aabb); 
-            dbg!(res);
 
             match res {
                 VolumeQureyAABBResult::Full(v) => {

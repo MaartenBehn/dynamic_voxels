@@ -1,6 +1,6 @@
 use std::iter;
 
-use octa_force::{camera::Camera, glam::{self, IVec3, Mat4, Quat, UVec2, Vec3}, log::{debug, info}, vulkan::{ash::vk, descriptor_heap::{self, DescriptorHandle, DescriptorHandleValue, DescriptorHeap}, gpu_allocator::MemoryLocation, physical_device::PhysicalDeviceCapabilities, Buffer, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, Image, ImageAndView, ImageBarrier, ImageView, Swapchain, WriteDescriptorSet, WriteDescriptorSetKind}, OctaResult};
+use octa_force::{camera::Camera, glam::{self, DVec3, IVec3, Mat4, Quat, UVec2, Vec3}, log::{debug, info}, vulkan::{ash::vk, descriptor_heap::{self, DescriptorHandle, DescriptorHandleValue, DescriptorHeap}, gpu_allocator::MemoryLocation, physical_device::PhysicalDeviceCapabilities, Buffer, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, Image, ImageAndView, ImageBarrier, ImageView, Swapchain, WriteDescriptorSet, WriteDescriptorSetKind}, OctaResult};
 
 use crate::NUM_FRAMES_IN_FLIGHT;
 
@@ -27,7 +27,7 @@ pub struct GBuffer {
     pub output_tex: OutputTexs, 
 
     pub prev_proj_mat: Mat4,
-    pub prev_position: Vec3,
+    pub prev_position: DVec3,
 
     pub uniform_buffer: Buffer,
     
@@ -212,7 +212,7 @@ impl GBuffer {
             prev_proj_mat: self.prev_proj_mat, 
             prev_inv_proj_mat: prev_inv_proj_mat, 
             
-            position: position,
+            position: position.as_vec3(),
 
             frame_no: self.frame_no,  
             num_steady_frames: self.num_steady_frames,

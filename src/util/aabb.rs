@@ -161,9 +161,8 @@ impl AABB {
         self.min.length_squared() <= 1.0 && self.min.length_squared() <= 1.0 
     }
 
-    pub fn collides_unit_sphere(self) -> (bool, bool) {
+    pub fn collides_unit_sphere_slow(self) -> (bool, bool) {
 
-        /*
         let mut dmax = 0.0;
         let mut dmin = 0.0;
         for i in 0..3 {
@@ -173,13 +172,23 @@ impl AABB {
             if( 0.0 < self.min[i] ) { dmin += a; } else 
             if( 0.0 > self.max[i] ) { dmin += b; }
         }
-        */
 
-        let a = self.min * self.min;
-        let b = self.max * self.max;
+        let min = dmin <= 1.0;
+        let max = dmax <= 1.0;
+
+        (min, max)
+    }
+
+    pub fn collides_unit_sphere(self) -> (bool, bool) {
+
+        let min = Vec3A::from(self.min);
+        let max = Vec3A::from(self.max);
+        let a = min * min;
+        let b = max * max;
         let dmax = a.max(b).element_sum();
-        let dmin = (Vec4::from(Vec4::ZERO.cmplt(self.min)) * a 
-        + Vec4::from(Vec4::ZERO.cmpgt(self.max)) * b).element_sum();
+        let dmin = 
+            (Vec3A::from(Vec3A::ZERO.cmplt(min)) * a 
+           + Vec3A::from(Vec3A::ZERO.cmpgt(max)) * b).element_sum();
 
         let min = dmin <= 1.0;
         let max = dmax <= 1.0;
@@ -261,5 +270,23 @@ impl From<&bvh::aabb::Aabb<f32, 3>> for AABB {
             min: vec4(value.min.x, value.min.y, value.min.z, 1.0),
             max: vec4(value.max.x, value.max.y, value.max.z, 1.0),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use octa_force::glam::vec3;
+
+    use super::AABB;
+
+    #[test]
+    pub fn test_uint_sphere() {
+        let aabb = AABB::new(vec3(0.0, 0.0, 0.0), vec3(1.0, 1.0, 1.0));
+
+        assert_eq!(aabb.collides_unit_sphere_slow(), aabb.collides_unit_sphere());
+        
+        let aabb = AABB::new(vec3(-0.1, -0.1, -0.1), vec3(0.1, 0.1, 0.1));
+
+        assert_eq!(aabb.collides_unit_sphere_slow(), aabb.collides_unit_sphere());
     }
 }
