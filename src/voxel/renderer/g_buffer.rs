@@ -2,7 +2,7 @@ use std::iter;
 
 use octa_force::{camera::Camera, glam::{self, DVec3, IVec3, Mat4, Quat, UVec2, Vec3}, log::{debug, info}, vulkan::{ash::vk, descriptor_heap::{self, DescriptorHandle, DescriptorHandleValue, DescriptorHeap}, gpu_allocator::MemoryLocation, physical_device::PhysicalDeviceCapabilities, Buffer, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, Image, ImageAndView, ImageBarrier, ImageView, Swapchain, WriteDescriptorSet, WriteDescriptorSetKind}, OctaResult};
 
-use crate::NUM_FRAMES_IN_FLIGHT;
+use crate::{METERS_PER_SHADER_UNIT, NUM_FRAMES_IN_FLIGHT};
 
 #[derive(Debug)]
 pub enum OutputTexs {
@@ -27,7 +27,7 @@ pub struct GBuffer {
     pub output_tex: OutputTexs, 
 
     pub prev_proj_mat: Mat4,
-    pub prev_position: DVec3,
+    pub prev_position: Vec3,
 
     pub uniform_buffer: Buffer,
     
@@ -193,7 +193,8 @@ impl GBuffer {
         let inv_proj_mat = Self::get_inverse_proj_screen_mat(proj_mat, res);
         let prev_inv_proj_mat = Self::get_inverse_proj_screen_mat(self.prev_proj_mat, res);
         
-        let position = camera.position;
+        let position_scale = 1.0 / METERS_PER_SHADER_UNIT as f32;
+        let position = camera.position * position_scale;
 
         if proj_mat != self.prev_proj_mat {
             self.num_steady_frames = 0;
@@ -212,7 +213,7 @@ impl GBuffer {
             prev_proj_mat: self.prev_proj_mat, 
             prev_inv_proj_mat: prev_inv_proj_mat, 
             
-            position: position.as_vec3(),
+            position,
 
             frame_no: self.frame_no,  
             num_steady_frames: self.num_steady_frames,

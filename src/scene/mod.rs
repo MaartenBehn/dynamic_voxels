@@ -8,9 +8,11 @@ use octa_force::{glam::{vec3, Mat4, Vec3, Vec4Swizzles}, log::{debug, info}, vul
 use slotmap::{new_key_type, SlotMap};
 use static_dag64::StaticDAG64SceneObject;
 
-use crate::{multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, util::{aabb::AABB, math::to_mb}};
+use crate::{multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, util::{aabb::AABB, math::to_mb}, VOXELS_PER_SHADER_UNIT};
 
 new_key_type! { pub struct SceneObjectKey; }
+
+
 
 #[derive(Debug)]
 pub struct Scene {
@@ -158,7 +160,7 @@ impl SceneObject {
                 AABB::from_centered_size(&dag.mat, dag.dag.get_size())
             },
             SceneObject::DAG64(dag) => {
-                AABB::from_centered_size(&dag.mat, dag.dag.get_size())
+                AABB::from_centered_size(&dag.mat, dag.dag.get_size() / VOXELS_PER_SHADER_UNIT as f32)
             },
         }
     }

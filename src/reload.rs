@@ -38,6 +38,10 @@ use std::{default, env};
 pub const USE_PROFILE: bool = false;
 pub const NUM_FRAMES_IN_FLIGHT: usize = 2;
 
+pub const VOXELS_PER_METER: usize = 10;
+pub const METERS_PER_SHADER_UNIT: usize = 1000;
+pub const VOXELS_PER_SHADER_UNIT: usize = VOXELS_PER_METER * METERS_PER_SHADER_UNIT;
+
 #[unsafe(no_mangle)]
 pub fn init_hot_reload(logger: &'static dyn Log) -> OctaResult<()> {
     setup_logger(logger)?;
@@ -61,28 +65,28 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
 
     #[cfg(feature="fence")]
     {
-        camera.position = DVec3::new(1.0, -10.0, 1.0); 
+        camera.position = Vec3::new(1.0, -10.0, 1.0); 
         camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
         camera.speed = 10.0 * VOXEL_SIZE;
     }
 
     #[cfg(feature="islands")]
     {
-        camera.position = DVec3::new(1.0, -10.0, 1.0); 
+        camera.position = Vec3::new(1.0, -10.0, 1.0); 
         camera.direction = Vec3::new(0.1, 1.0, 0.0).normalize();
         camera.speed = 10.0 * VOXEL_SIZE;
     }
     
     #[cfg(feature="render_example")]
     {
-        camera.position = DVec3::new(67.02305, 127.88921, 43.476604);
+        camera.position = Vec3::new(67.02305, 127.88921, 43.476604);
         camera.direction = Vec3::new(0.79322153, -0.47346807, -0.38291982).normalize();
         camera.speed = 10.0 * VOXEL_SIZE;
     }
 
      #[cfg(feature="tree64")]
     {
-        camera.position = DVec3::new(-0.66225964, -0.10641506, 0.803499); 
+        camera.position = Vec3::new(-0.66225964, -0.10641506, 0.803499); 
         camera.direction = Vec3::new(0.87766635, 0.373136, -0.30078444).normalize();        
         camera.position = Vec3::new(0.2, -2.0, 1.0); 
         camera.direction = Vec3::new(0.1, 1.0, -0.5).normalize();
@@ -93,10 +97,10 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
 
     #[cfg(feature="scene")]
     {
-        camera.position = DVec3::new(-2.0, -2.0, -0.0); 
+        camera.position = Vec3::new(-2.0, -2.0, -0.0); 
         camera.direction = Vec3::new(0.50361323, 0.85740614, 0.10596458).normalize();
         
-        camera.speed = 0.1;
+        camera.speed = 10.0;
         camera.z_near = 0.001;
     }
 
@@ -258,7 +262,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     #[cfg(feature="scene")]
     scene.add_objects(vec![
         SceneObject::DAG64(DAG64SceneObject::new(Mat4::from_scale_rotation_translation(
-            Vec3::splat(0.01),
+            Vec3::ONE,
             Quat::IDENTITY,
             vec3(0.0, 0.0, 0.0)
         ), tree64))

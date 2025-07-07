@@ -2,7 +2,7 @@
 use octa_force::{glam::{vec3, vec4, Mat4, Quat, Vec3, Vec4, Vec4Swizzles}, log::debug, vulkan::Buffer, OctaResult};
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, voxel::dag64::VoxelDAG64};
+use crate::{multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, voxel::dag64::VoxelDAG64, VOXELS_PER_SHADER_UNIT};
 
 new_key_type! { pub struct Tree64Key; }
 
@@ -44,7 +44,7 @@ impl DAG64SceneObject {
         let nodes_start = self.get_allocation().start + size_of::<DAG64SceneObjectData>();
 
         let mat = Mat4::from_scale_rotation_translation(
-            Vec3::ONE / self.dag.get_size(), 
+            Vec3::splat((VOXELS_PER_SHADER_UNIT as u32 / self.dag.get_size_u32()) as f32 ), 
             Quat::IDENTITY,
             Vec3::splat(1.5),
         ).mul_mat4(&self.mat.inverse());
