@@ -3,6 +3,7 @@ import g_buffer;
 import texture_heap;
 import helper_ray;
 import helper_math;
+import debug;
 
 #include "perf_counters.h.slang"
 

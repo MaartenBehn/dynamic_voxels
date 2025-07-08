@@ -194,7 +194,7 @@ impl CSGRenderer {
 
     pub fn update(&self, camera: &Camera, res: UVec2, time: Duration) -> Result<()> {
         self.render_buffer.copy_data_to_buffer(&[CSGRenderBuffer::new(
-            camera.position,
+            camera.get_position_in_shader_units(),
             camera.direction,
             res,
             time.as_secs_f32(),

@@ -338,7 +338,7 @@ impl VoxelRenderer {
                 ui.label(format!("Frame: {}", self.g_buffer.frame_no -1));
                 ui.label(format!("Steady : {}", self.g_buffer.num_steady_frames -1));
                 
-                ui.add(egui::Slider::new(&mut self.plane_dist, 0.001..=0.1)
+                ui.add(egui::Slider::new(&mut self.plane_dist, 0.0001..=10.0)
                     .logarithmic(true)
                     .text("Plane Dist")
                 );

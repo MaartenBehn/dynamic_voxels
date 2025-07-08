@@ -27,7 +27,6 @@ pub struct GBuffer {
     pub output_tex: OutputTexs, 
 
     pub prev_proj_mat: Mat4,
-    pub prev_position: Vec3,
 
     pub uniform_buffer: Buffer,
     
@@ -71,7 +70,6 @@ impl GBuffer {
             size_of::<GBufferUniform>() as _)?;
 
         let proj_mat = camera.projection_matrix().mul_mat4(&camera.view_matrix());
-        let position = camera.position;
 
         let g_buffer = Self {
             history_len_tex,
@@ -82,7 +80,6 @@ impl GBuffer {
             output_tex,
 
             prev_proj_mat: proj_mat,
-            prev_position: position,
 
             uniform_buffer,
             frame_no: 0,
@@ -193,8 +190,7 @@ impl GBuffer {
         let inv_proj_mat = Self::get_inverse_proj_screen_mat(proj_mat, res);
         let prev_inv_proj_mat = Self::get_inverse_proj_screen_mat(self.prev_proj_mat, res);
         
-        let position_scale = 1.0 / METERS_PER_SHADER_UNIT as f32;
-        let position = camera.position * position_scale;
+        let position = camera.get_position_in_shader_units();
 
         if proj_mat != self.prev_proj_mat {
             self.num_steady_frames = 0;
@@ -233,7 +229,6 @@ impl GBuffer {
         context.copy_data_to_gpu_only_buffer(&[uniform], &self.uniform_buffer)?;
 
         self.prev_proj_mat = proj_mat;
-        self.prev_position = position;
         self.frame_no = self.frame_no.wrapping_add(1);
         self.num_steady_frames = self.num_steady_frames.wrapping_add(1);
 

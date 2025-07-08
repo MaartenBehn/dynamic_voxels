@@ -86,8 +86,6 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
 
      #[cfg(feature="tree64")]
     {
-        camera.position = Vec3::new(-0.66225964, -0.10641506, 0.803499); 
-        camera.direction = Vec3::new(0.87766635, 0.373136, -0.30078444).normalize();        
         camera.position = Vec3::new(0.2, -2.0, 1.0); 
         camera.direction = Vec3::new(0.1, 1.0, -0.5).normalize();
 
@@ -97,7 +95,8 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
 
     #[cfg(feature="scene")]
     {
-        camera.position = Vec3::new(-2.0, -2.0, -0.0); 
+        camera.set_meter_per_unit(METERS_PER_SHADER_UNIT as f32);
+        camera.set_position_in_meters(Vec3::new(-4.0, -2.0, -0.0)); 
         camera.direction = Vec3::new(0.50361323, 0.85740614, 0.10596458).normalize();
         
         camera.speed = 10.0;
