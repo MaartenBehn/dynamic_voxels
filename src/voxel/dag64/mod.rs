@@ -7,12 +7,12 @@ pub mod from_csg;
 use node::VoxelDAG64Node;
 use octa_force::{glam::Vec3, log::{debug, info}};
 
-use crate::{multi_data_buffer::{allocated_vec::AllocatedVec, cache_allocated_vec::CacheAllocatedVec, full_search_allocated_vec::FullSearchAllocatedVec, kmp_search_allocated_vec::KmpSearchAllocatedVec}, util::math::to_mb};
+use crate::{multi_data_buffer::{allocated_vec::AllocatedVec}, util::math::to_mb};
 
 #[derive(Debug)]
 pub struct VoxelDAG64 {
-    pub nodes: CacheAllocatedVec<VoxelDAG64Node>,
-    pub data: CacheAllocatedVec<u8>,
+    pub nodes: AllocatedVec<VoxelDAG64Node>,
+    pub data: AllocatedVec<u8>,
 
     pub levels: u8,
     pub root_index: u32,

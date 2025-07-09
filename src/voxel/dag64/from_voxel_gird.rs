@@ -1,7 +1,7 @@
 use octa_force::{glam::UVec3, log::debug, OctaResult};
 
 
-use crate::{multi_data_buffer::{buddy_buffer_allocator::BuddyBufferAllocator, cache_allocated_vec::CacheAllocatedVec}, volume::VolumeQureyPosValue};
+use crate::{multi_data_buffer::{allocated_vec::AllocatedVec, buddy_buffer_allocator::BuddyBufferAllocator}, volume::VolumeQureyPosValue};
 
 use super::{node::VoxelDAG64Node, VoxelDAG64};
 
@@ -16,8 +16,8 @@ impl VoxelDAG64 {
 
         let levels = scale.ilog(4) as _;
         let mut this = Self {
-            nodes: CacheAllocatedVec::new(4000 * size_of::<VoxelDAG64Node>()),
-            data: CacheAllocatedVec::new(64),
+            nodes: AllocatedVec::new(4000 * size_of::<VoxelDAG64Node>()),
+            data: AllocatedVec::new(64),
             levels,
             root_index: 0,
         };
