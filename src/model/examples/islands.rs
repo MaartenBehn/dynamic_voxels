@@ -17,27 +17,17 @@ pub enum Identifier {
 }
 impl IT for Identifier {}
 
-#[cfg(feature="profile_islands")]
+
 #[derive(Clone, Debug)]
 pub struct IslandsState {
     pub template: TemplateTree<Identifier, FastQueryCSGTree<()>>,
     pub collapser: Option<CollapserData<Identifier, SlotMapCSGTreeKey, FastQueryCSGTree<()>>>,
 }
 
-#[cfg(not(feature="profile_islands"))]
-#[derive(Clone, Debug)]
-pub struct IslandsState {
-    pub template: TemplateTree<Identifier, VecCSGTree>,
-    pub collapser: Option<CollapserData<Identifier, SlotMapCSGTreeKey, VecCSGTree>>,
-}
-
 impl IslandsState {
     pub fn new(profile: bool) -> Self {
 
-
-        let island_volume = VecCSGTree::new_disk(Vec3::ZERO, 20.0, 0.1);
-        
-        #[cfg(feature="profile_islands")]
+        let island_volume = VecCSGTree::new_disk(Vec3::ZERO, 20.0, 0.1); 
         let island_volume = FastQueryCSGTree::from(island_volume);
 
         let mut wfc_builder = ModelSynthesisBuilder::new()

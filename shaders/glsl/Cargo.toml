@@ -1,8 +1,0 @@
-[package]
-name = "shaders_glsl"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-# glsl_compiler = { path = "../../glsl_compiler" }
-glsl_compiler = { version = "0.1.5", git = "https://github.com/MaartenBehn/glsl_compiler" }

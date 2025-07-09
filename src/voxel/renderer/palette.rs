@@ -1,5 +1,7 @@
 use octa_force::{glam::{vec3, vec4, Vec3, Vec4}, vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
 
+pub const MATERIAL_ID_NONE: u8 = 0; 
+pub const MATERIAL_ID_BASE: u8 = 1; 
 
 #[derive(Debug)]
 pub struct Palette {

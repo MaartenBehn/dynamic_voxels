@@ -9,7 +9,7 @@ use crate::csg::{slot_map_csg_tree::tree::SlotMapCSGTreeKey, vec_csg_tree::tree:
 use super::generation::{builder::IT, collapse::CollapseNodeKey, collapser_data::CollapserData};
 
 
-type UserState<I> = CollapserData<I, SlotMapCSGTreeKey, VecCSGTree>;
+type UserState<I> = CollapserData<I, SlotMapCSGTreeKey, VecCSGTree<u8>>;
 
 const SHOW_COOLDOWN_TIME: f32 = 0.2;
 

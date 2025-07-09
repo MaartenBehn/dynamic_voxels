@@ -7,7 +7,7 @@ use crate::{csg::vec_csg_tree::tree::CSG_PARENT_NONE, util::aabb::AABB};
 
 use super::tree::{VecCSGNode, VecCSGNodeData, VecCSGTree};
 
-impl VecCSGTree {
+impl<T: Clone> VecCSGTree<T> {
     
     pub fn set_all_aabbs(&mut self) {
         #[cfg(debug_assertions)]

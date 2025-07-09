@@ -1,13 +1,13 @@
 use std::usize;
 
 
-use crate::csg::{renderer::color_controller::MATERIAL_NONE, slot_map_csg_tree::tree::{SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey}};
+use crate::{csg::slot_map_csg_tree::tree::{SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey}, voxel::renderer::palette::MATERIAL_ID_NONE};
 
 use super::tree::{VecCSGNode, VecCSGNodeData, VecCSGTree, CSG_PARENT_NONE};
 
 
-impl From<SlotMapCSGTree> for VecCSGTree {
-    fn from(value: SlotMapCSGTree) -> Self {
+impl<T: Default + Copy> From<SlotMapCSGTree<T>> for VecCSGTree<T> {
+    fn from(value: SlotMapCSGTree<T>) -> Self {
         let mut tree = VecCSGTree::default();
 
         value.convert_node(value.root_node, &mut tree, CSG_PARENT_NONE);
@@ -16,12 +16,12 @@ impl From<SlotMapCSGTree> for VecCSGTree {
     }
 }
 
-impl SlotMapCSGTree {
-    fn convert_node(&self, index: SlotMapCSGTreeKey, tree: &mut VecCSGTree, parent: usize) -> usize {
+impl<T: Default + Copy> SlotMapCSGTree<T> {
+    fn convert_node(&self, index: SlotMapCSGTreeKey, tree: &mut VecCSGTree<T>, parent: usize) -> usize {
         let node = self.nodes.get(index).unwrap();
 
         let new_node = VecCSGNode {
-            data: VecCSGNodeData::All(MATERIAL_NONE),
+            data: VecCSGNodeData::All(T::default()),
             aabb: node.aabb,
             parent: parent,
         };

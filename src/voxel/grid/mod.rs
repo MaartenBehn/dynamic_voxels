@@ -5,7 +5,9 @@ use std::usize;
 
 use octa_force::glam::{uvec3, vec3, UVec3, Vec3};
 
-use crate::{csg::renderer::color_controller::MATERIAL_NONE, util::math::to_1d};
+use crate::util::math::to_1d;
+
+use super::renderer::palette::MATERIAL_ID_NONE;
 
 const VOXELS_PER_U32: usize = 4;
 
@@ -20,7 +22,7 @@ impl VoxelGrid {
         let data_length = size.element_product() as usize;
         VoxelGrid {
             size,
-            data: vec![MATERIAL_NONE as u8; data_length],
+            data: vec![MATERIAL_ID_NONE as u8; data_length],
         }
     }
 

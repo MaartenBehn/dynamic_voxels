@@ -3,7 +3,7 @@ use octa_force::glam::{vec3, vec4, Vec3, Vec4, Vec4Swizzles};
 use super::tree::{VecCSGNodeData, VecCSGTree};
 
 
-impl VecCSGTree {
+impl<T> VecCSGTree<T> {
     pub(super) fn get_gradient_at_pos(&self, pos: Vec3) -> Vec3 {
         self.get_gradient_at_pos_internal(vec4(pos.x, pos.y, pos.z, 1.0), 0)
     } 

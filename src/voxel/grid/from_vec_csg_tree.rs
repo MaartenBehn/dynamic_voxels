@@ -1,13 +1,14 @@
 use octa_force::{anyhow::bail, glam::{uvec3, vec4, Vec4, Vec4Swizzles}, OctaResult};
 
-use crate::{csg::{renderer::color_controller::{MATERIAL_BASE, MATERIAL_NONE}, vec_csg_tree::tree::VecCSGTree}, util::math::to_1d, volume::VolumeQureyPosValid};
+
+use crate::{csg::vec_csg_tree::tree::VecCSGTree, util::math::to_1d, volume::VolumeQureyPosValid, voxel::renderer::palette::{MATERIAL_ID_BASE, MATERIAL_ID_NONE}};
 
 use super::VoxelGrid;
 
-impl TryFrom<VecCSGTree> for VoxelGrid {
+impl TryFrom<VecCSGTree<u8>> for VoxelGrid {
     type Error = octa_force::anyhow::Error;
     
-    fn try_from(value: VecCSGTree) -> OctaResult<Self> {
+    fn try_from(value: VecCSGTree<u8>) -> OctaResult<Self> {
         let root = &value.nodes[0]; 
         
         if !root.aabb.min.is_finite() || !root.aabb.max.is_finite() {
@@ -24,7 +25,7 @@ impl TryFrom<VecCSGTree> for VoxelGrid {
                     let in_csg_pos = root.aabb.min.xyz() + pos.as_vec3();
                     let filled = value.is_position_valid_vec3(Vec4::from((in_csg_pos, 1.0)));
 
-                    grid.data[index] = if filled { MATERIAL_BASE } else { MATERIAL_NONE };
+                    grid.data[index] = if filled { MATERIAL_ID_BASE } else { MATERIAL_ID_NONE };
                 }
             }
         } 

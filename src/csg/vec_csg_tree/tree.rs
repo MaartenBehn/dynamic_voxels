@@ -4,45 +4,64 @@ use octa_force::puffin_egui::puffin;
 use std::f32::consts::PI;
 use std::{slice, usize};
 
-use crate::csg::renderer::color_controller::{Material, MATERIAL_BASE};
+use crate::csg::Base;
 use crate::util::aabb::AABB;
 use crate::voxel::grid::VoxelGrid;
+use crate::voxel::renderer::palette::MATERIAL_ID_BASE;
 
 pub const VOXEL_SIZE: f32 = 10.0;
 
 pub const CSG_PARENT_NONE: usize = usize::MAX;
 
 #[derive(Clone, Debug)]
-pub struct VecCSGNode {
-    pub data: VecCSGNodeData,
+pub struct VecCSGNode<T> {
+    pub data: VecCSGNodeData<T>,
     pub aabb: AABB,
     pub parent: usize,
 }
 
 #[derive(Clone, Debug)]
-pub enum VecCSGNodeData {
+pub enum VecCSGNodeData<T> {
     Union(usize, usize),
     Remove(usize, usize),
     Intersect(usize, usize),
     Mat(Mat4, usize),
-    Box(Mat4, Material),
-    Sphere(Mat4, Material),
-    All(Material),
+    Box(Mat4, T),
+    Sphere(Mat4, T),
+    All(T),
     VoxelGrid(VoxelGrid, IVec3),
 }
 
 #[derive(Clone, Debug)]
-pub struct VecCSGTree {
-    pub nodes: Vec<VecCSGNode>,
+pub struct VecCSGTree<T> {
+    pub nodes: Vec<VecCSGNode<T>>,
 }
 
-impl VecCSGTree { 
-    pub fn from_node(node: VecCSGNode) -> Self {
+impl<T> VecCSGTree<T> { 
+    pub fn from_node(node: VecCSGNode<T>) -> Self {
         VecCSGTree {
             nodes: vec![node],
         }
     }
+ 
+    pub fn set_parents(&mut self, i: usize, parent: usize) {
+        self.nodes[i].parent = parent;
+        match self.nodes[i].data {
+            VecCSGNodeData::Union(c1, c2)
+            | VecCSGNodeData::Remove(c1, c2)
+            | VecCSGNodeData::Intersect(c1, c2) => {
+                self.set_parents(c1, i);
+                self.set_parents(c2, i);
+            },
+            VecCSGNodeData::Mat(_, c1) => {
+                self.set_parents(c1, i);
+            },
+            _ => {}
+        } 
+    }
+}
 
+impl<T: Base + Clone> VecCSGTree<T> {
     pub fn new_sphere(center: Vec3, radius: f32) -> Self {
         let nodes = vec![
             VecCSGNode::new(VecCSGNodeData::Sphere(
@@ -51,7 +70,7 @@ impl VecCSGTree {
                     Quat::IDENTITY,
                     center,
                 ),
-                MATERIAL_BASE,
+                T::base(),
             )),
         ];
  
@@ -63,29 +82,7 @@ impl VecCSGTree {
         tree.set_all_aabbs();
 
         tree
-    }
-
-    pub fn new_disk(center: Vec3, radius: f32, height: f32) -> Self {
-        let nodes = vec![
-            VecCSGNode::new(VecCSGNodeData::Sphere(
-                Mat4::from_scale_rotation_translation(
-                    vec3(radius, radius, height),
-                    Quat::IDENTITY,
-                    center,
-                ),
-                MATERIAL_BASE,
-            )),
-        ];
- 
-        let mut tree = VecCSGTree {
-            nodes,
-        };
-
-        tree.set_parents(0, CSG_PARENT_NONE);
-        tree.set_all_aabbs();
-
-        tree
-    }
+    } 
 
     pub fn new_example_tree(time: f32) -> Self {
         puffin::profile_function!();
@@ -108,7 +105,7 @@ impl VecCSGTree {
                     ),
                     vec3(3.0, 3.0, 0.0) * VOXEL_SIZE,
                 ),
-                MATERIAL_BASE,
+                T::base(),
             )),
             VecCSGNode::new(VecCSGNodeData::Sphere(
                 Mat4::from_scale_rotation_translation(
@@ -116,7 +113,7 @@ impl VecCSGTree {
                     Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, 0.0),
                     vec3(2.0 + frac_3, 1.0 + frac_2 * 10.0, 0.0) * VOXEL_SIZE,
                 ),
-                MATERIAL_BASE,
+                T::base(),
             )),
             VecCSGNode::new(VecCSGNodeData::Sphere(
                 Mat4::from_scale_rotation_translation(
@@ -124,7 +121,29 @@ impl VecCSGTree {
                     Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, 0.0),
                     vec3(10.0 + frac * 30.0, 10.0 + frac_3 * 100.0, 0.0) * VOXEL_SIZE,
                 ),
-                MATERIAL_BASE,
+                T::base(),
+            )),
+        ];
+ 
+        let mut tree = VecCSGTree {
+            nodes,
+        };
+
+        tree.set_parents(0, CSG_PARENT_NONE);
+        tree.set_all_aabbs();
+
+        tree
+    }
+
+    pub fn new_disk(center: Vec3, radius: f32, height: f32) -> Self {
+        let nodes = vec![
+            VecCSGNode::new(VecCSGNodeData::Sphere(
+                Mat4::from_scale_rotation_translation(
+                    vec3(radius, radius, height),
+                    Quat::IDENTITY,
+                    center,
+                ),
+                T::base(),
             )),
         ];
  
@@ -170,7 +189,7 @@ impl VecCSGTree {
                     ),
                     vec3(20.0, 10.0, 10.0) * VOXEL_SIZE,
                 ),
-                MATERIAL_BASE,
+                T::base(),
             )),
             VecCSGNode::new(VecCSGNodeData::VoxelGrid(grid, ivec3(-10, -30, 20))),
         ];
@@ -204,7 +223,7 @@ impl VecCSGTree {
                     ),
                     vec3(20.0, 10.0, 10.0) * VOXEL_SIZE,
                 ),
-                MATERIAL_BASE,
+                T::base(),
             )),
             VecCSGNode::new(VecCSGNodeData::VoxelGrid(grid, ivec3(-10, -30, 200))),
         ];
@@ -217,25 +236,9 @@ impl VecCSGTree {
 
         tree
     }
-
-    pub fn set_parents(&mut self, i: usize, parent: usize) {
-        self.nodes[i].parent = parent;
-        match self.nodes[i].data {
-            VecCSGNodeData::Union(c1, c2)
-            | VecCSGNodeData::Remove(c1, c2)
-            | VecCSGNodeData::Intersect(c1, c2) => {
-                self.set_parents(c1, i);
-                self.set_parents(c2, i);
-            },
-            VecCSGNodeData::Mat(_, c1) => {
-                self.set_parents(c1, i);
-            },
-            _ => {}
-        } 
-    }
 }
 
-impl Default for VecCSGTree {
+impl<T> Default for VecCSGTree<T> {
     fn default() -> Self {
         VecCSGTree {
             nodes: vec![],
@@ -245,8 +248,8 @@ impl Default for VecCSGTree {
 
 
 
-impl VecCSGNode {
-    pub fn new(data: VecCSGNodeData) -> VecCSGNode {
+impl<T> VecCSGNode<T> {
+    pub fn new(data: VecCSGNodeData<T>) -> VecCSGNode<T> {
         VecCSGNode {
             data,
             aabb: Default::default(),
@@ -254,7 +257,7 @@ impl VecCSGNode {
         }
     }
 
-    pub fn new_with_aabb(data: VecCSGNodeData, aabb: AABB) -> VecCSGNode {
+    pub fn new_with_aabb(data: VecCSGNodeData<T>, aabb: AABB) -> VecCSGNode<T> {
         VecCSGNode { data, aabb, parent: CSG_PARENT_NONE }
     }
 }

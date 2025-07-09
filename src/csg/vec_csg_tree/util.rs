@@ -5,7 +5,7 @@ use crate::util::aabb::AABB;
 
 use super::tree::{VecCSGNode, VecCSGNodeData, VecCSGTree};
 
-impl VecCSGTree {
+impl<T> VecCSGTree<T> {
     pub(super) fn find_valid_pos(&self, grid_size: f32) -> Option<Vec3> {
         let aabb = &self.nodes[0].aabb;
 
@@ -51,7 +51,7 @@ impl VecCSGTree {
         }
     }
 
-    pub fn append_tree_with_remove(&mut self, mut tree: VecCSGTree) {
+    pub fn append_tree_with_remove(&mut self, mut tree: VecCSGTree<T>) {
         self.insert_node_before(VecCSGNode::new(VecCSGNodeData::Remove(1, self.nodes.len() + 1)));
 
         tree.shift_node_pointers(self.nodes.len());
@@ -59,7 +59,7 @@ impl VecCSGTree {
         self.nodes.append(&mut tree.nodes);
     }
 
-    pub fn append_tree_with_union(&mut self, mut tree: VecCSGTree) { 
+    pub fn append_tree_with_union(&mut self, mut tree: VecCSGTree<T>) { 
         self.insert_node_before(VecCSGNode::new(VecCSGNodeData::Union(1, self.nodes.len() + 1)));
 
         tree.shift_node_pointers(self.nodes.len());
@@ -80,7 +80,7 @@ impl VecCSGTree {
             }
         }
     }
-    pub fn insert_node_before(&mut self, node: VecCSGNode) {
+    pub fn insert_node_before(&mut self, node: VecCSGNode<T>) {
         self.shift_node_pointers(1);
 
         self.nodes.insert(0, node);

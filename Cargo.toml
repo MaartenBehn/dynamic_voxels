@@ -26,17 +26,12 @@ name = "tree64_build"
 harness = false
 
 [features]
-fence = []
-render_example = []
-tree64 = []
 islands = []
 profile_islands = []
 scene = []
 profile_dag = []
 
 [dependencies]
-shaders_glsl = { path="./shaders/glsl" }
-
 octa-force = { path = "../octa-force-rs" }
 # octa-force = { version = "0.3.2", git = "https://github.com/MaartenBehn/octa-force-rs" }
 fastrand = "2.2.0"

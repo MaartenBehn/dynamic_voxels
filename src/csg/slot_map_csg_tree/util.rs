@@ -1,11 +1,13 @@
+use core::fmt;
+
 use octa_force::{anyhow::{anyhow, bail, ensure, Context}, OctaResult};
 use slotmap::Key;
 
 use super::tree::{SlotMapCSGNode, SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey};
 
 
-impl SlotMapCSGTree {
-    pub fn append_node_with_union(&mut self, node: SlotMapCSGNode) -> SlotMapCSGTreeKey {
+impl<T: fmt::Debug> SlotMapCSGTree<T> {
+    pub fn append_node_with_union(&mut self, node: SlotMapCSGNode<T>) -> SlotMapCSGTreeKey {
         let new_index = self.nodes.insert(node);
         self.root_node = self.nodes.insert(SlotMapCSGNode::new(
             SlotMapCSGNodeData::Union(self.root_node, new_index) 
