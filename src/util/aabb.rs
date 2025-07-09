@@ -223,7 +223,7 @@ impl AABB {
         self.max - self.min
     }
 
-    pub fn mul_mat(&self, mat: Mat4) -> AABB {
+    pub fn mul_mat(&self, mat: &Mat4) -> AABB {
         AABB {
             min: mat.mul_vec4(self.min),
             max: mat.mul_vec4(self.max),

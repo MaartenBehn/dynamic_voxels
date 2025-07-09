@@ -14,7 +14,7 @@ impl<T: Clone> From<VecCSGTree<T>> for FastQueryCSGTree<T> {
                     VecCSGNodeData::Box(mat4, v) => FastQueryCSGNodeData::Box(mat4.inverse(), v.to_owned()),
                     VecCSGNodeData::Sphere(mat4, v) => FastQueryCSGNodeData::Sphere(mat4.inverse(), v.to_owned()),
                     VecCSGNodeData::All(v) => FastQueryCSGNodeData::All(v.to_owned()),
-                    VecCSGNodeData::Mat(mat4, _) => panic!("Cant convert VecCSGTree with Mat Node to FastPosQueryCSGTree"),
+                    VecCSGNodeData::Mat(mat, c) => FastQueryCSGNodeData::Mat(mat.to_owned(), c.to_owned()),
                     VecCSGNodeData::VoxelGrid(voxel_grid, ivec3) => panic!("Cant convert VecCSGTree with VoxelGrid Node to FastPosQueryCSGTree"),
                 }
             })

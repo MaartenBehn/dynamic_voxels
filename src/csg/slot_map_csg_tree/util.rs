@@ -71,7 +71,7 @@ impl<T: fmt::Debug> SlotMapCSGTree<T> {
             },
             SlotMapCSGNodeData::Box(_, _)
             | SlotMapCSGNodeData::Sphere(_, _)
-            | SlotMapCSGNodeData::All(_) => todo!(),
+            | SlotMapCSGNodeData::All(_)
             | SlotMapCSGNodeData::VoxelGrid(_, _) => {
                 bail!("Can not replace a child in index in a node {:?}, because it has no children!", node.data)
             }
@@ -79,5 +79,26 @@ impl<T: fmt::Debug> SlotMapCSGTree<T> {
 
         Ok(())
     }
+}
 
+impl<T> SlotMapCSGTree<T> {
+    pub fn get_id_parents(&self, ids: &[SlotMapCSGTreeKey]) -> Vec<SlotMapCSGTreeKey> {
+        self.nodes
+            .iter()
+            .filter_map(|(i, node)| {
+                match node.data {
+                    SlotMapCSGNodeData::Union(child1, child2)
+                    | SlotMapCSGNodeData::Remove(child1, child2)
+                    | SlotMapCSGNodeData::Intersect(child1, child2) => {
+                        if ids.contains(&child1) || ids.contains(&child2) {
+                            return Some(i);
+                        }
+                    }
+                    _ => {}
+                }
+
+                None
+            })
+            .collect()
+    }
 }

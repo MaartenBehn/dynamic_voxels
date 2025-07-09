@@ -20,7 +20,6 @@ impl StaticVoxelDAG64 {
         4_u32.pow(self.tree.root_state().num_levels as u32 - 1)
     }
 
-
     pub fn get_root_index(&self) -> u32 {
         self.tree.root_state().index    
     }

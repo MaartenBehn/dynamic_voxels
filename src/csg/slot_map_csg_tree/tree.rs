@@ -7,7 +7,7 @@ new_key_type! { pub struct SlotMapCSGTreeKey; }
 
 impl BU for SlotMapCSGTreeKey {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct SlotMapCSGTree<T> {
     pub nodes: SlotMap<SlotMapCSGTreeKey, SlotMapCSGNode<T>>,
     pub root_node: SlotMapCSGTreeKey,
@@ -26,8 +26,8 @@ pub enum SlotMapCSGNodeData<T> {
     Remove(SlotMapCSGTreeKey, SlotMapCSGTreeKey),
     Intersect(SlotMapCSGTreeKey, SlotMapCSGTreeKey),
     Mat(Mat4, SlotMapCSGTreeKey),
-    Box(Mat4, T),
-    Sphere(Mat4, T),
+    Box(Mat4, T), // Inverse Mat
+    Sphere(Mat4, T), // Inverse Mat
     All(T),
     VoxelGrid(VoxelGrid, IVec3),
 }
@@ -42,7 +42,7 @@ impl<T> SlotMapCSGNode<T> {
     }
 }
 
-impl<T> SlotMapCSGTree<T> {
+impl<T: Clone> SlotMapCSGTree<T> {
     pub fn is_empty(&self) -> bool {
         self.root_node == SlotMapCSGTreeKey::null()
     }
@@ -54,6 +54,8 @@ impl<T> SlotMapCSGTree<T> {
         };
         let index = tree.nodes.insert(node);
         tree.root_node = index;
+
+        tree.set_all_aabbs();
 
         tree
     }
