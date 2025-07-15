@@ -185,7 +185,7 @@ impl FastQueryCSGTree<u8> {
                     vec3(-0.5, -0.5, -0.5), 
                     vec3(0.5, 0.5, 0.5));
 
-                if aabb.in_aabb(b) {
+                if aabb.contains_aabb(b) {
                     VolumeQureyAABBResult::Full(v)
                 } else if aabb.collides_aabb(b) {
                     VolumeQureyAABBResult::Mixed

@@ -2,10 +2,11 @@
 
 pub mod node;
 pub mod from_voxel_gird;
-pub mod from_csg;
+pub mod from_aabb_query_volume;
+pub mod update_aabb;
 
 use node::VoxelDAG64Node;
-use octa_force::{glam::Vec3, log::{debug, info}};
+use octa_force::{glam::{Vec3, Vec3A}, log::{debug, info}};
 
 use crate::{multi_data_buffer::{allocated_vec::AllocatedVec}, util::math::to_mb};
 
@@ -16,6 +17,7 @@ pub struct VoxelDAG64 {
 
     pub levels: u8,
     pub root_index: u32,
+    pub offset: Vec3A,
 }
 
 impl VoxelDAG64 {

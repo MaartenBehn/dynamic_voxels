@@ -21,6 +21,7 @@ impl VoxelDAG64 {
             data: AllocatedVec::new(64),
             levels,
             root_index: 0,
+            offset,
         };
 
         let root = this.insert_from_aabb_query_recursive(model, offset, levels, allocator)?;

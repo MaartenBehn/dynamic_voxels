@@ -1,4 +1,4 @@
-use octa_force::{glam::UVec3, log::debug, OctaResult};
+use octa_force::{glam::{UVec3, Vec3A}, log::debug, OctaResult};
 
 
 use crate::{multi_data_buffer::{allocated_vec::AllocatedVec, buddy_buffer_allocator::BuddyBufferAllocator}, volume::VolumeQureyPosValue};
@@ -20,6 +20,7 @@ impl VoxelDAG64 {
             data: AllocatedVec::new(64),
             levels,
             root_index: 0,
+            offset: Vec3A::ZERO,
         };
 
         let root = this.insert_from_pos_query_recursive(model, UVec3::ZERO, levels, allocator)?;
