@@ -4,6 +4,7 @@ pub mod node;
 pub mod from_voxel_gird;
 pub mod from_aabb_query_volume;
 pub mod update_aabb;
+pub mod changes;
 
 use node::VoxelDAG64Node;
 use octa_force::{glam::{Vec3, Vec3A}, log::{debug, info}};

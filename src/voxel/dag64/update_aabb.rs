@@ -2,20 +2,21 @@ use octa_force::{glam::{vec3a, UVec3, Vec3A, Vec4Swizzles}, OctaResult};
 
 use crate::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, util::aabb::AABB, volume::VolumeQureyAABB};
 
-use super::{node::VoxelDAG64Node, VoxelDAG64};
+use super::{changes::DAG64Transaction, node::VoxelDAG64Node, VoxelDAG64};
 
 
 
-impl VoxelDAG64 {
+impl DAG64Transaction {
     pub fn update_aabb<M: VolumeQureyAABB>(
         &mut self, 
+        dag: &mut VoxelDAG64,
         changed_aabb: AABB, 
         last_offset: Vec3A, 
         model: &M, 
         allocator: &mut BuddyBufferAllocator
     ) -> OctaResult<()> {
 
-        let mut scale = 4_u32.pow(self.levels as u32) as f32;
+        let mut scale = 4_u32.pow(self.new_levels as u32) as f32;
         let mut min = last_offset;
         let mut max = min + scale;
         let mut tree_aabb = AABB::new_a(min, max);
@@ -26,17 +27,17 @@ impl VoxelDAG64 {
             let child_pos = Vec3A::from(tree_aabb.min - model_aabb.min).max(Vec3A::ZERO) % scale;
             let child_index = child_pos.round().as_uvec3().dot(UVec3::new(1, 4, 16));
 
-            let new_root = VoxelDAG64Node::new(false, self.root_index, 1 << child_index as u64);
-            self.root_index = self.nodes.push(&[new_root], allocator)? as u32;
+            let new_root = VoxelDAG64Node::new(false, self.new_root_index, 1 << child_index as u64);
+            self.new_root_index = dag.nodes.push(&[new_root], allocator)? as u32;
             
-            self.levels += 1;
+            self.new_levels += 1;
             min = min - child_pos * scale;
-            scale = 4_u32.pow(self.levels as u32) as f32;
+            scale = 4_u32.pow(self.new_levels as u32) as f32;
             max = min + scale;
             tree_aabb = AABB::new_a(min, max);
         }
 
-        self.next_node(changed_aabb, model, allocator, self.levels, min);
+        self.next_node(changed_aabb, model, allocator, self.new_levels, min);
 
         Ok(())
     }

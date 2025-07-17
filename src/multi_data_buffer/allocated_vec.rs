@@ -3,7 +3,7 @@ use core::fmt;
 use std::{iter, marker::PhantomData};
 use rayon::{iter::empty, prelude::*};
 
-use octa_force::{itertools::Itertools, log::{debug, error}, vulkan::Buffer, OctaResult};
+use octa_force::{anyhow::bail, itertools::Itertools, log::{debug, error}, vulkan::Buffer, OctaResult};
 
 use super::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator};
 
@@ -183,7 +183,6 @@ impl<T: Copy + Default + fmt::Debug + Sync + Eq + std::hash::Hash, Hasher: std::
         };
         cache.insert_unique(hash, range, |r| hasher.hash_one(&data[r.as_range()]));
 
-
         if values.len() < capacity {
             self.allocations.push(Allocation {
                 allocation,
@@ -207,21 +206,18 @@ impl<T: Copy + Default + fmt::Debug + Sync + Eq + std::hash::Hash, Hasher: std::
         Ok(start_index)
     }
 
-    pub fn remove(&mut self, index: usize, size: usize) {
-        /*
-        let res = self.allocations.iter_mut()
-            .find(|a| a.start_index <= index && (a.start_index + a.data.len()) > index + size);
+    pub fn get(&self, index: usize) -> OctaResult<T> {
+        
+        let res = self.allocations.iter()
+            .find(|a| a.start_index <= index && (a.start_index + a.data.len()) > index);
 
         if res.is_some() {
             let alloc = res.unwrap();
             let index = index - alloc.start_index;
-            alloc.free_ranges.push((index, index + size));
-            alloc.needs_free_optimization = true;
-            return;
+            return Ok(alloc.data[index]);
         }  
 
-        error!("Allocated Index {index} not found!");
-*/
+        bail!("Allocated Index {index} not found!");
     }
 
     pub fn flush(&mut self, buffer: &mut Buffer) {
