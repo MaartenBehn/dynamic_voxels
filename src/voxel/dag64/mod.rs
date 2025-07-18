@@ -3,7 +3,7 @@
 pub mod node;
 pub mod from_voxel_gird;
 pub mod from_aabb_query_volume;
-//pub mod update_aabb;
+pub mod update_aabb;
 
 use node::VoxelDAG64Node;
 use octa_force::{glam::{Vec3, Vec3A}, log::{debug, info}};
@@ -20,7 +20,7 @@ pub struct VoxelDAG64 {
     pub entry_points: SlotMap<DAG64EntryKey, DAG64EntryData>
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct DAG64EntryData {
     pub levels: u8,
     pub root_index: u32,
@@ -33,6 +33,10 @@ impl VoxelDAG64 {
             to_mb(self.nodes.get_memory_size()),
             to_mb(self.data.get_memory_size()),
         );
+    }
+
+    pub fn get_first_key(&self) -> DAG64EntryKey {
+        self.entry_points.keys().next().unwrap().to_owned()
     }
 }
 

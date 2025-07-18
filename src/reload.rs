@@ -122,6 +122,15 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     #[cfg(feature="scene")]
     let mut tree64 = VoxelDAG64::from_aabb_query(&csg)?;
 
+
+    
+    let index = csg.append_node_with_remove(
+            SlotMapCSGNode::new_sphere(vec3(110.0, 0.0, 0.0), 50.0));
+    csg.set_all_aabbs();
+    let aabb = csg.nodes[index].aabb;
+
+    let key = tree64.update_aabb(&csg, aabb, tree64.get_first_key())?;
+
     let elapsed = now.elapsed();
     info!("Tree Build took {:.2?}", elapsed);
      
@@ -134,7 +143,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
                 Quat::IDENTITY,
                 vec3(0.0, 0.0, 0.0)
             ), 
-            tree64.entry_points.keys().next().unwrap().to_owned(),
+            key,
             tree64,
         )?)
     ])?;

@@ -154,12 +154,12 @@ impl<T: Copy + Default + fmt::Debug + Sync + Eq + std::hash::Hash, Hasher: std::
         bail!("Could not find free enought space in cached vector!");
     }
 
-    pub fn get(&self, index: usize) -> T {
-        self.data[index]
+    pub fn get(&self, index: u32) -> T {
+        self.data[index as usize]
     }
 
     pub fn get_range(&self, r: std::ops::Range<usize>) -> &[T] {
-        &self.data[r.start..r.end]
+        &self.data[r]
     }
 
     pub fn set(&mut self, index: usize, data: &[T]) {

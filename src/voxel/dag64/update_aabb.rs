@@ -2,22 +2,20 @@ use octa_force::{glam::{vec3a, UVec3, Vec3A, Vec4Swizzles}, log::debug, OctaResu
 
 use crate::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, util::aabb::AABB, volume::VolumeQureyAABB};
 
-use super::{node::VoxelDAG64Node, VoxelDAG64};
+use super::{node::VoxelDAG64Node, DAG64EntryData, DAG64EntryKey, VoxelDAG64};
 
 
-impl DAG64Transaction {
+impl VoxelDAG64 {
     pub fn update_aabb<M: VolumeQureyAABB>(
         &mut self, 
-        dag: &mut VoxelDAG64,
+        model: &M,
         changed_aabb: AABB, 
-        last_offset: Vec3A, 
-        model: &M, 
-        allocator: &mut BuddyBufferAllocator
-    ) -> OctaResult<()> {
-        let mut scale = 4_u32.pow(self.new_levels as u32) as f32;
-        let mut min = last_offset;
-        let mut max = min + scale;
-        let mut tree_aabb = AABB::new_a(min, max);
+        based_on_entry: DAG64EntryKey,
+    ) -> OctaResult<DAG64EntryKey> {
+        let mut entry_data = self.entry_points[based_on_entry].to_owned(); 
+
+        let scale = 4_u32.pow(entry_data.levels as u32) as f32;
+        let mut tree_aabb = AABB::new_a(entry_data.offset, entry_data.offset + scale);
 
         // Increase the Tree if the model does not fit.
         let model_aabb= model.get_bounds();
@@ -26,48 +24,41 @@ impl DAG64Transaction {
             let child_pos = Vec3A::from(tree_aabb.min - model_aabb.min).max(Vec3A::ZERO) % scale;
             let child_index = child_pos.round().as_uvec3().dot(UVec3::new(1, 4, 16));
 
-            let new_root = VoxelDAG64Node::new(false, self.new_root_index, 1 << child_index as u64);
-            self.new_root_index = dag.nodes.push(&[new_root], allocator)? as u32;
+            let new_root = VoxelDAG64Node::new(false, entry_data.root_index, 1 << child_index as u64);
+            entry_data.root_index = self.nodes.push(&[new_root])? as u32;
             
-            self.new_levels += 1;
-            min = min - child_pos * scale;
-            scale = 4_u32.pow(self.new_levels as u32) as f32;
-            max = min + scale;
-            tree_aabb = AABB::new_a(min, max);
+            entry_data.levels += 1;
+            entry_data.offset = entry_data.offset - child_pos * scale;
+            let scale = 4_u32.pow(entry_data.levels as u32) as f32;
+            tree_aabb = AABB::new_a(entry_data.offset, entry_data.offset + scale);
         }
 
-        self.next_node(dag, changed_aabb, model, allocator, self.new_levels, min, self.new_root_index)?;
+        let root = self.next_node(model, changed_aabb,entry_data.levels, entry_data.offset, entry_data.root_index)?;
+        entry_data.root_index = self.nodes.push(&[root])?;
 
-        Ok(())
+        let key = self.entry_points.insert(entry_data);
+
+        Ok(key)
     }
 
     fn next_node<M: VolumeQureyAABB>(
         &mut self, 
-        dag: &mut VoxelDAG64, 
-        aabb: AABB, 
         model: &M, 
-        allocator: &mut BuddyBufferAllocator, 
+        aabb: AABB, 
         node_level: u8, 
         offset: Vec3A, 
         index: u32
-    ) -> OctaResult<()> {
+    ) -> OctaResult<VoxelDAG64Node> {
+        let node = self.nodes.get(index);
 
-        let node = self.get_node(dag, index).unwrap();
-
-        // TODO somehow are some parts missing at level 3
-        if node.is_leaf() || node_level <= 4 {
-            let new_node = dag.insert_from_aabb_query_recursive(
+        if node.is_leaf() {
+            let new_node = self.insert_from_aabb_query_recursive(
                 model, 
                 offset,
                 node_level,
-                allocator,
             )?;
 
-            if new_node != node {
-                self.change_node(index, new_node, node);
-            }
-
-            return Ok(());
+            return Ok(new_node);
         }
 
         let mut new_children = vec![];
@@ -88,11 +79,10 @@ impl DAG64Transaction {
                         let index_in_children = node.get_index_in_children_unchecked(child_nr);
                         if !node.is_occupied(child_nr) {
 
-                            let new_child_node = dag.insert_from_aabb_query_recursive(
+                            let new_child_node = self.insert_from_aabb_query_recursive(
                                 model, 
                                 min,
                                 node_level -1,
-                                allocator,
                             )?;
 
                             if new_child_node.is_empty() {
@@ -100,7 +90,7 @@ impl DAG64Transaction {
                             }
 
                             if new_children.is_empty() {
-                                new_children = self.get_node_range(dag, node.range())?;
+                                new_children = self.nodes.get_range(node.range()).to_vec();
                             }
 
                             new_children.insert(index_in_children as usize, new_child_node);
@@ -109,46 +99,40 @@ impl DAG64Transaction {
                             continue;
                         } 
 
-                        if aabb.contains_aabb(node_aabb) {
-
-                            let new_child_node = dag.insert_from_aabb_query_recursive(
+                        let new_child_node = if aabb.contains_aabb(node_aabb) {
+                            self.insert_from_aabb_query_recursive(
                                 model, 
                                 min,
                                 node_level -1,
-                                allocator,
-                            )?;
+                            )?
+                        } else {
+                            self.next_node(
+                                model,
+                                aabb,
+                                node_level - 1,
+                                min,
+                                node.ptr() + index_in_children,
+                            )?
+                        };
 
-                            if new_children.is_empty() {
-                                new_children = self.get_node_range(dag, node.range())?;
-                            }
-                            
-                            new_children[index_in_children as usize] = new_child_node;
-
-                            continue;
-                        } 
-
-                        self.next_node(
-                            dag,
-                            aabb,
-                            model,
-                            allocator,
-                            node_level - 1,
-                            min,
-                            node.ptr() + index_in_children,
-                        )?;
+                        if new_children.is_empty() {
+                            new_children = self.nodes.get_range(node.range()).to_vec();
+                        }
+                        new_children[index_in_children as usize] = new_child_node;
                     }                
                 }
             }
         }
 
         if !new_children.is_empty() {
-            let new_node = VoxelDAG64Node::new(false, dag.nodes.push(&new_children, allocator)? as u32, new_bitmask);
+            let new_node = VoxelDAG64Node::new(
+                false, 
+                self.nodes.push(&new_children)? as u32, 
+                new_bitmask);
 
-            if new_node != node {
-                self.change_node(index, new_node, node);
-            }
+            Ok(new_node)
+        } else {
+            Ok(node)
         }
-
-        Ok(())
     }
 }
