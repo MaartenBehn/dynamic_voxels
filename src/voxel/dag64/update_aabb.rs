@@ -5,7 +5,6 @@ use crate::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, uti
 use super::{changes::DAG64Transaction, node::VoxelDAG64Node, VoxelDAG64};
 
 
-
 impl DAG64Transaction {
     pub fn update_aabb<M: VolumeQureyAABB>(
         &mut self, 
@@ -37,41 +36,103 @@ impl DAG64Transaction {
             tree_aabb = AABB::new_a(min, max);
         }
 
-        self.next_node(changed_aabb, model, allocator, self.new_levels, min);
+        self.next_node(dag, changed_aabb, model, allocator, self.new_levels, min, self.new_root_index)?;
 
         Ok(())
     }
 
-    fn next_node<M: VolumeQureyAABB>(&mut self, aabb: AABB, model: &M, allocator: &mut BuddyBufferAllocator, node_level: u8, offset: Vec3A) {
+    fn next_node<M: VolumeQureyAABB>(
+        &mut self, 
+        dag: &mut VoxelDAG64, 
+        aabb: AABB, 
+        model: &M, 
+        allocator: &mut BuddyBufferAllocator, 
+        node_level: u8, 
+        offset: Vec3A, 
+        index: u32
+    ) -> OctaResult<()> {
 
+        let node = self.get_node(dag, index).unwrap();
         if node_level == 1 {
-            // Found
+            let new_node = dag.insert_from_aabb_query_recursive(
+                model, 
+                offset,
+                node_level,
+                allocator,
+            )?;
+
+            self.change_node(index, new_node, node);
+            return Ok(());
         }
+
+        let mut new_children = None;
                 
         let new_scale = 4_u32.pow(node_level as u32 - 1) as f32;
-        for z in 0..4 {
-            for y in 0..4 {
-                for x in 0..4 {
+        for z in (0..4).rev() {
+            for y in (0..4).rev() {
+                for x in (0..4).rev() {
                     let pos = UVec3::new(x, y, z);
                     let min = offset + pos.as_vec3a() * new_scale;
                     let max = min + new_scale;
                     let node_aabb = AABB::new_a(min, max);
                     if aabb.collides_aabb(node_aabb) {
-                        if aabb.contains_aabb(node_aabb) {
-                            // Found
-                        } else {
-                            self.next_node(
-                                aabb,
-                                model,
+
+                        let child_nr = pos.dot(UVec3::new(1, 4, 16));
+                        let index_in_children = node.get_index_in_children_unchecked(child_nr);
+                        if !node.is_occupied(child_nr) {
+                            let new_child_node = dag.insert_from_aabb_query_recursive(
+                                model, 
+                                min,
+                                node_level -1,
                                 allocator,
-                                node_level - 1,
-                                offset + pos.as_vec3a() * new_scale,
-                            );
-                        }
+                            )?;
+
+                            let children = if let Some(children) = &mut new_children {
+                                children    
+                            } else {
+                                new_children = Some(self.get_node_range(dag, node.range())?);
+                                new_children.as_mut().unwrap()
+                            };
+
+                            children.insert(index_in_children as usize, new_child_node);
+                            
+                            continue;
+                        } 
+
+                        if aabb.contains_aabb(node_aabb) {
+                            let new_child_node = dag.insert_from_aabb_query_recursive(
+                                model, 
+                                min,
+                                node_level -1,
+                                allocator,
+                            )?;
+
+                            let children = if let Some(children) = &mut new_children {
+                                children    
+                            } else {
+                                new_children = Some(self.get_node_range(dag, node.range())?);
+                                new_children.as_mut().unwrap()
+                            };
+                            
+                            children[index_in_children as usize] = new_child_node;
+
+                            continue;
+                        } 
+
+                        self.next_node(
+                            dag,
+                            aabb,
+                            model,
+                            allocator,
+                            node_level - 1,
+                            offset + pos.as_vec3a() * new_scale,
+                            index_in_children,
+                        )?;
                     }
                 }
             }
         }
 
+        Ok(())
     }
 }

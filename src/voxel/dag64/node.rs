@@ -44,6 +44,11 @@ impl VoxelDAG64Node {
         Some(count_ones_variable(self.pop_mask, index))
     }
 
+    pub fn get_index_in_children_unchecked(&self, index: u32) -> u32 {
+        count_ones_variable(self.pop_mask, index)
+    }
+
+
     pub fn range(&self) -> std::ops::Range<usize> {
         self.ptr() as usize..self.ptr() as usize + self.pop_mask.count_ones() as usize
     }

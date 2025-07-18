@@ -220,6 +220,22 @@ impl<T: Copy + Default + fmt::Debug + Sync + Eq + std::hash::Hash, Hasher: std::
         bail!("Allocated Index {index} not found!");
     }
 
+     pub fn get_range(&self, r: std::ops::Range<usize>) -> OctaResult<&[T]> {
+        
+        let res = self.allocations.iter()
+            .find(|a| a.start_index <= r.start && (a.start_index + a.data.len()) > r.end);
+
+        if res.is_some() {
+            let alloc = res.unwrap();
+            let start = r.start - alloc.start_index;
+            let end = r.end - alloc.start_index;
+            return Ok(&alloc.data[start..end]);
+        }  
+
+        bail!("Allocated range {r:?} not found!");
+    }
+
+
     pub fn flush(&mut self, buffer: &mut Buffer) {
         for alloc in self.allocations.iter_mut() {
             buffer.copy_data_to_buffer_without_aligment(&alloc.data, alloc.allocation.start + alloc.padding);

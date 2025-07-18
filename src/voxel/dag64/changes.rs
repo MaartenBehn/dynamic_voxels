@@ -64,6 +64,19 @@ impl DAG64Transaction {
             .unwrap_or_else(|| dag.nodes.get(index as usize))
     }
 
+    pub fn get_node_range(&self, dag: &VoxelDAG64, r: std::ops::Range<usize>) -> OctaResult<Vec<VoxelDAG64Node>> {
+        Ok(dag.nodes.get_range(r.to_owned())?.iter()
+            .enumerate()
+            .map(|(i, n)| ((i + r.start) as u32, n) )
+            .map(|(i, n)| {
+                self.node_changes.iter()
+                    .find(|c| c.index == i )
+                    .map(|c| c.new_node )
+                    .unwrap_or(n.to_owned())
+            })
+            .collect())
+    }
+
     pub fn clean(&mut self, dag: &VoxelDAG64) {
         let mut new_changed_nodes = vec![];
 

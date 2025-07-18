@@ -35,7 +35,7 @@ impl VoxelDAG64 {
 }
 
 impl VoxelDAG64 {
-    fn insert_from_aabb_query_recursive<M: VolumeQureyAABB>(
+    pub fn insert_from_aabb_query_recursive<M: VolumeQureyAABB>(
         &mut self,
         model: &M,
         offset: Vec3A,
