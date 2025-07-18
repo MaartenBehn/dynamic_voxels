@@ -4,16 +4,12 @@ use octa_force::glam::{UVec3, Vec3};
 use reload::{csg::{fast_query_csg_tree::tree::FastQueryCSGTree, slot_map_csg_tree::tree::SlotMapCSGTree, vec_csg_tree::tree::VecCSGTree}, multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, volume::VolumeQureyAABB, voxel::{dag64::VoxelDAG64, grid::VoxelGrid}};
 
 fn build_from_grid(grid: &VoxelGrid) -> VoxelDAG64 {
-    let buffer_size = 2_usize.pow(30);
-    let mut allocator = BuddyBufferAllocator::new(buffer_size, 32);
-    let tree64: VoxelDAG64 = VoxelDAG64::from_pos_query(grid, &mut allocator).unwrap();
+    let tree64: VoxelDAG64 = VoxelDAG64::from_pos_query(grid).unwrap();
     tree64
 }
 
 fn build_from_aabb_query<M: VolumeQureyAABB>(model: &M) -> VoxelDAG64 {
-    let buffer_size = 2_usize.pow(30);
-    let mut allocator = BuddyBufferAllocator::new(buffer_size, 32);
-    let tree64: VoxelDAG64 = VoxelDAG64::from_aabb_query(model, &mut allocator).unwrap();
+    let tree64: VoxelDAG64 = VoxelDAG64::from_aabb_query(model).unwrap();
     tree64
 }
 
