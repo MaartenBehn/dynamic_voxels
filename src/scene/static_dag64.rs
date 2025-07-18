@@ -17,6 +17,20 @@ pub struct StaticDAG64SceneObject {
     pub allocation: Option<BuddyAllocation>,
 }
 
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct StaticDAG64SceneObjectData {
+    pub x_axis: Vec3,
+    pub root_index: u32,
+    pub y_axis: Vec3,
+    pub node_start: u32,
+    pub z_axis: Vec3,
+    pub data_start: u32,
+    pub w_axis: Vec3,
+    pub fill: u32,
+    pub inv_mat: Mat4
+}
+
 impl StaticDAG64SceneObject {
     pub fn new(mat: Mat4, tree: StaticVoxelDAG64) -> Self {
         Self {
@@ -41,7 +55,7 @@ impl StaticDAG64SceneObject {
             Vec3::splat(1.5),
         ).mul_mat4(&self.mat.inverse());
 
-        let data = DAG64SceneObjectData {
+        let data = StaticDAG64SceneObjectData {
             x_axis: mat.x_axis.xyz(),
             y_axis: mat.y_axis.xyz(),
             z_axis: mat.z_axis.xyz(),

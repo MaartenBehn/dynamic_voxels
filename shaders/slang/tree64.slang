@@ -2,7 +2,7 @@ import helper_ray;
 import helper_math;
 import debug;
 
-struct Node {
+public struct Node {
   uint PackedData[3];
 
   property bool IsLeaf { get { return (PackedData[0] & 1) != 0; } }
@@ -15,14 +15,6 @@ public struct Tree64 {
   uint8_t* LeafData;
   uint start_index;
 
-  public __init(uint8_t* data, uint nodes_offset, uint data_offset, uint start_index) {
-    this.TreeNodes = (Node*)(data + nodes_offset);
-    this.LeafData = (uint8_t*)(data + data_offset);
-    this.start_index = start_index;
-
-    return this;
-  }
-  
   public HitInfo RayCast(float3 rayPos, float3 rayDir, bool coarse) {
     HitInfo hit = Traversal(rayPos, rayDir, coarse);
     return hit;

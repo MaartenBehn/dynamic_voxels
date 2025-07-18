@@ -1,12 +1,12 @@
 use octa_force::{glam::{vec3, vec3a, UVec3, Vec3, Vec3A}, log::debug, OctaResult};
 
 
-use crate::{multi_data_buffer::{allocated_vec::AllocatedVec, buddy_buffer_allocator::BuddyBufferAllocator}, util::aabb::AABB, volume::{VolumeQureyAABB, VolumeQureyAABBResult}};
+use crate::{multi_data_buffer::{allocated_vec::AllocatedVec, buddy_buffer_allocator::BuddyBufferAllocator, cached_vec::CachedVec}, util::aabb::AABB, volume::{VolumeQureyAABB, VolumeQureyAABBResult}};
 
-use super::{node::VoxelDAG64Node, VoxelDAG64};
+use super::{node::VoxelDAG64Node, DAG64EntryData, VoxelDAG64};
 
 impl VoxelDAG64 {
-    pub fn from_aabb_query<M: VolumeQureyAABB>(model: &M, allocator: &mut BuddyBufferAllocator) -> OctaResult<Self> {
+    pub fn from_aabb_query<M: VolumeQureyAABB>(model: &M) -> OctaResult<Self> {
         let offset = model.get_offset();
         let dims = model.get_size().as_uvec3();
         let mut scale = dims[0].max(dims[1]).max(dims[2]).next_power_of_two();
@@ -17,16 +17,20 @@ impl VoxelDAG64 {
 
         let levels = scale.ilog(4) as _;
         let mut this = Self {
-            nodes: AllocatedVec::new(40000 * size_of::<VoxelDAG64Node>()),
-            data: AllocatedVec::new(64),
-            levels,
-            root_index: 0,
-            offset,
+            nodes: CachedVec::new(100000),
+            data: CachedVec::new(64),
+            entry_points: Default::default(),
         };
 
-        let root = this.insert_from_aabb_query_recursive(model, offset, levels, allocator)?;
-        this.root_index = this.nodes.push(&[root], allocator)? as _;
+        let root = this.insert_from_aabb_query_recursive(model, offset, levels)?;
+        let root_index = this.nodes.push(&[root])?;
+        this.entry_points.insert(DAG64EntryData { 
+            levels, 
+            root_index, 
+            offset, 
+        });
 
+        
         this.nodes.optimize();
         this.data.optimize();
 
@@ -40,7 +44,6 @@ impl VoxelDAG64 {
         model: &M,
         offset: Vec3A,
         node_level: u8,
-        allocator: &mut BuddyBufferAllocator,
     ) -> OctaResult<VoxelDAG64Node> {
         let mut bitmask = 0;
 
@@ -57,7 +60,7 @@ impl VoxelDAG64 {
                     if v == 0 {
                         Ok(VoxelDAG64Node::new(true, 0, 0))
                     } else {
-                        Ok(VoxelDAG64Node::new(true, self.data.push(&[v; 64], allocator)? as u32, u64::MAX))
+                        Ok(VoxelDAG64Node::new(true, self.data.push(&[v; 64])? as u32, u64::MAX))
                     }
                 },
                 VolumeQureyAABBResult::Mixed =>  {
@@ -78,7 +81,7 @@ impl VoxelDAG64 {
                         }
                     }
 
-                    Ok(VoxelDAG64Node::new(true, self.data.push(&vec, allocator)? as u32, bitmask))
+                    Ok(VoxelDAG64Node::new(true, self.data.push(&vec)? as u32, bitmask))
                 },
             }
         } else {
@@ -94,7 +97,7 @@ impl VoxelDAG64 {
                     if v == 0 {
                         Ok(VoxelDAG64Node::new(true, 0, 0))
                     } else {
-                        Ok(VoxelDAG64Node::new(true, self.data.push(&[v; 64], allocator)? as u32, u64::MAX))
+                        Ok(VoxelDAG64Node::new(true, self.data.push(&[v; 64])? as u32, u64::MAX))
                     }
                 },
                 VolumeQureyAABBResult::Mixed =>  {
@@ -108,7 +111,6 @@ impl VoxelDAG64 {
                                     model,
                                     offset + pos.as_vec3a() * new_scale,
                                     node_level - 1,
-                                    allocator,
                                 )?
                                     .check_empty()
                                 {
@@ -119,7 +121,7 @@ impl VoxelDAG64 {
                         }
                     }
 
-                    Ok(VoxelDAG64Node::new(false, self.nodes.push(&nodes, allocator)? as u32, bitmask))
+                    Ok(VoxelDAG64Node::new(false, self.nodes.push(&nodes)? as u32, bitmask))
                 },
             }
         }
@@ -140,22 +142,11 @@ mod tests {
         let buffer_size = 2_usize.pow(30);
 
         let csg_1: FastQueryCSGTree<u8>  = VecCSGTree::new_sphere(Vec3::ZERO, 100.0).into();
-
-        let mut allocator_1 = BuddyBufferAllocator::new(buffer_size, 32);
-        let tree64_1 = VoxelDAG64::from_aabb_query(&csg_1, &mut allocator_1).unwrap();
+        let tree64_1 = VoxelDAG64::from_aabb_query(&csg_1).unwrap();
 
         let csg_2 = SlotMapCSGTree::new_sphere(Vec3::ZERO, 100.0);
-
-        let mut allocator_2 = BuddyBufferAllocator::new(buffer_size, 32);
-        let tree64_2 = VoxelDAG64::from_aabb_query(&csg_2, &mut allocator_2).unwrap();
-
-        dbg!(csg_1);
-        dbg!(csg_2);
-
-        dbg!(&tree64_1);
-        dbg!(&tree64_2);
+        let tree64_2 = VoxelDAG64::from_aabb_query(&csg_2).unwrap();
 
         assert_eq!(tree64_1, tree64_2);
-        assert_eq!(allocator_1, allocator_2);
     }
 }

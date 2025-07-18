@@ -7,7 +7,7 @@ use octa_force::{anyhow::bail, itertools::Itertools, log::{debug, error}, vulkan
 
 
 #[derive(Debug)]
-struct CachedVec<T, Hasher = fnv::FnvBuildHasher> {
+pub struct CachedVec<T, Hasher = fnv::FnvBuildHasher> {
     data: Vec<T>,
     used_ranges: Vec<(usize, usize)>,
     cache: hashbrown::HashTable<CompactRange>,
@@ -176,6 +176,13 @@ impl<T: Copy + Default + fmt::Debug + Sync + Eq + std::hash::Hash, Hasher: std::
     }
 
     pub fn get_memory_size(&self) -> usize {
-        self.data.len()
+        self.data.len() * size_of::<T>()
+    }
+}
+
+impl<T: Eq> PartialEq for CachedVec<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.data == other.data 
+        && self.used_ranges == other.used_ranges 
     }
 }

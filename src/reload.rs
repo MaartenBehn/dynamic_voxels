@@ -34,7 +34,6 @@ use octa_force::{log, OctaResult};
 use util::profiler::ShaderProfiler;
 use util::state_saver::StateSaver;
 use volume::VolumeBounds;
-use voxel::dag64::changes::DAG64Transaction;
 use voxel::dag64::VoxelDAG64;
 use voxel::grid::VoxelGrid;
 use voxel::static_dag64::renderer::StaticDAG64Renderer;
@@ -121,33 +120,23 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     let now = Instant::now();
  
     #[cfg(feature="scene")]
-    let mut tree64 = VoxelDAG64::from_aabb_query(&csg, &mut scene.allocator)?;
-
-    #[cfg(feature="scene")]
-    {
-        let mut transaction = tree64.create_transaction();
-        let last_offset = csg.get_offset();
-        let index = csg.append_node_with_remove(
-            SlotMapCSGNode::new_sphere(vec3(110.0, 0.0, 0.0), 50.0));
-        csg.set_all_aabbs();
-        let aabb = csg.nodes[index].aabb;
-
-        transaction.update_aabb(&mut tree64, aabb, last_offset, &csg, &mut scene.allocator)?;
-
-        transaction.apply(&mut tree64)?;
-
-    }
+    let mut tree64 = VoxelDAG64::from_aabb_query(&csg)?;
 
     let elapsed = now.elapsed();
     info!("Tree Build took {:.2?}", elapsed);
      
     #[cfg(feature="scene")]
     scene.add_objects(vec![
-        SceneObject::DAG64(DAG64SceneObject::new(Mat4::from_scale_rotation_translation(
-            Vec3::ONE,
-            Quat::IDENTITY,
-            vec3(0.0, 0.0, 0.0)
-        ), tree64))
+        SceneObject::DAG64(DAG64SceneObject::new(
+            &engine.context,
+            Mat4::from_scale_rotation_translation(
+                Vec3::ONE,
+                Quat::IDENTITY,
+                vec3(0.0, 0.0, 0.0)
+            ), 
+            tree64.entry_points.keys().next().unwrap().to_owned(),
+            tree64,
+        )?)
     ])?;
 
     #[cfg(feature="scene")]

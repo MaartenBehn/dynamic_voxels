@@ -49,7 +49,7 @@ pub struct SceneObjectData {
 
 impl Scene {
     pub fn new(context: &Context) -> OctaResult<Self> {
-        let buffer_size = 2_usize.pow(30);
+        let buffer_size = 2_usize.pow(20);
         info!("Scene Buffer size: {:.04} MB", to_mb(buffer_size));
 
         let mut buffer = context.create_buffer(
@@ -136,7 +136,7 @@ impl SceneObject {
     pub fn get_nr(&self) -> u32 {
         match self {
             SceneObject::StaticDAG64(..) => 0,
-            SceneObject::DAG64(..) => 0,
+            SceneObject::DAG64(..) => 1,
         }
     }
 
@@ -160,7 +160,7 @@ impl SceneObject {
                 AABB::from_centered_size(&dag.mat, dag.dag.get_size())
             },
             SceneObject::DAG64(dag) => {
-                AABB::from_centered_size(&dag.mat, dag.dag.get_size() / VOXELS_PER_SHADER_UNIT as f32)
+                AABB::from_centered_size(&dag.mat, dag.dag.entry_points[dag.entry_key].get_size() / VOXELS_PER_SHADER_UNIT as f32)
             },
         }
     }
