@@ -8,17 +8,21 @@ use super::tree::{SlotMapCSGNode, SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSG
 
 impl<T: Base + Clone> SlotMapCSGTree<T> {
     pub fn new_sphere(center: Vec3, radius: f32) -> Self {
-        SlotMapCSGTree::from_node(
-            SlotMapCSGNode::new(SlotMapCSGNodeData::Sphere(
-                Mat4::from_scale_rotation_translation(
-                    Vec3::ONE * radius,
-                    Quat::IDENTITY,
-                    center,
-                ).inverse(),
-                T::base(),
-            )),
-        )
+        SlotMapCSGTree::from_node(SlotMapCSGNode::new_sphere(center, radius))
     } 
 }
+
+impl <T: Base + Clone> SlotMapCSGNode<T> {
+    pub fn new_sphere(center: Vec3, radius: f32) -> Self {
+        SlotMapCSGNode::new(SlotMapCSGNodeData::Sphere(
+            Mat4::from_scale_rotation_translation(
+                Vec3::ONE * radius,
+                Quat::IDENTITY,
+                center,
+            ).inverse(),
+            T::base(),
+        ))
+    } 
+} 
 
 

@@ -1,4 +1,4 @@
-use octa_force::{glam::{vec3a, UVec3, Vec3A, Vec4Swizzles}, OctaResult};
+use octa_force::{glam::{vec3a, UVec3, Vec3A, Vec4Swizzles}, log::debug, OctaResult};
 
 use crate::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, util::aabb::AABB, volume::VolumeQureyAABB};
 
@@ -14,7 +14,6 @@ impl DAG64Transaction {
         model: &M, 
         allocator: &mut BuddyBufferAllocator
     ) -> OctaResult<()> {
-
         let mut scale = 4_u32.pow(self.new_levels as u32) as f32;
         let mut min = last_offset;
         let mut max = min + scale;
@@ -22,7 +21,8 @@ impl DAG64Transaction {
 
         // Increase the Tree if the model does not fit.
         let model_aabb= model.get_bounds();
-        while !tree_aabb.contains_aabb(model_aabb) { 
+        while !tree_aabb.contains_aabb(model_aabb) {
+            debug!("Expand Tree");
             let child_pos = Vec3A::from(tree_aabb.min - model_aabb.min).max(Vec3A::ZERO) % scale;
             let child_index = child_pos.round().as_uvec3().dot(UVec3::new(1, 4, 16));
 
@@ -53,7 +53,9 @@ impl DAG64Transaction {
     ) -> OctaResult<()> {
 
         let node = self.get_node(dag, index).unwrap();
-        if node_level == 1 {
+
+        // TODO somehow are some parts missing at level 3
+        if node.is_leaf() || node_level <= 4 {
             let new_node = dag.insert_from_aabb_query_recursive(
                 model, 
                 offset,
@@ -61,11 +63,15 @@ impl DAG64Transaction {
                 allocator,
             )?;
 
-            self.change_node(index, new_node, node);
+            if new_node != node {
+                self.change_node(index, new_node, node);
+            }
+
             return Ok(());
         }
 
-        let mut new_children = None;
+        let mut new_children = vec![];
+        let mut new_bitmask = node.pop_mask;
                 
         let new_scale = 4_u32.pow(node_level as u32 - 1) as f32;
         for z in (0..4).rev() {
@@ -75,11 +81,13 @@ impl DAG64Transaction {
                     let min = offset + pos.as_vec3a() * new_scale;
                     let max = min + new_scale;
                     let node_aabb = AABB::new_a(min, max);
+
                     if aabb.collides_aabb(node_aabb) {
 
                         let child_nr = pos.dot(UVec3::new(1, 4, 16));
                         let index_in_children = node.get_index_in_children_unchecked(child_nr);
                         if !node.is_occupied(child_nr) {
+
                             let new_child_node = dag.insert_from_aabb_query_recursive(
                                 model, 
                                 min,
@@ -87,19 +95,22 @@ impl DAG64Transaction {
                                 allocator,
                             )?;
 
-                            let children = if let Some(children) = &mut new_children {
-                                children    
-                            } else {
-                                new_children = Some(self.get_node_range(dag, node.range())?);
-                                new_children.as_mut().unwrap()
-                            };
+                            if new_child_node.is_empty() {
+                                continue;
+                            }
 
-                            children.insert(index_in_children as usize, new_child_node);
-                            
+                            if new_children.is_empty() {
+                                new_children = self.get_node_range(dag, node.range())?;
+                            }
+
+                            new_children.insert(index_in_children as usize, new_child_node);
+                            new_bitmask |= 1 << child_nr as u64; 
+
                             continue;
                         } 
 
                         if aabb.contains_aabb(node_aabb) {
+
                             let new_child_node = dag.insert_from_aabb_query_recursive(
                                 model, 
                                 min,
@@ -107,14 +118,11 @@ impl DAG64Transaction {
                                 allocator,
                             )?;
 
-                            let children = if let Some(children) = &mut new_children {
-                                children    
-                            } else {
-                                new_children = Some(self.get_node_range(dag, node.range())?);
-                                new_children.as_mut().unwrap()
-                            };
+                            if new_children.is_empty() {
+                                new_children = self.get_node_range(dag, node.range())?;
+                            }
                             
-                            children[index_in_children as usize] = new_child_node;
+                            new_children[index_in_children as usize] = new_child_node;
 
                             continue;
                         } 
@@ -125,11 +133,19 @@ impl DAG64Transaction {
                             model,
                             allocator,
                             node_level - 1,
-                            offset + pos.as_vec3a() * new_scale,
-                            index_in_children,
+                            min,
+                            node.ptr() + index_in_children,
                         )?;
-                    }
+                    }                
                 }
+            }
+        }
+
+        if !new_children.is_empty() {
+            let new_node = VoxelDAG64Node::new(false, dag.nodes.push(&new_children, allocator)? as u32, new_bitmask);
+
+            if new_node != node {
+                self.change_node(index, new_node, node);
             }
         }
 

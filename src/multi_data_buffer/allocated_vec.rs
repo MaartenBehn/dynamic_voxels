@@ -207,34 +207,49 @@ impl<T: Copy + Default + fmt::Debug + Sync + Eq + std::hash::Hash, Hasher: std::
     }
 
     pub fn get(&self, index: usize) -> OctaResult<T> {
-        
-        let res = self.allocations.iter()
-            .find(|a| a.start_index <= index && (a.start_index + a.data.len()) > index);
-
-        if res.is_some() {
-            let alloc = res.unwrap();
-            let index = index - alloc.start_index;
-            return Ok(alloc.data[index]);
-        }  
-
-        bail!("Allocated Index {index} not found!");
+        Ok(self.get_range(index..(index + 1))?[0])
     }
 
-     pub fn get_range(&self, r: std::ops::Range<usize>) -> OctaResult<&[T]> {
-        
+    pub fn get_range(&self, r: std::ops::Range<usize>) -> OctaResult<&[T]> {
+
         let res = self.allocations.iter()
             .find(|a| a.start_index <= r.start && (a.start_index + a.data.len()) > r.end);
 
-        if res.is_some() {
-            let alloc = res.unwrap();
-            let start = r.start - alloc.start_index;
-            let end = r.end - alloc.start_index;
-            return Ok(&alloc.data[start..end]);
-        }  
+        if res.is_none() {
+            let alloc_ranges = self.allocations.iter()
+                .map(|a|  (a.start_index, a.start_index + a.data.len()))
+                .collect::<Vec<_>>();
 
-        bail!("Allocated range {r:?} not found!");
+            bail!("Allocated range {r:?} not found! Allocations: {alloc_ranges:?}");
+        }
+
+        let alloc = res.unwrap();
+        let start = r.start - alloc.start_index;
+        let end = r.end - alloc.start_index;
+        Ok(&alloc.data[start..end])
     }
 
+    pub fn set(&mut self, index: usize, data: &[T]) -> OctaResult<()> {
+        let max = index + data.len();
+        let res = self.allocations.iter_mut()
+            .find(|a| a.start_index <= index && (a.start_index + a.data.len()) > max);
+
+        if res.is_none() {
+            let alloc_ranges = self.allocations.iter()
+                .map(|a|  (a.start_index, a.start_index + a.data.len()))
+                .collect::<Vec<_>>();
+
+
+            bail!("Set range from {index} to {max} not found! Allocations: {alloc_ranges:?}");
+        }
+
+        let alloc = res.unwrap();
+        let start = index - alloc.start_index;
+        let end = index + data.len() - alloc.start_index;
+        alloc.data[start..end].copy_from_slice(data);
+
+        Ok(())
+    }
 
     pub fn flush(&mut self, buffer: &mut Buffer) {
         for alloc in self.allocations.iter_mut() {

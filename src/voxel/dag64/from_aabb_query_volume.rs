@@ -17,7 +17,7 @@ impl VoxelDAG64 {
 
         let levels = scale.ilog(4) as _;
         let mut this = Self {
-            nodes: AllocatedVec::new(10 * size_of::<VoxelDAG64Node>()),
+            nodes: AllocatedVec::new(40000 * size_of::<VoxelDAG64Node>()),
             data: AllocatedVec::new(64),
             levels,
             root_index: 0,

@@ -16,6 +16,15 @@ impl<T: fmt::Debug> SlotMapCSGTree<T> {
         new_index
     }
 
+    pub fn append_node_with_remove(&mut self, node: SlotMapCSGNode<T>) -> SlotMapCSGTreeKey {
+        let new_index = self.nodes.insert(node);
+        self.root_node = self.nodes.insert(SlotMapCSGNode::new(
+            SlotMapCSGNodeData::Remove(self.root_node, new_index) 
+        ));
+
+        new_index
+    }
+
     pub fn remove_node_as_child_of_union(&mut self, index: SlotMapCSGTreeKey) -> OctaResult<()> {
         let node = self.nodes
             .remove(index)

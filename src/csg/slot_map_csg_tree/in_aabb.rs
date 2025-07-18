@@ -46,6 +46,8 @@ impl SlotMapCSGTree<u8> {
                         return VolumeQureyAABBResult::Mixed;
                     } else if b.get_value() != 0 {
                         return VolumeQureyAABBResult::Full(MATERIAL_ID_NONE);
+                    } else {
+                        return VolumeQureyAABBResult::Mixed
                     }
                 }
 

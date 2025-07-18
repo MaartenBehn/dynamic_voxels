@@ -1,4 +1,4 @@
-use octa_force::{glam::{UVec3, Vec3A}, OctaResult};
+use octa_force::{glam::{UVec3, Vec3A}, log::debug, OctaResult};
 
 use crate::multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator;
 
@@ -102,6 +102,18 @@ impl DAG64Transaction {
             self.clean_internal(dag, new_changed_nodes, i as u32);
         }
     }
+
+    pub fn apply(&mut self, dag: &mut VoxelDAG64) -> OctaResult<()> {
+        dag.root_index = self.new_root_index;
+        dag.offset = self.new_offset;
+        dag.levels = self.new_levels;
+
+        for change in self.node_changes.iter() {
+            dag.nodes.set(change.index as usize, &[change.new_node])?;
+        }
+
+        Ok(())
+    }
 }
 
 impl DAG64NodeChange {
@@ -114,16 +126,20 @@ impl DAG64NodeChange {
     }
 }
 
-impl From<&VoxelDAG64> for DAG64Transaction {
-    fn from(value: &VoxelDAG64) -> Self {
+impl VoxelDAG64 {
+    pub fn create_transaction(&self) -> DAG64Transaction {
         DAG64Transaction { 
             node_changes: vec![], 
-            old_root_index: value.root_index,
-            new_root_index: value.root_index,
-            old_levels: value.levels,
-            new_levels: value.levels,
-            old_offset: value.offset,
-            new_offset: value.offset, 
+            old_root_index: self.root_index,
+            new_root_index: self.root_index,
+            old_levels: self.levels,
+            new_levels: self.levels,
+            old_offset: self.offset,
+            new_offset: self.offset, 
         }
     }
+}
+
+impl From<&VoxelDAG64> for DAG64Transaction {
+    fn from(value: &VoxelDAG64) -> Self { value.create_transaction() }
 }

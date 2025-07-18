@@ -53,8 +53,12 @@ impl VoxelDAG64Node {
         self.ptr() as usize..self.ptr() as usize + self.pop_mask.count_ones() as usize
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.pop_mask == 0
+    }
+
     pub fn check_empty(&self) -> Option<Self> {
-        Some(*self).filter(|node| node.pop_mask != 0)
+        Some(*self).filter(|node| !node.is_empty())
     }
 }
 

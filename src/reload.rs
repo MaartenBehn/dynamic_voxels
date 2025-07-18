@@ -10,7 +10,7 @@ pub mod volume;
 pub mod voxel;
 
 use csg::fast_query_csg_tree::tree::FastQueryCSGTree;
-use csg::slot_map_csg_tree::tree::SlotMapCSGTree;
+use csg::slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGTree};
 use csg::vec_csg_tree::tree::{VecCSGTree, VOXEL_SIZE};
 use model::debug_renderer::ModelDebugRenderer;
 use model::examples::islands::{self, IslandsState};
@@ -33,6 +33,8 @@ use octa_force::vulkan::Fence;
 use octa_force::{log, OctaResult};
 use util::profiler::ShaderProfiler;
 use util::state_saver::StateSaver;
+use volume::VolumeBounds;
+use voxel::dag64::changes::DAG64Transaction;
 use voxel::dag64::VoxelDAG64;
 use voxel::grid::VoxelGrid;
 use voxel::static_dag64::renderer::StaticDAG64Renderer;
@@ -72,8 +74,8 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
     #[cfg(feature="scene")]
     {
         camera.set_meter_per_unit(METERS_PER_SHADER_UNIT as f32);
-        camera.set_position_in_meters(Vec3::new(-4.0, -2.0, -0.0)); 
-        camera.direction = Vec3::new(0.50361323, 0.85740614, 0.10596458).normalize();
+        camera.set_position_in_meters(Vec3::new(3.4412215, -4.3927727, 0.5919213)); 
+        camera.direction = Vec3::new(-0.2964419, 0.9254107, -0.23608726).normalize();
         
         camera.speed = 10.0;
         camera.z_near = 0.001;
@@ -114,12 +116,27 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     let mut scene = Scene::new(&engine.context)?;
 
     #[cfg(feature="scene")]
-    let csg = SlotMapCSGTree::new_sphere(Vec3::ZERO, 100.0);
-
+    let mut csg = SlotMapCSGTree::new_sphere(Vec3::ZERO, 100.0);
+     
     let now = Instant::now();
  
     #[cfg(feature="scene")]
-    let tree64 = VoxelDAG64::from_aabb_query(&csg, &mut scene.allocator)?;
+    let mut tree64 = VoxelDAG64::from_aabb_query(&csg, &mut scene.allocator)?;
+
+    #[cfg(feature="scene")]
+    {
+        let mut transaction = tree64.create_transaction();
+        let last_offset = csg.get_offset();
+        let index = csg.append_node_with_remove(
+            SlotMapCSGNode::new_sphere(vec3(110.0, 0.0, 0.0), 50.0));
+        csg.set_all_aabbs();
+        let aabb = csg.nodes[index].aabb;
+
+        transaction.update_aabb(&mut tree64, aabb, last_offset, &csg, &mut scene.allocator)?;
+
+        transaction.apply(&mut tree64)?;
+
+    }
 
     let elapsed = now.elapsed();
     info!("Tree Build took {:.2?}", elapsed);
@@ -157,7 +174,7 @@ pub fn update(
     let time = logic_state.start_time.elapsed(); 
 
     logic_state.camera.update(&engine.controls, delta_time);
-    //info!("Camera Pos: {} Dir: {}", logic_state.camera.position, logic_state.camera.direction);
+    //info!("Camera Pos: {} Dir: {}", logic_state.camera.get_position_in_meters(), logic_state.camera.direction);
  
     #[cfg(any(feature="scene"))]
     render_state.renderer.update(

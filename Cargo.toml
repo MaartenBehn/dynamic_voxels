@@ -25,6 +25,10 @@ harness = false
 name = "tree64_build"
 harness = false
 
+[[bench]]
+name = "change_dag64"
+harness = false
+
 [features]
 islands = []
 profile_islands = []
