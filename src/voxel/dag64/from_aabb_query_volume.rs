@@ -17,7 +17,7 @@ impl VoxelDAG64 {
 
         let levels = scale.ilog(4) as _;
         let mut this = Self {
-            nodes: AllocatedVec::new(4000 * size_of::<VoxelDAG64Node>()),
+            nodes: AllocatedVec::new(10 * size_of::<VoxelDAG64Node>()),
             data: AllocatedVec::new(64),
             levels,
             root_index: 0,
@@ -126,3 +126,36 @@ impl VoxelDAG64 {
     }
 }
 
+
+#[cfg(test)]
+
+mod tests {
+    use octa_force::glam::Vec3;
+
+    use crate::{csg::{fast_query_csg_tree::tree::FastQueryCSGTree, slot_map_csg_tree::tree::SlotMapCSGTree, vec_csg_tree::tree::VecCSGTree}, multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, voxel::dag64::VoxelDAG64};
+
+    #[test]
+    fn build_from_different_csg_trees_should_result_the_same() {
+        
+        let buffer_size = 2_usize.pow(30);
+
+        let csg_1: FastQueryCSGTree<u8>  = VecCSGTree::new_sphere(Vec3::ZERO, 100.0).into();
+
+        let mut allocator_1 = BuddyBufferAllocator::new(buffer_size, 32);
+        let tree64_1 = VoxelDAG64::from_aabb_query(&csg_1, &mut allocator_1).unwrap();
+
+        let csg_2 = SlotMapCSGTree::new_sphere(Vec3::ZERO, 100.0);
+
+        let mut allocator_2 = BuddyBufferAllocator::new(buffer_size, 32);
+        let tree64_2 = VoxelDAG64::from_aabb_query(&csg_2, &mut allocator_2).unwrap();
+
+        dbg!(csg_1);
+        dbg!(csg_2);
+
+        dbg!(&tree64_1);
+        dbg!(&tree64_2);
+
+        assert_eq!(tree64_1, tree64_2);
+        assert_eq!(allocator_1, allocator_2);
+    }
+}

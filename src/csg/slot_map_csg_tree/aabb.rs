@@ -55,12 +55,12 @@ impl<T: Clone> SlotMapCSGTree<T> {
                 self.set_primitive_aabbs(*c1, &mat, changed_nodes);
             },
             SlotMapCSGNodeData::Box(mat, ..) => {
-                let mat = mat.mul_mat4(base_mat);
+                let mat = mat.inverse().mul_mat4(base_mat);
                 self.nodes[i].aabb = AABB::from_box(&mat);
                 changed_nodes.push(i);
             },
             SlotMapCSGNodeData::Sphere(mat, ..) => {
-                let mat = mat.mul_mat4(base_mat);
+                let mat = mat.inverse().mul_mat4(base_mat);
                 self.nodes[i].aabb = AABB::from_sphere(&mat);
                 changed_nodes.push(i);
             },

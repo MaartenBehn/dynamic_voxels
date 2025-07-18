@@ -40,3 +40,14 @@ impl VoxelDAG64 {
         );
     }
 }
+
+
+impl PartialEq for VoxelDAG64 {
+    fn eq(&self, other: &Self) -> bool {
+        self.nodes == other.nodes 
+        && self.data == other.data 
+        && self.levels == other.levels 
+        && self.root_index == other.root_index 
+        && self.offset.eq(&other.offset)
+    }
+}

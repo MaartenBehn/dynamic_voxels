@@ -5,7 +5,7 @@ use octa_force::OctaResult;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::iter;
-use std::sync::Arc;
+use std::sync::{Arc};
 
 #[derive(Clone)]
 pub struct BuddyBufferAllocator {
@@ -19,7 +19,7 @@ pub struct BuddyAllocation {
     pub size: usize,
 } 
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct BuddyAllocator {
     free_list: Vec<Vec<(usize, usize)>>,
     mp: HashMap<usize, usize>,
@@ -209,6 +209,24 @@ impl Debug for BuddyAllocation {
             .field("start", &self.start)
             .field("size", &self.size)
             .finish()
+    }
+}
+
+impl PartialEq for BuddyAllocation {
+    fn eq(&self, other: &Self) -> bool {
+        self.start == other.start && self.size == other.size
+    }
+}
+
+impl PartialEq for BuddyBufferAllocator {
+    fn eq(&self, other: &Self) -> bool {
+        let a = self.inner.lock();
+        let b = other.inner.lock();
+
+        a.size == b.size
+        && a.mp == b.mp
+        && a.free_list == b.free_list
+        && a.min_n == b.min_n
     }
 }
 

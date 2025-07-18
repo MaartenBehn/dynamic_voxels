@@ -10,6 +10,7 @@ pub mod volume;
 pub mod voxel;
 
 use csg::fast_query_csg_tree::tree::FastQueryCSGTree;
+use csg::slot_map_csg_tree::tree::SlotMapCSGTree;
 use csg::vec_csg_tree::tree::{VecCSGTree, VOXEL_SIZE};
 use model::debug_renderer::ModelDebugRenderer;
 use model::examples::islands::{self, IslandsState};
@@ -113,7 +114,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     let mut scene = Scene::new(&engine.context)?;
 
     #[cfg(feature="scene")]
-    let csg: FastQueryCSGTree<u8> = VecCSGTree::new_sphere(Vec3::ZERO, 100.0).into();
+    let csg = SlotMapCSGTree::new_sphere(Vec3::ZERO, 100.0);
 
     let now = Instant::now();
  

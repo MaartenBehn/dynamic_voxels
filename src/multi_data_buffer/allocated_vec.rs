@@ -256,3 +256,20 @@ impl<T: Copy + Default + fmt::Debug + Sync + Eq + std::hash::Hash, Hasher: std::
         self.allocations.len()
     }
 }
+
+impl<T: Eq> PartialEq for Allocation<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.allocation == other.allocation 
+        && self.start_index == other.start_index 
+        && self.padding == other.padding 
+        && self.data.as_slice() == other.data.as_slice() 
+        && self.used_ranges == other.used_ranges 
+    }
+}
+
+impl<T: Eq> PartialEq for AllocatedVec<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.allocations.as_slice() == other.allocations.as_slice() 
+        && self.minimum_allocation_size == other.minimum_allocation_size 
+    }
+}
