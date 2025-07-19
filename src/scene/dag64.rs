@@ -1,11 +1,11 @@
 
 use std::{rc::Rc, sync::Arc};
 
-use octa_force::{glam::{vec3, vec4, Mat4, Quat, Vec3, Vec4, Vec4Swizzles}, log::debug, vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
+use octa_force::{glam::{vec3, vec4, Mat4, Quat, Vec3, Vec3A, Vec3Swizzles, Vec4, Vec4Swizzles}, log::debug, vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
 use parking_lot::Mutex;
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, voxel::dag64::{DAG64EntryKey, VoxelDAG64}, VOXELS_PER_SHADER_UNIT};
+use crate::{multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, util::aabb::AABB, voxel::dag64::{DAG64EntryKey, VoxelDAG64}, VOXELS_PER_METER, VOXELS_PER_SHADER_UNIT};
 
 use super::{Scene, SceneObjectData, SceneObjectKey, SceneObjectType};
 
@@ -80,11 +80,15 @@ impl DAG64SceneObject {
         let mut dag = self.dag.lock(); 
         let entry = dag.entry_points[self.entry_key];
 
+        let size = entry.get_size();
+        let scale = (VOXELS_PER_SHADER_UNIT as u32 / size) as f32; 
         let mat = Mat4::from_scale_rotation_translation(
-            Vec3::splat((VOXELS_PER_SHADER_UNIT as u32 / entry.get_size_u32()) as f32 ), 
+            Vec3::splat(scale), 
             Quat::IDENTITY,
-            Vec3::splat(1.5),
-        ).mul_mat4(&self.mat.inverse());
+            Vec3::splat(1.0) - Vec3::from(entry.offset) / size as f32,
+        )
+            .mul_mat4(&self.mat.inverse());
+
         let inv_mat = mat.inverse();
 
         let data = DAG64SceneObjectData {
@@ -102,7 +106,17 @@ impl DAG64SceneObject {
 
         dag.nodes.flush(&mut self.node_buffer);
         dag.data.flush(&mut self.data_buffer);
-        dag.print_memory_info();
+    }
+
+    pub fn get_aabb(&self) -> AABB {
+        let dag = self.dag.lock(); 
+        let entry = dag.entry_points[self.entry_key];
+        let size = entry.get_size();
+        AABB::from_min_max(
+            &self.mat,
+            entry.offset / VOXELS_PER_SHADER_UNIT as f32, 
+            (entry.offset + Vec3A::splat(size as f32)) / VOXELS_PER_SHADER_UNIT as f32,
+        )
     }
 }
 

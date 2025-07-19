@@ -22,6 +22,7 @@ impl VoxelDAG64 {
         let model_aabb = model.get_bounds();
         let model_center = model_aabb.center();
 
+        dbg!(entry_data.offset);
         while !tree_aabb.contains_aabb(model_aabb) {
             let child_pos = (Vec3A::from(model_center - tree_aabb.min) / scale) + 1.0;
             let child_index = child_pos.as_uvec3().dot(UVec3::new(1, 4, 16));
@@ -34,6 +35,7 @@ impl VoxelDAG64 {
             scale = 4_u32.pow(entry_data.levels as u32) as f32;
             tree_aabb = AABB::new_a(entry_data.offset, entry_data.offset + scale as f32);
             debug!("Expand Tree {tree_aabb:?}");
+            dbg!(entry_data.offset);
         }
 
         let root = self.next_node(model, changed_aabb,entry_data.levels, entry_data.offset, entry_data.root_index)?;

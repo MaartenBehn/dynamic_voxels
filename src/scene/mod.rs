@@ -113,7 +113,6 @@ impl Scene {
 
         self.bvh_len = flat_bvh.len();
         let flat_bvh_size =  flat_bvh.len() * size_of::<SceneObjectData>();
-        debug!("Flat BVH Size: {flat_bvh_size}");
 
         if self.bvh_allocation.size < flat_bvh_size {
             self.bvh_allocation = self.allocator.alloc(flat_bvh_size)?;
@@ -172,7 +171,7 @@ impl SceneObject {
     pub fn get_aabb(&self) -> AABB {
         match &self.data {
             SceneObjectType::DAG64(dag) => {
-                AABB::from_centered_size(&dag.mat, dag.dag.lock().entry_points[dag.entry_key].get_size() / VOXELS_PER_SHADER_UNIT as f32)
+                dag.get_aabb()
             },
         }
     }

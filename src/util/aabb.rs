@@ -69,45 +69,25 @@ impl AABB {
         }
     }
 
-    pub fn from_centered_size(mat: &Mat4, size: Vec3) -> AABB {
-        let size = vec4(size.x as f32, size.y as f32, size.z as f32, 1.0);
-
-        let corners = [
-            vec4(-0.5, -0.5, -0.5, 1.0),
-            vec4(-0.5, -0.5, 0.5, 1.0),
-            vec4(-0.5, 0.5, -0.5, 1.0),
-            vec4(-0.5, 0.5, 0.5, 1.0),
-            vec4(0.5, -0.5, -0.5, 1.0),
-            vec4(0.5, -0.5, 0.5, 1.0),
-            vec4(0.5, 0.5, -0.5, 1.0),
-            vec4(0.5, 0.5, 0.5, 1.0),
-        ];
-
-        let mut min = vec4(f32::INFINITY, f32::INFINITY, f32::INFINITY, 1.0);
-        let mut max = vec4(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY, 1.0);
-        for corner in corners {
-            let transformed_corner = mat.mul_vec4(size * corner);
-
-            min = min.min(transformed_corner);
-            max = max.max(transformed_corner);
-        }
-
-        AABB {
-            min: min,
-            max: max,
-        }
+    
+    pub fn from_size(mat: &Mat4, size: Vec3A) -> AABB {
+        AABB::from_min_max(mat, Vec3A::ZERO, size)
     }
 
-    pub fn from_size(mat: &Mat4, size: Vec3) -> AABB {
+    pub fn from_centered_size(mat: &Mat4, size: Vec3A) -> AABB {
+        AABB::from_min_max(mat, size * -0.5, size * 0.5)
+    }
+
+    pub fn from_min_max(mat: &Mat4, min: Vec3A, max: Vec3A) -> AABB {
         let corners = [
-            vec4(0.0, 0.0, 0.0, 1.0),
-            vec4(0.0, 0.0, size.z, 1.0),
-            vec4(0.0, size.y, 0.0, 1.0),
-            vec4(0.0, size.y, size.z, 1.0),
-            vec4(size.x, 0.0, 0.0, 1.0),
-            vec4(size.x, 0.0, size.z, 1.0),
-            vec4(size.x, size.y, 0.0, 1.0),
-            vec4(size.x, size.y, size.z, 1.0),
+            vec4(min.x, min.y, min.z, 1.0),
+            vec4(min.x, min.y, max.z, 1.0),
+            vec4(min.x, max.y, min.z, 1.0),
+            vec4(min.x, max.y, max.z, 1.0),
+            vec4(max.x, min.y, min.z, 1.0),
+            vec4(max.x, min.y, max.z, 1.0),
+            vec4(max.x, max.y, min.z, 1.0),
+            vec4(max.x, max.y, max.z, 1.0),
         ];
 
         let mut min = vec4(f32::INFINITY, f32::INFINITY, f32::INFINITY, 1.0);
@@ -124,6 +104,7 @@ impl AABB {
             max: max,
         }
     }
+
 
     pub fn union(self, other: AABB) -> AABB {
         AABB {

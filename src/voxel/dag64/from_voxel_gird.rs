@@ -10,9 +10,9 @@ impl VoxelDAG64 {
         let dims = model.get_size().as_uvec3();
         let mut scale = dims[0].max(dims[1]).max(dims[2]).next_power_of_two();
         scale = scale.max(4);
-        if scale.ilog2() % 2 == 1 {
-            scale *= 2;
-        }
+        //if scale.ilog2() % 2 == 1 {
+        //    scale *= 2;
+        //}
 
         let levels = scale.ilog(4) as _;
         let mut this = Self {

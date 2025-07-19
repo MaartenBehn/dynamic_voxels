@@ -40,14 +40,9 @@ impl VoxelDAG64 {
     }
 }
 
-impl DAG64EntryData {
-    pub fn get_size(&self) -> Vec3 {
-        let size = self.get_size_u32();
-        Vec3::splat(size as f32)
-    }
-
-    pub fn get_size_u32(&self) -> u32 {
-        4_u32.pow(self.levels as u32 - 1)
+impl DAG64EntryData { 
+    pub fn get_size(&self) -> u32 {
+        4_u32.pow(self.levels as u32)
     }
 }
 

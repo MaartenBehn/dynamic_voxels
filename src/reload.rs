@@ -22,7 +22,7 @@ use slotmap::Key;
 use kiddo::SquaredEuclidean;
 use octa_force::camera::Camera;
 use octa_force::egui_winit::winit::event::WindowEvent;
-use octa_force::glam::{vec3, DVec3, Mat4, Quat, UVec3, Vec3};
+use octa_force::glam::{vec3, DVec3, EulerRot, Mat4, Quat, UVec3, Vec3};
 use octa_force::gui::Gui;
 use octa_force::log::{debug, error, info, Log};
 use octa_force::logger::setup_logger;
@@ -178,8 +178,8 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
             &engine.context,
             Mat4::from_scale_rotation_translation(
                 Vec3::ONE,
-                Quat::IDENTITY,
-                vec3(0.0, 0.0, 0.0)
+                Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, 0.0),
+                vec3(0.0, 0.0, 0.0) / METERS_PER_SHADER_UNIT as f32
             ), 
             key,
             state.dag.clone(),
