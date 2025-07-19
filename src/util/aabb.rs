@@ -236,6 +236,10 @@ impl AABB {
             max: vec4(f32::INFINITY, f32::INFINITY, f32::INFINITY, 1.0),
         }
     }
+
+    pub fn center(&self) -> Vec4 {
+        (self.max + self.min) / 2.0
+    }
 }
 
 impl Default for AABB {

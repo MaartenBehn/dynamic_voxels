@@ -14,23 +14,26 @@ impl VoxelDAG64 {
     ) -> OctaResult<DAG64EntryKey> {
         let mut entry_data = self.entry_points[based_on_entry].to_owned(); 
 
-        let scale = 4_u32.pow(entry_data.levels as u32) as f32;
-        let mut tree_aabb = AABB::new_a(entry_data.offset, entry_data.offset + scale);
+        let mut scale = 4_u32.pow(entry_data.levels as u32) as f32;
+        let mut tree_aabb = AABB::new_a(entry_data.offset, entry_data.offset + scale as f32);
+
 
         // Increase the Tree if the model does not fit.
-        let model_aabb= model.get_bounds();
+        let model_aabb = model.get_bounds();
+        let model_center = model_aabb.center();
+
         while !tree_aabb.contains_aabb(model_aabb) {
-            debug!("Expand Tree");
-            let child_pos = Vec3A::from(tree_aabb.min - model_aabb.min).max(Vec3A::ZERO) % scale;
-            let child_index = child_pos.round().as_uvec3().dot(UVec3::new(1, 4, 16));
+            let child_pos = (Vec3A::from(model_center - tree_aabb.min) / scale) + 1.0;
+            let child_index = child_pos.as_uvec3().dot(UVec3::new(1, 4, 16));
 
             let new_root = VoxelDAG64Node::new(false, entry_data.root_index, 1 << child_index as u64);
             entry_data.root_index = self.nodes.push(&[new_root])? as u32;
             
             entry_data.levels += 1;
-            entry_data.offset = entry_data.offset - child_pos * scale;
-            let scale = 4_u32.pow(entry_data.levels as u32) as f32;
-            tree_aabb = AABB::new_a(entry_data.offset, entry_data.offset + scale);
+            entry_data.offset = entry_data.offset - child_pos * scale as f32;
+            scale = 4_u32.pow(entry_data.levels as u32) as f32;
+            tree_aabb = AABB::new_a(entry_data.offset, entry_data.offset + scale as f32);
+            debug!("Expand Tree {tree_aabb:?}");
         }
 
         let root = self.next_node(model, changed_aabb,entry_data.levels, entry_data.offset, entry_data.root_index)?;

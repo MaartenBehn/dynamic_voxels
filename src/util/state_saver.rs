@@ -35,7 +35,7 @@ impl<S: State> StateSaver<S> {
             length: num_saved,
             next_tick: TickType::None,
             ticks_per_frame: 1,
-            run: true,
+            run: false,
             was_reset: false,
         }
     }

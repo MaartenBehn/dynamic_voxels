@@ -1,18 +1,22 @@
 
+use std::{rc::Rc, sync::Arc};
+
 use octa_force::{glam::{vec3, vec4, Mat4, Quat, Vec3, Vec4, Vec4Swizzles}, log::debug, vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
+use parking_lot::Mutex;
 use slotmap::{new_key_type, SlotMap};
 
 use crate::{multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, voxel::dag64::{DAG64EntryKey, VoxelDAG64}, VOXELS_PER_SHADER_UNIT};
+
+use super::{Scene, SceneObjectData, SceneObjectKey, SceneObjectType};
 
 new_key_type! { pub struct Tree64Key; }
 
 #[derive(Debug)]
 pub struct DAG64SceneObject {
     pub mat: Mat4,
-    pub dag: VoxelDAG64,
+    pub dag: Arc<Mutex<VoxelDAG64>>,
     pub entry_key: DAG64EntryKey,
-    pub bvh_index: usize,
-    pub allocation: Option<BuddyAllocation>,
+    pub allocation: BuddyAllocation,
     pub node_buffer: Buffer,
     pub data_buffer: Buffer,
 }
@@ -27,36 +31,54 @@ pub struct DAG64SceneObjectData {
     pub root_index: u32,
 }
 
+impl Scene {
+    pub fn add_dag64(
+        &mut self, 
+        context: &Context, 
+        mat: Mat4, 
+        entry_key: DAG64EntryKey, 
+        dag: Arc<Mutex<VoxelDAG64>>
+    ) -> OctaResult<SceneObjectKey> {
+        
+        let object = SceneObjectType::DAG64(DAG64SceneObject::new(context, mat, entry_key, dag, &mut self.allocator)?); 
+        Ok(self.add_object(object))
+    }
+}
+
 impl DAG64SceneObject {
-    pub fn new(context: &Context, mat: Mat4, entry_key: DAG64EntryKey, dag: VoxelDAG64) -> OctaResult<Self> {
+    pub fn new(context: &Context, mat: Mat4, entry_key: DAG64EntryKey, dag: Arc<Mutex<VoxelDAG64>>, allocator: &mut BuddyBufferAllocator) -> OctaResult<Self> {
+        
+        let dag_ref = dag.lock();
+
         let mut node_buffer = context.create_buffer(
             vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS_KHR,
             MemoryLocation::CpuToGpu,
-            dag.nodes.get_memory_size() as _,
+            dag_ref.nodes.get_memory_size() as _,
         )?;
 
         let mut data_buffer = context.create_buffer(
             vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS_KHR,
             MemoryLocation::CpuToGpu,
-            dag.data.get_memory_size() as _,
+            dag_ref.data.get_memory_size() as _,
         )?;
+        drop(dag_ref);
+
+        let allocation = allocator.alloc(size_of::<DAG64SceneObjectData>())?;
 
         Ok(Self {
             mat,
             dag,
-            bvh_index: 0,
-            allocation: None,
+            allocation,
             entry_key,
             node_buffer,
             data_buffer,
         })
     }
 
-    pub fn push_to_buffer(&mut self, allocator: &mut BuddyBufferAllocator, buffer: &mut Buffer) -> OctaResult<()> {
-        self.allocation = Some(allocator.alloc(size_of::<DAG64SceneObjectData>())?);
-
-            
-        let entry = &self.dag.entry_points[self.entry_key];
+    pub fn push_to_buffer(&mut self, scene_buffer: &mut Buffer) { 
+        
+        let mut dag = self.dag.lock(); 
+        let entry = dag.entry_points[self.entry_key];
 
         let mat = Mat4::from_scale_rotation_translation(
             Vec3::splat((VOXELS_PER_SHADER_UNIT as u32 / entry.get_size_u32()) as f32 ), 
@@ -76,23 +98,11 @@ impl DAG64SceneObject {
 
         //dbg!(&self.dag);
 
-        buffer.copy_data_to_buffer_without_aligment(&[data], self.get_allocation().start);
+        scene_buffer.copy_data_to_buffer_without_aligment(&[data], self.allocation.start);
 
-        self.dag.nodes.flush(&mut self.node_buffer);
-        self.dag.data.flush(&mut self.data_buffer);
-
-        self.dag.print_memory_info();
-
-        Ok(())
+        dag.nodes.flush(&mut self.node_buffer);
+        dag.data.flush(&mut self.data_buffer);
+        dag.print_memory_info();
     }
 }
 
-impl DAG64SceneObject {
-    pub fn get_mut_allocation(&mut self) -> &mut BuddyAllocation {
-        self.allocation.as_mut().unwrap()
-    }
-
-    pub fn get_allocation(&self) -> &BuddyAllocation {
-        self.allocation.as_ref().unwrap()
-    }
-}

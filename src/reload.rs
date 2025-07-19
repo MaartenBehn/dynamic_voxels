@@ -17,8 +17,7 @@ use model::examples::islands::{self, IslandsState};
 use octa_force::engine::Engine;
 use scene::dag64::DAG64SceneObject;
 use scene::renderer::SceneRenderer;
-use scene::static_dag64::StaticDAG64SceneObject;
-use scene::{Scene, SceneObject};
+use scene::{Scene, SceneObjectData, SceneObjectKey, SceneObjectType};
 use slotmap::Key;
 use kiddo::SquaredEuclidean;
 use octa_force::camera::Camera;
@@ -39,6 +38,7 @@ use voxel::grid::VoxelGrid;
 use voxel::static_dag64::renderer::StaticDAG64Renderer;
 use voxel::static_dag64::StaticVoxelDAG64;
 use std::f32::consts::PI;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::{default, env};
 
@@ -80,6 +80,16 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
         camera.z_near = 0.001;
     }
 
+    #[cfg(feature="islands")]
+    {
+        camera.set_meter_per_unit(METERS_PER_SHADER_UNIT as f32);
+        camera.set_position_in_meters(Vec3::new(0.0, -4.0, 0.0)); 
+        camera.direction = Vec3::new(0.0, 1.0, 0.0).normalize();
+        
+        camera.speed = 10.0;
+        camera.z_near = 0.001;
+    }
+
     camera.z_far = 100.0;
     camera.up = vec3(0.0, 0.0, 1.0);
 
@@ -94,8 +104,14 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
 pub struct RenderState {
     pub gui: Gui,
          
-    #[cfg(feature="scene")]
-    pub renderer: SceneRenderer
+    #[cfg(any(feature="scene", feature="islands"))]
+    pub renderer: SceneRenderer,
+    
+    #[cfg(any(feature="islands"))]
+    pub state_saver: StateSaver<IslandsState>,
+    
+    #[cfg(any(feature="islands"))]
+    pub object_key: SceneObjectKey,
 }
 
 #[unsafe(no_mangle)]
@@ -112,31 +128,28 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     )?;
    
     #[cfg(feature="scene")]
-    let mut scene = Scene::new(&engine.context)?;
+    {
+        let mut scene = Scene::new(&engine.context)?;
 
-    #[cfg(feature="scene")]
-    let mut csg = SlotMapCSGTree::new_sphere(Vec3::ZERO, 100.0);
-     
-    let now = Instant::now();
- 
-    #[cfg(feature="scene")]
-    let mut tree64 = VoxelDAG64::from_aabb_query(&csg)?;
+        let mut csg = SlotMapCSGTree::new_sphere(Vec3::ZERO, 100.0);
+
+        let now = Instant::now();
+
+        let mut tree64 = VoxelDAG64::from_aabb_query(&csg)?;
 
 
-    
-    let index = csg.append_node_with_remove(
+
+        let index = csg.append_node_with_remove(
             SlotMapCSGNode::new_sphere(vec3(110.0, 0.0, 0.0), 50.0));
-    csg.set_all_aabbs();
-    let aabb = csg.nodes[index].aabb;
+        csg.set_all_aabbs();
+        let aabb = csg.nodes[index].aabb;
 
-    let key = tree64.update_aabb(&csg, aabb, tree64.get_first_key())?;
+        let key = tree64.update_aabb(&csg, aabb, tree64.get_first_key())?;
 
-    let elapsed = now.elapsed();
-    info!("Tree Build took {:.2?}", elapsed);
-     
-    #[cfg(feature="scene")]
-    scene.add_objects(vec![
-        SceneObject::DAG64(DAG64SceneObject::new(
+        let elapsed = now.elapsed();
+        info!("Tree Build took {:.2?}", elapsed);
+
+        scene.add_dag64(
             &engine.context,
             Mat4::from_scale_rotation_translation(
                 Vec3::ONE,
@@ -144,20 +157,46 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
                 vec3(0.0, 0.0, 0.0)
             ), 
             key,
-            tree64,
-        )?)
-    ])?;
+            Arc::new(tree64),
+        )?;
 
-    #[cfg(feature="scene")]
-    let scene_renderer = SceneRenderer::new(&engine.context, &engine.swapchain, scene, &logic_state.camera)?;
+        let renderer = SceneRenderer::new(&engine.context, &engine.swapchain, scene, &logic_state.camera)?;
 
         Ok(RenderState {
-        gui,
-         
-        #[cfg(feature="scene")]
-        renderer: scene_renderer,
-    })
-}
+            gui,
+            renderer,
+        })
+    }
+
+    #[cfg(feature="islands")]
+    {
+        let state = IslandsState::new(false)?;
+        
+        let mut scene = Scene::new(&engine.context)?;
+        let key = state.dag.lock().get_first_key(); 
+        let object_key = scene.add_dag64(
+            &engine.context,
+            Mat4::from_scale_rotation_translation(
+                Vec3::ONE,
+                Quat::IDENTITY,
+                vec3(0.0, 0.0, 0.0)
+            ), 
+            key,
+            state.dag.clone(),
+        )?;
+
+        let renderer = SceneRenderer::new(&engine.context, &engine.swapchain, scene, &logic_state.camera)?;
+
+        let state_saver = StateSaver::from_state(state, 10);
+        
+        Ok(RenderState {
+            gui,
+            renderer,
+            state_saver,
+            object_key,
+        })
+    }
+   }
 
 #[unsafe(no_mangle)]
 pub fn update(
@@ -173,8 +212,17 @@ pub fn update(
 
     logic_state.camera.update(&engine.controls, delta_time);
     //info!("Camera Pos: {} Dir: {}", logic_state.camera.get_position_in_meters(), logic_state.camera.direction);
- 
-    #[cfg(any(feature="scene"))]
+    
+    #[cfg(any(feature="islands"))]
+    if render_state.state_saver.tick()? {
+        let obj = render_state.renderer.scene.objects.get_mut(render_state.object_key).unwrap();
+        obj.changed = true;
+        let SceneObjectType::DAG64(obj) = &mut obj.data;
+        obj.entry_key = render_state.state_saver.get_state().active_key;
+        render_state.renderer.scene.needs_bvh_update = true;
+    }
+
+    #[cfg(any(feature="scene", feature="islands"))]
     render_state.renderer.update(
         &logic_state.camera, 
         &engine.context, 
@@ -196,7 +244,7 @@ pub fn record_render_commands(
 
     let command_buffer = engine.get_current_command_buffer();
     
-    #[cfg(any(feature="scene"))]
+    #[cfg(any(feature="scene", feature="islands"))]
     render_state.renderer.render(command_buffer, &engine)?;
 
     command_buffer.begin_rendering(
@@ -217,6 +265,9 @@ pub fn record_render_commands(
              
             #[cfg(any(feature="scene"))]
             render_state.renderer.render_ui(ctx);
+
+            #[cfg(any(feature="islands"))]
+            render_state.state_saver.render(ctx);
         },
     )?;
 
@@ -245,7 +296,7 @@ pub fn on_recreate_swapchain(
 ) -> OctaResult<()> {
     logic_state.camera.set_screen_size(engine.swapchain.size.as_vec2());
 
-    #[cfg(any(feature="scene"))]
+    #[cfg(any(feature="scene", feature="islands"))]
     render_state
         .renderer
             .on_recreate_swapchain(

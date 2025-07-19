@@ -1,4 +1,3 @@
-pub mod static_dag64;
 pub mod dag64;
 pub mod renderer;
 
@@ -6,22 +5,21 @@ use bvh::{aabb::{Aabb, Bounded}, bounding_hierarchy::{BHShape, BoundingHierarchy
 use dag64::DAG64SceneObject;
 use octa_force::{glam::{vec3, Mat4, Vec3, Vec4Swizzles}, log::{debug, info}, vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
 use slotmap::{new_key_type, SlotMap};
-use static_dag64::StaticDAG64SceneObject;
 
 use crate::{multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, util::{aabb::AABB, math::to_mb}, VOXELS_PER_SHADER_UNIT};
 
 new_key_type! { pub struct SceneObjectKey; }
 
-
-
 #[derive(Debug)]
 pub struct Scene {
     pub buffer: Buffer,
     pub allocator: BuddyBufferAllocator,
-    pub objects: Vec<SceneObject>,
+    pub objects: SlotMap<SceneObjectKey, SceneObject>,
     pub bvh: Bvh<f32, 3>,
     pub bvh_allocation: BuddyAllocation,
     pub bvh_len: usize,
+
+    pub needs_bvh_update: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -33,8 +31,14 @@ pub struct SceneData {
 }
 
 #[derive(Debug)]
-pub enum SceneObject {
-    StaticDAG64(StaticDAG64SceneObject),
+pub struct SceneObject {
+    pub bvh_index: usize,
+    pub changed: bool,
+    pub data: SceneObjectType,
+}
+
+#[derive(Debug)]
+pub enum SceneObjectType {
     DAG64(DAG64SceneObject)
 }
 
@@ -65,30 +69,28 @@ impl Scene {
         Ok(Scene {
             buffer,
             allocator,
-            objects: vec![],
+            objects: Default::default(),
             bvh,
             bvh_allocation,
             bvh_len: 0,
+            needs_bvh_update: true,
         })
-
     }
 
-    pub fn add_objects(&mut self, mut objects: Vec<SceneObject>) -> OctaResult<()> {
-       
-        for object in objects.iter_mut() {
-            object.push_to_buffer(&mut self.allocator, &mut self.buffer)?;
-        }
+    pub fn add_object(&mut self, mut object: SceneObjectType) -> SceneObjectKey {
+        self.objects.insert(SceneObject { bvh_index: 0, changed: true, data: object })
+    }
 
-        self.objects.append(&mut objects);
-        drop(objects);
+    fn update_bvh(&mut self) -> OctaResult<()> {
 
-        self.bvh = Bvh::build_par(&mut self.objects);
-        
+        let mut objects = self.objects.values_mut().collect::<Vec<_>>(); 
+        self.bvh = Bvh::build_par(&mut objects);
+
         let flat_bvh = self.bvh.flatten_custom(&|aabb, index, exit, shape| {
             let leaf = shape != u32::MAX;
 
             if leaf {
-                let object = &self.objects[shape as usize];
+                let object = &objects[shape as usize];
                 let nr = object.get_nr();
                 let aabb = object.get_aabb();
                 
@@ -119,6 +121,22 @@ impl Scene {
 
         self.buffer.copy_data_to_buffer_without_aligment(&flat_bvh, self.bvh_allocation.start);
 
+        self.needs_bvh_update = false;
+        Ok(())
+    }
+
+    pub fn flush(&mut self) -> OctaResult<()> {
+        for object in self.objects.values_mut() {
+            if object.changed {
+                object.push_to_buffer(&mut self.buffer);
+                object.changed = false;
+            }
+        }
+
+        if self.needs_bvh_update {
+            self.update_bvh()?;
+        }
+
         Ok(())
     }
  
@@ -134,33 +152,27 @@ impl Scene {
 
 impl SceneObject {
     pub fn get_nr(&self) -> u32 {
-        match self {
-            SceneObject::StaticDAG64(..) => 0,
-            SceneObject::DAG64(..) => 1,
+        match self.data {
+            SceneObjectType::DAG64(..) => 0,
         }
     }
 
-    pub fn push_to_buffer(&mut self, allocator: &mut BuddyBufferAllocator, buffer: &mut Buffer) -> OctaResult<()> {
-        match self {
-            SceneObject::StaticDAG64(dag) => dag.push_to_buffer(allocator, buffer),
-            SceneObject::DAG64(dag) => dag.push_to_buffer(allocator, buffer),
+    pub fn push_to_buffer(&mut self, buffer: &mut Buffer) {
+        match &mut self.data {
+            SceneObjectType::DAG64(dag) => dag.push_to_buffer(buffer),
         }
     }
 
     pub fn get_start(&self) -> usize {
-        match self {
-            SceneObject::StaticDAG64(dag) => dag.get_allocation().start,
-            SceneObject::DAG64(dag) => dag.get_allocation().start,
+        match &self.data {
+            SceneObjectType::DAG64(dag) => dag.allocation.start,
         }
     }
 
     pub fn get_aabb(&self) -> AABB {
-        match self {
-            SceneObject::StaticDAG64(dag) => {
-                AABB::from_centered_size(&dag.mat, dag.dag.get_size())
-            },
-            SceneObject::DAG64(dag) => {
-                AABB::from_centered_size(&dag.mat, dag.dag.entry_points[dag.entry_key].get_size() / VOXELS_PER_SHADER_UNIT as f32)
+        match &self.data {
+            SceneObjectType::DAG64(dag) => {
+                AABB::from_centered_size(&dag.mat, dag.dag.lock().entry_points[dag.entry_key].get_size() / VOXELS_PER_SHADER_UNIT as f32)
             },
         }
     }
@@ -174,16 +186,10 @@ impl Bounded<f32,3> for SceneObject {
 
 impl BHShape<f32,3> for SceneObject {
     fn set_bh_node_index(&mut self, index: usize) {
-        match self {
-            SceneObject::StaticDAG64(dag) => dag.bvh_index = index,
-            SceneObject::DAG64(dag) => dag.bvh_index = index,
-        }
+        self.bvh_index = index;
     }
 
     fn bh_node_index(&self) -> usize {
-        match self {
-            SceneObject::StaticDAG64(dag) => dag.bvh_index,
-            SceneObject::DAG64(dag) => dag.bvh_index,
-        }
+        self.bvh_index
     }
 }

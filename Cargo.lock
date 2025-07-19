@@ -871,6 +871,7 @@ dependencies = [
  "kiddo",
  "nalgebra",
  "octa-force",
+ "parking_lot",
  "proptest",
  "rayon",
  "simple-easing",

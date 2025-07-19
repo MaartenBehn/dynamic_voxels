@@ -16,22 +16,6 @@ public struct SceneObject {
   public property uint leaf_exit { get { return exit >> 1; } }
 }
 
-public struct StaticDAG64SceneObject {
-  float3 x_axis;
-  uint root_index;
-  float3 y_axis;
-  uint node_start;
-  float3 z_axis;
-  uint data_start;
-  float3 w_axis;
-  uint fill;
-  float4x4 inv_mat;
-
-  property float4x4 mat { get {  
-    return float4x4(float4(x_axis, 0), float4(y_axis, 0), float4(z_axis, 0), float4(w_axis, 1));
-  }}
-}
-
 public struct DAG64SceneObject {
   float4x4 mat;
   float4x4 inv_mat;
@@ -65,30 +49,6 @@ public struct Scene {
 
         switch (node.leaf_nr) {
           case 0: { 
-            StaticDAG64SceneObject* tree_object = (StaticDAG64SceneObject*)(start_ptr + node.object_start);
-
-            Tree64 tree = Tree64(
-              (Node*)(start_ptr + tree_object.node_start), 
-              (uint8_t*)(start_ptr + tree_object.data_start), 
-              tree_object.root_index);
-
-            float4x4 mat = tree_object.mat;
-            float3 object_ray_pos = mul(float4(ray_pos, 1.0), mat).xyz;
-            float3 object_ray_dir = mul(float4(ray_dir, 0.0), mat).xyz;
-
-            HitInfo hit_new = tree.RayCast(object_ray_pos, object_ray_dir, bounce_no != 0);
-
-            float4x4 inv_mat = tree_object.inv_mat;
-            hit_new.Pos = mul(float4(hit_new.Pos, 1.0), inv_mat).xyz; 
-            hit_new.Normal = mul(float4(hit_new.Normal, 0.0), inv_mat).xyz;
-
-            if (!hit_new.Miss && (hit.t >= hit_new.t)) {
-              hit = hit_new;
-            } 
-
-            break;
-          }
-          case 1: { 
             DAG64SceneObject* tree_object = (DAG64SceneObject*)(start_ptr + node.object_start);
             Tree64 tree = Tree64(tree_object.TreeNodes, tree_object.LeafData, tree_object.root_index);
 

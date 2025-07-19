@@ -42,6 +42,7 @@ impl SceneRenderer {
     }
 
     pub fn update(&mut self, camera: &Camera, context: &Context, res: UVec2, in_flight_frame_index: usize, frame_index: usize) -> OctaResult<()> {
+        self.scene.flush()?;
         self.voxel_renderer.update(camera, context, res, in_flight_frame_index, frame_index)?;
 
         Ok(())
