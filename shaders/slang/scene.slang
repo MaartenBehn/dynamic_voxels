@@ -60,13 +60,14 @@ public struct Scene {
 
             float4x4 inv_mat = tree_object.inv_mat;
             hit_new.Pos = mul(float4(hit_new.Pos, 1.0), inv_mat).xyz; 
-            hit_new.Normal = mul(float4(hit_new.Normal, 0.0), inv_mat).xyz;
+            hit_new.Normal = normalize(mul(float4(hit_new.Normal, 0.0), inv_mat).xyz);
 
             if (!hit_new.Miss && (hit.t >= hit_new.t)) {
               hit = hit_new;
             } 
             else {
-              hit.MaterialId = 1;
+              // For debbuging AABBs
+              // hit.MaterialId = 1;
             }
 
             break;

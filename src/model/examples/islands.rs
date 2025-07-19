@@ -36,17 +36,8 @@ impl IslandsState {
 
         let csg = SlotMapCSGTree::new_sphere(Vec3::ZERO, 10.0);
         let dag = VoxelDAG64::from_aabb_query(&csg)?;
-
-        /*
-        let index = csg.append_node_with_remove(
-            SlotMapCSGNode::new_sphere(vec3(110.0, 0.0, 0.0), 50.0));
-        csg.set_all_aabbs();
-        let aabb = csg.nodes[index].aabb;
-
-        let key = tree64.update_aabb(&csg, aabb, tree64.get_first_key())?;
-        */
-
-        let island_volume = VecCSGTree::new_disk(Vec3::ZERO, 20.0, 0.1); 
+ 
+        let island_volume = VecCSGTree::new_disk(Vec3::ZERO, 200.0, 0.1); 
         let island_volume = FastQueryCSGTree::from(island_volume);
 
         let mut wfc_builder = ModelSynthesisBuilder::new()
@@ -69,7 +60,7 @@ impl IslandsState {
                 .ammount(BuilderAmmount::OneGlobal)
                 .value(BuilderValue::Const(PositionSet::new(
                     island_volume,
-                    PositionSetRule::Grid { spacing: (if profile { 0.1 } else { 10.0 }) })))
+                    PositionSetRule::Grid { spacing: (if profile { 0.1 } else { 50.0 }) })))
             })
 
             .pos(Identifier::IslandPos, |b| {b

@@ -4,7 +4,6 @@ import helper_color;
 
 struct DispatchParams {
   GBuffer* GBuffer;
-  float plane_dist;
   uint static_accum_number;
 };
 [vk::push_constant] DispatchParams pc;
@@ -113,7 +112,7 @@ bool IsValidSample(int2 samplePos, float3 centerWorldPos, AlbedoData centerSurfa
   float3 sampleWorldPos = GetWorldPos(samplePos, sampleDepth, pc.GBuffer->PrevInvProjMat);
 
   float planeDist = abs(dot(centerWorldPos - sampleWorldPos, centerSurface.Normal));
-  if (planeDist > pc.plane_dist) return false;
+  if (planeDist > SHADER_UNIT_PER_VOXEL * 0.6) return false;
 
   return true;
 }

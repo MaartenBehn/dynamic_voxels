@@ -1,5 +1,7 @@
 import texture_heap;         
 
+public static float SHADER_UNIT_PER_VOXEL = 0.0001;
+
 public struct GBuffer {
   public float4x4 ProjMat, InvProjMat;
   public float4x4 PrevProjMat, PrevInvProjMat;

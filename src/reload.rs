@@ -15,6 +15,7 @@ use csg::vec_csg_tree::tree::{VecCSGTree, VOXEL_SIZE};
 use model::debug_renderer::ModelDebugRenderer;
 use model::examples::islands::{self, IslandsState};
 use octa_force::engine::Engine;
+use parking_lot::Mutex;
 use scene::dag64::DAG64SceneObject;
 use scene::renderer::SceneRenderer;
 use scene::{Scene, SceneObjectData, SceneObjectKey, SceneObjectType};
@@ -73,8 +74,8 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
     #[cfg(feature="scene")]
     {
         camera.set_meter_per_unit(METERS_PER_SHADER_UNIT as f32);
-        camera.set_position_in_meters(Vec3::new(3.4412215, -4.3927727, 0.5919213)); 
-        camera.direction = Vec3::new(-0.2964419, 0.9254107, -0.23608726).normalize();
+        camera.set_position_in_meters(Vec3::new(15.501491, -12.135776, 3.5071237)); 
+        camera.direction = Vec3::new(-0.580947, 0.7954067, -0.17271005).normalize();
         
         camera.speed = 10.0;
         camera.z_near = 0.001;
@@ -137,10 +138,8 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
         let mut tree64 = VoxelDAG64::from_aabb_query(&csg)?;
 
-
-
         let index = csg.append_node_with_remove(
-            SlotMapCSGNode::new_sphere(vec3(110.0, 0.0, 0.0), 50.0));
+            SlotMapCSGNode::new_sphere(vec3(70.0, 0.0, 0.0), 50.0));
         csg.set_all_aabbs();
         let aabb = csg.nodes[index].aabb;
 
@@ -157,7 +156,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
                 vec3(0.0, 0.0, 0.0)
             ), 
             key,
-            Arc::new(tree64),
+            Arc::new(Mutex::new(tree64)),
         )?;
 
         let renderer = SceneRenderer::new(&engine.context, &engine.swapchain, scene, &logic_state.camera)?;

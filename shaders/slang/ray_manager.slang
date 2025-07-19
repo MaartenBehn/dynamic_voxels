@@ -80,7 +80,7 @@ public struct RayRunner {
     irradiance += throughput * emission;
 
     ray_dir = normalize(hit.Normal + GetSphereDir(blue_noise.GetSample()));
-    ray_pos = hit.Pos + hit.Normal * 0.01;
+    ray_pos = hit.Pos + hit.Normal * SHADER_UNIT_PER_VOXEL * 0.1;
 
     return true;
   }
@@ -104,6 +104,7 @@ public struct RayRunner {
 float3 GetSkyColor(float3 dir, bool isPrimary) {
   // For light bounces, sample smaller mips to maybe improve cache coherency.
   return -dir;
+  //return float3(0.5);
   //return pc.SkyTexture.Instance.SampleLevel(g_LinearSampler, dir, isPrimary ? 0 : 3) * (isPrimary?1:4);
 }
 

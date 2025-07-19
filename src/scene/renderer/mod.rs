@@ -30,9 +30,9 @@ impl SceneRenderer {
             camera, 
             include_bytes!("../../../shaders/slang/bin/_trace_scene.spv"))?;
 
-        voxel_renderer.max_bounces = 0;
-        voxel_renderer.temporal_denoise = false;
-        voxel_renderer.denoise_counters = false;
+        voxel_renderer.max_bounces = 2;
+        voxel_renderer.temporal_denoise = true;
+        voxel_renderer.denoise_counters = true;
 
         Ok(SceneRenderer {
             scene,

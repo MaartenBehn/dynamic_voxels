@@ -55,7 +55,6 @@ pub struct VoxelRenderer {
     heat_map_max: f32,
     pub temporal_denoise: bool,
     pub denoise_counters: bool,
-    pub plane_dist: f32,
     static_accum_number: u32,
 
     filter_passes: usize,
@@ -76,7 +75,6 @@ pub struct RayManagerData {
 #[derive(Debug)]
 pub struct TemporalDenoiseDispatchParams {
     g_buffer_ptr: u64,
-    plane_dist: f32,
     static_accum_number: u32,
 }
 
@@ -212,7 +210,6 @@ impl VoxelRenderer {
             denoise_counters: true,
             filter_passes: 2,
             temp_irradiance_tex,
-            plane_dist: 0.020,
             static_accum_number: 20,
         })
     }
@@ -256,7 +253,6 @@ impl VoxelRenderer {
         if self.temporal_denoise {
             self.denoise_stage.render(buffer, TemporalDenoiseDispatchParams {
                 g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
-                plane_dist: self.plane_dist,
                 static_accum_number: self.static_accum_number,
             } ,dispatch_size);
         }
@@ -338,11 +334,6 @@ impl VoxelRenderer {
                 ui.label(format!("Frame: {}", self.g_buffer.frame_no -1));
                 ui.label(format!("Steady : {}", self.g_buffer.num_steady_frames -1));
                 
-                ui.add(egui::Slider::new(&mut self.plane_dist, 0.0001..=10.0)
-                    .logarithmic(true)
-                    .text("Plane Dist")
-                );
-
                 ui.add(egui::Slider::new(&mut self.static_accum_number, 10..=255)
                     .text("Static Accum Number")
                 );

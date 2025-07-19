@@ -86,8 +86,7 @@ impl DAG64SceneObject {
             Vec3::splat(scale), 
             Quat::IDENTITY,
             Vec3::splat(1.0) - Vec3::from(entry.offset) / size as f32,
-        )
-            .mul_mat4(&self.mat.inverse());
+        ).mul_mat4(&self.mat.inverse());
 
         let inv_mat = mat.inverse();
 
@@ -99,8 +98,6 @@ impl DAG64SceneObject {
             data_ptr: self.data_buffer.get_device_address(),
             root_index: entry.root_index,
         };
-
-        //dbg!(&self.dag);
 
         scene_buffer.copy_data_to_buffer_without_aligment(&[data], self.allocation.start);
 
