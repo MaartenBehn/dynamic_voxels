@@ -78,6 +78,7 @@ impl Scene {
     }
 
     pub fn add_object(&mut self, mut object: SceneObjectType) -> SceneObjectKey {
+        self.needs_bvh_update = true;
         self.objects.insert(SceneObject { bvh_index: 0, changed: true, data: object })
     }
 

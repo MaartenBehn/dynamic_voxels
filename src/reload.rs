@@ -29,7 +29,7 @@ use octa_force::log::{debug, error, info, Log};
 use octa_force::logger::setup_logger;
 use octa_force::puffin_egui::puffin;
 use octa_force::vulkan::ash::vk::AttachmentLoadOp;
-use octa_force::vulkan::Fence;
+use octa_force::vulkan::{Context, Fence};
 use octa_force::{log, OctaResult};
 use util::profiler::ShaderProfiler;
 use util::state_saver::StateSaver;
@@ -110,9 +110,6 @@ pub struct RenderState {
     
     #[cfg(any(feature="islands"))]
     pub state_saver: StateSaver<IslandsState>,
-    
-    #[cfg(any(feature="islands"))]
-    pub object_key: SceneObjectKey,
 }
 
 #[unsafe(no_mangle)]
@@ -171,19 +168,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     {
         let state = IslandsState::new(false)?;
         
-        let mut scene = Scene::new(&engine.context)?;
-        let key = state.dag.lock().get_first_key(); 
-        let object_key = scene.add_dag64(
-            &engine.context,
-            Mat4::from_scale_rotation_translation(
-                Vec3::ONE,
-                Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, 0.0),
-                vec3(0.0, 0.0, 0.0) / METERS_PER_SHADER_UNIT as f32
-            ), 
-            key,
-            state.dag.clone(),
-        )?;
-
+        let mut scene = Scene::new(&engine.context)?; 
         let renderer = SceneRenderer::new(&engine.context, &engine.swapchain, scene, &logic_state.camera)?;
 
         let state_saver = StateSaver::from_state(state, 10);
@@ -192,7 +177,6 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
             gui,
             renderer,
             state_saver,
-            object_key,
         })
     }
    }
@@ -213,12 +197,10 @@ pub fn update(
     //info!("Camera Pos: {} Dir: {}", logic_state.camera.get_position_in_meters(), logic_state.camera.direction);
     
     #[cfg(any(feature="islands"))]
-    if render_state.state_saver.tick()? {
-        let obj = render_state.renderer.scene.objects.get_mut(render_state.object_key).unwrap();
-        obj.changed = true;
-        let SceneObjectType::DAG64(obj) = &mut obj.data;
-        obj.entry_key = render_state.state_saver.get_state().active_key;
-        render_state.renderer.scene.needs_bvh_update = true;
+    if render_state.state_saver.tick(&mut |s: &mut IslandsState| -> OctaResult<bool> {
+        s.tick(&mut render_state.renderer.scene, &engine.context)
+    })? {
+
     }
 
     #[cfg(any(feature="scene", feature="islands"))]

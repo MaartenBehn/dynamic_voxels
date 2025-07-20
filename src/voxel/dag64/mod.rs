@@ -1,8 +1,8 @@
 // based on https://github.com/expenses/tree64 
 
 pub mod node;
-pub mod from_voxel_gird;
-pub mod from_aabb_query_volume;
+pub mod add_pos_query_volume;
+pub mod add_aabb_query_volume;
 pub mod update_aabb;
 
 use node::VoxelDAG64Node;
@@ -28,6 +28,14 @@ pub struct DAG64EntryData {
 }
 
 impl VoxelDAG64 { 
+    pub fn new(nodes_capacity: usize, data_capacity: usize) -> Self {
+        Self {
+            nodes: CachedVec::new(nodes_capacity),
+            data: CachedVec::new(data_capacity),
+            entry_points: Default::default(),
+        }
+    }
+
     pub fn print_memory_info(&self) { 
         info!("VoxelDAG64: nodes {} MB, data {} MB", 
             to_mb(self.nodes.get_memory_size()),

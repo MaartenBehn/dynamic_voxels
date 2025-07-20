@@ -350,6 +350,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "buddy-alloc"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee741d62dcaf41ca303576ef890989ccb01d5dd77f8ce1a6d6c7846ab5d09efb"
+
+[[package]]
 name = "built"
 version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -859,6 +865,7 @@ name = "dynamic_voxels"
 version = "0.1.0"
 dependencies = [
  "arrayvec",
+ "buddy-alloc",
  "bvh",
  "criterion",
  "egui_node_graph2",

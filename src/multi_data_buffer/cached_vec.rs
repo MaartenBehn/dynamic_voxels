@@ -171,10 +171,6 @@ impl<T: Copy + Default + fmt::Debug + Sync + Eq + std::hash::Hash, Hasher: std::
         buffer.copy_data_to_buffer_without_aligment(&self.data, 0);
     }
 
-    pub fn optimize(&mut self) {
-    
-    }
-
     pub fn get_memory_size(&self) -> usize {
         self.data.len() * size_of::<T>()
     }

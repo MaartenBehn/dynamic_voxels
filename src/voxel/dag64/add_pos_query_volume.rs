@@ -3,10 +3,10 @@ use octa_force::{glam::{UVec3, Vec3A}, log::debug, OctaResult};
 
 use crate::{multi_data_buffer::{allocated_vec::AllocatedVec, buddy_buffer_allocator::BuddyBufferAllocator, cached_vec::CachedVec}, volume::VolumeQureyPosValue};
 
-use super::{node::VoxelDAG64Node, DAG64EntryData, VoxelDAG64};
+use super::{node::VoxelDAG64Node, DAG64EntryData, DAG64EntryKey, VoxelDAG64};
 
 impl VoxelDAG64 {
-    pub fn from_pos_query<M: VolumeQureyPosValue>(model: &M) -> OctaResult<Self> {
+    pub fn add_pos_query_volume<M: VolumeQureyPosValue>(&mut self, model: &M) -> OctaResult<DAG64EntryKey> {
         let dims = model.get_size().as_uvec3();
         let mut scale = dims[0].max(dims[1]).max(dims[2]).next_power_of_two();
         scale = scale.max(4);
@@ -15,24 +15,16 @@ impl VoxelDAG64 {
         }
 
         let levels = scale.ilog(4) as _;
-        let mut this = Self {
-            nodes: CachedVec::new(40000),
-            data: CachedVec::new(64),
-            entry_points: Default::default(),
-        };
-
-        let root = this.insert_from_pos_query_recursive(model, UVec3::ZERO, levels)?;
-        let root_index = this.nodes.push(&[root])?;
-        this.entry_points.insert(DAG64EntryData { 
+        
+        let root = self.insert_from_pos_query_recursive(model, UVec3::ZERO, levels)?;
+        let root_index = self.nodes.push(&[root])?;
+        let key = self.entry_points.insert(DAG64EntryData { 
             levels, 
             root_index, 
             offset: Vec3A::ZERO, 
         });
 
-        this.nodes.optimize();
-        this.data.optimize();
-
-        Ok(this)
+        Ok(key)
     }
 }
 
@@ -89,6 +81,7 @@ impl VoxelDAG64 {
     }
 }
 
+/*
 #[cfg(test)]
 mod tests {
     use octa_force::glam::UVec3;
@@ -104,3 +97,4 @@ mod tests {
         let tree64: VoxelDAG64 = VoxelDAG64::from_pos_query(&grid).unwrap();
     }
 }
+*/

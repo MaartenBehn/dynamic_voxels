@@ -1,10 +1,11 @@
 
 use std::{sync::Arc};
 
-use octa_force::{camera::Camera, glam::{vec3, Mat4, Quat, Vec3}, log::{error, info}, vulkan::{Context, Swapchain}, OctaResult};
+use octa_force::{camera::Camera, glam::{vec3, EulerRot, Mat4, Quat, Vec3}, log::{error, info}, vulkan::{Context, Swapchain}, OctaResult};
 use parking_lot::Mutex;
+use slotmap::{new_key_type, SlotMap};
 
-use crate::{csg::{fast_query_csg_tree::tree::FastQueryCSGTree, slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGTree, SlotMapCSGTreeKey}, vec_csg_tree::tree::VecCSGTree}, model::generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder, IT}, collapse::{CollapseOperation, Collapser}, collapser_data::CollapserData, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree}, scene::{dag64::DAG64SceneObject, renderer::SceneRenderer, Scene, SceneObjectData}, util::state_saver::State, volume::VolumeQureyPosValid, voxel::dag64::{DAG64EntryKey, VoxelDAG64}};
+use crate::{csg::{fast_query_csg_tree::tree::FastQueryCSGTree, slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGTree, SlotMapCSGTreeKey}, vec_csg_tree::tree::VecCSGTree}, model::generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder, IT}, collapse::{CollapseOperation, Collapser}, collapser_data::CollapserData, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree}, scene::{dag64::DAG64SceneObject, renderer::SceneRenderer, Scene, SceneObjectData, SceneObjectKey}, volume::VolumeQureyPosValid, voxel::dag64::{DAG64EntryKey, VoxelDAG64}, METERS_PER_SHADER_UNIT};
 
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -20,23 +21,29 @@ pub enum Identifier {
 }
 impl IT for Identifier {}
 
+new_key_type! { pub struct IslandKey; }
 
 #[derive(Clone, Debug)]
 pub struct IslandsState {
     pub template: TemplateTree<Identifier, FastQueryCSGTree<()>>,
     pub collapser: Option<CollapserData<Identifier, SlotMapCSGTreeKey, FastQueryCSGTree<()>>>,
-    
-    pub csg: SlotMapCSGTree<u8>,
+
+    pub islands: SlotMap<IslandKey, IslandState>,
     pub dag: Arc<Mutex<VoxelDAG64>>,
+}
+
+#[derive(Clone, Debug)]
+struct IslandState {
+    pub csg: SlotMapCSGTree<u8>,
     pub active_key: DAG64EntryKey,
+    pub scene_object_key: SceneObjectKey,
 }
 
 impl IslandsState {
     pub fn new(profile: bool) -> OctaResult<Self> {
 
-        let csg = SlotMapCSGTree::new_sphere(Vec3::ZERO, 10.0);
-        let dag = VoxelDAG64::from_aabb_query(&csg)?;
- 
+        let dag = VoxelDAG64::new(10000, 64);
+         
         let island_volume = VecCSGTree::new_disk(Vec3::ZERO, 200.0, 0.1); 
         let island_volume = FastQueryCSGTree::from(island_volume);
 
@@ -79,15 +86,15 @@ impl IslandsState {
         Ok(Self {
             template,
             collapser: Some(collapser),
-            csg,
-            active_key: dag.get_first_key(),
-            dag: Arc::new(Mutex::new(dag)), 
+            islands: Default::default(),
+            dag: Arc::new(Mutex::new(dag)),
         })
     }
 
-    pub fn tick(&mut self) -> OctaResult<bool> {
+    pub fn tick(&mut self, scene: &mut Scene, context: &Context) -> OctaResult<bool> {
         let mut ticked = false;
-
+                    
+        
         let mut collapser = self.collapser.take().unwrap().into_collapser(&self.template);
         if let Some((hook, collapser)) = collapser.next()? {
             ticked = true;
@@ -111,12 +118,27 @@ impl IslandsState {
                     #[cfg(not(feature = "profile_islands"))]
                     info!("Build Hook: {pos}");
 
-                    let index = self.csg.append_node_with_union(
-                    SlotMapCSGNode::new_sphere(pos, 10.0));
-                    self.csg.set_all_aabbs();
-                    let aabb = self.csg.nodes[index].aabb;
+                    let csg = SlotMapCSGTree::new_sphere(Vec3::ZERO, 10.0);
+                    let active_key = self.dag.lock().add_aabb_query_volume(&csg)?;
 
-                    self.active_key = self.dag.lock().update_aabb(&self.csg, aabb, self.active_key)?;
+                    let scene_object_key = scene.add_dag64(
+                        context,
+                        Mat4::from_scale_rotation_translation(
+                            Vec3::ONE,
+                            Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, 0.0),
+                            pos / METERS_PER_SHADER_UNIT as f32
+                        ), 
+                        active_key,
+                        self.dag.clone(),
+                    )?;
+
+                    let island_state = IslandState {
+                        csg,
+                        active_key,
+                        scene_object_key,
+                    };
+
+                    self.islands.insert(island_state);
                 },
                 CollapseOperation::Undo { identifier , undo_data} => {
                     #[cfg(not(feature = "profile_islands"))]
@@ -133,8 +155,3 @@ impl IslandsState {
     }
 }
 
-impl State for IslandsState {
-    fn tick_state(&mut self) -> OctaResult<bool> {
-        self.tick()
-    }
-}

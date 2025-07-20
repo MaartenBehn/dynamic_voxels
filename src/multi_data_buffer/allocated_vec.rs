@@ -257,10 +257,6 @@ impl<T: Copy + Default + fmt::Debug + Sync + Eq + std::hash::Hash, Hasher: std::
         }
     }
 
-    pub fn optimize(&mut self) {
-    
-    }
-
     pub fn get_memory_size(&self) -> usize {
         self.allocations.iter()
             .map(|alloc| alloc.allocation.size )

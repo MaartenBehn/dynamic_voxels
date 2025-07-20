@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use octa_force::{egui::{self, panel::Side, Align, Frame, Id, Layout, Widget}, puffin_egui::puffin, OctaResult};
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
@@ -22,11 +24,8 @@ pub struct StateSaver<S> {
     was_reset: bool,
 }
 
-pub trait State: Clone {
-    fn tick_state(&mut self) -> OctaResult<bool>;
-}
 
-impl<S: State> StateSaver<S> {
+impl<S: Clone> StateSaver<S> {
     pub fn from_state(history: S, num_saved: usize) -> Self {
         StateSaver {
             start_state: history.clone(),
@@ -45,7 +44,7 @@ impl<S: State> StateSaver<S> {
         self
     }
 
-    pub fn tick(&mut self) -> OctaResult<bool> {
+    pub fn tick<F: FnMut(&mut S) -> OctaResult<bool>>(&mut self, f: &mut F) -> OctaResult<bool> {
         
         let mut changed = false;
 
@@ -64,11 +63,11 @@ impl<S: State> StateSaver<S> {
                     changed |= true;
                 }
                 TickType::Forward => {
-                    self.tick_forward(false)?;
+                    self.tick_forward(false, f)?;
                     changed |= true;
                 }
                 TickType::ForwardSave => {
-                    self.tick_forward(true)?;
+                    self.tick_forward(true, f)?;
                     changed |= true;
                     self.set_next_tick(TickType::Forward);
                 }
@@ -84,7 +83,7 @@ impl<S: State> StateSaver<S> {
         Ok(changed)
     }
 
-    fn tick_forward(&mut self, save_tick: bool) -> OctaResult<()> {
+    fn tick_forward<F: FnMut(&mut S) -> OctaResult<bool>>(&mut self, save_tick: bool, f: &mut F) -> OctaResult<()> {
         puffin::profile_function!();
         
         if self.current == 0 {
@@ -94,7 +93,7 @@ impl<S: State> StateSaver<S> {
                 new_state = self.states[0].clone();
             }
             
-            let changed = new_state.tick_state()?;
+            let changed = f(&mut new_state)?;
             
             if !changed || !save_tick {
                 self.states[0] = new_state;
