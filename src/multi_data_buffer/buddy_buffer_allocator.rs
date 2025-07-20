@@ -82,10 +82,10 @@ impl BuddyAllocator {
     /// In: size in byte
     /// Out: start index and size of allocation
     fn alloc(&mut self, size: usize) -> OctaResult<(usize, usize)> {
-
         // Calculate index in free list
         // to search for block if available
         let n = calc_n(size).max(self.min_n) - self.min_n;
+
         let space = if !self.free_list[n].is_empty() {
             self.free_list[n].remove(0)
         } else {
@@ -99,6 +99,7 @@ impl BuddyAllocator {
                         None
                     }
                 });
+
 
             if found.is_none() {
                 bail!("No free Space found")
@@ -137,9 +138,10 @@ impl BuddyAllocator {
             bail!("Invalid start");
         }
         let size = size.unwrap().to_owned();
-        let n = calc_n(size).max(self.min_n) - self.min_n;
+        let full_n = calc_n(size);
+        let n = full_n.max(self.min_n) - self.min_n;
         
-        let space = (start, start + usize::pow(2, n as u32) - 1);
+        let space = (start, start + usize::pow(2, full_n as u32) - 1);
 
         //debug!("Memory block from {} to {} freed", space.0, space.1);
         
@@ -148,9 +150,9 @@ impl BuddyAllocator {
         // Calculate buddy number
         let buddy_number = start / size;
         let buddy_address = if buddy_number % 2 != 0 {
-            start - usize::pow(2, n as u32)
+            start - usize::pow(2, full_n as u32)
         } else {
-            start + usize::pow(2, n as u32)
+            start + usize::pow(2, full_n as u32)
         };
 
         for i in 0..self.free_list[n].len() {
@@ -159,7 +161,7 @@ impl BuddyAllocator {
                 // Now merge the buddies to make
                 // them one large free memory block
                 if buddy_number % 2 == 0 {
-                    self.free_list[n + 1].push((start, start + 2 * usize::pow(2, n as u32) - 1));
+                    self.free_list[n + 1].push((start, start + 2 * usize::pow(2, full_n as u32) - 1));
 
                     #[cfg(test)]
                     println!(
@@ -169,7 +171,7 @@ impl BuddyAllocator {
                 } else {
                     self.free_list[n + 1].push((
                         buddy_address,
-                        buddy_address + 2 * usize::pow(2, n as u32) - 1,
+                        buddy_address + 2 * usize::pow(2, full_n as u32) - 1,
                     ));
 
                     #[cfg(test)]
