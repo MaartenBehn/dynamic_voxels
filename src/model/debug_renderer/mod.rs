@@ -6,10 +6,10 @@ use octa_force::{controls::Controls, egui, log::debug, OctaResult};
 
 use crate::csg::{slot_map_csg_tree::tree::SlotMapCSGTreeKey, vec_csg_tree::tree::VecCSGTree};
 
-use super::generation::{builder::IT, collapse::CollapseNodeKey, collapser_data::CollapserData};
+use super::generation::{builder::IT, collapse::{CollapseNodeKey, Collapser}};
 
 
-type UserState<I> = CollapserData<I, SlotMapCSGTreeKey, VecCSGTree<u8>>;
+type UserState<I> = Collapser<I, SlotMapCSGTreeKey, VecCSGTree<u8>>;
 
 const SHOW_COOLDOWN_TIME: f32 = 0.2;
 

@@ -13,8 +13,7 @@ use super::{builder::{BuilderNode, ModelSynthesisBuilder, BU, IT}, pending_opera
 new_key_type! { pub struct CollapseNodeKey; }
 
 #[derive(Debug, Clone)]
-pub struct Collapser<'a, I: IT, U: BU, V: VolumeQureyPosValid> {
-    pub template: &'a TemplateTree<I, V>,
+pub struct Collapser<I: IT, U: BU, V: VolumeQureyPosValid> {
     pub nodes: SlotMap<CollapseNodeKey, CollapseNode<I, U, V>>,
     pub pending_operations: PendingOperations,
     pub pending_collapse_opperations: Vec<CollapseOperation<I, U>>,
@@ -92,21 +91,22 @@ pub enum CollapseOperation<I, U> {
     }
 }
 
-impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> {
-    pub fn next(&mut self) -> OctaResult<Option<(CollapseOperation<I, U>, &mut Collapser<'a, I, U, V>)>> {
+impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
+    pub fn next(&mut self, template: &TemplateTree<I, V>) 
+    -> OctaResult<Option<(CollapseOperation<I, U>, &mut Collapser<I, U, V>)>> {
 
         if let Some(collapse_opperation) = self.pending_collapse_opperations.pop() {
             return Ok(Some((collapse_opperation, self)));
-        } 
+        }
 
         if let Some(operation) = self.pending_operations.pop() {
             match operation.typ {
                 NodeOperationType::CollapseValue => {
-                    let opperation = self.collapse_node(operation.index)?;
+                    let opperation = self.collapse_node(operation.key, template)?;
                     Ok(Some((opperation, self)))    
                 },
                 NodeOperationType::UpdateDefined(defined_index) => {
-                    self.update_defined(operation.index, defined_index)?;
+                    self.update_defined(operation.key, defined_index, template)?;
                     Ok(Some((CollapseOperation::None, self)))
                 },
             }
@@ -115,16 +115,16 @@ impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> {
         }
     }
 
-    fn collapse_node(&mut self, node_index: CollapseNodeKey) -> OctaResult<CollapseOperation<I, U>> {
+    fn collapse_node(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<I, V>) -> OctaResult<CollapseOperation<I, U>> {
         let node = &mut self.nodes[node_index];
-        let template_node = &self.template.nodes[node.template_index]; 
+        let template_node = &template.nodes[node.template_index]; 
         //info!("{:?} Collapse: {:?}", node_index, node.identfier);
 
         match &mut node.data {
             NodeDataType::Number(number_data) => {
                 match &template_node.value {
                     NodeTemplateValue::NumberRangeHook => {
-                        self.push_pending_defineds(node_index);
+                        self.push_pending_defineds(node_index, template);
                         return Ok(CollapseOperation::NumberRangeHook { 
                             index: node_index
                         });
@@ -137,10 +137,10 @@ impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> {
                             number_data.perm_counter = 0;
 
                             let next_reset = node.next_reset;
-                            self.reset_node(next_reset)?;
+                            self.reset_node(next_reset, template)?;
 
                             self.pending_operations.push(template_node.level, NodeOperation { 
-                                index: node_index, 
+                                key: node_index, 
                                 typ: NodeOperationType::CollapseValue,
                             });
 
@@ -159,7 +159,7 @@ impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> {
             NodeDataType::PosSet(pos_set_data) => {
                 match &template_node.value {
                     NodeTemplateValue::PosSetHook => {
-                        self.push_pending_defineds(node_index);
+                        self.push_pending_defineds(node_index, template);
                         return Ok(CollapseOperation::PosHook { 
                             index: node_index
                         });
@@ -174,7 +174,7 @@ impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> {
                 match template_node.value {
                     NodeTemplateValue::Pos { value } => node.data.set_pos(value),
                     NodeTemplateValue::PosHook => {
-                        self.push_pending_defineds(node_index);
+                        self.push_pending_defineds(node_index, template);
                         return Ok(CollapseOperation::PosHook { 
                             index: node_index
                         });
@@ -191,43 +191,45 @@ impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> {
             NodeDataType::None => {},
         }
 
-        self.push_pending_defineds(node_index);
+        self.push_pending_defineds(node_index, template);
         Ok(CollapseOperation::None)
     }
 
-    fn push_pending_defineds(&mut self, node_index: CollapseNodeKey) {
+    fn push_pending_defineds(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<I, V>) {
         let node = &self.nodes[node_index];
-        let template_node = &self.template.nodes[node.template_index];
+        let template_node = &template.nodes[node.template_index];
 
         for ammount in template_node.defines_ammount.iter() {
-            let new_node_template = &self.template.nodes[ammount.index];
+            let new_node_template = &template.nodes[ammount.index];
 
             self.pending_operations.push(new_node_template.level, NodeOperation { 
-                index: node_index, 
+                key: node_index, 
                 typ: NodeOperationType::UpdateDefined(ammount.index),
             });
         }
     }
 
     pub fn pos_collapse_failed(&mut self, index: CollapseNodeKey) {
-
+        let node = self.nodes.get(index).expect("Reset CollapseNodeKey not valid!");
+        info!("{:?} Pos Collapse Faild {:?}", index, node.identfier);
+        todo!();
     }
 
-    pub fn collapse_failed(&mut self, index: CollapseNodeKey) -> OctaResult<()> {        
+    pub fn collapse_failed(&mut self, index: CollapseNodeKey, template: &TemplateTree<I, V>) -> OctaResult<()> {        
         let node = self.nodes.get(index).expect("Reset CollapseNodeKey not valid!");
         info!("{:?} Collapse Faild {:?}", index, node.identfier);
 
-        let level = self.template.nodes[node.template_index].level;
+        let level = template.nodes[node.template_index].level;
 
         self.pending_operations.push(level, NodeOperation {
-            index,
+            key: index,
             typ: NodeOperationType::CollapseValue,
         });
 
         let mut last = CollapseNodeKey::null();
         for (_, i) in node.depends.to_owned().into_iter().rev() {
             if last.is_null() {
-                self.reset_node(i)?;
+                self.reset_node(i, template)?;
             } else {
                 self.set_next_reset(last, i)?; 
             }
@@ -281,13 +283,12 @@ impl<I: IT, V: VolumeQureyPosValid> TemplateTree<I, V> {
         let inital_capacity = 1000;
 
         let mut collapser = Collapser{
-            template: self,
             nodes: SlotMap::with_capacity_and_key(inital_capacity),
             pending_operations: PendingOperations::new(self.max_level),
             pending_collapse_opperations: Vec::with_capacity(inital_capacity),
         };
 
-        collapser.add_node(0, vec![], vec![], CollapseNodeKey::null());
+        collapser.add_node(0, vec![], vec![], CollapseNodeKey::null(), self);
         collapser
     }
 }

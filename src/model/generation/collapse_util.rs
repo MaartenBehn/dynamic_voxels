@@ -7,7 +7,7 @@ use crate::volume::VolumeQureyPosValid;
 use super::{builder::{BU, IT}, collapse::{CollapseNodeKey, Collapser, CollapseNode, NodeDataType}, template::{TemplateNode, TemplateTree}};
 
 
-impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> { 
+impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> { 
     pub fn has_index(&self, node_index: CollapseNodeKey) -> bool {
         self.nodes.contains_key(node_index)
     }
@@ -32,16 +32,12 @@ impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> {
         nodes.get_mut(node_index).ok_or(anyhow!("Node index invalid!"))
     }
 
-    pub fn get_template_from_node_ref(&self, node: &CollapseNode<I, U, V>) -> &'a TemplateNode<I, V> {
-        &self.template.nodes[node.template_index]
-    }
-
-    pub fn get_template_from_node_ref_unpacked(template: &'a TemplateTree<I, V>, node: &CollapseNode<I, U, V>) -> &'a TemplateNode<I, V> {
+    pub fn get_template_from_node_ref<'a>(&self, node: &CollapseNode<I, U, V>, template: &'a TemplateTree<I, V>) -> &'a TemplateNode<I, V> {
         &template.nodes[node.template_index]
     }
 
-    pub fn get_template_from_node_index(&self, node_index: CollapseNodeKey) -> &'a TemplateNode<I, V> {
-        &(self.template.nodes[self.nodes[node_index].template_index])
+    pub fn get_template_from_node_index<'a>(&self, node_index: CollapseNodeKey, template: &'a TemplateTree<I, V>) -> &'a TemplateNode<I, V> {
+        &(template.nodes[self.nodes[node_index].template_index])
     }
 
     pub fn get_number(&self, index: CollapseNodeKey) -> i32 {

@@ -198,6 +198,7 @@ pub fn update(
     
     #[cfg(any(feature="islands"))]
     if render_state.state_saver.tick(&mut |s: &mut IslandsState| -> OctaResult<bool> {
+        s.update(&logic_state.camera)?;
         s.tick(&mut render_state.renderer.scene, &engine.context)
     })? {
 

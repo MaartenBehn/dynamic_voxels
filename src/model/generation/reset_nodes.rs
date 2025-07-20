@@ -3,17 +3,17 @@ use slotmap::Key;
 
 use crate::{model::generation::{collapse::{CollapseOperation, NodeOperationType}, pending_operations::NodeOperation}, volume::VolumeQureyPosValid};
 
-use super::{builder::{BU, IT}, collapse::{CollapseNodeKey, Collapser}};
+use super::{builder::{BU, IT}, collapse::{CollapseNodeKey, Collapser}, template::TemplateTree};
 
 
 
-impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> {
+impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
 
-    pub fn reset_node(&mut self, node_index: CollapseNodeKey) -> OctaResult<()> {
+    pub fn reset_node(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<I, V>) -> OctaResult<()> {
         let node = self.get_node_ref_from_node_index(node_index)?;
         info!("{:?} Reset {:?}", node_index, node.identfier);
 
-        let node_template = Self::get_template_from_node_ref_unpacked(&self.template, node);
+        let node_template = self.get_template_from_node_ref(node, template);
         for child in node.children.iter()
             .filter(|(template_index, _)| node_template.defines_ammount.iter()
                 .find(|ammount| ammount.index == *template_index)
@@ -23,20 +23,20 @@ impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> {
             .copied()
             .collect::<Vec<_>>() {
 
-            self.delete_node(child, true)?;
+            self.delete_node(child, true, template)?;
         }
 
         let node = self.get_node_ref_from_node_index(node_index)?; 
         
         self.pending_operations.push(node_template.level, NodeOperation { 
-            index: node_index, 
+            key: node_index, 
             typ: NodeOperationType::CollapseValue,
         });
 
         Ok(())
     }
 
-    pub fn delete_node(&mut self, node_index: CollapseNodeKey, recreate: bool) -> OctaResult<()> {
+    pub fn delete_node(&mut self, node_index: CollapseNodeKey, recreate: bool, template: &TemplateTree<I, V>) -> OctaResult<()> {
         let node = self.nodes.remove(node_index);
         if node.is_none() {
             return Ok(());
@@ -46,7 +46,7 @@ impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> {
 
         info!("{:?} Delete {:?}", node_index, node.identfier);
 
-        let template_node = self.get_template_from_node_ref(&node);
+        let template_node = self.get_template_from_node_ref(&node, template);
 
         self.pending_operations.delete(template_node.level, node_index);
 
@@ -78,15 +78,15 @@ impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> {
             .map(|(_, c)| c) 
             .flatten() {
 
-            self.delete_node(*child, recreate)?;
+            self.delete_node(*child, recreate, template)?;
         }
 
         if recreate {
-            let node_template = self.get_template_from_node_ref(&node); 
+            let node_template = self.get_template_from_node_ref(&node, template); 
             if self.has_index(node.defined_by) {
                 
                 self.pending_operations.push(node_template.level, NodeOperation { 
-                    index: node.defined_by, 
+                    key: node.defined_by, 
                     typ: NodeOperationType::UpdateDefined(node.template_index),
                 });
             } 

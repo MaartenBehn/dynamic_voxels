@@ -10,8 +10,8 @@ pub enum PositionSetRule {
 
 #[derive(Debug, Clone)]
 pub struct PositionSet<V: VolumeQureyPosValid> {
-    volume: V,
-    rule: PositionSetRule, 
+    pub volume: V,
+    pub rule: PositionSetRule, 
 }
 
 impl<V: VolumeQureyPosValid> PositionSet<V> {

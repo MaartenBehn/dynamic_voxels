@@ -1,25 +1,25 @@
 use std::iter;
 
-use octa_force::{anyhow::{anyhow, bail}, glam::Vec3, log::debug, OctaResult};
+use octa_force::{anyhow::{anyhow, bail}, glam::Vec3, log::{debug, info}, OctaResult};
 use slotmap::Key;
 
 use crate::volume::VolumeQureyPosValid;
 
-use super::{builder::{BU, IT}, collapse::{CollapseNode, CollapseNodeKey, Collapser, GridData, NodeDataType, NodeOperationType, NumberData, PosData, PosSetData}, pending_operations::NodeOperation, pos_set::PositionSet, relative_path::LeafType, template::{NodeTemplateValue, TemplateAmmountType, TemplateIndex, TemplateNode}};
+use super::{builder::{BU, IT}, collapse::{CollapseNode, CollapseNodeKey, Collapser, GridData, NodeDataType, NodeOperationType, NumberData, PosData, PosSetData}, pending_operations::NodeOperation, pos_set::PositionSet, relative_path::LeafType, template::{NodeTemplateValue, TemplateAmmountType, TemplateIndex, TemplateNode, TemplateTree}};
 
 
-impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> {
+impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
 
-    pub fn update_defined(&mut self, node_index: CollapseNodeKey, to_create_template_index: TemplateIndex) -> OctaResult<()> {
+    pub fn update_defined(&mut self, node_index: CollapseNodeKey, to_create_template_index: TemplateIndex, template: &TemplateTree<I, V>) -> OctaResult<()> {
         let node = &self.nodes[node_index];
-        let template_node = self.get_template_from_node_ref(node);
+        let template_node = self.get_template_from_node_ref(node, template);
         let template_ammount = template_node.defines_ammount.iter()
             .find(|ammount| ammount.index == to_create_template_index)
             .ok_or(anyhow!("Node Template to create has no defines ammout in parent"))?;
  
         match template_ammount.typ {
             TemplateAmmountType::N(n) => {
-                self.create_n_defined_nodes(node_index, to_create_template_index, n)?;
+                self.create_n_defined_nodes(node_index, to_create_template_index, n, template)?;
             },
             TemplateAmmountType::Value => {
                 match &node.data {
@@ -29,7 +29,7 @@ impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> {
                         panic!("TemplateAmmount Value is not allowed on {:?}", &node.data);
                     },
                     NodeDataType::Number(data) => {
-                        self.create_n_defined_nodes(node_index, to_create_template_index, data.value as usize)?;
+                        self.create_n_defined_nodes(node_index, to_create_template_index, data.value as usize, template)?;
                     },
                     NodeDataType::PosSet(..) => {
                         let node = &mut self.nodes[node_index];
@@ -39,7 +39,7 @@ impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> {
                         };
 
                         let points: Vec<Vec3> = data.set.get_points().into_iter().collect();
-                        self.create_pos_set_nodes(node_index, to_create_template_index, points)?; 
+                        self.create_pos_set_nodes(node_index, to_create_template_index, points, template)?; 
                     },
 
                 }
@@ -49,7 +49,7 @@ impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> {
         Ok(())
     }
 
-    fn create_n_defined_nodes (&mut self, node_index: CollapseNodeKey, to_create_template_index: TemplateIndex, n: usize) -> OctaResult<()> {
+    fn create_n_defined_nodes (&mut self, node_index: CollapseNodeKey, to_create_template_index: TemplateIndex, n: usize, template: &TemplateTree<I, V>) -> OctaResult<()> {
         let node = &self.nodes[node_index];
         let present_children = node.children.iter()
             .find(|(template_index, _)| *template_index == to_create_template_index)
@@ -58,27 +58,28 @@ impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> {
 
         let present_children_len = present_children.len(); 
         if present_children_len < n {
-            let (depends, knows) = self.get_depends_and_knows_for_template(node_index, to_create_template_index)?;
+            let (depends, knows) = self.get_depends_and_knows_for_template(node_index, to_create_template_index, template)?;
 
             for _ in present_children_len..n {
-                self.add_node(to_create_template_index, depends.clone(), knows.clone(), node_index); 
+                self.add_node(to_create_template_index, depends.clone(), knows.clone(), node_index, template); 
             }
         } else if present_children_len > n {
 
             for child in present_children.to_owned().into_iter().take(n) {
-                self.delete_node(child, false)?;
+                self.delete_node(child, false, template)?;
             }
         } 
         
         Ok(())
     }
 
-    fn create_pos_set_nodes (&mut self, node_index: CollapseNodeKey, to_create_template_index: TemplateIndex, mut points: Vec<Vec3>) -> OctaResult<()> {
+    fn create_pos_set_nodes (&mut self, node_index: CollapseNodeKey, to_create_template_index: TemplateIndex, mut points: Vec<Vec3>, template: &TemplateTree<I, V>) -> OctaResult<()> {
         let node = &self.nodes[node_index];
         let mut present_children = node.children.iter()
             .find(|(template_index, _)| *template_index == to_create_template_index)
             .map(|(_, children)| children.to_vec())
             .unwrap_or(vec![]);
+
        
         for i in (0..present_children.len()).rev() {
 
@@ -100,32 +101,33 @@ impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> {
         
         // Remove the rest
         for child in present_children {
-            self.delete_node(child, false)?;
+            self.delete_node(child, false, template)?;
         }
 
         // Add nodes for the rest of the points
-        let (depends, knows) = self.get_depends_and_knows_for_template(node_index, to_create_template_index)?;
+        let (depends, knows) = self.get_depends_and_knows_for_template(node_index, to_create_template_index, template)?;
         for point in points {
             self.add_pos(
                 to_create_template_index, 
                 depends.clone(), 
                 knows.clone(), 
                 node_index, 
-                point
+                point,
+                template,
             ); 
         }
         
         Ok(())
     }
 
-    fn get_depends_and_knows_for_template(&mut self, node_index: CollapseNodeKey, to_create_template_index: TemplateIndex) 
+    fn get_depends_and_knows_for_template(&mut self, node_index: CollapseNodeKey, to_create_template_index: TemplateIndex, template: &TemplateTree<I, V>) 
     -> OctaResult<(Vec<(I, CollapseNodeKey)>, Vec<(I, CollapseNodeKey)>)> {
-        let template_node = self.get_template_from_node_ref(&self.nodes[node_index]);
+        let template_node = self.get_template_from_node_ref(&self.nodes[node_index], template);
         let template_ammount = template_node.defines_ammount.iter()
             .find(|ammount| ammount.index == to_create_template_index)
             .ok_or(anyhow!("Node Template to create has no defines ammout in parent"))?;
 
-        let new_node_template = &self.template.nodes[template_ammount.index];
+        let new_node_template = &template.nodes[template_ammount.index];
         let tree = &template_ammount.dependecy_tree;
 
         // Contains a list of node indecies matching the template dependency
@@ -191,7 +193,7 @@ impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> {
                         return (template_node.identifier, node_index);
                     }
 
-                    let depend_template_node = &self.template.nodes[*depend_template_node];
+                    let depend_template_node = &template.nodes[*depend_template_node];
                     assert_eq!(nodes.len(), 1, "Invalid number of nodes for dependency or knows of node found");
                     (depend_template_node.identifier, nodes[0])
                 }).collect::<Vec<_>>()
@@ -209,10 +211,11 @@ impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> {
         depends: Vec<(I, CollapseNodeKey)>, 
         knows: Vec<(I, CollapseNodeKey)>,
         defined_by: CollapseNodeKey,
+        template: &TemplateTree<I, V>,
     ) {
-        let new_node_template = &self.template.nodes[new_node_template_index];
+        let new_node_template = &template.nodes[new_node_template_index];
 
-        let data = match &(&self.template.nodes[new_node_template_index]).value {
+        let data = match &(&template.nodes[new_node_template_index]).value {
             NodeTemplateValue::Groupe { .. } => {
                 NodeDataType::None
             },
@@ -250,8 +253,9 @@ impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> {
         knows: Vec<(I, CollapseNodeKey)>,
         defined_by: CollapseNodeKey,
         pos: Vec3,
+        template: &TemplateTree<I, V>,
     ) {
-        let new_node_template = &self.template.nodes[new_node_template_index];
+        let new_node_template = &template.nodes[new_node_template_index];
 
         let data = NodeDataType::Pos(PosData { value: pos });
         self.push_new_node(new_node_template, depends, knows, defined_by, data)
@@ -271,7 +275,7 @@ impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> {
             next_reset: CollapseNodeKey::null(),
             undo_data: U::default(),
         });
-        //info!("{:?} Node added {:?}", index, new_node_template.identifier);
+        info!("{:?} Node added {:?}", index, new_node_template.identifier);
 
         for (_, depend) in depends {
             let children_list = self.nodes[depend].children.iter_mut()
@@ -283,11 +287,10 @@ impl<'a, I: IT, U: BU, V: VolumeQureyPosValid> Collapser<'a, I, U, V> {
             } else {
                 children_list.unwrap().push(index);
             };
-
         }
         
         self.pending_operations.push(new_node_template.level, NodeOperation { 
-                index: index, 
+                key: index, 
                 typ: NodeOperationType::CollapseValue,
             });
     }

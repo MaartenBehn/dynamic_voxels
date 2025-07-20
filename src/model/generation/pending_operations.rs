@@ -13,7 +13,7 @@ pub struct PendingOperations {
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd)]
 pub struct NodeOperation {
-    pub index: CollapseNodeKey,
+    pub key: CollapseNodeKey,
     pub typ: NodeOperationType,
 }
 
@@ -44,7 +44,7 @@ impl PendingOperations {
     pub fn delete(&mut self, level: usize, index: CollapseNodeKey) {
         let to_delete: Vec<_> = self.pending_per_level[level - 1].iter()
             .enumerate()
-            .filter(|(_, o)| o.index == index)
+            .filter(|(_, o)| o.key == index)
             .map(|(i, _)| i)
             .collect();
 

@@ -1,11 +1,11 @@
 
 use std::{sync::Arc};
 
-use octa_force::{camera::Camera, glam::{vec3, EulerRot, Mat4, Quat, Vec3}, log::{error, info}, vulkan::{Context, Swapchain}, OctaResult};
+use octa_force::{camera::Camera, glam::{vec3, EulerRot, Mat4, Quat, Vec3, Vec3A}, log::{error, info}, vulkan::{Context, Swapchain}, OctaResult};
 use parking_lot::Mutex;
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{csg::{fast_query_csg_tree::tree::FastQueryCSGTree, slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGTree, SlotMapCSGTreeKey}, vec_csg_tree::tree::VecCSGTree}, model::generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder, IT}, collapse::{CollapseOperation, Collapser}, collapser_data::CollapserData, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree}, scene::{dag64::DAG64SceneObject, renderer::SceneRenderer, Scene, SceneObjectData, SceneObjectKey}, volume::VolumeQureyPosValid, voxel::dag64::{DAG64EntryKey, VoxelDAG64}, METERS_PER_SHADER_UNIT};
+use crate::{csg::{fast_query_csg_tree::tree::FastQueryCSGTree, slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGTree, SlotMapCSGTreeKey}, vec_csg_tree::tree::VecCSGTree}, model::generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder, IT}, collapse::{CollapseOperation, Collapser, NodeOperationType}, pending_operations::NodeOperation, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree}, scene::{dag64::DAG64SceneObject, renderer::SceneRenderer, Scene, SceneObjectData, SceneObjectKey}, volume::VolumeQureyPosValid, voxel::dag64::{DAG64EntryKey, VoxelDAG64}, METERS_PER_SHADER_UNIT};
 
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -26,10 +26,11 @@ new_key_type! { pub struct IslandKey; }
 #[derive(Clone, Debug)]
 pub struct IslandsState {
     pub template: TemplateTree<Identifier, FastQueryCSGTree<()>>,
-    pub collapser: Option<CollapserData<Identifier, SlotMapCSGTreeKey, FastQueryCSGTree<()>>>,
+    pub collapser: Collapser<Identifier, SlotMapCSGTreeKey, FastQueryCSGTree<()>>,
 
-    pub islands: SlotMap<IslandKey, IslandState>,
+    islands: SlotMap<IslandKey, IslandState>,
     pub dag: Arc<Mutex<VoxelDAG64>>,
+    pub last_pos: Vec3,
 }
 
 #[derive(Clone, Debug)]
@@ -44,8 +45,7 @@ impl IslandsState {
 
         let dag = VoxelDAG64::new(10000, 64);
          
-        let island_volume = VecCSGTree::new_disk(Vec3::ZERO, 200.0, 0.1); 
-        let island_volume = FastQueryCSGTree::from(island_volume);
+        let island_volume = FastQueryCSGTree::default();
 
         let mut wfc_builder = ModelSynthesisBuilder::new()
             .number_range(Identifier::MinIslandDistance, |b|{b
@@ -67,7 +67,7 @@ impl IslandsState {
                 .ammount(BuilderAmmount::OneGlobal)
                 .value(BuilderValue::Const(PositionSet::new(
                     island_volume,
-                    PositionSetRule::Grid { spacing: (if profile { 0.1 } else { 50.0 }) })))
+                    PositionSetRule::Grid { spacing: (if profile { 0.1 } else { 20.0 }) })))
             })
 
             .pos(Identifier::IslandPos, |b| {b
@@ -81,22 +81,43 @@ impl IslandsState {
 
         let template = wfc_builder.build_template();
 
-        let collapser = template.get_collaper().into_data();
+        let collapser = template.get_collaper();
 
         Ok(Self {
             template,
-            collapser: Some(collapser),
+            collapser,
             islands: Default::default(),
             dag: Arc::new(Mutex::new(dag)),
+            last_pos: Vec3::ZERO,
         })
+    }
+
+    pub fn update(&mut self, camera: &Camera) -> OctaResult<()> {
+
+        let mut new_pos = camera.get_position_in_meters();
+        new_pos.z = 0.0;
+
+        if new_pos == self.last_pos {
+            return Ok(());
+        }
+        self.last_pos = new_pos;
+
+        let island_volume = VecCSGTree::new_sphere(new_pos, 40.0); 
+        let island_volume = FastQueryCSGTree::from(island_volume);
+
+        self.template.get_node_position_set(Identifier::IslandRoot)?.volume = island_volume;
+        self.collapser.re_collapse_all_nodes_with_identifier(Identifier::IslandRoot);
+
+        Ok(())
     }
 
     pub fn tick(&mut self, scene: &mut Scene, context: &Context) -> OctaResult<bool> {
         let mut ticked = false;
-                    
-        
-        let mut collapser = self.collapser.take().unwrap().into_collapser(&self.template);
-        if let Some((hook, collapser)) = collapser.next()? {
+
+        if let Some((hook, collapser)) 
+            = self.collapser.next(&self.template)? {
+
+
             ticked = true;
 
             match hook {
@@ -148,8 +169,6 @@ impl IslandsState {
                 CollapseOperation::None => {},
             } 
         }
-
-        self.collapser = Some(collapser.into_data());
 
         Ok(ticked)
     }
