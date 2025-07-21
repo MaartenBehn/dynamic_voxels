@@ -132,38 +132,8 @@ impl<I: IT, V: VolumeQureyPosValid> ModelSynthesisBuilder<I, V> {
         let node = BuilderNode {
             value: match builder.value {
                 BuilderValue::Const(s) => NodeTemplateValue::new_position_set(s),
-                BuilderValue::Hook => NodeTemplateValue::PosHook,
+                BuilderValue::Hook => NodeTemplateValue::PosSetHook,
             },
-            identifier,
-            depends: builder.depends,
-            knows: builder.knows,
-            ammount: builder.ammount,
-        };
-
-        self.nodes.push(node);
-
-        self
-    }
-
-    pub fn pos<F: FnOnce(NodeBuilder<I, Vec3>) -> NodeBuilder<I, Vec3>>(
-        mut self,
-        identifier: I,
-        b: F,
-    ) -> Self {
-        let mut builder = NodeBuilder {
-            depends: vec![],
-            knows: vec![],
-            ammount: BuilderAmmount::OneGlobal,
-            value: BuilderValue::Hook
-        };
-
-        builder = b(builder);
-
-        let node = BuilderNode {
-            value: match builder.value {
-                BuilderValue::Const(v) =>  NodeTemplateValue::new_pos(v),
-                BuilderValue::Hook => NodeTemplateValue::PosHook,
-            },             
             identifier,
             depends: builder.depends,
             knows: builder.knows,
@@ -241,27 +211,4 @@ impl<I: IT, V: VolumeQureyPosValid> ModelSynthesisBuilder<I, V> {
     pub fn build_template(&self) -> TemplateTree<I, V> {
         TemplateTree::new_from_builder(self)
     }
-}
-
-impl<V: VolumeQureyPosValid> NodeTemplateValue<V> {
-    pub fn get_number_min(&self) -> i32 {
-        match self {
-            NodeTemplateValue::NumberRange { min, .. } => *min,
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn get_number_max(&self) -> i32 {
-        match self {
-            NodeTemplateValue::NumberRange { max, .. } => *max,
-            _ => unreachable!(),
-        }
-    }
-    
-    pub fn get_number_permutation(&self) -> &Permutation {
-        match self {
-            NodeTemplateValue::NumberRange { permutation, .. } => permutation,
-            _ => unreachable!(),
-        }
-    } 
 }

@@ -8,9 +8,10 @@ use slotmap::{new_key_type, Key, SlotMap};
 
 use crate::{model::generation::pending_operations::NodeOperation, volume::VolumeQureyPosValid};
 
-use super::{builder::{BuilderNode, ModelSynthesisBuilder, BU, IT}, pending_operations::PendingOperations, pos_set::PositionSet, relative_path::{LeafType, RelativePathTree}, template::{NodeTemplateValue, TemplateAmmountType, TemplateIndex, TemplateNode, TemplateTree}};
+use super::{builder::{BuilderNode, ModelSynthesisBuilder, BU, IT}, number_range::NumberRange, pending_operations::PendingOperations, pos_set::PositionSet, relative_path::{LeafType, RelativePathTree}, template::{NodeTemplateValue, TemplateAmmountType, TemplateIndex, TemplateNode, TemplateTree}};
 
 new_key_type! { pub struct CollapseNodeKey; }
+new_key_type! { pub struct CollapseChildKey; }
 
 #[derive(Debug, Clone)]
 pub struct Collapser<I: IT, U: BU, V: VolumeQureyPosValid> {
@@ -34,40 +35,19 @@ pub struct CollapseNode<I: IT, U: BU, V: VolumeQureyPosValid> {
     pub depends: Vec<(I, CollapseNodeKey)>,
     pub knows: Vec<(I, CollapseNodeKey)>,
     pub defined_by: CollapseNodeKey,
-    pub data: NodeDataType<I, V>,
+    pub child_key: CollapseChildKey,
+    pub data: NodeDataType<V>,
     pub next_reset: CollapseNodeKey,
     pub undo_data: U,
 }
 
 #[derive(Debug, Clone)]
-pub enum NodeDataType<I: IT, V: VolumeQureyPosValid> {
-    Number(NumberData),
-    PosSet(PosSetData<I, V>),
-    Pos(PosData),
+pub enum NodeDataType<V: VolumeQureyPosValid> {
+    NumberRange(NumberRange),
+    PosSet(PositionSet<V>),
     Build,
     None,
-}
-
-#[derive(Debug, Clone)]
-pub struct NumberData {
-    pub value: i32,
-    pub perm_counter: usize,
-}
-
-#[derive(Debug, Clone)]
-pub struct PosSetData<I: IT, V: VolumeQureyPosValid> {
-    pub set: PositionSet<V>,
-    pub pos_depends_and_knows: Option<(Vec<(I, CollapseNodeKey)>, Vec<(I, CollapseNodeKey)>)>,
-}
-
-#[derive(Debug, Clone)]
-pub struct PosData {
-    pub value: Vec3,
-}
-
-#[derive(Debug, Clone)]
-pub struct GridData {
-
+    NotValid
 }
 
 #[derive(Debug, Clone)]
@@ -119,69 +99,58 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
     fn collapse_node(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<I, V>) -> OctaResult<CollapseOperation<I, U>> {
         let node = &mut self.nodes[node_index];
         let template_node = &template.nodes[node.template_index]; 
-        //info!("{:?} Collapse: {:?}", node_index, node.identfier);
+        info!("{:?} Collapse: {:?}", node_index, node.identfier);
 
         match &mut node.data {
-            NodeDataType::Number(number_data) => {
+            NodeDataType::NotValid => {
                 match &template_node.value {
+                    NodeTemplateValue::Groupe
+                    | NodeTemplateValue::BuildHook => unreachable!(),
                     NodeTemplateValue::NumberRangeHook => {
-                        self.push_pending_defineds(node_index, template);
                         return Ok(CollapseOperation::NumberRangeHook { 
                             index: node_index
                         });
                     },
-                    NodeTemplateValue::NumberRange { min, max, permutation } => {
-
-                        if number_data.perm_counter >= permutation.max() as usize {
-                            info!("{:?} Resetting Number faild", node_index);
-
-                            number_data.perm_counter = 0;
-
-                            let next_reset = node.next_reset;
-                            self.reset_node(next_reset, template)?;
-
-                            self.pending_operations.push(template_node.level, NodeOperation { 
-                                key: node_index, 
-                                typ: NodeOperationType::CollapseValue,
-                            });
-
-                            return Ok(CollapseOperation::None);
-                        }
-
-                        let value = permutation.get(number_data.perm_counter as _) as i32 + min;
-                        number_data.perm_counter += 1;
-
-                        number_data.value = value;
-                        info!("{:?} {:?}: {}", node_index, node.identfier, number_data.value); 
+                    NodeTemplateValue::NumberRange(number_range) => {
+                        node.data = NodeDataType::NumberRange(number_range.to_owned());
                     },
-                    _ => unreachable!()
-                }
-            },
-            NodeDataType::PosSet(pos_set_data) => {
-                match &template_node.value {
                     NodeTemplateValue::PosSetHook => {
-                        self.push_pending_defineds(node_index, template);
-                        return Ok(CollapseOperation::PosHook { 
+                        return Ok(CollapseOperation::PosSetHook { 
                             index: node_index
                         });
                     },
                     NodeTemplateValue::PosSet(position_set) => {
-                        pos_set_data.set = position_set.clone() 
+                        node.data = NodeDataType::PosSet(position_set.to_owned());
                     },
-                    _ => unreachable!(),
                 }
+                return Ok(CollapseOperation::None);
+            }
+
+            NodeDataType::NumberRange(number_data) => {
+                if number_data.perm_counter >= number_data.permutation.max() as usize {
+                    info!("{:?} Resetting Number faild", node_index);
+
+                    number_data.perm_counter = 0;
+
+                    let next_reset = node.next_reset;
+                    self.reset_node(next_reset, template)?;
+
+                    self.pending_operations.push(template_node.level, NodeOperation { 
+                        key: node_index, 
+                        typ: NodeOperationType::CollapseValue,
+                    });
+
+                    return Ok(CollapseOperation::None);
+                }
+
+                let value = number_data.permutation.get(number_data.perm_counter as _) as i32 + number_data.min;
+                number_data.perm_counter += 1;
+
+                number_data.value = value;
+                info!("{:?} {:?}: {}", node_index, node.identfier, number_data.value); 
             },
-            NodeDataType::Pos(pos_data) => {
-                match template_node.value {
-                    NodeTemplateValue::Pos { value } => node.data.set_pos(value),
-                    NodeTemplateValue::PosHook => {
-                        self.push_pending_defineds(node_index, template);
-                        return Ok(CollapseOperation::PosHook { 
-                            index: node_index
-                        });
-                    },
-                    _ => unreachable!()
-                }
+            NodeDataType::PosSet(pos_set) => {
+               pos_set.collapse(); 
             },
             NodeDataType::Build => {
                 return Ok(CollapseOperation::BuildHook { 
@@ -240,8 +209,7 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
 
         Ok(())
     }
-
-     
+ 
     pub fn set_undo_data(&mut self, index: CollapseNodeKey, data: U) -> OctaResult<()> {
         let node = self.nodes.get_mut(index)
             .ok_or(anyhow!("Index of build node to set data is not valid!"))?;
@@ -250,34 +218,7 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
         
         Ok(())
     }
-
 }
-
-
-impl<I: IT, V: VolumeQureyPosValid> NodeDataType<I, V> {
-    pub fn get_number_mut(&mut self) -> &mut NumberData {
-        match self {
-            NodeDataType::Number(d) => d,
-            _ => unreachable!()
-        }
-    } 
-
-    pub fn get_pos_mut(&mut self) -> &mut PosData {
-        match self {
-            NodeDataType::Pos(d) => d,
-            _ => unreachable!()
-        }
-    }
-
-    pub fn set_pos(&mut self, v: Vec3) {
-        match self {
-            NodeDataType::Pos(d) => d.value = v,
-            _ => unreachable!()
-        }
-    }
-}
-
-
 
 impl<I: IT, V: VolumeQureyPosValid> TemplateTree<I, V> {
     pub fn get_collaper<U: BU>(&self) -> Collapser<I, U, V> {
@@ -289,7 +230,7 @@ impl<I: IT, V: VolumeQureyPosValid> TemplateTree<I, V> {
             pending_collapse_opperations: Vec::with_capacity(inital_capacity),
         };
 
-        collapser.add_node(0, vec![], vec![], CollapseNodeKey::null(), self);
+        collapser.add_node(0, vec![], vec![], CollapseNodeKey::null(), CollapseChildKey::null(), self);
         collapser
     }
 }

@@ -15,8 +15,7 @@ pub enum Identifier {
     MinIslandDistance,
     IslandRadius,
     BeachWidth,
-    IslandRoot,
-    IslandPos,
+    IslandPositions,
     IslandBuild,
 }
 impl IT for Identifier {}
@@ -63,22 +62,17 @@ impl IslandsState {
                 .value(BuilderValue::Const(0..=2))
             })
 
-            .position_set(Identifier::IslandRoot, |b| {b
+            .position_set(Identifier::IslandPositions, |b| {b
                 .ammount(BuilderAmmount::OneGlobal)
-                .value(BuilderValue::Const(PositionSet::new(
+                .value(BuilderValue::Const(PositionSet::new_grid(
                     island_volume,
-                    PositionSetRule::Grid { spacing: (if profile { 0.1 } else { 20.0 }) })
-                    .iterative()
+                    if profile { 0.1 } else { 20.0 })
                 ))
             })
 
-            .pos(Identifier::IslandPos, |b| {b
-                .ammount(BuilderAmmount::DefinedBy(Identifier::IslandRoot))
-            })
-
             .build(Identifier::IslandBuild, |b| {b
-                .ammount(BuilderAmmount::OnePer(Identifier::IslandPos))
-                .depends(Identifier::IslandPos)
+                .ammount(BuilderAmmount::DefinedBy(Identifier::IslandPositions))
+                .depends(Identifier::IslandPositions)
             });
 
         let template = wfc_builder.build_template();
@@ -107,8 +101,8 @@ impl IslandsState {
         let island_volume = VecCSGTree::new_sphere(new_pos, 40.0); 
         let island_volume = FastQueryCSGTree::from(island_volume);
 
-        self.template.get_node_position_set(Identifier::IslandRoot)?.volume = island_volume;
-        self.collapser.re_collapse_all_nodes_with_identifier(Identifier::IslandRoot);
+        self.template.get_node_position_set(Identifier::IslandPositions)?.volume = island_volume;
+        self.collapser.re_collapse_all_nodes_with_identifier(Identifier::IslandPositions);
 
         Ok(())
     }
@@ -135,11 +129,11 @@ impl IslandsState {
                     #[cfg(not(feature = "profile_islands"))]
                     info!("Pos Hook")
                 },
-                CollapseOperation::BuildHook { index, identifier } => {  
-                    let pos = collapser.get_dependend_pos(index, Identifier::IslandPos);
+                CollapseOperation::BuildHook { index, identifier } => { 
+                    let pos = collapser.get_dependend_pos(index, Identifier::IslandPositions);
 
                     #[cfg(not(feature = "profile_islands"))]
-                    info!("Build Hook: {pos}");
+                    info!("Build Hook: {pos:}");
 
                     let csg = SlotMapCSGTree::new_sphere(Vec3::ZERO, 10.0);
                     let active_key = self.dag.lock().add_aabb_query_volume(&csg)?;
@@ -149,7 +143,7 @@ impl IslandsState {
                         Mat4::from_scale_rotation_translation(
                             Vec3::ONE,
                             Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, 0.0),
-                            pos / METERS_PER_SHADER_UNIT as f32
+                            pos.to_owned() / METERS_PER_SHADER_UNIT as f32
                         ), 
                         active_key,
                         self.dag.clone(),
@@ -162,6 +156,7 @@ impl IslandsState {
                     };
 
                     self.islands.insert(island_state);
+                    
                 },
                 CollapseOperation::Undo { identifier , undo_data} => {
                     #[cfg(not(feature = "profile_islands"))]

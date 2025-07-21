@@ -3,9 +3,9 @@ use std::iter;
 use octa_force::{anyhow::{anyhow, bail}, glam::Vec3, log::{debug, info}, OctaResult};
 use slotmap::Key;
 
-use crate::volume::VolumeQureyPosValid;
+use crate::{model::generation::collapse::CollapseChildKey, volume::VolumeQureyPosValid};
 
-use super::{builder::{BU, IT}, collapse::{CollapseNode, CollapseNodeKey, Collapser, GridData, NodeDataType, NodeOperationType, NumberData, PosData, PosSetData}, pending_operations::NodeOperation, pos_set::PositionSet, relative_path::LeafType, template::{NodeTemplateValue, TemplateAmmountType, TemplateIndex, TemplateNode, TemplateTree}};
+use super::{builder::{BU, IT}, collapse::{CollapseNode, CollapseNodeKey, Collapser, NodeDataType, NodeOperationType}, pending_operations::NodeOperation, pos_set::PositionSet, relative_path::LeafType, template::{NodeTemplateValue, TemplateAmmountType, TemplateIndex, TemplateNode, TemplateTree}};
 
 
 impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
@@ -23,60 +23,36 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
             },
             TemplateAmmountType::Value => {
                 match &node.data {
-                    NodeDataType::Pos(_)
+                    NodeDataType::NotValid
                     | NodeDataType::Build
                     | NodeDataType::None => {
                         bail!("TemplateAmmount Value is not allowed on {:?}", &node.data);
                     },
-                    NodeDataType::Number(data) => {
+                    NodeDataType::NumberRange(data) => {
                         self.create_n_defined_nodes(node_index, to_create_template_index, data.value as usize, template)?;
                     },
-                    NodeDataType::PosSet(..) => {
-                        let node = &mut self.nodes[node_index];
-                        let mut data = match &mut node.data {
-                            NodeDataType::PosSet(pos_set_data) => pos_set_data,
-                            _ => unreachable!()
-                        };
-
-                        if data.set.iterative {
-                            let res = data.set.get_points().next();
-                            if let Some(point) = res {
-
-                                let (depends, knows) = if 
-                                    let Some(depends_and_knows) = &data.pos_depends_and_knows { 
-                                    depends_and_knows.to_owned()
-                                } else {
-                                    let depends_and_knows = self.get_depends_and_knows_for_template(node_index, to_create_template_index, template)?;
-                                    
-                                    let node = &mut self.nodes[node_index];
-                                    data = match &mut node.data {
-                                        NodeDataType::PosSet(pos_set_data) => pos_set_data,
-                                        _ => unreachable!()
-                                    };
-                                    data.pos_depends_and_knows = Some(depends_and_knows.clone());
-                                    depends_and_knows
-                                };
-                                
-                                self.add_pos(
-                                    to_create_template_index, 
-                                    depends, 
-                                    knows, 
-                                    node_index, 
-                                    point,
-                                    template,
-                                );
-
-                                let new_node_template = &template.nodes[to_create_template_index];
-                                self.pending_operations.push(new_node_template.level, NodeOperation { 
-                                    key: node_index, 
-                                    typ: NodeOperationType::UpdateDefined(to_create_template_index),
-                                });
-                            }
-                        } else {
-                            let points: Vec<Vec3> = data.set.get_points().into_iter().collect();
-                            self.create_pos_set_nodes(node_index, to_create_template_index, points, template)?; 
+                    NodeDataType::PosSet(data) => {
+                        let to_remove_children = node.children.iter()
+                            .find(|(template_index, _)| *template_index == to_create_template_index)
+                            .map(|(_, children)| children)
+                            .unwrap_or(&vec![])
+                            .iter()
+                            .map(|key| (*key, &self.nodes[*key]) )
+                            .filter(|(_, child)| !data.is_valid_child(child.child_key))
+                            .map(|(key, _)| key )
+                            .collect::<Vec<_>>();
+ 
+                        let (depends, knows) = self.get_depends_and_knows_for_template(node_index, to_create_template_index, template)?;
+                        let to_create_children = data.new_positions.to_owned(); 
+ 
+                        for child_index in to_remove_children {
+                            self.delete_node(child_index, false, template)?;
                         }
-                    },
+
+                        for new_child in to_create_children {
+                            self.add_node(to_create_template_index, depends.clone(), knows.clone(), node_index, new_child, template); 
+                        }
+                    }
                 }
             },
         };
@@ -96,7 +72,7 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
             let (depends, knows) = self.get_depends_and_knows_for_template(node_index, to_create_template_index, template)?;
 
             for _ in present_children_len..n {
-                self.add_node(to_create_template_index, depends.clone(), knows.clone(), node_index, template); 
+                self.add_node(to_create_template_index, depends.clone(), knows.clone(), node_index, CollapseChildKey::null(), template); 
             }
         } else if present_children_len > n {
 
@@ -104,53 +80,6 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
                 self.delete_node(child, false, template)?;
             }
         } 
-        
-        Ok(())
-    }
-
-    fn create_pos_set_nodes (&mut self, node_index: CollapseNodeKey, to_create_template_index: TemplateIndex, mut points: Vec<Vec3>, template: &TemplateTree<I, V>) -> OctaResult<()> {
-        let node = &self.nodes[node_index];
-        let mut present_children = node.children.iter()
-            .find(|(template_index, _)| *template_index == to_create_template_index)
-            .map(|(_, children)| children.to_vec())
-            .unwrap_or(vec![]);
-
-       
-        for i in (0..present_children.len()).rev() {
-
-            let child = present_children[i];
-            let pos = if let NodeDataType::Pos(pos) =  &self.nodes[child].data {
-                pos.value
-            } else {
-                bail!("Node that is defined by Pos set is not a Pos");
-            };
-            if let Some(j) = points.iter()
-                .position(|p| *p == pos) {
-                // Remove present_child that we want to keep
-                present_children.swap_remove(i);
-
-                // Remove point that we already have
-                points.swap_remove(j);
-            }
-        }
-        
-        // Remove the rest
-        for child in present_children {
-            self.delete_node(child, false, template)?;
-        }
-
-        // Add nodes for the rest of the points
-        let (depends, knows) = self.get_depends_and_knows_for_template(node_index, to_create_template_index, template)?;
-        for point in points {
-            self.add_pos(
-                to_create_template_index, 
-                depends.clone(), 
-                knows.clone(), 
-                node_index, 
-                point,
-                template,
-            ); 
-        }
         
         Ok(())
     }
@@ -246,59 +175,25 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
         depends: Vec<(I, CollapseNodeKey)>, 
         knows: Vec<(I, CollapseNodeKey)>,
         defined_by: CollapseNodeKey,
+        child_key: CollapseChildKey,
         template: &TemplateTree<I, V>,
     ) {
         let new_node_template = &template.nodes[new_node_template_index];
 
         let data = match &(&template.nodes[new_node_template_index]).value {
-            NodeTemplateValue::Groupe { .. } => {
-                NodeDataType::None
-            },
+            NodeTemplateValue::Groupe => NodeDataType::None,
+            NodeTemplateValue::BuildHook => NodeDataType::Build,
+
             NodeTemplateValue::NumberRangeHook 
-            | NodeTemplateValue::NumberRange { .. } => {
-                NodeDataType::Number(NumberData {
-                    value: 0,
-                    perm_counter: 0,
-                })
-            },
-            NodeTemplateValue::PosHook
-            | NodeTemplateValue::Pos { .. } => {
-                NodeDataType::Pos(PosData {
-                    value: Vec3::ZERO,
-                })
-            },
-            NodeTemplateValue::BuildHook { .. } => {
-                NodeDataType::Build
-            },
-            NodeTemplateValue::PosSetHook
-            | NodeTemplateValue::PosSet { .. } => {
-                NodeDataType::PosSet(PosSetData {
-                    set: PositionSet::default(),
-                    pos_depends: vec![],
-                    pos_knows: vec![],
-                })
-            }
+            |NodeTemplateValue::PosSetHook => NodeDataType::NotValid, 
+            NodeTemplateValue::NumberRange(number_range) => NodeDataType::NumberRange(number_range.to_owned()),
+            NodeTemplateValue::PosSet(pos_set) => NodeDataType::PosSet(pos_set.to_owned()),
         };
 
-        self.push_new_node(new_node_template, depends, knows, defined_by, data)
+        self.push_new_node(new_node_template, depends, knows, defined_by, child_key, data)
     }
-
-    pub fn add_pos(
-        &mut self, 
-        new_node_template_index: TemplateIndex, 
-        depends: Vec<(I, CollapseNodeKey)>, 
-        knows: Vec<(I, CollapseNodeKey)>,
-        defined_by: CollapseNodeKey,
-        pos: Vec3,
-        template: &TemplateTree<I, V>,
-    ) {
-        let new_node_template = &template.nodes[new_node_template_index];
-
-        let data = NodeDataType::Pos(PosData { value: pos });
-        self.push_new_node(new_node_template, depends, knows, defined_by, data)
-    }
-
-    pub fn push_new_node(&mut self, new_node_template: &TemplateNode<I, V>, depends: Vec<(I, CollapseNodeKey)>, knows: Vec<(I, CollapseNodeKey)>, defined_by: CollapseNodeKey, data: NodeDataType<I, V>) {
+ 
+    pub fn push_new_node(&mut self, new_node_template: &TemplateNode<I, V>, depends: Vec<(I, CollapseNodeKey)>, knows: Vec<(I, CollapseNodeKey)>, defined_by: CollapseNodeKey, child_key: CollapseChildKey, data: NodeDataType<V>) {
         
         let index = self.nodes.insert(CollapseNode {
             template_index: new_node_template.index,
@@ -311,6 +206,7 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
             data,
             next_reset: CollapseNodeKey::null(),
             undo_data: U::default(),
+            child_key,
         });
         info!("{:?} Node added {:?}", index, new_node_template.identifier);
 

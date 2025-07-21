@@ -5,7 +5,7 @@ use octa_force::glam::Vec3;
 
 use crate::volume::VolumeQureyPosValid;
 
-use super::{builder::{BuilderAmmount, BuilderNode, ModelSynthesisBuilder, IT}, pos_set::PositionSet, relative_path::RelativePathTree};
+use super::{builder::{BuilderAmmount, BuilderNode, ModelSynthesisBuilder, IT}, number_range::NumberRange, pos_set::PositionSet, relative_path::RelativePathTree};
 
 pub type TemplateIndex = usize;
 pub const TEMPLATE_INDEX_ROOT: TemplateIndex = 0;
@@ -19,18 +19,12 @@ pub struct TemplateTree<I: IT, V: VolumeQureyPosValid> {
 
 #[derive(Debug, Clone)]
 pub enum NodeTemplateValue<V: VolumeQureyPosValid> {
-    Groupe {},
+    Groupe,
     NumberRangeHook,
-    NumberRange {
-        min: i32,
-        max: i32,
-        permutation: Permutation<DefaultBuildHasher>,
-    }, 
+    NumberRange(NumberRange),
     PosSetHook,
     PosSet(PositionSet<V>),
-    PosHook,
-    Pos { value: Vec3 },
-    BuildHook {}
+    BuildHook
 }
 
 #[derive(Debug, Clone)]
@@ -201,46 +195,13 @@ impl<V: VolumeQureyPosValid> NodeTemplateValue<V> {
             std::ops::Bound::Unbounded => i32::MAX,
         };
 
-        let seed = fastrand::u64(0..1000);
-        NodeTemplateValue::NumberRange {
-            min,
-            max,
-            permutation: Permutation::new((max - min) as _, seed, DefaultBuildHasher::new())
-        }
+        NodeTemplateValue::NumberRange(NumberRange::new(min, max))
     }
 
     pub fn new_position_set(set: PositionSet<V>) -> NodeTemplateValue<V> { 
         NodeTemplateValue::PosSet(set)
     }
-
-    pub fn new_pos( value: Vec3 ) -> NodeTemplateValue<V> {
-        NodeTemplateValue::Pos { value }
-    }
-
-    /*
-    pub fn new_grid(mut boundary: V, spacing: Vec3) -> NodeTemplateValue<V> {
-        let aabb = boundary.get_aabb();
-
-        let mut points = vec![];
-        let mut point = aabb.min;
-        while point.x <= aabb.max.x {
-            while point.y <= aabb.max.y {
-                while point.z <= aabb.max.z {
-                    if boundary.is_position_valid_vec3(point) {
-                        points.push(point);
-                    }  
-                } 
-                point.y += spacing.y;
-                point.z = aabb.min.z;
-            } 
-            point.x += spacing.x;
-            point.y = aabb.min.y;
-        } 
-
-        NodeTemplateValue::Grid { boundary, spacing, points }
-    }
-    */
-
+ 
     pub fn new_build() -> NodeTemplateValue<V> {
         NodeTemplateValue::BuildHook {}
     }

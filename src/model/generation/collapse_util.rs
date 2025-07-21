@@ -4,7 +4,7 @@ use octa_force::log::info;
 
 use crate::volume::VolumeQureyPosValid;
 
-use super::{builder::{BU, IT}, collapse::{CollapseNodeKey, Collapser, CollapseNode, NodeDataType}, template::{TemplateNode, TemplateTree}};
+use super::{builder::{BU, IT}, collapse::{CollapseChildKey, CollapseNode, CollapseNodeKey, Collapser, NodeDataType}, template::{TemplateNode, TemplateTree}};
 
 
 impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> { 
@@ -42,31 +42,22 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
 
     pub fn get_number(&self, index: CollapseNodeKey) -> i32 {
         match &self.nodes.get(index).expect("Number by index not found").data {
-            NodeDataType::Number(d) => d.value,
+            NodeDataType::NumberRange(d) => d.value,
             _ => panic!("Number by index is not of Type Number")
         }
     }
 
-    pub fn get_pos(&self, index: CollapseNodeKey) -> Vec3 {
-        match &self.nodes.get(index).expect("Pos by index not found").data {
-            NodeDataType::Pos(d) => d.value,
-            _ => panic!("Pos by index is not of Type Pos")
+    pub fn get_pos(&self, index: CollapseNodeKey, pos_key: CollapseChildKey) -> Vec3 {
+        match &self.nodes.get(index).expect("Pos Set by index not found").data {
+            NodeDataType::PosSet(d) => d.get_pos(pos_key),
+            _ => panic!("Number by index is not of Type Number")
         }
     }
-
-
-    pub fn get_pos_mut(&mut self, index: CollapseNodeKey) -> &mut Vec3 {
-        match &mut self.nodes.get_mut(index).expect("Pos by index not found").data {
-            NodeDataType::Pos(d) => &mut d.value,
-            _ => panic!("Pos by index is not of Type Pos")
-        }
-    }
-
+ 
     fn get_dependend_index(&self, index: CollapseNodeKey, identifier: I) -> CollapseNodeKey {
         let depends = &self.nodes.get(index).expect("Node by index not found").depends;
         depends.iter().find(|(i, _)| *i == identifier).expect(&format!("Node has no depends {:?}", identifier)).1
     }
-
 
     pub fn get_dependend_number(&self, index: CollapseNodeKey, identifier: I) -> i32 {
         let index = self.get_dependend_index(index, identifier);
@@ -74,15 +65,10 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
     }
 
     pub fn get_dependend_pos(&self, index: CollapseNodeKey, identifier: I) -> Vec3 {
-        let index = self.get_dependend_index(index, identifier);
-        self.get_pos(index)
+        let i = self.get_dependend_index(index, identifier);
+        let child_key = self.nodes[index].child_key;
+        self.get_pos(i, child_key)
     }
-
-    pub fn get_dependend_pos_mut(&mut self, index: CollapseNodeKey, identifier: I) -> &mut Vec3 {
-        let index = self.get_dependend_index(index, identifier);
-        self.get_pos_mut(index)
-    }
-
 
     fn get_known_index(&self, index: CollapseNodeKey, identifier: I) -> CollapseNodeKey {
         let knows = &self.nodes.get(index).expect("Node by index not found").knows;
@@ -92,15 +78,5 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
     pub fn get_known_number(&self, index: CollapseNodeKey, identifier: I) -> i32 {
         let index = self.get_known_index(index, identifier);
         self.get_number(index)
-    }
-
-    pub fn get_known_pos(&self, index: CollapseNodeKey, identifier: I) -> Vec3 {
-        let index = self.get_known_index(index, identifier);
-        self.get_pos(index)
-    }
-
-    pub fn get_known_pos_mut(&mut self, index: CollapseNodeKey, identifier: I) -> &mut Vec3 {
-        let index = self.get_known_index(index, identifier);
-        self.get_pos_mut(index)
     }
 }
