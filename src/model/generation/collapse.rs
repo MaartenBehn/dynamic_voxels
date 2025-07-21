@@ -34,15 +34,15 @@ pub struct CollapseNode<I: IT, U: BU, V: VolumeQureyPosValid> {
     pub depends: Vec<(I, CollapseNodeKey)>,
     pub knows: Vec<(I, CollapseNodeKey)>,
     pub defined_by: CollapseNodeKey,
-    pub data: NodeDataType<V>,
+    pub data: NodeDataType<I, V>,
     pub next_reset: CollapseNodeKey,
     pub undo_data: U,
 }
 
 #[derive(Debug, Clone)]
-pub enum NodeDataType<V: VolumeQureyPosValid> {
+pub enum NodeDataType<I: IT, V: VolumeQureyPosValid> {
     Number(NumberData),
-    PosSet(PosSetData<V>),
+    PosSet(PosSetData<I, V>),
     Pos(PosData),
     Build,
     None,
@@ -55,8 +55,9 @@ pub struct NumberData {
 }
 
 #[derive(Debug, Clone)]
-pub struct PosSetData<V: VolumeQureyPosValid> {
-    pub set: PositionSet<V>
+pub struct PosSetData<I: IT, V: VolumeQureyPosValid> {
+    pub set: PositionSet<V>,
+    pub pos_depends_and_knows: Option<(Vec<(I, CollapseNodeKey)>, Vec<(I, CollapseNodeKey)>)>,
 }
 
 #[derive(Debug, Clone)]
@@ -253,7 +254,7 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
 }
 
 
-impl<V: VolumeQureyPosValid> NodeDataType<V> {
+impl<I: IT, V: VolumeQureyPosValid> NodeDataType<I, V> {
     pub fn get_number_mut(&mut self) -> &mut NumberData {
         match self {
             NodeDataType::Number(d) => d,

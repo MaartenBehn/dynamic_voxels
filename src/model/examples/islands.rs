@@ -67,7 +67,9 @@ impl IslandsState {
                 .ammount(BuilderAmmount::OneGlobal)
                 .value(BuilderValue::Const(PositionSet::new(
                     island_volume,
-                    PositionSetRule::Grid { spacing: (if profile { 0.1 } else { 20.0 }) })))
+                    PositionSetRule::Grid { spacing: (if profile { 0.1 } else { 20.0 }) })
+                    .iterative()
+                ))
             })
 
             .pos(Identifier::IslandPos, |b| {b

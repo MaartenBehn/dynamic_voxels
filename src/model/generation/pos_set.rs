@@ -11,15 +11,25 @@ pub enum PositionSetRule {
 #[derive(Debug, Clone)]
 pub struct PositionSet<V: VolumeQureyPosValid> {
     pub volume: V,
-    pub rule: PositionSetRule, 
+    pub rule: PositionSetRule,
+    pub iterative: bool,
 }
 
 impl<V: VolumeQureyPosValid> PositionSet<V> {
     pub fn new(volume: V, rule: PositionSetRule) -> Self {
-        Self { volume, rule }
+        Self { 
+            volume, 
+            rule, 
+            iterative: false, 
+        }
     }
 
-    pub fn get_points(&mut self) -> impl IntoIterator<Item = Vec3> {
+    pub fn iterative(mut self) -> Self {
+        self.iterative = true;
+        self
+    }
+
+    pub fn get_points(&mut self) -> impl Iterator<Item = Vec3> {
         match self.rule {
             PositionSetRule::Grid { spacing } => self.volume.get_grid_positions(spacing),
             PositionSetRule::Possion { distance } => todo!(),
@@ -29,7 +39,11 @@ impl<V: VolumeQureyPosValid> PositionSet<V> {
 
 impl<V: VolumeQureyPosValid> Default for PositionSet<V> {
     fn default() -> Self {
-        Self { volume: Default::default(), rule: PositionSetRule::Grid { spacing: f32::MAX } }
+        Self { 
+            volume: Default::default(), 
+            rule: PositionSetRule::Grid { spacing: f32::MAX },
+            iterative: false,
+        }
     }
 }
 

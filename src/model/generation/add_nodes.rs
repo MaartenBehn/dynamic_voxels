@@ -26,22 +26,57 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
                     NodeDataType::Pos(_)
                     | NodeDataType::Build
                     | NodeDataType::None => {
-                        panic!("TemplateAmmount Value is not allowed on {:?}", &node.data);
+                        bail!("TemplateAmmount Value is not allowed on {:?}", &node.data);
                     },
                     NodeDataType::Number(data) => {
                         self.create_n_defined_nodes(node_index, to_create_template_index, data.value as usize, template)?;
                     },
                     NodeDataType::PosSet(..) => {
                         let node = &mut self.nodes[node_index];
-                        let data = match &mut node.data {
+                        let mut data = match &mut node.data {
                             NodeDataType::PosSet(pos_set_data) => pos_set_data,
                             _ => unreachable!()
                         };
 
-                        let points: Vec<Vec3> = data.set.get_points().into_iter().collect();
-                        self.create_pos_set_nodes(node_index, to_create_template_index, points, template)?; 
-                    },
+                        if data.set.iterative {
+                            let res = data.set.get_points().next();
+                            if let Some(point) = res {
 
+                                let (depends, knows) = if 
+                                    let Some(depends_and_knows) = &data.pos_depends_and_knows { 
+                                    depends_and_knows.to_owned()
+                                } else {
+                                    let depends_and_knows = self.get_depends_and_knows_for_template(node_index, to_create_template_index, template)?;
+                                    
+                                    let node = &mut self.nodes[node_index];
+                                    data = match &mut node.data {
+                                        NodeDataType::PosSet(pos_set_data) => pos_set_data,
+                                        _ => unreachable!()
+                                    };
+                                    data.pos_depends_and_knows = Some(depends_and_knows.clone());
+                                    depends_and_knows
+                                };
+                                
+                                self.add_pos(
+                                    to_create_template_index, 
+                                    depends, 
+                                    knows, 
+                                    node_index, 
+                                    point,
+                                    template,
+                                );
+
+                                let new_node_template = &template.nodes[to_create_template_index];
+                                self.pending_operations.push(new_node_template.level, NodeOperation { 
+                                    key: node_index, 
+                                    typ: NodeOperationType::UpdateDefined(to_create_template_index),
+                                });
+                            }
+                        } else {
+                            let points: Vec<Vec3> = data.set.get_points().into_iter().collect();
+                            self.create_pos_set_nodes(node_index, to_create_template_index, points, template)?; 
+                        }
+                    },
                 }
             },
         };
@@ -120,7 +155,7 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
         Ok(())
     }
 
-    fn get_depends_and_knows_for_template(&mut self, node_index: CollapseNodeKey, to_create_template_index: TemplateIndex, template: &TemplateTree<I, V>) 
+    fn get_depends_and_knows_for_template(&self, node_index: CollapseNodeKey, to_create_template_index: TemplateIndex, template: &TemplateTree<I, V>) 
     -> OctaResult<(Vec<(I, CollapseNodeKey)>, Vec<(I, CollapseNodeKey)>)> {
         let template_node = self.get_template_from_node_ref(&self.nodes[node_index], template);
         let template_ammount = template_node.defines_ammount.iter()
@@ -239,6 +274,8 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
             | NodeTemplateValue::PosSet { .. } => {
                 NodeDataType::PosSet(PosSetData {
                     set: PositionSet::default(),
+                    pos_depends: vec![],
+                    pos_knows: vec![],
                 })
             }
         };
@@ -261,7 +298,7 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
         self.push_new_node(new_node_template, depends, knows, defined_by, data)
     }
 
-    pub fn push_new_node(&mut self, new_node_template: &TemplateNode<I, V>, depends: Vec<(I, CollapseNodeKey)>, knows: Vec<(I, CollapseNodeKey)>, defined_by: CollapseNodeKey, data: NodeDataType<V>) {
+    pub fn push_new_node(&mut self, new_node_template: &TemplateNode<I, V>, depends: Vec<(I, CollapseNodeKey)>, knows: Vec<(I, CollapseNodeKey)>, defined_by: CollapseNodeKey, data: NodeDataType<I, V>) {
         
         let index = self.nodes.insert(CollapseNode {
             template_index: new_node_template.index,

@@ -177,7 +177,7 @@ impl AABB {
         (min, max)
     }
 
-    pub fn get_sampled_positions(self, step: f32) -> impl IntoIterator<Item = Vec3> {
+    pub fn get_sampled_positions(self, step: f32) -> impl Iterator<Item = Vec3> {
         let min = (self.min / step).xyz().as_ivec3();
         let max = (self.max / step).xyz().as_ivec3();
 
@@ -187,7 +187,7 @@ impl AABB {
             .map(move |((x, y), z)| ivec3(x, y, z).as_vec3() * step)
     }
 
-    pub fn get_random_sampled_positions(self, step: f32) -> impl IntoIterator<Item = Vec3> {
+    pub fn get_random_sampled_positions(self, step: f32) -> impl Iterator<Item = Vec3> {
         let min = (self.min / step).xyz().as_ivec3();
         let max = (self.max / step).xyz().as_ivec3();
         let size = max - min;
