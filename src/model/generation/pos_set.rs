@@ -52,9 +52,9 @@ impl<V: VolumeQureyPosValid> PositionSet<V> {
                 self.positions.retain(|_, p| {
                     if let Some(i) = new_positions.iter().position(|t| *t == *p) {
                         new_positions.swap_remove(i);
-                        false
-                    } else {
                         true
+                    } else {
+                        false
                     }
                 });
                 self.new_positions = new_positions.iter()

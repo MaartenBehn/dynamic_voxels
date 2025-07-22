@@ -101,8 +101,10 @@ impl IslandsState {
         let island_volume = VecCSGTree::new_sphere(new_pos, 40.0); 
         let island_volume = FastQueryCSGTree::from(island_volume);
 
-        self.template.get_node_position_set(Identifier::IslandPositions)?.volume = island_volume;
-        self.collapser.re_collapse_all_nodes_with_identifier(Identifier::IslandPositions);
+        if let Ok(pos_set) = self.collapser.get_position_set_by_identifier_mut(Identifier::IslandPositions) {
+            pos_set.volume = island_volume;
+            self.collapser.re_collapse_all_nodes_with_identifier(Identifier::IslandPositions);
+        }
 
         Ok(())
     }

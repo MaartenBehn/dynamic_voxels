@@ -133,7 +133,8 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
         let now = Instant::now();
 
-        let mut tree64 = VoxelDAG64::from_aabb_query(&csg)?;
+        let mut tree64 = VoxelDAG64::new(100000, 64);
+        tree64.add_aabb_query_volume(&csg)?;
 
         let index = csg.append_node_with_remove(
             SlotMapCSGNode::new_sphere(vec3(70.0, 0.0, 0.0), 50.0));
