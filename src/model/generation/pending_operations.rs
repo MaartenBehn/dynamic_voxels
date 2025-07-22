@@ -2,20 +2,15 @@ use std::iter;
 
 use octa_force::log::debug;
 
-use super::collapse::{CollapseNodeKey, NodeOperationType};
+use super::collapse::{CollapseNodeKey};
 
 
 #[derive(Debug, Clone)]
 pub struct PendingOperations {
-    pending_per_level: Vec<Vec<NodeOperation>>,
+    pending_per_level: Vec<Vec<CollapseNodeKey>>,
     min_with_value: usize,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd)]
-pub struct NodeOperation {
-    pub key: CollapseNodeKey,
-    pub typ: NodeOperationType,
-}
 
 impl PendingOperations {
     pub fn new(max_level: usize) -> Self {
@@ -25,12 +20,12 @@ impl PendingOperations {
         }
     }
 
-    pub fn push(&mut self, level: usize, opperation: NodeOperation) {
-        self.pending_per_level[level - 1].push(opperation);
+    pub fn push(&mut self, level: usize, index: CollapseNodeKey) {
+        self.pending_per_level[level - 1].push(index);
         self.min_with_value = self.min_with_value.min(level - 1);
     }
 
-    pub fn pop(&mut self) -> Option<NodeOperation> {
+    pub fn pop(&mut self) -> Option<CollapseNodeKey> {
         let res = self.pending_per_level[self.min_with_value].pop();
         if res.is_none() {
             return None;
@@ -44,7 +39,7 @@ impl PendingOperations {
     pub fn delete(&mut self, level: usize, index: CollapseNodeKey) {
         let to_delete: Vec<_> = self.pending_per_level[level - 1].iter()
             .enumerate()
-            .filter(|(_, o)| o.key == index)
+            .filter(|(_, key)| **key == index)
             .map(|(i, _)| i)
             .collect();
 

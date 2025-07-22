@@ -2,7 +2,7 @@ use octa_force::{anyhow::{self, bail, anyhow}, OctaResult};
 
 use crate::volume::VolumeQureyPosValid;
 
-use super::{builder::{BU, IT}, collapse::{Collapser, NodeOperationType}, pending_operations::NodeOperation, pos_set::PositionSet, template::{NodeTemplateValue, TemplateIndex, TemplateTree}};
+use super::{builder::{BU, IT}, collapse::{Collapser}, pos_set::PositionSet, template::{NodeTemplateValue, TemplateIndex, TemplateTree}};
 
 impl<I: IT, V: VolumeQureyPosValid> TemplateTree<I, V> {
     pub fn get_node_position_set(&mut self, identifier: I) -> OctaResult<&mut PositionSet<V>> {
@@ -32,10 +32,7 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
         for (key, node) in self.nodes.iter()
             .filter(|(_, n)| n.identfier == identifier) {
 
-            self.pending_operations.push(node.level, NodeOperation { 
-                key, 
-                typ: NodeOperationType::CollapseValue,
-            });
+            self.pending_collapses.push(node.level, key);
         }
     }
 }

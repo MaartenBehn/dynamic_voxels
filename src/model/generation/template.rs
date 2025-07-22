@@ -36,20 +36,21 @@ pub struct TemplateNode<I: IT, V: VolumeQureyPosValid> {
     pub dependend: Vec<TemplateIndex>,
     pub knows: Vec<TemplateIndex>,
     pub level: usize,
-    pub defines_ammount: Vec<TemplateAmmount>,
+    pub defines_n: Vec<TemplateAmmountN>,
+    pub defines_by_value: Vec<TemplateAmmountValue>,
 }
 
 #[derive(Debug, Clone)]
-pub struct TemplateAmmount {
-    pub typ: TemplateAmmountType,
+pub struct TemplateAmmountN {
+    pub ammount: usize,
     pub index: TemplateIndex,
     pub dependecy_tree: RelativePathTree,
 }
 
 #[derive(Debug, Clone)]
-pub enum TemplateAmmountType{
-    N(usize),
-    Value,
+pub struct TemplateAmmountValue {
+    pub index: TemplateIndex,
+    pub dependecy_tree: RelativePathTree,
 }
 
 impl<I: IT, V: VolumeQureyPosValid> TemplateTree<I, V> {
@@ -62,7 +63,8 @@ impl<I: IT, V: VolumeQureyPosValid> TemplateTree<I, V> {
             dependend: vec![], 
             knows: vec![], 
             level: 0,
-            defines_ammount: vec![],
+            defines_n: vec![],
+            defines_by_value: vec![],
         }];
 
         // Create the nodes
@@ -75,7 +77,8 @@ impl<I: IT, V: VolumeQureyPosValid> TemplateTree<I, V> {
                 dependend: vec![],
                 knows: vec![],
                 level: 0,
-                defines_ammount: vec![],
+                defines_n: vec![],
+                defines_by_value: vec![],
             };
 
             nodes.push(template_node);
@@ -87,15 +90,31 @@ impl<I: IT, V: VolumeQureyPosValid> TemplateTree<I, V> {
 
             let template_node = &nodes[template_node_index];
 
-            let (typ, parent_node_index) = Self::get_ammount_type_and_defines_index(builder, builder_node, &nodes);
-            nodes[parent_node_index].defines_ammount.push(TemplateAmmount{
-                typ,
-                index: template_node_index,
-                dependecy_tree: RelativePathTree::default(),
-            });
-            nodes[parent_node_index].dependend.push(template_node_index);
+            let mut add_defines_n = |ammount: usize, parent_index: usize| -> usize {
+                nodes[parent_index].defines_n.push(TemplateAmmountN{
+                    ammount,
+                    index: template_node_index,
+                    dependecy_tree: RelativePathTree::default(),
+                });
+                parent_index
+            };
+
+            let parent_index = match builder_node.ammount {
+                BuilderAmmount::OneGlobal => add_defines_n(1, 0), 
+                BuilderAmmount::OnePer(i) => add_defines_n(1, builder.get_node_index_by_identifier(i) + 1),
+                BuilderAmmount::NPer(n, i) => add_defines_n(n, builder.get_node_index_by_identifier(i) + 1),
+                BuilderAmmount::DefinedBy(i) =>  {
+                    let parent_index = builder.get_node_index_by_identifier(i) + 1;
+                    nodes[parent_index].defines_by_value.push(TemplateAmmountValue{
+                        index: template_node_index,
+                        dependecy_tree: RelativePathTree::default(),
+                    });
+                    parent_index
+                }
+            };
+            nodes[parent_index].dependend.push(template_node_index);
                 
-            let mut depends = vec![parent_node_index]; 
+            let mut depends = vec![parent_index]; 
             for i in builder_node.depends.iter() {
                 let depends_index = builder.get_node_index_by_identifier(*i) + 1;
                 if !depends.contains(&depends_index) {
@@ -127,10 +146,20 @@ impl<I: IT, V: VolumeQureyPosValid> TemplateTree<I, V> {
             }
 
             let index = tree.nodes[i].index;
-            for j in 0..tree.nodes[i].defines_ammount.len() {
-                let new_node = &tree.nodes[tree.nodes[i].defines_ammount[j].index];
+            for j in 0..tree.nodes[i].defines_n.len() {
+                let new_node = &tree.nodes[tree.nodes[i].defines_n[j].index];
 
-                tree.nodes[i].defines_ammount[j].dependecy_tree = RelativePathTree::get_paths_to_other_dependcies_from_parent(
+                tree.nodes[i].defines_n[j].dependecy_tree = RelativePathTree::get_paths_to_other_dependcies_from_parent(
+                    &tree, 
+                    i,
+                    &new_node.depends,
+                    &new_node.knows);
+            }
+
+            for j in 0..tree.nodes[i].defines_by_value.len() {
+                let new_node = &tree.nodes[tree.nodes[i].defines_by_value[j].index];
+
+                tree.nodes[i].defines_by_value[j].dependecy_tree = RelativePathTree::get_paths_to_other_dependcies_from_parent(
                     &tree, 
                     i,
                     &new_node.depends,
@@ -164,16 +193,6 @@ impl<I: IT, V: VolumeQureyPosValid> TemplateTree<I, V> {
 
         node_level
     } 
-
-    fn get_ammount_type_and_defines_index(builder: &ModelSynthesisBuilder<I, V>, builder_node: &BuilderNode<I, V>, nodes: &[TemplateNode<I, V>]) -> (TemplateAmmountType, usize) {
-        match builder_node.ammount {
-            BuilderAmmount::OneGlobal => (TemplateAmmountType::N(1), 0), 
-            BuilderAmmount::OnePer(i) => (TemplateAmmountType::N(1), builder.get_node_index_by_identifier(i) + 1),
-            BuilderAmmount::NPer(n, i) => (TemplateAmmountType::N(n), builder.get_node_index_by_identifier(i) + 1),
-            BuilderAmmount::DefinedBy(i) =>  (TemplateAmmountType::Value, builder.get_node_index_by_identifier(i) + 1),
-        }
-
-    }
 }
 
 impl<V: VolumeQureyPosValid> NodeTemplateValue<V> {

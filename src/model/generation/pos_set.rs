@@ -3,7 +3,7 @@ use slotmap::{new_key_type, SecondaryMap, SlotMap};
 
 use crate::volume::VolumeQureyPosValid;
 
-use super::collapse::{CollapseChildKey, CollapseNodeKey};
+use super::{builder::{BU, IT}, collapse::{CollapseChildKey, CollapseNodeKey, Collapser}};
 
 #[derive(Debug, Clone)]
 pub struct PositionSet<V: VolumeQureyPosValid> {
@@ -22,15 +22,13 @@ pub enum PositionSetRule {
 
 #[derive(Debug, Clone)]
 pub struct GridData {
-    spacing: f32,
+    pub spacing: f32,
 }
 
 #[derive(Debug, Clone)]
 pub struct IterativeGridData {
-    spacing: f32,
+    pub spacing: f32,
 }
-
-
 
 impl<V: VolumeQureyPosValid> PositionSet<V> {
     pub fn new_grid(volume: V, spacing: f32) -> Self {
@@ -41,28 +39,6 @@ impl<V: VolumeQureyPosValid> PositionSet<V> {
             }), 
             positions: Default::default(),
             new_positions: vec![],
-        }
-    }
-
-    pub fn collapse(&mut self) {
-        match &self.rule {
-            PositionSetRule::Grid(grid_data) => {
-
-                let mut new_positions = self.volume.get_grid_positions(grid_data.spacing).collect::<Vec<_>>();
-                self.positions.retain(|_, p| {
-                    if let Some(i) = new_positions.iter().position(|t| *t == *p) {
-                        new_positions.swap_remove(i);
-                        true
-                    } else {
-                        false
-                    }
-                });
-                self.new_positions = new_positions.iter()
-                    .map(|p| self.positions.insert(*p))
-                    .collect();
-            },
-            PositionSetRule::Possion { distance } => todo!(),
-            PositionSetRule::IterativeGrid(iterative_grid_data) => todo!(),
         }
     }
 
