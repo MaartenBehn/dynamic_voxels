@@ -1,7 +1,7 @@
 use octa_force::{glam::{vec3, vec3a, UVec3, Vec3, Vec3A}, log::debug, OctaResult};
 
 
-use crate::{multi_data_buffer::{allocated_vec::AllocatedVec, buddy_buffer_allocator::BuddyBufferAllocator, cached_vec::CachedVec}, util::aabb::AABB, volume::{VolumeQureyAABB, VolumeQureyAABBResult}};
+use crate::{multi_data_buffer::{allocated_vec::AllocatedVec, buddy_buffer_allocator::BuddyBufferAllocator, cached_vec::CachedVec}, util::aabb3d::AABB, volume::{VolumeQureyAABB, VolumeQureyAABBResult}};
 
 use super::{node::VoxelDAG64Node, DAG64EntryData, DAG64EntryKey, VoxelDAG64};
 

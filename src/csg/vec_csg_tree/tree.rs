@@ -5,7 +5,7 @@ use std::f32::consts::PI;
 use std::{slice, usize};
 
 use crate::csg::Base;
-use crate::util::aabb::AABB;
+use crate::util::aabb3d::AABB;
 use crate::voxel::grid::VoxelGrid;
 use crate::voxel::renderer::palette::MATERIAL_ID_BASE;
 

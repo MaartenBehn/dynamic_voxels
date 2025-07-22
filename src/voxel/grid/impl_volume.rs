@@ -1,6 +1,6 @@
 use octa_force::glam::{UVec3, Vec3, Vec3A};
 
-use crate::{util::{aabb::AABB, math::to_1d}, volume::{VolumeBounds, VolumeQureyPosValue}};
+use crate::{util::{aabb3d::AABB, math::to_1d}, volume::{VolumeBounds, VolumeQureyPosValue}};
 
 use super::VoxelGrid;
 

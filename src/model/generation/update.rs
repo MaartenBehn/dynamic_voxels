@@ -1,17 +1,17 @@
 use octa_force::{anyhow::{self, bail, anyhow}, OctaResult};
 
-use crate::volume::VolumeQureyPosValid;
+use crate::volume::{VolumeQureyPosValid, VolumeQureyPosValid2D};
 
 use super::{builder::{BU, IT}, collapse::{Collapser}, pos_set::PositionSet, template::{NodeTemplateValue, TemplateIndex, TemplateTree}};
 
-impl<I: IT, V: VolumeQureyPosValid> TemplateTree<I, V> {
-    pub fn get_node_position_set(&mut self, identifier: I) -> OctaResult<&mut PositionSet<V>> {
+impl<I: IT, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> TemplateTree<I, V, P> {
+    pub fn get_node_position_set(&mut self, identifier: I) -> OctaResult<&mut PositionSet<V, P>> {
         let index = self.get_node_index_by_identifier(identifier)
             .ok_or(anyhow!("Identifier not found in template!"))?;
         self.get_node_position_set_by_index(index)
     }
 
-    pub fn get_node_position_set_by_index(&mut self, index: TemplateIndex) -> OctaResult<&mut PositionSet<V>> {
+    pub fn get_node_position_set_by_index(&mut self, index: TemplateIndex) -> OctaResult<&mut PositionSet<V, P>> {
         let node = &mut self.nodes[index];
 
         if !matches!(node.value, NodeTemplateValue::PosSet(..)) {
@@ -27,10 +27,10 @@ impl<I: IT, V: VolumeQureyPosValid> TemplateTree<I, V> {
     }
 }
 
-impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> { 
+impl<I: IT, U: BU, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> Collapser<I, U, V, P> { 
     pub fn re_collapse_all_nodes_with_identifier(&mut self, identifier: I) {
         for (key, node) in self.nodes.iter()
-            .filter(|(_, n)| n.identfier == identifier) {
+            .filter(|(_, n)| n.identifier == identifier) {
 
             self.pending_collapses.push(node.level, key);
         }

@@ -4,12 +4,12 @@ use std::{borrow::Cow, marker::PhantomData, time::Instant};
 use egui_node_graph2::{DataTypeTrait, Graph, GraphEditorState, InputParamKind, NodeDataTrait, NodeId, NodeResponse, NodeTemplateIter, NodeTemplateTrait, UserResponseTrait, WidgetValueTrait};
 use octa_force::{controls::Controls, egui, log::debug, OctaResult};
 
-use crate::csg::{slot_map_csg_tree::tree::SlotMapCSGTreeKey, vec_csg_tree::tree::VecCSGTree};
+use crate::csg::{csg_tree_2d::tree::CSGTree2D, slot_map_csg_tree::tree::SlotMapCSGTreeKey, vec_csg_tree::tree::VecCSGTree};
 
 use super::generation::{builder::IT, collapse::{CollapseNodeKey, Collapser}};
 
 
-type UserState<I> = Collapser<I, SlotMapCSGTreeKey, VecCSGTree<u8>>;
+type UserState<I> = Collapser<I, SlotMapCSGTreeKey, VecCSGTree<()>, CSGTree2D<()>>;
 
 const SHOW_COOLDOWN_TIME: f32 = 0.2;
 
@@ -216,7 +216,7 @@ impl<I: IT> ModelDebugRenderer<I> {
         self.state
             .graph
             .add_node(
-                format!("{:?}", collapser_node.identfier),
+                format!("{:?}", collapser_node.identifier),
                 NodeData { 
                     collapse_key: node_index, 
                     p: PhantomData::default(),
@@ -246,7 +246,7 @@ impl<I: IT> ModelDebugRenderer<I> {
             let other_node = &collapser.nodes[*index];
             self.state.graph.add_input_param(
                 id,
-                format!("{:?}", other_node.identfier),
+                format!("{:?}", other_node.identifier),
                 DataType,
                 ValueType { p: PhantomData::default() },
                 InputParamKind::ConnectionOnly,
@@ -260,7 +260,7 @@ impl<I: IT> ModelDebugRenderer<I> {
             let other_node = &collapser.nodes[*index];
             self.state.graph.add_output_param(
                 id,
-                format!("{:?}", other_node.identfier),
+                format!("{:?}", other_node.identifier),
                 DataType,
             );
         }

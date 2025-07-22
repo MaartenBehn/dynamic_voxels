@@ -1,7 +1,8 @@
 use octa_force::glam::{vec3, vec4, Vec3, Vec4, Vec4Swizzles};
 
 
-use crate::util::aabb::AABB;
+
+use crate::util::aabb3d::AABB;
 
 use super::tree::{VecCSGNode, VecCSGNodeData, VecCSGTree};
 

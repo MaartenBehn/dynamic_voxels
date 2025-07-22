@@ -1,7 +1,7 @@
 
 use std::{collections::VecDeque, usize};
 
-use crate::volume::{VolumeQureyPosValid};
+use crate::volume::{VolumeQureyPosValid, VolumeQureyPosValid2D};
 
 use super::{builder::{BuilderNode, ModelSynthesisBuilder, NodeBuilder, BU, IT}, template::{TemplateIndex, TemplateNode, TemplateTree}};
 
@@ -28,8 +28,8 @@ pub enum LeafType {
 }
 
 impl RelativePathTree {
-    pub fn get_paths_to_other_dependcies_from_parent<I: IT, V: VolumeQureyPosValid>(
-        tree: &TemplateTree<I, V>, 
+    pub fn get_paths_to_other_dependcies_from_parent<I: IT, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D>(
+        tree: &TemplateTree<I, V, P>, 
         parent_index: TemplateIndex, 
         dependencies: &[TemplateIndex], 
         knows: &[TemplateIndex]
@@ -37,15 +37,15 @@ impl RelativePathTree {
         let mut dependencies = dependencies.iter().copied().enumerate().collect::<Vec<_>>();
         let mut knows = knows.iter().copied().enumerate().collect::<Vec<_>>();
 
-        let mut open_child_paths: VecDeque<(&TemplateNode<I, V>, Vec<RelativePathStep>)> = VecDeque::new();
-        let mut open_parent_paths: VecDeque<(&TemplateNode<I, V>, Vec<RelativePathStep>)> = VecDeque::new();
+        let mut open_child_paths: VecDeque<(&TemplateNode<I, V, P>, Vec<RelativePathStep>)> = VecDeque::new();
+        let mut open_parent_paths: VecDeque<(&TemplateNode<I, V, P>, Vec<RelativePathStep>)> = VecDeque::new();
         open_parent_paths.push_back((&tree.nodes[parent_index], vec![]));
         let mut path_tree = RelativePathTree { 
             steps: vec![],
             starts: vec![],
         };
 
-        let mut check_hit = |node: &TemplateNode<I, V>, path: &Vec<RelativePathStep>| {
+        let mut check_hit = |node: &TemplateNode<I, V, P>, path: &Vec<RelativePathStep>| {
             if let Some((i, dependency_index, dependecy)) = dependencies.iter()
                 .enumerate()
                 .find(|(_, (_, i))| *i == node.index)
@@ -128,16 +128,12 @@ impl RelativePathTree {
             }
         }
 
-        if path_tree.steps.len() <= 1 {
-            path_tree.steps.clear();
-        }
-
         path_tree
     }
 
-    fn copy_path<I: IT, V: VolumeQureyPosValid>(
+    fn copy_path<I: IT, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D>(
         &mut self, 
-        node: &TemplateNode<I, V>, 
+        node: &TemplateNode<I, V, P>, 
         path: &Vec<RelativePathStep>, 
     ) -> usize {
         assert!(!path.is_empty(), "Relative path can not be empty because we ignore the node itself in the dependencies!");

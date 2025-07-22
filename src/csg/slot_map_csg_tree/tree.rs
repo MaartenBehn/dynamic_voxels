@@ -1,7 +1,7 @@
 use octa_force::glam::{IVec3, Mat4};
 use slotmap::{new_key_type, Key, SlotMap};
 
-use crate::{model::generation::builder::BU, util::aabb::AABB, voxel::{grid::VoxelGrid, renderer::palette::Material}};
+use crate::{model::generation::builder::BU, util::aabb3d::AABB, voxel::{grid::VoxelGrid, renderer::palette::Material}};
 
 new_key_type! { pub struct SlotMapCSGTreeKey; }
 

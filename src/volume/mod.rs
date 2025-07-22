@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
-use octa_force::glam::{vec4, IVec3, UVec3, Vec3, Vec3A, Vec4, Vec4Swizzles};
+use octa_force::glam::{vec4, IVec3, UVec3, Vec2, Vec3, Vec3A, Vec4, Vec4Swizzles};
 
-use crate::util::aabb::AABB;
+use crate::util::{aabb2d::AABB2D, aabb3d::AABB};
 
 pub trait VolumeBounds {
     fn calculate_bounds(&mut self);
@@ -12,6 +12,17 @@ pub trait VolumeBounds {
     }
     fn get_size(&self) -> Vec3A {
         Vec3A::from(self.get_bounds().size())
+    }
+}
+
+pub trait VolumeBounds2D {
+    fn calculate_bounds(&mut self);
+    fn get_bounds(&self) -> AABB2D;
+    fn get_offset(&self) -> Vec2 {
+        self.get_bounds().min
+    }
+    fn get_size(&self) -> Vec2 {
+        self.get_bounds().size()
     }
 }
 
@@ -56,5 +67,15 @@ impl VolumeQureyAABBResult {
             VolumeQureyAABBResult::Full(v) => v,
             VolumeQureyAABBResult::Mixed => unreachable!(),
         }
+    }
+}
+
+pub trait VolumeQureyPosValid2D: VolumeBounds2D + Clone + Default + Debug {
+    fn is_position_valid(&self, pos: Vec2) -> bool;
+     
+    fn get_grid_positions(&self, step: f32) -> impl Iterator<Item = Vec2> {
+        let aabb = self.get_bounds();
+        aabb.get_sampled_positions(step).into_iter()
+            .filter(|p| self.is_position_valid(*p))
     }
 }

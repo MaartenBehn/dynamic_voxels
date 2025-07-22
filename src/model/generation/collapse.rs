@@ -6,7 +6,7 @@ use octa_force::{anyhow::{anyhow, bail, ensure}, glam::{vec3, IVec3, Vec3}, log:
 use slotmap::{new_key_type, Key, SlotMap};
 
 
-use crate::{model::generation::{pos_set::PositionSetRule}, volume::VolumeQureyPosValid};
+use crate::{model::generation::pos_set::PositionSetRule, volume::{VolumeQureyPosValid, VolumeQureyPosValid2D}};
 
 use super::{builder::{BuilderNode, ModelSynthesisBuilder, BU, IT}, number_range::NumberRange, pending_operations::PendingOperations, pos_set::PositionSet, relative_path::{LeafType, RelativePathTree}, template::{NodeTemplateValue, TemplateIndex, TemplateNode, TemplateTree}};
 
@@ -14,31 +14,31 @@ new_key_type! { pub struct CollapseNodeKey; }
 new_key_type! { pub struct CollapseChildKey; }
 
 #[derive(Debug, Clone)]
-pub struct Collapser<I: IT, U: BU, V: VolumeQureyPosValid> {
-    pub nodes: SlotMap<CollapseNodeKey, CollapseNode<I, U, V>>,
+pub struct Collapser<I: IT, U: BU, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> {
+    pub nodes: SlotMap<CollapseNodeKey, CollapseNode<I, U, V, P>>,
     pub pending_collapses: PendingOperations,
     pub pending_collapse_opperations: Vec<CollapseOperation<I, U>>,
 }
 
 #[derive(Debug, Clone)]
-pub struct CollapseNode<I: IT, U: BU, V: VolumeQureyPosValid> {
+pub struct CollapseNode<I: IT, U: BU, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> {
     pub template_index: usize,
-    pub identfier: I,
+    pub identifier: I,
     pub level: usize,
     pub children: Vec<(TemplateIndex, Vec<CollapseNodeKey>)>, 
     pub depends: Vec<(I, CollapseNodeKey)>,
     pub knows: Vec<(I, CollapseNodeKey)>,
     pub defined_by: CollapseNodeKey,
     pub child_key: CollapseChildKey,
-    pub data: NodeDataType<V>,
+    pub data: NodeDataType<V, P>,
     pub next_reset: CollapseNodeKey,
     pub undo_data: U,
 }
 
 #[derive(Debug, Clone)]
-pub enum NodeDataType<V: VolumeQureyPosValid> {
+pub enum NodeDataType<V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> {
     NumberRange(NumberRange),
-    PosSet(PositionSet<V>),
+    PosSet(PositionSet<V, P>),
     Build,
     None,
     NotValid
@@ -49,12 +49,11 @@ pub enum CollapseOperation<I, U> {
     None,
     NumberRangeHook {
         index: CollapseNodeKey,
+        identifier: I, 
     },
     PosSetHook {
         index: CollapseNodeKey,
-    },
-    PosHook {
-        index: CollapseNodeKey,
+        identifier: I, 
     },
     BuildHook {
         index: CollapseNodeKey,
@@ -66,9 +65,9 @@ pub enum CollapseOperation<I, U> {
     }
 }
 
-impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
-    pub fn next(&mut self, template: &TemplateTree<I, V>) 
-    -> OctaResult<Option<(CollapseOperation<I, U>, &mut Collapser<I, U, V>)>> {
+impl<I: IT, U: BU, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> Collapser<I, U, V, P> {
+    pub fn next(&mut self, template: &TemplateTree<I, V, P>) 
+    -> OctaResult<Option<(CollapseOperation<I, U>, &mut Collapser<I, U, V, P>)>> {
 
         if let Some(collapse_opperation) = self.pending_collapse_opperations.pop() {
             return Ok(Some((collapse_opperation, self)));
@@ -82,19 +81,22 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
         }
     }
 
-    fn collapse_node(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<I, V>) -> OctaResult<CollapseOperation<I, U>> {
+    fn collapse_node(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<I, V, P>) -> OctaResult<CollapseOperation<I, U>> {
         let node = &mut self.nodes[node_index];
         let template_node = &template.nodes[node.template_index]; 
-        info!("{:?} Collapse: {:?}", node_index, node.identfier);
+        //info!("{:?} Collapse: {:?}", node_index, node.identifier);
 
         match &mut node.data {
             NodeDataType::NotValid => {
+                self.pending_collapses.push(template_node.level, node_index);
+
                 match &template_node.value {
                     NodeTemplateValue::Groupe
                     | NodeTemplateValue::BuildHook => unreachable!(),
                     NodeTemplateValue::NumberRangeHook => {
                         return Ok(CollapseOperation::NumberRangeHook { 
-                            index: node_index
+                            index: node_index,
+                            identifier: node.identifier,
                         });
                     },
                     NodeTemplateValue::NumberRange(number_range) => {
@@ -102,7 +104,8 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
                     },
                     NodeTemplateValue::PosSetHook => {
                         return Ok(CollapseOperation::PosSetHook { 
-                            index: node_index
+                            index: node_index,
+                            identifier: node.identifier,
                         });
                     },
                     NodeTemplateValue::PosSet(position_set) => {
@@ -130,15 +133,15 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
                 number_data.perm_counter += 1;
 
                 number_data.value = value;
-                info!("{:?} {:?}: {}", node_index, node.identfier, number_data.value);
+                info!("{:?} {:?}: {}", node_index, node.identifier, number_data.value);
 
                 self.update_defined_by_number_range(node_index, template, value as usize)?;
             },
             NodeDataType::PosSet(pos_set) => {
                 match &pos_set.rule {
-                    PositionSetRule::Grid(grid_data) => {
+                    PositionSetRule::GridInVolume(grid_data) => {
 
-                        let mut new_positions = pos_set.volume.get_grid_positions(grid_data.spacing).collect::<Vec<_>>();
+                        let mut new_positions = grid_data.volume.get_grid_positions(grid_data.spacing).collect::<Vec<_>>();
                         pos_set.positions.retain(|key, p| {
                             if let Some(i) = new_positions.iter().position(|t| *t == *p) {
                                 new_positions.swap_remove(i);
@@ -150,47 +153,36 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
                         let to_create_children = new_positions.iter()
                             .map(|p| pos_set.positions.insert(*p))
                             .collect::<Vec<_>>();
-
-                        for ammount in template_node.defines_by_value.iter() {
-                            let node = &self.nodes[node_index];
-                            let NodeDataType::PosSet(pos_set) = &node.data else { unreachable!() }; 
-
-                            let to_remove_children = node.children.iter()
-                                .find(|(template_index, _)| *template_index == ammount.index)
-                                .map(|(_, children)| children)
-                                .unwrap_or(&vec![])
-                                .iter()
-                                .map(|key| (*key, &self.nodes[*key]) )
-                                .filter(|(_, child)| !pos_set.is_valid_child(child.child_key))
-                                .map(|(key, _)| key )
-                                .collect::<Vec<_>>();
-
-
-                            let (depends, knows) = self.get_depends_and_knows_for_template(
-                                node_index, 
-                                ammount.index, 
-                                template,
-                                template_node,
-                                &ammount.dependecy_tree)?;
-
-                            for child_index in to_remove_children {
-                                self.delete_node(child_index, template)?;
-                            }
-
-                            for new_child in &to_create_children {
-                                self.add_node(ammount.index, depends.clone(), knows.clone(), node_index, *new_child, template); 
-                            }
-                        }
+                        
+                        self.upadte_defined_by_pos_set(node_index, &to_create_children, template, template_node)?;
                     },
-                    PositionSetRule::Possion { distance } => todo!(),
-                    PositionSetRule::IterativeGrid(iterative_grid_data) => todo!(),
-                }
+                    PositionSetRule::GridOnPlane(grid_data) => {
+                        let mut new_positions = grid_data.volume.get_grid_positions(grid_data.spacing)
+                            .map(|p| vec3(p.x, p.y, grid_data.height))
+                            .collect::<Vec<_>>();
 
+                        pos_set.positions.retain(|key, p| {
+                            if let Some(i) = new_positions.iter().position(|t| *t == *p) {
+                                new_positions.swap_remove(i);
+                                true
+                            } else {
+                                false
+                            }
+                        });
+                        let to_create_children = new_positions.iter()
+                            .map(|p| pos_set.positions.insert(*p))
+                            .collect::<Vec<_>>();
+                        
+                        self.upadte_defined_by_pos_set(node_index, &to_create_children, template, template_node)?;
+                    },
+                }
             },
             NodeDataType::Build => {
+                let identifier = node.identifier;
+                self.create_defines_n(node_index, template)?;
                 return Ok(CollapseOperation::BuildHook { 
                     index: node_index, 
-                    identifier: node.identfier,
+                    identifier,
                 });
             },
             NodeDataType::None => {},
@@ -199,16 +191,16 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
         self.create_defines_n(node_index, template)?;
         Ok(CollapseOperation::None)
     }
- 
+
     pub fn pos_collapse_failed(&mut self, index: CollapseNodeKey) {
         let node = self.nodes.get(index).expect("Reset CollapseNodeKey not valid!");
-        info!("{:?} Pos Collapse Faild {:?}", index, node.identfier);
+        info!("{:?} Pos Collapse Faild {:?}", index, node.identifier);
         todo!();
     }
 
-    pub fn collapse_failed(&mut self, index: CollapseNodeKey, template: &TemplateTree<I, V>) -> OctaResult<()> {        
+    pub fn collapse_failed(&mut self, index: CollapseNodeKey, template: &TemplateTree<I, V, P>) -> OctaResult<()> {        
         let node = self.nodes.get(index).expect("Reset CollapseNodeKey not valid!");
-        info!("{:?} Collapse Faild {:?}", index, node.identfier);
+        info!("{:?} Collapse Faild {:?}", index, node.identifier);
 
         let level = template.nodes[node.template_index].level;
 
@@ -227,19 +219,19 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
 
         Ok(())
     }
- 
+
     pub fn set_undo_data(&mut self, index: CollapseNodeKey, data: U) -> OctaResult<()> {
         let node = self.nodes.get_mut(index)
             .ok_or(anyhow!("Index of build node to set data is not valid!"))?;
-        
+
         node.undo_data = data;
-        
+
         Ok(())
     }
 }
 
-impl<I: IT, V: VolumeQureyPosValid> TemplateTree<I, V> {
-    pub fn get_collaper<U: BU>(&self) -> Collapser<I, U, V> {
+impl<I: IT, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> TemplateTree<I, V, P> {
+    pub fn get_collaper<U: BU>(&self) -> Collapser<I, U, V, P> {
         let inital_capacity = 1000;
 
         let mut collapser = Collapser{

@@ -3,7 +3,7 @@ use core::fmt;
 use octa_force::glam::{IVec3, UVec3, Vec3, Vec4};
 
 
-use crate::{util::aabb::AABB, volume::{VolumeBounds, VolumeGradient, VolumeQureyPosValid, VolumeRandomPos}};
+use crate::{util::aabb3d::AABB, volume::{VolumeBounds, VolumeGradient, VolumeQureyPosValid, VolumeRandomPos}};
 
 use super::tree::{VecCSGTree};
 

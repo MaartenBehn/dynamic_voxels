@@ -1,17 +1,17 @@
 use octa_force::{anyhow::{self, ensure, anyhow}, log::info, OctaResult};
 use slotmap::Key;
 
-use crate::{model::generation::{collapse::{CollapseOperation}}, volume::VolumeQureyPosValid};
+use crate::{model::generation::collapse::CollapseOperation, volume::{VolumeQureyPosValid, VolumeQureyPosValid2D}};
 
 use super::{builder::{BU, IT}, collapse::{CollapseNodeKey, Collapser}, template::TemplateTree};
 
 
 
-impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
+impl<I: IT, U: BU, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> Collapser<I, U, V, P> {
 
-    pub fn reset_node(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<I, V>) -> OctaResult<()> {
+    pub fn reset_node(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<I, V, P>) -> OctaResult<()> {
         let node = self.get_node_ref_from_node_index(node_index)?;
-        info!("{:?} Reset {:?}", node_index, node.identfier);
+        info!("{:?} Reset {:?}", node_index, node.identifier);
 
         let node_template = self.get_template_from_node_ref(node, template);
         for child in node.children.iter()
@@ -37,7 +37,7 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
         Ok(())
     }
 
-    pub fn delete_node(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<I, V>) -> OctaResult<()> {
+    pub fn delete_node(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<I, V, P>) -> OctaResult<()> {
         let node = self.nodes.remove(node_index);
         if node.is_none() {
             return Ok(());
@@ -45,7 +45,7 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
         let node = node.unwrap();
         ensure!(!node.defined_by.is_null(), "Trying to delete root node!");
 
-        info!("{:?} Delete {:?}", node_index, node.identfier);
+        info!("{:?} Delete {:?}", node_index, node.identifier);
 
         let template_node = self.get_template_from_node_ref(&node, template);
 
@@ -71,7 +71,7 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
         }
 
         self.pending_collapse_opperations.push(CollapseOperation::Undo { 
-            identifier: node.identfier, 
+            identifier: node.identifier, 
             undo_data: node.undo_data,
         });
 

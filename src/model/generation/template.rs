@@ -3,7 +3,7 @@ use std::{iter, ops::RangeBounds};
 use feistel_permutation_rs::{DefaultBuildHasher, Permutation};
 use octa_force::glam::Vec3;
 
-use crate::volume::VolumeQureyPosValid;
+use crate::volume::{VolumeQureyPosValid, VolumeQureyPosValid2D};
 
 use super::{builder::{BuilderAmmount, BuilderNode, ModelSynthesisBuilder, IT}, number_range::NumberRange, pos_set::PositionSet, relative_path::RelativePathTree};
 
@@ -12,26 +12,26 @@ pub const TEMPLATE_INDEX_ROOT: TemplateIndex = 0;
 pub const AMMOUNT_PATH_INDEX: usize = 0;
 
 #[derive(Debug, Clone)]
-pub struct TemplateTree<I: IT, V: VolumeQureyPosValid> {
-    pub nodes: Vec<TemplateNode<I, V>>,
+pub struct TemplateTree<I: IT, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> {
+    pub nodes: Vec<TemplateNode<I, V, P>>,
     pub max_level: usize,
 }
 
 #[derive(Debug, Clone)]
-pub enum NodeTemplateValue<V: VolumeQureyPosValid> {
+pub enum NodeTemplateValue<V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> {
     Groupe,
     NumberRangeHook,
     NumberRange(NumberRange),
     PosSetHook,
-    PosSet(PositionSet<V>),
+    PosSet(PositionSet<V, P>),
     BuildHook
 }
 
 #[derive(Debug, Clone)]
-pub struct TemplateNode<I: IT, V: VolumeQureyPosValid> {
+pub struct TemplateNode<I: IT, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> {
     pub identifier: I,
     pub index: TemplateIndex,
-    pub value: NodeTemplateValue<V>,
+    pub value: NodeTemplateValue<V, P>,
     pub depends: Vec<TemplateIndex>,
     pub dependend: Vec<TemplateIndex>,
     pub knows: Vec<TemplateIndex>,
@@ -53,8 +53,8 @@ pub struct TemplateAmmountValue {
     pub dependecy_tree: RelativePathTree,
 }
 
-impl<I: IT, V: VolumeQureyPosValid> TemplateTree<I, V> {
-    pub fn new_from_builder(builder: &ModelSynthesisBuilder<I, V>) -> TemplateTree<I, V> {
+impl<I: IT, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> TemplateTree<I, V, P> {
+    pub fn new_from_builder(builder: &ModelSynthesisBuilder<I, V, P>) -> TemplateTree<I, V, P> {
         let mut nodes = vec![TemplateNode { 
             identifier: I::default(),
             index: 0,
@@ -195,12 +195,12 @@ impl<I: IT, V: VolumeQureyPosValid> TemplateTree<I, V> {
     } 
 }
 
-impl<V: VolumeQureyPosValid> NodeTemplateValue<V> {
-    pub fn new_group() -> NodeTemplateValue<V> {
+impl<V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> NodeTemplateValue<V, P> {
+    pub fn new_group() -> NodeTemplateValue<V, P> {
         NodeTemplateValue::Groupe {}
     }
 
-    pub fn new_number_range<R: RangeBounds<i32>>(range: R) -> NodeTemplateValue<V> {
+    pub fn new_number_range<R: RangeBounds<i32>>(range: R) -> NodeTemplateValue<V, P> {
         
         let min = match range.start_bound() {
             std::ops::Bound::Included(&num) => num,
@@ -217,11 +217,11 @@ impl<V: VolumeQureyPosValid> NodeTemplateValue<V> {
         NodeTemplateValue::NumberRange(NumberRange::new(min, max))
     }
 
-    pub fn new_position_set(set: PositionSet<V>) -> NodeTemplateValue<V> { 
+    pub fn new_position_set(set: PositionSet<V, P>) -> NodeTemplateValue<V, P> { 
         NodeTemplateValue::PosSet(set)
     }
  
-    pub fn new_build() -> NodeTemplateValue<V> {
+    pub fn new_build() -> NodeTemplateValue<V, P> {
         NodeTemplateValue::BuildHook {}
     }
 }

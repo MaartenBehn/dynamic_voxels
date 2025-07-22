@@ -5,6 +5,7 @@ use crate::voxel::renderer::palette::MATERIAL_ID_BASE;
 pub mod fast_query_csg_tree;
 pub mod slot_map_csg_tree;
 pub mod vec_csg_tree;
+pub mod csg_tree_2d;
 
 pub trait Base {
     fn base() -> Self;

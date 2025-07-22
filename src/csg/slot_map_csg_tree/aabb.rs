@@ -1,7 +1,7 @@
 use octa_force::{glam::Mat4, puffin_egui::puffin};
 use slotmap::Key;
 
-use crate::{csg::slot_map_csg_tree::tree::SlotMapCSGTreeKey, util::aabb::AABB, volume::VolumeBounds};
+use crate::{csg::slot_map_csg_tree::tree::SlotMapCSGTreeKey, util::aabb3d::AABB, volume::VolumeBounds};
 
 use super::tree::{SlotMapCSGNodeData, SlotMapCSGTree};
 

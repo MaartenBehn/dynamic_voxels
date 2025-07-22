@@ -3,7 +3,7 @@ use std::usize;
 use octa_force::{glam::{Mat4, Vec3}, puffin_egui::puffin};
 
 
-use crate::{csg::vec_csg_tree::tree::CSG_PARENT_NONE, util::aabb::AABB};
+use crate::{csg::vec_csg_tree::tree::CSG_PARENT_NONE, util::aabb3d::AABB};
 
 use super::tree::{VecCSGNode, VecCSGNodeData, VecCSGTree};
 

@@ -1,7 +1,7 @@
 use octa_force::glam::{Mat4, Quat, Vec3};
 use slotmap::Key;
 
-use crate::{csg::{vec_csg_tree::tree::VecCSGNodeData, Base}, util::aabb::AABB};
+use crate::{csg::{vec_csg_tree::tree::VecCSGNodeData, Base}};
 
 use super::tree::{SlotMapCSGNode, SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey};
 

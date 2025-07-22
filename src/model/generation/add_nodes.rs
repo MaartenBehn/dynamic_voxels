@@ -3,14 +3,14 @@ use std::iter;
 use octa_force::{anyhow::{anyhow, bail}, glam::Vec3, log::{debug, info}, OctaResult};
 use slotmap::Key;
 
-use crate::{model::generation::collapse::CollapseChildKey, volume::VolumeQureyPosValid};
+use crate::{model::generation::collapse::CollapseChildKey, volume::{VolumeQureyPosValid, VolumeQureyPosValid2D}};
 
 use super::{builder::{BU, IT}, collapse::{CollapseNode, CollapseNodeKey, Collapser, NodeDataType}, pos_set::PositionSet, relative_path::{LeafType, RelativePathTree}, template::{NodeTemplateValue, TemplateAmmountN, TemplateIndex, TemplateNode, TemplateTree}};
 
 
-impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
+impl<I: IT, U: BU, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> Collapser<I, U, V, P> {
 
-    pub fn create_defines_n(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<I, V>) -> OctaResult<()> {
+    pub fn create_defines_n(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<I, V, P>) -> OctaResult<()> {
         let node = &self.nodes[node_index];
         let template_node = &template.nodes[node.template_index];
 
@@ -30,7 +30,7 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
         Ok(())
     }
 
-    pub fn update_defined_by_number_range(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<I, V>, n: usize) -> OctaResult<()> {
+    pub fn update_defined_by_number_range(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<I, V, P>, n: usize) -> OctaResult<()> {
         let node = &self.nodes[node_index];
         let template_node = &template.nodes[node.template_index];
 
@@ -63,13 +63,55 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
 
         Ok(())
     }
+
+    pub fn upadte_defined_by_pos_set<'a>(
+        &mut self, 
+        node_index: CollapseNodeKey, 
+        to_create_children: &[CollapseChildKey], 
+        template: &'a TemplateTree<I, V, P>, 
+        template_node: &'a TemplateNode<I, V, P>
+    ) -> OctaResult<()> {
+
+        for ammount in template_node.defines_by_value.iter() {
+            let node = &self.nodes[node_index];
+            let NodeDataType::PosSet(pos_set) = &node.data else { unreachable!() }; 
+
+            let to_remove_children = node.children.iter()
+                .find(|(template_index, _)| *template_index == ammount.index)
+                .map(|(_, children)| children)
+                .unwrap_or(&vec![])
+                .iter()
+                .map(|key| (*key, &self.nodes[*key]) )
+                .filter(|(_, child)| !pos_set.is_valid_child(child.child_key))
+                .map(|(key, _)| key )
+                .collect::<Vec<_>>();
+
+
+            let (depends, knows) = self.get_depends_and_knows_for_template(
+                node_index, 
+                ammount.index, 
+                template,
+                template_node,
+                &ammount.dependecy_tree)?;
+
+            for child_index in to_remove_children {
+                self.delete_node(child_index, template)?;
+            }
+
+            for new_child in to_create_children {
+                self.add_node(ammount.index, depends.clone(), knows.clone(), node_index, *new_child, template); 
+            }
+        }
+
+        Ok(())
+    }
   
     pub fn get_depends_and_knows_for_template<'a>(
         &self, 
         node_index: CollapseNodeKey,
         new_template_node_index: usize, 
-        template: &'a TemplateTree<I, V>,
-        template_node: &'a TemplateNode<I, V>,
+        template: &'a TemplateTree<I, V, P>,
+        template_node: &'a TemplateNode<I, V, P>,
         tree: &'a RelativePathTree,
     ) -> OctaResult<(Vec<(I, CollapseNodeKey)>, Vec<(I, CollapseNodeKey)>)> {
         let new_node_template = &template.nodes[new_template_node_index];
@@ -156,7 +198,7 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
         knows: Vec<(I, CollapseNodeKey)>,
         defined_by: CollapseNodeKey,
         child_key: CollapseChildKey,
-        template: &TemplateTree<I, V>,
+        template: &TemplateTree<I, V, P>,
     ) {
         let new_node_template = &template.nodes[new_node_template_index];
 
@@ -173,11 +215,11 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid> Collapser<I, U, V> {
         self.push_new_node(new_node_template, depends, knows, defined_by, child_key, data)
     }
  
-    pub fn push_new_node(&mut self, new_node_template: &TemplateNode<I, V>, depends: Vec<(I, CollapseNodeKey)>, knows: Vec<(I, CollapseNodeKey)>, defined_by: CollapseNodeKey, child_key: CollapseChildKey, data: NodeDataType<V>) {
+    pub fn push_new_node(&mut self, new_node_template: &TemplateNode<I, V, P>, depends: Vec<(I, CollapseNodeKey)>, knows: Vec<(I, CollapseNodeKey)>, defined_by: CollapseNodeKey, child_key: CollapseChildKey, data: NodeDataType<V, P>) {
         
         let index = self.nodes.insert(CollapseNode {
             template_index: new_node_template.index,
-            identfier: new_node_template.identifier,
+            identifier: new_node_template.identifier,
             level: new_node_template.level,
             children: vec![],
             depends: depends.clone(),

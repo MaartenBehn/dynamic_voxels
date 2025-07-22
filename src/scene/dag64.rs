@@ -5,7 +5,7 @@ use octa_force::{glam::{vec3, vec4, Mat4, Quat, Vec3, Vec3A, Vec3Swizzles, Vec4,
 use parking_lot::Mutex;
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, util::aabb::AABB, voxel::dag64::{DAG64EntryKey, VoxelDAG64}, VOXELS_PER_METER, VOXELS_PER_SHADER_UNIT};
+use crate::{multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, util::aabb3d::AABB, voxel::dag64::{DAG64EntryKey, VoxelDAG64}, VOXELS_PER_METER, VOXELS_PER_SHADER_UNIT};
 
 use super::{Scene, SceneObjectData, SceneObjectKey, SceneObjectType};
 

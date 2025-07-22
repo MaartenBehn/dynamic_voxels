@@ -1,7 +1,7 @@
 use octa_force::glam::{UVec3, Vec3, Vec3A, Vec4};
 
 
-use crate::{util::aabb::AABB, volume::{VolumeBounds, VolumeQureyAABB, VolumeQureyAABBResult, VolumeQureyPosValid, VolumeQureyPosValue}};
+use crate::{util::aabb3d::AABB, volume::{VolumeBounds, VolumeQureyAABB, VolumeQureyAABBResult, VolumeQureyPosValid, VolumeQureyPosValue}};
 
 use super::tree::FastQueryCSGTree;
 
