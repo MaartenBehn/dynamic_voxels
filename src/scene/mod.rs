@@ -3,7 +3,7 @@ pub mod renderer;
 
 use bvh::{aabb::{Aabb, Bounded}, bounding_hierarchy::{BHShape, BoundingHierarchy}, bvh::Bvh};
 use dag64::DAG64SceneObject;
-use octa_force::{glam::{vec3, Mat4, Vec3, Vec4Swizzles}, log::{debug, info}, vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
+use octa_force::{anyhow::anyhow, glam::{vec3, Mat4, Vec3, Vec4Swizzles}, log::{debug, info}, vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
 use slotmap::{new_key_type, SlotMap};
 
 use crate::{multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, util::{aabb::AABB, math::to_mb}, VOXELS_PER_SHADER_UNIT};
@@ -80,6 +80,13 @@ impl Scene {
     pub fn add_object(&mut self, mut object: SceneObjectType) -> SceneObjectKey {
         self.needs_bvh_update = true;
         self.objects.insert(SceneObject { bvh_index: 0, changed: true, data: object })
+    }
+
+    pub fn remove_object(&mut self, key: SceneObjectKey) -> OctaResult<SceneObjectType> {
+        self.needs_bvh_update = true;
+        self.objects.remove(key)
+            .map(|o| Ok(o.data))
+            .unwrap_or(Err(anyhow!("Scene Object Key invalid")))
     }
 
     fn update_bvh(&mut self) -> OctaResult<()> {

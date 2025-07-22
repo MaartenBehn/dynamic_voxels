@@ -5,7 +5,7 @@ use octa_force::{camera::Camera, glam::{vec3, EulerRot, Mat4, Quat, Vec3, Vec3A}
 use parking_lot::Mutex;
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{csg::{fast_query_csg_tree::tree::FastQueryCSGTree, slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGTree, SlotMapCSGTreeKey}, vec_csg_tree::tree::VecCSGTree}, model::generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder, IT}, collapse::{CollapseOperation, Collapser, NodeOperationType}, pending_operations::NodeOperation, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree}, scene::{dag64::DAG64SceneObject, renderer::SceneRenderer, Scene, SceneObjectData, SceneObjectKey}, volume::VolumeQureyPosValid, voxel::dag64::{DAG64EntryKey, VoxelDAG64}, METERS_PER_SHADER_UNIT};
+use crate::{csg::{fast_query_csg_tree::tree::FastQueryCSGTree, slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGTree, SlotMapCSGTreeKey}, vec_csg_tree::tree::VecCSGTree}, model::generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder, BU, IT}, collapse::{CollapseOperation, Collapser, NodeOperationType}, pending_operations::NodeOperation, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree}, scene::{dag64::DAG64SceneObject, renderer::SceneRenderer, Scene, SceneObjectData, SceneObjectKey}, volume::VolumeQureyPosValid, voxel::dag64::{DAG64EntryKey, VoxelDAG64}, METERS_PER_SHADER_UNIT};
 
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -25,7 +25,7 @@ new_key_type! { pub struct IslandKey; }
 #[derive(Clone, Debug)]
 pub struct IslandsState {
     pub template: TemplateTree<Identifier, FastQueryCSGTree<()>>,
-    pub collapser: Collapser<Identifier, SlotMapCSGTreeKey, FastQueryCSGTree<()>>,
+    pub collapser: Collapser<Identifier, IslandKey, FastQueryCSGTree<()>>,
 
     islands: SlotMap<IslandKey, IslandState>,
     pub dag: Arc<Mutex<VoxelDAG64>>,
@@ -101,6 +101,7 @@ impl IslandsState {
         let island_volume = VecCSGTree::new_sphere(new_pos, 40.0); 
         let island_volume = FastQueryCSGTree::from(island_volume);
 
+        self.template.get_node_position_set(Identifier::IslandPositions)?.volume = island_volume.clone();
         if let Ok(pos_set) = self.collapser.get_position_set_by_identifier_mut(Identifier::IslandPositions) {
             pos_set.volume = island_volume;
             self.collapser.re_collapse_all_nodes_with_identifier(Identifier::IslandPositions);
@@ -134,9 +135,6 @@ impl IslandsState {
                 CollapseOperation::BuildHook { index, identifier } => { 
                     let pos = collapser.get_dependend_pos(index, Identifier::IslandPositions);
 
-                    #[cfg(not(feature = "profile_islands"))]
-                    info!("Build Hook: {pos:}");
-
                     let csg = SlotMapCSGTree::new_sphere(Vec3::ZERO, 10.0);
                     let active_key = self.dag.lock().add_aabb_query_volume(&csg)?;
 
@@ -157,13 +155,15 @@ impl IslandsState {
                         scene_object_key,
                     };
 
-                    self.islands.insert(island_state);
+                    let island_key = self.islands.insert(island_state);
+                    collapser.set_undo_data(index, island_key)?;
                     
                 },
                 CollapseOperation::Undo { identifier , undo_data} => {
-                    #[cfg(not(feature = "profile_islands"))]
                     info!("Undo {:?}", identifier);
 
+                    let island_state = self.islands.remove(undo_data).unwrap();
+                    scene.remove_object(island_state.scene_object_key)?;
                 },
                 CollapseOperation::None => {},
             } 
@@ -173,3 +173,4 @@ impl IslandsState {
     }
 }
 
+impl BU for IslandKey {}
