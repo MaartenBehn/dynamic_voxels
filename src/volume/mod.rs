@@ -28,7 +28,6 @@ pub trait VolumeBounds2D {
     }
 }
 
-
 pub trait VolumeRandomPos {
     fn get_random_valid_position(&self, search_size: f32) -> Option<Vec3>;
 }

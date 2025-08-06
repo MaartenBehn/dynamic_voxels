@@ -103,8 +103,8 @@ public struct RayRunner {
 
 float3 GetSkyColor(float3 dir, bool isPrimary) {
   // For light bounces, sample smaller mips to maybe improve cache coherency.
-  return -dir;
-  //return float3(0.5);
+  //return -dir;
+  return float3(0.5);
   //return pc.SkyTexture.Instance.SampleLevel(g_LinearSampler, dir, isPrimary ? 0 : 3) * (isPrimary?1:4);
 }
 

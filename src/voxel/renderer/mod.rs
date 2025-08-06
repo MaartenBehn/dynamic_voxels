@@ -38,7 +38,7 @@ const RENDER_DISPATCH_GROUP_SIZE_Y: u32 = 8;
 #[derive(Debug)]
 pub struct VoxelRenderer {
     heap: DescriptorHeap,
-    palette: Palette,
+    pub palette: Palette,
     
     g_buffer: GBuffer,
     perf_stats: FramePerfStats,
@@ -204,7 +204,7 @@ impl VoxelRenderer {
             blit_stage,
 
             debug_channel: DebugChannel::None,
-            max_bounces: 2,
+            max_bounces: 1,
             heat_map_max: 20.0,
             temporal_denoise: true,
             denoise_counters: true,

@@ -1,4 +1,5 @@
-use octa_force::{glam::{vec3, vec4, Vec3, Vec4}, vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
+use bitvec::{array::BitArray, bitarr, order::Lsb0};
+use octa_force::{anyhow::bail, glam::{vec3, vec4, Vec3A, Vec4}, vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
 
 pub const MATERIAL_ID_NONE: u8 = 0; 
 pub const MATERIAL_ID_BASE: u8 = 1; 
@@ -6,22 +7,25 @@ pub const MATERIAL_ID_BASE: u8 = 1;
 #[derive(Debug)]
 pub struct Palette {
     pub materials: [Material; 256],
+    pub used: BitArray<[u64; 4]>,
     pub buffer: Buffer,
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Material {
-    color: [u8; 3],
-    metal_fuzziness: u8,
-    emission: half::f16,
+    pub color: [u8; 3],
+    pub metal_fuzziness: u8,
+    pub emission: half::f16,
 }
 
 impl Palette {
     pub fn new(context: &Context) -> OctaResult<Self> {
         let mut materials = [Material::default(); 256];
-        materials[1].set_color(vec3(1.0, 1.0, 1.0));
-        materials[2].set_color(vec3(0.5, 0.5, 0.5));
-        materials[3].set_color(vec3(1.0, 1.0, 0.5));
+        let mut used = bitarr![u64, Lsb0; 0; 256];
+        
+        used.set(0, true);
+        materials[1].set_simple_color([255, 255, 255]);
+        used.set(1, true);
 
         let buffer = context.create_buffer(
             vk::BufferUsageFlags::UNIFORM_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS | vk::BufferUsageFlags::TRANSFER_DST, 
@@ -30,12 +34,29 @@ impl Palette {
 
         let palette = Self { 
             materials,
+            used, 
             buffer 
         };
 
         palette.push_materials(context)?;
 
         Ok(palette)
+    }
+
+    pub fn get_index_simple_color(&mut self, color: [u8; 3]) -> OctaResult<u8> {
+        for i in self.used.iter_ones().skip(1) {
+            if self.materials[i].is_simple_color() && self.materials[i].color == color {
+                return Ok(i as u8);
+            }
+        }
+
+        if let Some(i) = self.used.first_zero() {
+            self.materials[i].set_simple_color(color);
+            self.used.set(i, true);
+            return Ok(i as u8);
+        } else {
+            bail!("Palette full!");
+        }
     }
 
     pub fn push_materials(&self, context: &Context) -> OctaResult<()> {
@@ -63,10 +84,18 @@ impl Material {
         return packed;
     }
 
-    pub fn set_color(&mut self, color: Vec3) {
-        let value = (color * 255.0).clamp(Vec3::ZERO, Vec3::ONE * 255.0);
-        self.color[0] = value.x.round() as u8;
-        self.color[1] = value.y.round() as u8;
-        self.color[2] = value.z.round() as u8;
+    pub fn is_simple_color(&self) -> bool {
+        self.emission == half::f16::ZERO && self.metal_fuzziness == 0
+    } 
+
+    pub fn set_simple_color(&mut self, rgb_color: [u8; 3]) {
+        self.color = rgb_color;
+        self.emission = half::f16::ZERO;
+        self.metal_fuzziness = 0;
     }
+}
+
+pub fn get_rgb_color(c: Vec3A) -> [u8; 3] {
+    let value = (c * 255.0).clamp(Vec3A::ZERO, Vec3A::ONE * 255.0).round();
+    [value.x as u8, value.y as u8, value.z as u8]
 }

@@ -5,7 +5,7 @@ use octa_force::{camera::Camera, glam::{vec3, EulerRot, Mat4, Quat, Vec3, Vec3A,
 use parking_lot::Mutex;
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{csg::{csg_tree_2d::tree::CSGTree2D, fast_query_csg_tree::tree::FastQueryCSGTree, slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGTree, SlotMapCSGTreeKey}, vec_csg_tree::tree::VecCSGTree}, model::generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder}, collapse::{CollapseOperation, Collapser}, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree, traits::{ModelGenerationTypes, BU, IT}}, scene::{dag64::DAG64SceneObject, renderer::SceneRenderer, Scene, SceneObjectData, SceneObjectKey}, volume::{magica_voxel::MagicaVoxelModel, VolumeQureyPosValid}, voxel::{dag64::{DAG64EntryKey, VoxelDAG64}, grid::VoxelGrid}, METERS_PER_SHADER_UNIT};
+use crate::{csg::{csg_tree_2d::tree::CSGTree2D, fast_query_csg_tree::tree::FastQueryCSGTree, slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGTree, SlotMapCSGTreeKey}, vec_csg_tree::tree::VecCSGTree}, model::generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder}, collapse::{CollapseOperation, Collapser}, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree, traits::{ModelGenerationTypes, BU, IT}}, scene::{dag64::DAG64SceneObject, renderer::SceneRenderer, Scene, SceneObjectData, SceneObjectKey}, volume::{magica_voxel::MagicaVoxelModel, VolumeQureyPosValid}, voxel::{dag64::{DAG64EntryKey, VoxelDAG64}, grid::VoxelGrid, renderer::palette::Palette}, METERS_PER_SHADER_UNIT};
 
 const COLLAPSES_PER_TICK: usize = 100;
 
@@ -45,12 +45,12 @@ pub struct Islands {
 }
 
 impl Islands {
-    pub fn new(profile: bool) -> OctaResult<Self> {
+    pub fn new(palette: &mut Palette) -> OctaResult<Self> {
 
-        let mut dag = VoxelDAG64::new(100000, 64);
+        let mut dag = VoxelDAG64::new(100000, 1000000);
         
         let tree_model = MagicaVoxelModel::new("./assets/Fall_Tree.vox")?;
-        let tree_grid: VoxelGrid = tree_model.into();
+        let tree_grid: VoxelGrid = tree_model.into_grid(palette)?;
         let tree_dag_key = dag.add_pos_query_volume(&tree_grid)?;
          
         let island_volume = FastQueryCSGTree::default();
@@ -72,7 +72,7 @@ impl Islands {
                 .ammount(BuilderAmmount::OneGlobal)
                 .value(BuilderValue::Const(PositionSet::new_grid_in_volume(
                     island_volume,
-                    if profile { 0.1 } else { 200.0 })
+                    200.0 )
                 ))
             })
             .build(Identifier::IslandBuild, |b| {b

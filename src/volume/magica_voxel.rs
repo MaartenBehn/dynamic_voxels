@@ -1,7 +1,7 @@
 use octa_force::{anyhow::anyhow, glam::{IVec3, Mat3, UVec3, Vec3, Vec3A}, OctaResult};
 use dot_vox::*;
 
-use crate::{util::{aabb3d::AABB, math::to_1d}, voxel::{grid::VoxelGrid, renderer::palette::MATERIAL_ID_BASE}};
+use crate::{util::{aabb3d::AABB, math::to_1d}, voxel::{grid::VoxelGrid, renderer::palette::{Palette, MATERIAL_ID_BASE}}};
 
 use super::{VolumeBounds, VolumeQureyPosValue};
 
@@ -102,8 +102,8 @@ impl VolumeBounds for MagicaVoxelModel {
     }
 }
 
-impl Into<VoxelGrid> for MagicaVoxelModel {
-    fn into(self) -> VoxelGrid { 
+impl MagicaVoxelModel {
+    pub fn into_grid(self, palette: &mut Palette) -> OctaResult<VoxelGrid> { 
 
         let size = (self.max - self.min + 1).as_uvec3();
 
@@ -129,12 +129,15 @@ impl Into<VoxelGrid> for MagicaVoxelModel {
                     }
                 }
 
+                let color = self.vox.palette[voxel.i as usize];
+                let mat_nr = palette.get_index_simple_color([color.r, color.g, color.b])?;
+
                 let voxel_pos = offset + voxel_pos_swizzled;
-                array[to_1d(voxel_pos.as_uvec3(), size)] = MATERIAL_ID_BASE; //voxel.i;
+                array[to_1d(voxel_pos.as_uvec3(), size)] = mat_nr;
             }
         }
 
-        VoxelGrid { size, data: array, offset: self.min.as_vec3a() }
+        Ok(VoxelGrid { size, data: array, offset: self.min.as_vec3a() })
     }
 }
 

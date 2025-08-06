@@ -87,7 +87,7 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
         camera.set_position_in_meters(Vec3::new(0.0, -40.0, 0.0)); 
         camera.direction = Vec3::new(0.0, 1.0, 0.0).normalize();
         
-        camera.speed = 10.0;
+        camera.speed = 50.0;
         camera.z_near = 0.001;
     }
 
@@ -167,10 +167,11 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
     #[cfg(feature="islands")]
     {
-        let islands = Islands::new(false)?;
         
-        let mut scene = Scene::new(&engine.context)?; 
-        let renderer = SceneRenderer::new(&engine.context, &engine.swapchain, scene, &logic_state.camera)?;
+        let scene = Scene::new(&engine.context)?; 
+        let mut renderer = SceneRenderer::new(&engine.context, &engine.swapchain, scene, &logic_state.camera)?;
+        let islands = Islands::new(&mut renderer.voxel_renderer.palette)?;
+        renderer.voxel_renderer.palette.push_materials(&engine.context)?;
 
         Ok(RenderState {
             gui,

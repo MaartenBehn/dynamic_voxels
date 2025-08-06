@@ -66,7 +66,9 @@ fnv = "1.0.7"
 parking_lot = "0.12"
 
 # For importing magica voxel models
-dot_vox = "5.1.1"
+dot_vox = "5"
+
+bitvec = "1"
 
 [dev-dependencies]
 proptest = "0.9.6"
