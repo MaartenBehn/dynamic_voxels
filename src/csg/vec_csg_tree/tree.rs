@@ -139,7 +139,7 @@ impl<T: Base + Clone> VecCSGTree<T> {
         let nodes = vec![
             VecCSGNode::new(VecCSGNodeData::Sphere(
                 Mat4::from_scale_rotation_translation(
-                    vec3(radius, radius, height),
+                    vec3(radius, height, radius),
                     Quat::IDENTITY,
                     center,
                 ),

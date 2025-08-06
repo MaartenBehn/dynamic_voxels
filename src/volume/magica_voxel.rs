@@ -1,7 +1,7 @@
 use octa_force::{anyhow::anyhow, glam::{IVec3, Mat3, UVec3, Vec3, Vec3A}, OctaResult};
 use dot_vox::*;
 
-use crate::{util::aabb3d::AABB, voxel::{grid::VoxelGrid, renderer::palette::MATERIAL_ID_BASE}};
+use crate::{util::{aabb3d::AABB, math::to_1d}, voxel::{grid::VoxelGrid, renderer::palette::MATERIAL_ID_BASE}};
 
 use super::{VolumeBounds, VolumeQureyPosValue};
 
@@ -59,7 +59,6 @@ impl MagicaVoxelModel {
                 }
                 dot_vox::SceneNode::Shape { models, .. } => {
                     let model_id = models[0].model_id;
-                    dbg!(models[0].model_id, translation);
                     let model = &vox.models[model_id as usize];
 
                     let channel_reordering =
@@ -106,7 +105,7 @@ impl VolumeBounds for MagicaVoxelModel {
 impl Into<VoxelGrid> for MagicaVoxelModel {
     fn into(self) -> VoxelGrid { 
 
-        let size = self.max - self.min + 1;
+        let size = (self.max - self.min + 1).as_uvec3();
 
         let mut array = vec![0; size.x as usize * size.y as usize * size.z as usize];
 
@@ -131,13 +130,11 @@ impl Into<VoxelGrid> for MagicaVoxelModel {
                 }
 
                 let voxel_pos = offset + voxel_pos_swizzled;
-                array[voxel_pos.x as usize
-                    + voxel_pos.y as usize * size.x as usize
-                    + voxel_pos.z as usize * size.x as usize * size.y as usize] = MATERIAL_ID_BASE; //voxel.i;
+                array[to_1d(voxel_pos.as_uvec3(), size)] = MATERIAL_ID_BASE; //voxel.i;
             }
         }
 
-        VoxelGrid { size: size.as_uvec3(), data: array }
+        VoxelGrid { size, data: array, offset: self.min.as_vec3a() }
     }
 }
 

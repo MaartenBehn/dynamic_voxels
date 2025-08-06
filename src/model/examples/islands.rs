@@ -47,7 +47,7 @@ pub struct Islands {
 impl Islands {
     pub fn new(profile: bool) -> OctaResult<Self> {
 
-        let mut dag = VoxelDAG64::new(1000000, 64);
+        let mut dag = VoxelDAG64::new(100000, 64);
         
         let tree_model = MagicaVoxelModel::new("./assets/Fall_Tree.vox")?;
         let tree_grid: VoxelGrid = tree_model.into();
@@ -91,7 +91,6 @@ impl Islands {
             });
 
         let template = wfc_builder.build_template();
-        dbg!(&template);
 
         let collapser = template.get_collaper();
 
@@ -163,7 +162,7 @@ impl Islands {
                         Identifier::IslandBuild => {
                             let pos = collapser.get_parent_pos(index);
 
-                            let csg = SlotMapCSGTree::new_sphere(Vec3::ZERO, 10.0);
+                            let csg = SlotMapCSGTree::new_disk(Vec3::ZERO, 100.0, 10.0);
                             let active_key = self.dag.lock().add_aabb_query_volume(&csg)?;
 
                             let scene_object_key = scene.add_dag64(
@@ -187,7 +186,7 @@ impl Islands {
                                 context,
                                 Mat4::from_scale_rotation_translation(
                                     Vec3::ONE,
-                                    Quat::from_euler(EulerRot::XYZ, 0.0, -90.0_f32.to_radians(), 0.0),
+                                    Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, 0.0),
                                     pos.to_owned() / METERS_PER_SHADER_UNIT as f32
                                 ), 
                                 self.tree_dag_key,

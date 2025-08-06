@@ -60,13 +60,15 @@ impl VoxelDAG64 {
                     for z in 0..4 {
                         for y in 0..4 {
                             for x in 0..4 {
-                                let pos = UVec3::new(x, y, z);
+                                // INFO: DAG Renderer works in XZY Space instead of XYZ like the rest of the
+                                // engine
+                                let pos = UVec3::new(x, z, y);
                                 let index = offset + pos.as_vec3a();
                                 let value = volume.get_value_a(index);
 
                                 if value != 0 {
                                     vec.push(value);
-                                    bitmask |= 1 << pos.dot(UVec3::new(1, 4, 16)) as u64;
+                                    bitmask |= 1 << UVec3::new(x, y, z).dot(UVec3::new(1, 4, 16)) as u64;
                                 }
                             }
                         }
@@ -97,7 +99,7 @@ impl VoxelDAG64 {
                     for z in 0..4 {
                         for y in 0..4 {
                             for x in 0..4 {
-                                let pos = UVec3::new(x, y, z);
+                                let pos = UVec3::new(x, z, y);
                                 if let Some(child) = self.insert_from_aabb_query_recursive(
                                     volume,
                                     offset + pos.as_vec3a() * new_scale,
@@ -106,7 +108,7 @@ impl VoxelDAG64 {
                                     .check_empty()
                                 {
                                     nodes.push(child);
-                                    bitmask |= 1 << pos.dot(UVec3::new(1, 4, 16)) as u64;
+                                    bitmask |= 1 <<  UVec3::new(x, y, z).dot(UVec3::new(1, 4, 16)) as u64;
                                 }
                             }
                         }

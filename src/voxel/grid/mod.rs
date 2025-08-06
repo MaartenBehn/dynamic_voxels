@@ -3,7 +3,7 @@ mod impl_volume;
 
 use std::usize;
 
-use octa_force::glam::{uvec3, vec3, UVec3, Vec3};
+use octa_force::glam::{uvec3, vec3, UVec3, Vec3, Vec3A};
 
 use crate::util::math::to_1d;
 
@@ -13,8 +13,9 @@ const VOXELS_PER_U32: usize = 4;
 
 #[derive(Clone, Debug)]
 pub struct VoxelGrid {
-    pub size: UVec3,
     pub data: Vec<u8>,
+    pub size: UVec3,
+    pub offset: Vec3A,
 }
 
 impl VoxelGrid {
@@ -23,6 +24,7 @@ impl VoxelGrid {
         VoxelGrid {
             size,
             data: vec![MATERIAL_ID_NONE as u8; data_length],
+            offset: Vec3A::ZERO,
         }
     }
 

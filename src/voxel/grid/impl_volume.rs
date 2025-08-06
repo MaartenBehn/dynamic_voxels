@@ -8,9 +8,9 @@ impl VolumeBounds for VoxelGrid {
     fn calculate_bounds(&mut self) {}
 
     fn get_bounds(&self) -> AABB {
-        AABB::new(
-            Vec3::ZERO,
-            self.size.as_vec3())
+        AABB::new_a(
+            self.offset,
+            self.size.as_vec3a() + self.offset)
     }
 }
 

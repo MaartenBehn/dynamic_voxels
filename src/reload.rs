@@ -84,7 +84,7 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
     #[cfg(feature="islands")]
     {
         camera.set_meter_per_unit(METERS_PER_SHADER_UNIT as f32);
-        camera.set_position_in_meters(Vec3::new(0.0, -4.0, 0.0)); 
+        camera.set_position_in_meters(Vec3::new(0.0, -40.0, 0.0)); 
         camera.direction = Vec3::new(0.0, 1.0, 0.0).normalize();
         
         camera.speed = 10.0;

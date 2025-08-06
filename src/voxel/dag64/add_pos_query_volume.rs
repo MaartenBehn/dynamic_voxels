@@ -7,6 +7,8 @@ use super::{node::VoxelDAG64Node, DAG64EntryData, DAG64EntryKey, VoxelDAG64};
 
 impl VoxelDAG64 {
     pub fn add_pos_query_volume<M: VolumeQureyPosValue>(&mut self, model: &M) -> OctaResult<DAG64EntryKey> {
+        let offset = model.get_offset();
+        dbg!(offset);
         let dims = model.get_size().as_uvec3();
         let mut scale = dims[0].max(dims[1]).max(dims[2]).next_power_of_two();
         scale = scale.max(4);
@@ -21,7 +23,7 @@ impl VoxelDAG64 {
         let key = self.entry_points.insert(DAG64EntryData { 
             levels, 
             root_index, 
-            offset: Vec3A::ZERO, 
+            offset, 
         });
 
         Ok(key)
@@ -42,13 +44,15 @@ impl VoxelDAG64 {
             for z in 0..4 {
                 for y in 0..4 {
                     for x in 0..4 {
-                        let pos = UVec3::new(x, y, z);
+                        // INFO: DAG Renderer works in XZY Space instead of XYZ like the rest of the
+                        // engine
+                        let pos = UVec3::new(x, z, y);
                         let index = offset + pos;
                         let value = model.get_value_u(index);
 
                         if value != 0 {
                             vec.push(value);
-                            bitmask |= 1 << pos.dot(UVec3::new(1, 4, 16)) as u64;
+                            bitmask |= 1 << UVec3::new(x, y, z).dot(UVec3::new(1, 4, 16)) as u64;
                         }
                     }
                 }
@@ -61,7 +65,7 @@ impl VoxelDAG64 {
             for z in 0..4 {
                 for y in 0..4 {
                     for x in 0..4 {
-                        let pos = UVec3::new(x, y, z);
+                        let pos = UVec3::new(x, z, y);
                         if let Some(child) = self.insert_from_pos_query_recursive(
                                 model,
                                 offset + pos * new_scale,
@@ -70,7 +74,7 @@ impl VoxelDAG64 {
                             .check_empty()
                         {
                             nodes.push(child);
-                            bitmask |= 1 << pos.dot(UVec3::new(1, 4, 16)) as u64;
+                            bitmask |= 1 << UVec3::new(x, y, z).dot(UVec3::new(1, 4, 16)) as u64;
                         }
                     }
                 }
