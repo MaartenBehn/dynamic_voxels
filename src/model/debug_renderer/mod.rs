@@ -6,13 +6,13 @@ use octa_force::{controls::Controls, egui, log::debug, OctaResult};
 
 use crate::csg::{csg_tree_2d::tree::CSGTree2D, fast_query_csg_tree::tree::FastQueryCSGTree, slot_map_csg_tree::tree::SlotMapCSGTreeKey, vec_csg_tree::tree::VecCSGTree};
 
-use super::{examples::islands::{Identifier, IslandKey}, generation::{collapse::{CollapseNodeKey, Collapser}, traits::{ModelGenerationTypes, BU, IT}}};
+use super::{examples::islands::{Identifier}, generation::{collapse::{CollapseNodeKey, Collapser}, traits::{ModelGenerationTypes, BU, IT}}};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct GenerationTypes {}
 impl ModelGenerationTypes for GenerationTypes {
     type Identifier = Identifier;
-    type UndoData = IslandKey;
+    type UndoData = SlotMapCSGTreeKey;
     type Volume = FastQueryCSGTree<()>;
     type Volume2D = CSGTree2D<()>;
 }
@@ -43,7 +43,6 @@ pub struct DataType;
 pub struct ValueType<T: ModelGenerationTypes> {
     p: PhantomData<T>
 }
-
 
 /// Typically an enum that lists node types.
 /// In this example there is only one node type ("Node"),

@@ -13,7 +13,7 @@ use csg::fast_query_csg_tree::tree::FastQueryCSGTree;
 use csg::slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGTree};
 use csg::vec_csg_tree::tree::{VecCSGTree, VOXEL_SIZE};
 use model::debug_renderer::ModelDebugRenderer;
-use model::examples::islands::{self, IslandsState};
+use model::examples::islands::{self, Islands};
 use octa_force::engine::Engine;
 use parking_lot::Mutex;
 use scene::dag64::DAG64SceneObject;
@@ -109,7 +109,7 @@ pub struct RenderState {
     pub renderer: SceneRenderer,
     
     #[cfg(any(feature="islands"))]
-    pub state_saver: StateSaver<IslandsState>,
+    pub islands: Islands,
 }
 
 #[unsafe(no_mangle)]
@@ -167,17 +167,15 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
     #[cfg(feature="islands")]
     {
-        let state = IslandsState::new(false)?;
+        let islands = Islands::new(false)?;
         
         let mut scene = Scene::new(&engine.context)?; 
         let renderer = SceneRenderer::new(&engine.context, &engine.swapchain, scene, &logic_state.camera)?;
 
-        let state_saver = StateSaver::from_state(state, 10);
-        
         Ok(RenderState {
             gui,
             renderer,
-            state_saver,
+            islands,
         })
     }
    }
@@ -198,11 +196,10 @@ pub fn update(
     //info!("Camera Pos: {} Dir: {}", logic_state.camera.get_position_in_meters(), logic_state.camera.direction);
     
     #[cfg(any(feature="islands"))]
-    if render_state.state_saver.tick(&mut |s: &mut IslandsState| -> OctaResult<bool> {
-        s.update(&logic_state.camera)?;
-        s.tick(&mut render_state.renderer.scene, &engine.context)
-    })? {
-
+    {
+        if !render_state.islands.tick(&mut render_state.renderer.scene, &engine.context)? {
+            render_state.islands.update(&logic_state.camera)?;
+        }
     }
 
     #[cfg(any(feature="scene", feature="islands"))]
@@ -248,9 +245,6 @@ pub fn record_render_commands(
              
             #[cfg(any(feature="scene"))]
             render_state.renderer.render_ui(ctx);
-
-            #[cfg(any(feature="islands"))]
-            render_state.state_saver.render(ctx);
         },
     )?;
 

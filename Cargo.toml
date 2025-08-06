@@ -65,6 +65,9 @@ hashbrown = "0.15.2"
 fnv = "1.0.7"
 parking_lot = "0.12"
 
+# For importing magica voxel models
+dot_vox = "5.1.1"
+
 [dev-dependencies]
 proptest = "0.9.6"
 criterion = { version = "0.5", features = ["html_reports"] }

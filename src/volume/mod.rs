@@ -1,3 +1,5 @@
+pub mod magica_voxel;
+
 use std::fmt::Debug;
 
 use octa_force::glam::{vec4, IVec3, UVec3, Vec2, Vec3, Vec3A, Vec4, Vec4Swizzles};

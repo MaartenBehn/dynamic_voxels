@@ -5,9 +5,9 @@ use octa_force::{camera::Camera, glam::{vec3, EulerRot, Mat4, Quat, Vec3, Vec3A,
 use parking_lot::Mutex;
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{csg::{csg_tree_2d::tree::CSGTree2D, fast_query_csg_tree::tree::FastQueryCSGTree, slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGTree, SlotMapCSGTreeKey}, vec_csg_tree::tree::VecCSGTree}, model::generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder}, collapse::{CollapseOperation, Collapser}, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree, traits::{ModelGenerationTypes, BU, IT}}, scene::{dag64::DAG64SceneObject, renderer::SceneRenderer, Scene, SceneObjectData, SceneObjectKey}, volume::VolumeQureyPosValid, voxel::dag64::{DAG64EntryKey, VoxelDAG64}, METERS_PER_SHADER_UNIT};
+use crate::{csg::{csg_tree_2d::tree::CSGTree2D, fast_query_csg_tree::tree::FastQueryCSGTree, slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGTree, SlotMapCSGTreeKey}, vec_csg_tree::tree::VecCSGTree}, model::generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder}, collapse::{CollapseOperation, Collapser}, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree, traits::{ModelGenerationTypes, BU, IT}}, scene::{dag64::DAG64SceneObject, renderer::SceneRenderer, Scene, SceneObjectData, SceneObjectKey}, volume::{magica_voxel::MagicaVoxelModel, VolumeQureyPosValid}, voxel::{dag64::{DAG64EntryKey, VoxelDAG64}, grid::VoxelGrid}, METERS_PER_SHADER_UNIT};
 
-new_key_type! { pub struct IslandKey; }
+const COLLAPSES_PER_TICK: usize = 100;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Identifier {
@@ -19,42 +19,39 @@ pub enum Identifier {
     IslandPositions,
     IslandBuild,
     TreePositions,
-    TreePosition,
+    TreeBuild,
 }
 
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct IslandGenerationTypes {}
 impl IT for Identifier {}
-impl BU for IslandKey {}
+impl BU for SceneObjectKey {}
 impl ModelGenerationTypes for IslandGenerationTypes {
     type Identifier = Identifier;
-    type UndoData = IslandKey;
+    type UndoData = SceneObjectKey;
     type Volume = FastQueryCSGTree<()>;
     type Volume2D = CSGTree2D<()>;
 }
 
 #[derive(Clone, Debug)]
-pub struct IslandsState {
+pub struct Islands {
     pub template: TemplateTree<IslandGenerationTypes>,
     pub collapser: Collapser<IslandGenerationTypes>,
 
-    islands: SlotMap<IslandKey, IslandState>,
     pub dag: Arc<Mutex<VoxelDAG64>>,
     pub last_pos: Vec3,
+    pub tree_dag_key: DAG64EntryKey,
 }
 
-#[derive(Clone, Debug)]
-struct IslandState {
-    pub csg: SlotMapCSGTree<u8>,
-    pub active_key: DAG64EntryKey,
-    pub scene_object_key: SceneObjectKey,
-}
-
-impl IslandsState {
+impl Islands {
     pub fn new(profile: bool) -> OctaResult<Self> {
 
-        let dag = VoxelDAG64::new(10000, 64);
+        let mut dag = VoxelDAG64::new(1000000, 64);
+        
+        let tree_model = MagicaVoxelModel::new("./assets/Fall_Tree.vox")?;
+        let tree_grid: VoxelGrid = tree_model.into();
+        let tree_dag_key = dag.add_pos_query_volume(&tree_grid)?;
          
         let island_volume = FastQueryCSGTree::default();
 
@@ -75,7 +72,7 @@ impl IslandsState {
                 .ammount(BuilderAmmount::OneGlobal)
                 .value(BuilderValue::Const(PositionSet::new_grid_in_volume(
                     island_volume,
-                    if profile { 0.1 } else { 20.0 })
+                    if profile { 0.1 } else { 200.0 })
                 ))
             })
             .build(Identifier::IslandBuild, |b| {b
@@ -88,7 +85,7 @@ impl IslandsState {
                 .depends(Identifier::IslandPositions)
             })
             
-            .build(Identifier::TreePosition, |b|{b
+            .build(Identifier::TreeBuild, |b|{b
                 .ammount(BuilderAmmount::DefinedBy(Identifier::TreePositions))
                 .depends(Identifier::TreePositions)
             });
@@ -101,9 +98,9 @@ impl IslandsState {
         Ok(Self {
             template,
             collapser,
-            islands: Default::default(),
             dag: Arc::new(Mutex::new(dag)),
             last_pos: Vec3::ZERO,
+            tree_dag_key,
         })
     }
 
@@ -117,7 +114,7 @@ impl IslandsState {
         }
         self.last_pos = new_pos;
 
-        let island_volume = VecCSGTree::new_sphere(new_pos, 40.0); 
+        let island_volume = VecCSGTree::new_sphere(new_pos, 400.0); 
         let island_volume = FastQueryCSGTree::from(island_volume);
 
         self.template.get_node_position_set(Identifier::IslandPositions)?.set_volume(island_volume.clone())?;
@@ -131,8 +128,9 @@ impl IslandsState {
 
     pub fn tick(&mut self, scene: &mut Scene, context: &Context) -> OctaResult<bool> {
         let mut ticked = false;
+        let mut i = 0;
 
-        if let Some((hook, collapser)) 
+        while let Some((hook, collapser)) 
             = self.collapser.next(&self.template)? {
 
             ticked = true;
@@ -152,7 +150,7 @@ impl IslandsState {
 
                             collapser.set_position_set_value(index, PositionSet::new_grid_on_plane(
                                 tree_volume,
-                                5.0, 
+                                100.0, 
                                 pos.z)
                             );    
                         },
@@ -179,18 +177,23 @@ impl IslandsState {
                                 self.dag.clone(),
                             )?;
 
-                            let island_state = IslandState {
-                                csg,
-                                active_key,
-                                scene_object_key,
-                            };
-
-                            let island_key = self.islands.insert(island_state);
-                            collapser.set_undo_data(index, island_key)?;
+                            collapser.set_undo_data(index, scene_object_key)?;
 
                         },
-                        Identifier::TreePosition => {
+                        Identifier::TreeBuild => {
                             let pos = collapser.get_parent_pos(index);
+
+                            let scene_object_key = scene.add_dag64(
+                                context,
+                                Mat4::from_scale_rotation_translation(
+                                    Vec3::ONE,
+                                    Quat::from_euler(EulerRot::XYZ, 0.0, -90.0_f32.to_radians(), 0.0),
+                                    pos.to_owned() / METERS_PER_SHADER_UNIT as f32
+                                ), 
+                                self.tree_dag_key,
+                                self.dag.clone(),
+                            )?;
+                            collapser.set_undo_data(index, scene_object_key)?;
 
                             info!("Tree Pos: {pos}");
                         },
@@ -201,11 +204,22 @@ impl IslandsState {
                 CollapseOperation::Undo { identifier , undo_data} => {
                     info!("Undo {:?}", identifier);
 
-                    let island_state = self.islands.remove(undo_data).unwrap();
-                    scene.remove_object(island_state.scene_object_key)?;
-                },
+                    match identifier {
+                        Identifier::IslandBuild
+                        | Identifier::TreeBuild => {
+                            scene.remove_object(undo_data)?;
+                        },
+                        Identifier::TreePositions => {}
+                        _ => unreachable!()
+                    }
+                                    },
                 CollapseOperation::None => {},
             } 
+
+            i += 1;
+            if i > COLLAPSES_PER_TICK {
+                break;
+            }
         }
 
         if !ticked {
