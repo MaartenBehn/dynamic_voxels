@@ -3,13 +3,13 @@ use slotmap::Key;
 
 use crate::{model::generation::collapse::CollapseOperation, volume::{VolumeQureyPosValid, VolumeQureyPosValid2D}};
 
-use super::{builder::{BU, IT}, collapse::{CollapseNodeKey, Collapser}, template::TemplateTree};
+use super::{collapse::{CollapseNodeKey, Collapser}, template::TemplateTree, traits::ModelGenerationTypes};
 
 
 
-impl<I: IT, U: BU, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> Collapser<I, U, V, P> {
+impl<T: ModelGenerationTypes> Collapser<T> {
 
-    pub fn reset_node(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<I, V, P>) -> OctaResult<()> {
+    pub fn reset_node(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<T>) -> OctaResult<()> {
         let node = self.get_node_ref_from_node_index(node_index)?;
         info!("{:?} Reset {:?}", node_index, node.identifier);
 
@@ -37,7 +37,7 @@ impl<I: IT, U: BU, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> Collapser<I
         Ok(())
     }
 
-    pub fn delete_node(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<I, V, P>) -> OctaResult<()> {
+    pub fn delete_node(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<T>) -> OctaResult<()> {
         let node = self.nodes.remove(node_index);
         if node.is_none() {
             return Ok(());

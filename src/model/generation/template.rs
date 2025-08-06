@@ -5,33 +5,33 @@ use octa_force::glam::Vec3;
 
 use crate::volume::{VolumeQureyPosValid, VolumeQureyPosValid2D};
 
-use super::{builder::{BuilderAmmount, BuilderNode, ModelSynthesisBuilder, IT}, number_range::NumberRange, pos_set::PositionSet, relative_path::RelativePathTree};
+use super::{builder::{BuilderAmmount, BuilderNode, ModelSynthesisBuilder}, number_range::NumberRange, pos_set::PositionSet, relative_path::RelativePathTree, traits::ModelGenerationTypes};
 
 pub type TemplateIndex = usize;
 pub const TEMPLATE_INDEX_ROOT: TemplateIndex = 0;
 pub const AMMOUNT_PATH_INDEX: usize = 0;
 
 #[derive(Debug, Clone)]
-pub struct TemplateTree<I: IT, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> {
-    pub nodes: Vec<TemplateNode<I, V, P>>,
+pub struct TemplateTree<T: ModelGenerationTypes> {
+    pub nodes: Vec<TemplateNode<T>>,
     pub max_level: usize,
 }
 
 #[derive(Debug, Clone)]
-pub enum NodeTemplateValue<V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> {
+pub enum NodeTemplateValue<T: ModelGenerationTypes> {
     Groupe,
     NumberRangeHook,
     NumberRange(NumberRange),
     PosSetHook,
-    PosSet(PositionSet<V, P>),
+    PosSet(PositionSet<T>),
     BuildHook
 }
 
 #[derive(Debug, Clone)]
-pub struct TemplateNode<I: IT, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> {
-    pub identifier: I,
+pub struct TemplateNode<T: ModelGenerationTypes> {
+    pub identifier: T::Identifier,
     pub index: TemplateIndex,
-    pub value: NodeTemplateValue<V, P>,
+    pub value: NodeTemplateValue<T>,
     pub depends: Vec<TemplateIndex>,
     pub dependend: Vec<TemplateIndex>,
     pub knows: Vec<TemplateIndex>,
@@ -53,10 +53,10 @@ pub struct TemplateAmmountValue {
     pub dependecy_tree: RelativePathTree,
 }
 
-impl<I: IT, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> TemplateTree<I, V, P> {
-    pub fn new_from_builder(builder: &ModelSynthesisBuilder<I, V, P>) -> TemplateTree<I, V, P> {
+impl<T: ModelGenerationTypes> TemplateTree<T> {
+    pub fn new_from_builder(builder: &ModelSynthesisBuilder<T>) -> TemplateTree<T> {
         let mut nodes = vec![TemplateNode { 
-            identifier: I::default(),
+            identifier: T::Identifier::default(),
             index: 0,
             value: NodeTemplateValue::Groupe {  }, 
             depends: vec![], 
@@ -195,12 +195,12 @@ impl<I: IT, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> TemplateTree<I, V,
     } 
 }
 
-impl<V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> NodeTemplateValue<V, P> {
-    pub fn new_group() -> NodeTemplateValue<V, P> {
+impl<T: ModelGenerationTypes> NodeTemplateValue<T> {
+    pub fn new_group() -> NodeTemplateValue<T> {
         NodeTemplateValue::Groupe {}
     }
 
-    pub fn new_number_range<R: RangeBounds<i32>>(range: R) -> NodeTemplateValue<V, P> {
+    pub fn new_number_range<R: RangeBounds<i32>>(range: R) -> NodeTemplateValue<T> {
         
         let min = match range.start_bound() {
             std::ops::Bound::Included(&num) => num,
@@ -217,11 +217,11 @@ impl<V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> NodeTemplateValue<V, P> {
         NodeTemplateValue::NumberRange(NumberRange::new(min, max))
     }
 
-    pub fn new_position_set(set: PositionSet<V, P>) -> NodeTemplateValue<V, P> { 
+    pub fn new_position_set(set: PositionSet<T>) -> NodeTemplateValue<T> { 
         NodeTemplateValue::PosSet(set)
     }
  
-    pub fn new_build() -> NodeTemplateValue<V, P> {
+    pub fn new_build() -> NodeTemplateValue<T> {
         NodeTemplateValue::BuildHook {}
     }
 }

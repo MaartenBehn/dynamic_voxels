@@ -5,8 +5,9 @@ use octa_force::{camera::Camera, glam::{vec3, EulerRot, Mat4, Quat, Vec3, Vec3A,
 use parking_lot::Mutex;
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{csg::{csg_tree_2d::tree::CSGTree2D, fast_query_csg_tree::tree::FastQueryCSGTree, slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGTree, SlotMapCSGTreeKey}, vec_csg_tree::tree::VecCSGTree}, model::generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder, BU, IT}, collapse::{CollapseOperation, Collapser}, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree}, scene::{dag64::DAG64SceneObject, renderer::SceneRenderer, Scene, SceneObjectData, SceneObjectKey}, volume::VolumeQureyPosValid, voxel::dag64::{DAG64EntryKey, VoxelDAG64}, METERS_PER_SHADER_UNIT};
+use crate::{csg::{csg_tree_2d::tree::CSGTree2D, fast_query_csg_tree::tree::FastQueryCSGTree, slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGTree, SlotMapCSGTreeKey}, vec_csg_tree::tree::VecCSGTree}, model::generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder}, collapse::{CollapseOperation, Collapser}, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree, traits::{ModelGenerationTypes, BU, IT}}, scene::{dag64::DAG64SceneObject, renderer::SceneRenderer, Scene, SceneObjectData, SceneObjectKey}, volume::VolumeQureyPosValid, voxel::dag64::{DAG64EntryKey, VoxelDAG64}, METERS_PER_SHADER_UNIT};
 
+new_key_type! { pub struct IslandKey; }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Identifier {
@@ -20,14 +21,23 @@ pub enum Identifier {
     TreePositions,
     TreePosition,
 }
-impl IT for Identifier {}
 
-new_key_type! { pub struct IslandKey; }
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct IslandGenerationTypes {}
+impl IT for Identifier {}
+impl BU for IslandKey {}
+impl ModelGenerationTypes for IslandGenerationTypes {
+    type Identifier = Identifier;
+    type UndoData = IslandKey;
+    type Volume = FastQueryCSGTree<()>;
+    type Volume2D = CSGTree2D<()>;
+}
 
 #[derive(Clone, Debug)]
 pub struct IslandsState {
-    pub template: TemplateTree<Identifier, FastQueryCSGTree<()>, CSGTree2D<()>>,
-    pub collapser: Collapser<Identifier, IslandKey, FastQueryCSGTree<()>, CSGTree2D<()>>,
+    pub template: TemplateTree<IslandGenerationTypes>,
+    pub collapser: Collapser<IslandGenerationTypes>,
 
     islands: SlotMap<IslandKey, IslandState>,
     pub dag: Arc<Mutex<VoxelDAG64>>,
@@ -206,4 +216,3 @@ impl IslandsState {
     }
 }
 
-impl BU for IslandKey {}

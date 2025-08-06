@@ -9,3 +9,4 @@ pub mod pos_set;
 pub mod pending_operations;
 pub mod update;
 pub mod number_range;
+pub mod traits;

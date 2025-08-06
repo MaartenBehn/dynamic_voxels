@@ -5,49 +5,47 @@ use std::{fmt::Debug, iter, marker::PhantomData, ops::RangeBounds};
 
 use crate::volume::{VolumeQureyPosValid, VolumeQureyPosValid2D};
 
-use super::{collapse::CollapseNode, pos_set::PositionSet, relative_path::{self, RelativePathTree}, template::{NodeTemplateValue, TemplateTree}};
+use super::{collapse::CollapseNode, pos_set::PositionSet, relative_path::{self, RelativePathTree}, template::{NodeTemplateValue, TemplateTree}, traits::ModelGenerationTypes};
 
-pub trait IT: Debug + Copy + Eq + Default {}
-pub trait BU: Debug + Copy + Default {}
 
 #[derive(Debug, Clone)]
-pub struct ModelSynthesisBuilder<I: IT, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> {
-    pub nodes: Vec<BuilderNode<I, V, P>>,
+pub struct ModelSynthesisBuilder<T: ModelGenerationTypes>{
+    pub nodes: Vec<BuilderNode<T>>,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum BuilderAmmount<I: IT>{
+pub enum BuilderAmmount<T: ModelGenerationTypes>{
     OneGlobal,
-    OnePer(I),
-    NPer(usize, I),
-    DefinedBy(I),
+    OnePer(T::Identifier),
+    NPer(usize, T::Identifier),
+    DefinedBy(T::Identifier),
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum BuilderValue<T>{
-    Const(T),
+pub enum BuilderValue<V>{
+    Const(V),
     Hook,
 }
 
 #[derive(Debug, Clone)]
-pub struct BuilderNode<I: IT, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> {
-    pub identifier: I,
-    pub value: NodeTemplateValue<V, P>,
-    pub depends: Vec<I>,
-    pub knows: Vec<I>,
-    pub ammount: BuilderAmmount<I>,
+pub struct BuilderNode<T: ModelGenerationTypes> {
+    pub identifier: T::Identifier,
+    pub value: NodeTemplateValue<T>,
+    pub depends: Vec<T::Identifier>,
+    pub knows: Vec<T::Identifier>,
+    pub ammount: BuilderAmmount<T>,
 }
 
 #[derive(Debug, Clone)]
-pub struct NodeBuilder<I: IT, T> {
-    pub depends: Vec<I>,
-    pub knows: Vec<I>,
-    pub ammount: BuilderAmmount<I>,
-    pub value: BuilderValue<T> 
+pub struct NodeBuilder<T: ModelGenerationTypes, V> {
+    pub depends: Vec<T::Identifier>,
+    pub knows: Vec<T::Identifier>,
+    pub ammount: BuilderAmmount<T>,
+    pub value: BuilderValue<V> 
 }
 
-impl<I: IT, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> ModelSynthesisBuilder<I, V, P> {
-    pub fn new() -> ModelSynthesisBuilder<I, V, P> {
+impl<T: ModelGenerationTypes> ModelSynthesisBuilder<T> {
+    pub fn new() -> ModelSynthesisBuilder<T> {
         ModelSynthesisBuilder {
             nodes: vec![],
         }
@@ -55,8 +53,8 @@ impl<I: IT, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> ModelSynthesisBuil
 
     pub fn groupe(
         mut self,
-        identifier: I,
-        b: fn(NodeBuilder<I, ()>) -> NodeBuilder<I, ()>
+        identifier: T::Identifier,
+        b: fn(NodeBuilder<T, ()>) -> NodeBuilder<T, ()>
     ) -> Self {
         let mut builder = NodeBuilder {
             depends: vec![],
@@ -84,9 +82,9 @@ impl<I: IT, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> ModelSynthesisBuil
         self
     }
 
-    pub fn number_range<R: RangeBounds<i32>, F: FnOnce(NodeBuilder<I, R>) -> NodeBuilder<I, R>>(
+    pub fn number_range<R: RangeBounds<i32>, F: FnOnce(NodeBuilder<T, R>) -> NodeBuilder<T, R>>(
         mut self,
-        identifier: I,
+        identifier: T::Identifier,
         b: F, 
     ) -> Self {
         let mut builder = NodeBuilder {
@@ -114,9 +112,9 @@ impl<I: IT, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> ModelSynthesisBuil
         self
     }
 
-    pub fn position_set<F: FnOnce(NodeBuilder<I, PositionSet<V, P>>) -> NodeBuilder<I, PositionSet<V, P>>>(
+    pub fn position_set<F: FnOnce(NodeBuilder<T, PositionSet<T>>) -> NodeBuilder<T, PositionSet<T>>>(
         mut self,
-        identifier: I,
+        identifier: T::Identifier,
         b: F, 
     ) -> Self {
 
@@ -145,9 +143,9 @@ impl<I: IT, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> ModelSynthesisBuil
         self
     }
  
-    pub fn build<F: FnOnce(NodeBuilder<I, ()>) -> NodeBuilder<I, ()>>(
+    pub fn build<F: FnOnce(NodeBuilder<T, ()>) -> NodeBuilder<T, ()>>(
         mut self, 
-        identifier: I,
+        identifier: T::Identifier,
         b: F, 
     ) -> Self {
         let mut builder = NodeBuilder {
@@ -178,37 +176,37 @@ impl<I: IT, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> ModelSynthesisBuil
     
 }
 
-impl<I: IT, T> NodeBuilder<I, T> {
+impl<T: ModelGenerationTypes, V> NodeBuilder<T, V> {
 
-    pub fn ammount(mut self, ammount: BuilderAmmount<I>) -> Self {
+    pub fn ammount(mut self, ammount: BuilderAmmount<T>) -> Self {
         self.ammount = ammount;
         self
     }
 
-    pub fn depends(mut self, identifier: I) -> Self {
+    pub fn depends(mut self, identifier: T::Identifier) -> Self {
         self.depends.push(identifier);
         self
     }
 
-    pub fn knows(mut self, identifier: I) -> Self {
+    pub fn knows(mut self, identifier: T::Identifier) -> Self {
         self.knows.push(identifier);
         self
     }
 
-    pub fn value(mut self, v: BuilderValue<T>) -> Self {
+    pub fn value(mut self, v: BuilderValue<V>) -> Self {
         self.value = v;
         self
     }
 }
 
-impl<I: IT, V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> ModelSynthesisBuilder<I, V, P> {
-    pub fn get_node_index_by_identifier(&self, identifier: I) -> usize {
+impl<T: ModelGenerationTypes> ModelSynthesisBuilder<T> {
+    pub fn get_node_index_by_identifier(&self, identifier: T::Identifier) -> usize {
         self.nodes.iter()
             .position(|n| n.identifier == identifier)
             .expect(&format!("No Node with Identifier {:?} found.", identifier))
     }
 
-    pub fn build_template(&self) -> TemplateTree<I, V, P> {
+    pub fn build_template(&self) -> TemplateTree<T> {
         TemplateTree::new_from_builder(self)
     }
 }

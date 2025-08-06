@@ -4,19 +4,27 @@ use std::{borrow::Cow, marker::PhantomData, time::Instant};
 use egui_node_graph2::{DataTypeTrait, Graph, GraphEditorState, InputParamKind, NodeDataTrait, NodeId, NodeResponse, NodeTemplateIter, NodeTemplateTrait, UserResponseTrait, WidgetValueTrait};
 use octa_force::{controls::Controls, egui, log::debug, OctaResult};
 
-use crate::csg::{csg_tree_2d::tree::CSGTree2D, slot_map_csg_tree::tree::SlotMapCSGTreeKey, vec_csg_tree::tree::VecCSGTree};
+use crate::csg::{csg_tree_2d::tree::CSGTree2D, fast_query_csg_tree::tree::FastQueryCSGTree, slot_map_csg_tree::tree::SlotMapCSGTreeKey, vec_csg_tree::tree::VecCSGTree};
 
-use super::generation::{builder::IT, collapse::{CollapseNodeKey, Collapser}};
+use super::{examples::islands::{Identifier, IslandKey}, generation::{collapse::{CollapseNodeKey, Collapser}, traits::{ModelGenerationTypes, BU, IT}}};
 
+#[derive(Clone, Copy, Debug, Default)]
+pub struct GenerationTypes {}
+impl ModelGenerationTypes for GenerationTypes {
+    type Identifier = Identifier;
+    type UndoData = IslandKey;
+    type Volume = FastQueryCSGTree<()>;
+    type Volume2D = CSGTree2D<()>;
+}
 
-type UserState<I> = Collapser<I, SlotMapCSGTreeKey, VecCSGTree<()>, CSGTree2D<()>>;
+type UserState<GenerationTypes> = Collapser<GenerationTypes>;
 
 const SHOW_COOLDOWN_TIME: f32 = 0.2;
 
 /// Additional (besides inputs and outputs) state to be stored inside each node.
 #[derive(Debug)]
-pub struct NodeData<I: IT> {
-    p: PhantomData<I>,
+pub struct NodeData<T: ModelGenerationTypes> {
+    p: PhantomData<T>,
     pub collapse_key: CollapseNodeKey,
 }
 
@@ -32,8 +40,8 @@ pub struct DataType;
 ///
 /// This example does not feature editable content within nodes, so this type is dummy.
 #[derive(Copy, Clone, Debug, Default)]
-pub struct ValueType<I: IT> {
-    p: PhantomData<I>
+pub struct ValueType<T: ModelGenerationTypes> {
+    p: PhantomData<T>
 }
 
 
@@ -41,8 +49,8 @@ pub struct ValueType<I: IT> {
 /// In this example there is only one node type ("Node"),
 /// so no this type is dummy.
 #[derive(Clone, Copy, Default)]
-pub struct DummyNodeTemplate<I: IT> {
-    p: PhantomData<I>
+pub struct DummyNodeTemplate<T: ModelGenerationTypes> {
+    p: PhantomData<T>
 }
 
 /// Additional events that bubble up from `NodeDataTrait::bottom_ui` back to your app.
@@ -51,8 +59,8 @@ pub struct DummyResponse;
 
 
 /// Defines how to render edges (connections) between nodes
-impl<I: IT> DataTypeTrait<UserState<I>> for DataType {
-    fn data_type_color(&self, _user_state: &mut UserState<I>) -> egui::Color32 {
+impl<T: ModelGenerationTypes> DataTypeTrait<UserState<T>> for DataType {
+    fn data_type_color(&self, _user_state: &mut UserState<T>) -> egui::Color32 {
         egui::Color32::from_rgb(238, 207, 60)
     }
 
@@ -63,11 +71,11 @@ impl<I: IT> DataTypeTrait<UserState<I>> for DataType {
 
 /// Defines how to name and construct each node variant and what inputs and
 /// outputs each node variant has.
-impl<I: IT> NodeTemplateTrait for DummyNodeTemplate<I> {
-    type NodeData = NodeData<I>;
+impl<T: ModelGenerationTypes> NodeTemplateTrait for DummyNodeTemplate<T> {
+    type NodeData = NodeData<T>;
     type DataType = DataType;
-    type ValueType = ValueType<I>;
-    type UserState = UserState<I>;
+    type ValueType = ValueType<T>;
+    type UserState = UserState<T>;
     type CategoryType = &'static str;
 
     fn node_finder_label(&self, _user_state: &mut Self::UserState) -> Cow<'_, str> {
@@ -94,12 +102,12 @@ impl<I: IT> NodeTemplateTrait for DummyNodeTemplate<I> {
 
 /// Enumeration of all node variants to populate the context menu that allows creating nodes
 #[derive(Clone, Copy, Default)]
-pub struct AllNodeTemplates<I: IT>{
-    p: PhantomData<I>
+pub struct AllNodeTemplates<T: ModelGenerationTypes>{
+    p: PhantomData<T>
 }
 
-impl<I: IT> NodeTemplateIter for AllNodeTemplates<I> {
-    type Item = DummyNodeTemplate<I>;
+impl<T: ModelGenerationTypes> NodeTemplateIter for AllNodeTemplates<T> {
+    type Item = DummyNodeTemplate<T>;
 
     fn all_kinds(&self) -> Vec<Self::Item> {
         vec![]
@@ -107,10 +115,10 @@ impl<I: IT> NodeTemplateIter for AllNodeTemplates<I> {
 }
 
 /// Defines how to render input's GUI when it is not connected.
-impl<I: IT> WidgetValueTrait for ValueType<I> {
+impl<T: ModelGenerationTypes> WidgetValueTrait for ValueType<T> {
     type Response = DummyResponse;
-    type UserState = UserState<I>;
-    type NodeData = NodeData<I>;
+    type UserState = UserState<T>;
+    type NodeData = NodeData<T>;
 
     fn value_widget(
         &mut self,
@@ -118,7 +126,7 @@ impl<I: IT> WidgetValueTrait for ValueType<I> {
         _node_id: NodeId,
         ui: &mut egui::Ui,
         _user_state: &mut Self::UserState,
-        _node_data: &NodeData<I>,
+        _node_data: &NodeData<T>,
     ) -> Vec<DummyResponse> {
         ui.label(_param_name);
         Vec::new()
@@ -128,19 +136,19 @@ impl<I: IT> WidgetValueTrait for ValueType<I> {
 impl UserResponseTrait for DummyResponse {}
 
 /// Defines how to render node window (besides inputs and output ports)
-impl<I: IT> NodeDataTrait for NodeData<I> {
+impl<T: ModelGenerationTypes> NodeDataTrait for NodeData<T> {
     type Response = DummyResponse;
-    type UserState = UserState<I>;
+    type UserState = UserState<T>;
     type DataType = DataType;
-    type ValueType = ValueType<I>;
+    type ValueType = ValueType<T>;
 
     fn bottom_ui(
         &self,
         _ui: &mut egui::Ui,
         _node_id: NodeId,
-        _graph: &Graph<NodeData<I>, Self::DataType, Self::ValueType>,
+        _graph: &Graph<NodeData<T>, Self::DataType, Self::ValueType>,
         _user_state: &mut Self::UserState,
-    ) -> Vec<NodeResponse<Self::Response, NodeData<I>>>
+    ) -> Vec<NodeResponse<Self::Response, NodeData<T>>>
 where
         DummyResponse: UserResponseTrait,
     {
@@ -157,15 +165,15 @@ DummyNodeTemplate<I>,
 UserState<I>,
 >;
 
-pub struct ModelDebugRenderer<I: IT> {
-    state: MyEditorState<I>,
+pub struct ModelDebugRenderer<T: ModelGenerationTypes> {
+    state: MyEditorState<T>,
     level_counter: Vec<usize>,
     show: bool, 
     last_show_change: Instant,
 }
 
-impl<I: IT> ModelDebugRenderer<I> {
-    pub fn render(&mut self, ctx: &egui::Context, collapser: &mut UserState<I>) {
+impl<T: ModelGenerationTypes> ModelDebugRenderer<T> {
+    pub fn render(&mut self, ctx: &egui::Context, collapser: &mut UserState<T>) {
         if !self.show {
             return;
         }
@@ -189,7 +197,7 @@ impl<I: IT> ModelDebugRenderer<I> {
         }
     }
 
-    pub fn update(&mut self, collapser: &mut UserState<I>) {
+    pub fn update(&mut self, collapser: &mut UserState<T>) {
        
         self.state.graph.nodes.clear();
         self.state.node_order.clear();
@@ -209,7 +217,7 @@ impl<I: IT> ModelDebugRenderer<I> {
         }
     }
 
-    fn add_node(&mut self, node_index: CollapseNodeKey, collapser: &mut UserState<I>){
+    fn add_node(&mut self, node_index: CollapseNodeKey, collapser: &mut UserState<T>){
         let collapser_node = &collapser.nodes[node_index];
 
         let id =
@@ -266,7 +274,7 @@ impl<I: IT> ModelDebugRenderer<I> {
         }
     }
 
-    pub fn add_child_connections(&mut self, node_index: CollapseNodeKey, collapser: &mut UserState<I>) {
+    pub fn add_child_connections(&mut self, node_index: CollapseNodeKey, collapser: &mut UserState<T>) {
         let collapser_node = &collapser.nodes[node_index];
         let graph_node = self.state.graph.nodes.iter()
             .find(|(_, data)| data.user_data.collapse_key == node_index)
@@ -297,7 +305,7 @@ impl<I: IT> ModelDebugRenderer<I> {
     }
 }
 
-impl<I: IT> Default for ModelDebugRenderer<I> {
+impl<T: ModelGenerationTypes> Default for ModelDebugRenderer<T> {
     fn default() -> Self {
         Self { 
             state: Default::default(), 
@@ -308,7 +316,7 @@ impl<I: IT> Default for ModelDebugRenderer<I> {
     }
 }
 
-impl<I: IT> fmt::Debug for ModelDebugRenderer<I> {
+impl<T: ModelGenerationTypes> fmt::Debug for ModelDebugRenderer<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ModelDebugRenderer").field("state", &()).field("level_counter", &self.level_counter).field("show", &self.show).field("last_show_change", &self.last_show_change).finish()
     }

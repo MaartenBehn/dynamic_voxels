@@ -3,7 +3,7 @@ use octa_force::OctaResult;
 
 use crate::volume::VolumeQureyPosValid;
 
-use super::{builder::{BU, IT}, collapse::{CollapseNodeKey, CollapseOperation, Collapser}, template::TemplateTree};
+use super::{collapse::{CollapseNodeKey, CollapseOperation, Collapser}, template::TemplateTree};
 
 #[derive(Debug, Clone)]
 pub struct NumberRange {

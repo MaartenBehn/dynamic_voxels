@@ -3,18 +3,18 @@ use slotmap::{new_key_type, SecondaryMap, SlotMap};
 
 use crate::{csg::fast_query_csg_tree::tree::FastQueryCSGTree, volume::{VolumeQureyPosValid, VolumeQureyPosValid2D}};
 
-use super::{builder::{BU, IT}, collapse::{CollapseChildKey, CollapseNodeKey, Collapser}};
+use super::{collapse::{CollapseChildKey, CollapseNodeKey, Collapser}, traits::ModelGenerationTypes};
 
 #[derive(Debug, Clone)]
-pub struct PositionSet<V: VolumeQureyPosValid, P: VolumeQureyPosValid2D>{
-    pub rule: PositionSetRule<V, P>,
+pub struct PositionSet<T: ModelGenerationTypes> {
+    pub rule: PositionSetRule<T>,
     pub positions: SlotMap<CollapseChildKey, Vec3>,
 }
 
 #[derive(Debug, Clone)]
-pub enum PositionSetRule<V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> {
-    GridInVolume(GridVolumeData<V>),
-    GridOnPlane(GridOnPlaneData<P>)
+pub enum PositionSetRule<T: ModelGenerationTypes> {
+    GridInVolume(GridVolumeData<T::Volume>),
+    GridOnPlane(GridOnPlaneData<T::Volume2D>)
 }
 
 #[derive(Debug, Clone)]
@@ -35,8 +35,8 @@ pub struct IterativeGridData {
     pub spacing: f32,
 }
 
-impl<V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> PositionSet<V, P> {
-    pub fn new_grid_in_volume(volume: V, spacing: f32) -> Self {
+impl<T: ModelGenerationTypes> PositionSet<T> {
+    pub fn new_grid_in_volume(volume: T::Volume, spacing: f32) -> Self {
         Self { 
             rule: PositionSetRule::GridInVolume(GridVolumeData {
                 spacing,
@@ -46,7 +46,7 @@ impl<V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> PositionSet<V, P> {
         }
     }
 
-    pub fn new_grid_on_plane(volume: P, spacing: f32, height: f32) -> Self {
+    pub fn new_grid_on_plane(volume: T::Volume2D, spacing: f32, height: f32) -> Self {
         Self { 
             rule: PositionSetRule::GridOnPlane(GridOnPlaneData {
                 spacing,
@@ -69,14 +69,14 @@ impl<V: VolumeQureyPosValid, P: VolumeQureyPosValid2D> PositionSet<V, P> {
         self.positions.contains_key(pos_key)
     }
 
-    pub fn set_volume(&mut self, volume: V) -> OctaResult<()> {
+    pub fn set_volume(&mut self, volume: T::Volume) -> OctaResult<()> {
         let PositionSetRule::GridInVolume(data) = &mut self.rule 
         else { bail!("Not a Position Set that uses a volume.") };
         data.volume = volume;
         Ok(())
     }
 
-    pub fn set_volume2d(&mut self, volume: P) -> OctaResult<()> {
+    pub fn set_volume2d(&mut self, volume: T::Volume2D) -> OctaResult<()> {
         let PositionSetRule::GridOnPlane(data) = &mut self.rule 
         else { bail!("Not a Position Set that uses a volume.") };
         data.volume = volume;
