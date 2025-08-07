@@ -15,7 +15,7 @@ impl TryFrom<VecCSGTree<u8>> for VoxelGrid {
             bail!("Can only transform finite csg trees.");             
         }
 
-        let mut grid = VoxelGrid::new(root.aabb.size().xyz().as_uvec3());
+        let mut grid = VoxelGrid::empty(root.aabb.size().xyz().as_uvec3());
         
         for x in 0..grid.size.x {
             for y in 0..grid.size.y {

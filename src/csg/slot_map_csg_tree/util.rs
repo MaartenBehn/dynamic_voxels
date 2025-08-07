@@ -73,15 +73,11 @@ impl<T: fmt::Debug> SlotMapCSGTree<T> {
                     bail!("The search index did not match any child index in the node {:?}!", node.data);
                 }
             },
-            SlotMapCSGNodeData::Mat(_, c) => {
-                ensure!(*c == search, "The child index in the mat Node did not match the search index!");
-
-                *c = replace;
-            },
-            SlotMapCSGNodeData::Box(_, _)
-            | SlotMapCSGNodeData::Sphere(_, _)
-            | SlotMapCSGNodeData::All(_)
-            | SlotMapCSGNodeData::VoxelGrid(_, _) => {
+            SlotMapCSGNodeData::Box(..)
+            | SlotMapCSGNodeData::Sphere(..)
+            | SlotMapCSGNodeData::All(..)
+            | SlotMapCSGNodeData::OffsetVoxelGrid(..)
+            | SlotMapCSGNodeData::SharedVoxelGrid(..)=> {
                 bail!("Can not replace a child in index in a node {:?}, because it has no children!", node.data)
             }
         }

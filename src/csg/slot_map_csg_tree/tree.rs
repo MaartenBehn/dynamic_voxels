@@ -1,7 +1,7 @@
 use octa_force::glam::{IVec3, Mat4};
 use slotmap::{new_key_type, Key, SlotMap};
 
-use crate::{model::generation::traits::BU, util::aabb3d::AABB, voxel::{grid::VoxelGrid, renderer::palette::Material}};
+use crate::{model::generation::traits::BU, util::aabb3d::AABB, voxel::{grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid, VoxelGrid}, renderer::palette::Material}};
 
 new_key_type! { pub struct SlotMapCSGTreeKey; }
 
@@ -25,11 +25,11 @@ pub enum SlotMapCSGNodeData<T> {
     Union(SlotMapCSGTreeKey, SlotMapCSGTreeKey),
     Remove(SlotMapCSGTreeKey, SlotMapCSGTreeKey),
     Intersect(SlotMapCSGTreeKey, SlotMapCSGTreeKey),
-    Mat(Mat4, SlotMapCSGTreeKey),
     Box(Mat4, T), // Inverse Mat
     Sphere(Mat4, T), // Inverse Mat
     All(T),
-    VoxelGrid(VoxelGrid, IVec3),
+    OffsetVoxelGrid(OffsetVoxelGrid),
+    SharedVoxelGrid(SharedVoxelGrid),
 }
 
 impl<T> SlotMapCSGNode<T> {

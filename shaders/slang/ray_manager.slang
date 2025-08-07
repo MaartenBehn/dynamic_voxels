@@ -4,13 +4,11 @@ import texture_heap;
 import helper_ray;
 import helper_math;
 import debug;
-
-#include "perf_counters.h.slang"
+import perf_counters;
 
 public struct RayManager {
   public GBuffer* g_buffer;
   public Material* palette;
-  public PerfStats* perf_counters;
   public uint max_bounces;
   public TextureHandle2D<uint8_t2> stbn_texture;  
 }
@@ -33,13 +31,10 @@ public struct RayRunner {
   }
 
   public void prepare_trace() {
-    PERF_STAT_INC(RayCasts, 1);
-    PERF_TIME_BEGIN(ClocksPerRay);
   }
   
   [mutating]
   public bool after_trace(uint2 pos, HitInfo hit, RayManager rm, uint bounce_no) {
-    PERF_TIME_END(ClocksPerRay);
 
     float3 albedo;
     float emission;
@@ -86,14 +81,8 @@ public struct RayRunner {
   }
 
   public void finish(uint2 pos, RayManager rm) {
-    uint64_t clock_end = clockARB();
-    float clockDiff = (clock_end - clock_start) / 1000.0;
-
-#if PERF_PRECISE_ITER_HEATMAP
-  clockDiff = g_CurrTraversalIters;
-#endif
-
-    rm.g_buffer.IrradianceTex.Instance[pos] = float4(irradiance, clockDiff);
+    rm.g_buffer.IrradianceTex.Instance[pos] = float4(irradiance, 0);
+    rm.g_buffer.iter_tex.Instance[pos] = ITERS;
   }
 }
 

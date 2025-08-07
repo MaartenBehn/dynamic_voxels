@@ -24,6 +24,7 @@ pub struct GBuffer {
     pub depth_tex: [ImageAndViewAndHandle; 2],
     pub moments_tex: [ImageAndViewAndHandle; 2],
     pub history_len_tex: ImageAndViewAndHandle,
+    pub iter_tex: ImageAndViewAndHandle,
     pub output_tex: OutputTexs, 
 
     pub prev_proj_mat: Mat4,
@@ -52,16 +53,18 @@ pub struct GBufferUniform {
     depth_tex: [DescriptorHandleValue; 2],
     moments_tex: [DescriptorHandleValue; 2],
     history_len_tex: DescriptorHandleValue,
+    iter_tex: DescriptorHandleValue,
     output_tex: DescriptorHandleValue,
 }
 
 impl GBuffer {
     pub fn new(context: &Context, heap: &mut DescriptorHeap, camera: &Camera, swapchain: &Swapchain) -> OctaResult<Self> {
-        let (history_len_tex, 
-            albedo_tex, 
+        let (albedo_tex, 
             irradiance_tex,
             depth_tex, 
             moments_tex,
+            history_len_tex,
+            iter_tex,
             output_tex) = Self::create_image_datas(context, heap, swapchain)?;
 
         let uniform_buffer = context.create_buffer(
@@ -72,11 +75,12 @@ impl GBuffer {
         let proj_mat = camera.projection_matrix().mul_mat4(&camera.view_matrix());
 
         let g_buffer = Self {
-            history_len_tex,
             albedo_tex,
             irradiance_tex,
             depth_tex,
             moments_tex,
+            history_len_tex,
+            iter_tex,
             output_tex,
 
             prev_proj_mat: proj_mat,
@@ -90,11 +94,12 @@ impl GBuffer {
     }
 
     fn create_image_datas(context: &Context, heap: &mut DescriptorHeap, swapchain: &Swapchain) -> OctaResult<(
-        ImageAndViewAndHandle, 
         [ImageAndViewAndHandle; 2], 
         [ImageAndViewAndHandle; 2], 
         [ImageAndViewAndHandle; 2], 
         [ImageAndViewAndHandle; 2],
+        ImageAndViewAndHandle, 
+        ImageAndViewAndHandle, 
         OutputTexs,
     )> {
         //debug!("Supported Image Formats: {:?}", context.physical_device.supported_image_formats);
@@ -123,6 +128,9 @@ impl GBuffer {
 
         let history_len_tex =  create_image(
             vk::Format::R8_UINT, vk::ImageUsageFlags::empty())?;
+
+        let iter_tex =  create_image(
+            vk::Format::R8_UINT, vk::ImageUsageFlags::empty())?;
          
         let mut create_images = |format: vk::Format, usage: vk::ImageUsageFlags|
             -> OctaResult<[ImageAndViewAndHandle; NUM_FRAMES_IN_FLIGHT]> {
@@ -144,6 +152,7 @@ impl GBuffer {
         let moments_tex =  create_images(
             vk::Format::R16G16_SFLOAT, vk::ImageUsageFlags::empty())?;
 
+        
         let output_images = if context.swapchain_supports_storage() {
             OutputTexs::Swapchain(swapchain.images_and_views.iter()
                     .map(|x| heap.create_image_handle(&x.view, vk::ImageUsageFlags::TRANSFER_DST | vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::STORAGE))
@@ -174,7 +183,7 @@ impl GBuffer {
             cmd_buffer.pipeline_image_barriers(&barriers);
         })?;
 
-        Ok((history_len_tex, albedo_tex, irradiance_tex, depth_tex, moments_tex, output_images))
+        Ok((albedo_tex, irradiance_tex, depth_tex, moments_tex, history_len_tex, iter_tex, output_images))
     }
  
     pub fn update(
@@ -219,6 +228,7 @@ impl GBuffer {
             depth_tex: [self.depth_tex[current_index].handle.value, self.depth_tex[last_index].handle.value], 
             moments_tex: [self.moments_tex[current_index].handle.value, self.moments_tex[last_index].handle.value],
             history_len_tex: self.history_len_tex.handle.value,
+            iter_tex: self.iter_tex.handle.value,
             
             output_tex: match &self.output_tex {
                 OutputTexs::Storage(t) => t[current_index].handle.value,
@@ -246,18 +256,20 @@ impl GBuffer {
     }
 
     pub fn on_recreate_swapchain(&mut self, context: &Context, heap: &mut DescriptorHeap, swapchain: &Swapchain) -> OctaResult<()> {
-        let (history_len_tex, 
-            albedo_tex, 
+        let (albedo_tex, 
             irradiance_tex,
             depth_tex, 
             moments_tex,
+            history_len_tex, 
+            iter_tex,
             output_tex) = Self::create_image_datas(context, heap, swapchain)?;
         
-        self.history_len_tex = history_len_tex;
         self.albedo_tex = albedo_tex;
         self.irradiance_tex = irradiance_tex;
         self.depth_tex = depth_tex;
         self.moments_tex = moments_tex;
+        self.history_len_tex = history_len_tex;
+        self.iter_tex = iter_tex;
         self.output_tex = output_tex;
         
         Ok(())

@@ -1,6 +1,7 @@
 import helper_ray;
 import helper_math;
 import debug;
+import perf_counters;
 
 public struct Node {
   uint PackedData[3];
@@ -62,8 +63,7 @@ public struct Tree64 {
 
     uint nodeIdx = start_index; // root
     Node node = TreeNodes[nodeIdx];
-
-   
+ 
     int i;
     for (i = 0; i < 256; i++) {
       //debug("i: %d", i);
@@ -124,7 +124,7 @@ public struct Tree64 {
         node = TreeNodes[nodeIdx];
       }
     }
-    //PERF_STAT_INC(TraversalIters, i);
+    set_iter_count(i);
 
     HitInfo hit;
 
@@ -251,7 +251,7 @@ public struct Tree64 {
         node = TreeNodes[nodeIdx];
       }
     }
-    //PERF_STAT_INC(TraversalIters, i);
+    set_iter_count(i);
 
     HitInfo hit;
 
@@ -397,7 +397,7 @@ public struct Tree64 {
       }
 
     }
-    //PERF_STAT_INC(TraversalIters, j);
+    set_iter_count(j);
 
     HitInfo hit;
     hit.MaterialId = 0;

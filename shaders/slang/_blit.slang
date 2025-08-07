@@ -92,9 +92,8 @@ float4 get_depth(uint2 pos) {
 }
 
 float4 get_heat(uint2 pos) {
-  // radiance.w == renderClocks unless overwritten by reproj / SVGF passes.
-  float iters = pc.GBuffer.IrradianceTex.Instance[pos].w;
-  return float4(viridis_inferno(iters, pc.HeatmapRange), 1);
+  int iters = pc.GBuffer.iter_tex.Instance[pos];
+  return float4(viridis_inferno(float(iters), pc.HeatmapRange), 1.0);
 }
 
 float4 get_variance(uint2 pos) {

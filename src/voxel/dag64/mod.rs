@@ -3,10 +3,12 @@
 pub mod node;
 pub mod add_pos_query_volume;
 pub mod add_aabb_query_volume;
-pub mod update_aabb;
+pub mod update_aabb_query_volume;
+pub mod update_pos_query_volume;
+pub mod expand;
 
 use node::VoxelDAG64Node;
-use octa_force::{glam::{Vec3, Vec3A}, log::{debug, info}};
+use octa_force::{glam::{IVec3, Vec3, Vec3A}, log::{debug, info}};
 use slotmap::{new_key_type, SlotMap};
 
 use crate::{multi_data_buffer::{allocated_vec::AllocatedVec, cached_vec::CachedVec}, util::math::to_mb};
@@ -24,7 +26,7 @@ pub struct VoxelDAG64 {
 pub struct DAG64EntryData {
     pub levels: u8,
     pub root_index: u32,
-    pub offset: Vec3A,
+    pub offset: IVec3,
 }
 
 impl VoxelDAG64 { 

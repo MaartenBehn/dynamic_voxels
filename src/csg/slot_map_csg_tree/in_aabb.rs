@@ -1,14 +1,19 @@
 use octa_force::glam::vec3;
 
-use crate::{util::aabb3d::AABB, volume::{VolumeQureyAABB, VolumeQureyAABBResult}, voxel::renderer::palette::MATERIAL_ID_NONE};
+use crate::{util::{aabb3d::AABB, iaabb3d::AABBI}, volume::{VolumeQureyAABB, VolumeQureyAABBI, VolumeQureyAABBResult}, voxel::renderer::palette::MATERIAL_ID_NONE};
 
 use super::tree::{SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey};
-
 
 
 impl VolumeQureyAABB for SlotMapCSGTree<u8> {
     fn get_aabb_value(&self, aabb: AABB) -> VolumeQureyAABBResult {
        self.get_aabb_internal(aabb, self.root_node) 
+    }
+}
+
+impl VolumeQureyAABBI for SlotMapCSGTree<u8> {
+    fn get_aabb_value_i(&self, aabb: AABBI) -> VolumeQureyAABBResult {
+        self.get_aabb_internal(aabb.into(), self.root_node)
     }
 }
 
@@ -64,10 +69,6 @@ impl SlotMapCSGTree<u8> {
                 if b != 0 { VolumeQureyAABBResult::Full(MATERIAL_ID_NONE) }
                 else { VolumeQureyAABBResult::Full(a) }
             }
-            SlotMapCSGNodeData::Mat(mat, c) => {
-                let aabb = aabb.mul_mat(mat);
-                self.get_aabb_internal(aabb, *c)
-            }
             SlotMapCSGNodeData::Intersect(c1, c2) => {
                 let a = self.get_aabb_internal(aabb, *c1);
                 let b = self.get_aabb_internal(aabb, *c2);
@@ -112,7 +113,8 @@ impl SlotMapCSGTree<u8> {
                 }
             }
             SlotMapCSGNodeData::All(v) => VolumeQureyAABBResult::Full(*v),
-            SlotMapCSGNodeData::VoxelGrid(voxel_grid, ivec3) => todo!(),
+            SlotMapCSGNodeData::OffsetVoxelGrid(offset_voxel_grid) => todo!(),
+            SlotMapCSGNodeData::SharedVoxelGrid(shared_voxel_grid) => todo!(),
         }
     }
 }

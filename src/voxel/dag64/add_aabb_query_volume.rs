@@ -1,14 +1,14 @@
-use octa_force::{glam::{vec3, vec3a, UVec3, Vec3, Vec3A}, log::debug, OctaResult};
+use octa_force::{glam::{vec3, vec3a, IVec3, UVec3, Vec3, Vec3A}, log::debug, OctaResult};
 
 
-use crate::{multi_data_buffer::{allocated_vec::AllocatedVec, buddy_buffer_allocator::BuddyBufferAllocator, cached_vec::CachedVec}, util::aabb3d::AABB, volume::{VolumeQureyAABB, VolumeQureyAABBResult}};
+use crate::{multi_data_buffer::{allocated_vec::AllocatedVec, buddy_buffer_allocator::BuddyBufferAllocator, cached_vec::CachedVec}, util::{aabb3d::AABB, iaabb3d::AABBI}, volume::{VolumeQureyAABB, VolumeQureyAABBI, VolumeQureyAABBResult}};
 
 use super::{node::VoxelDAG64Node, DAG64EntryData, DAG64EntryKey, VoxelDAG64};
 
 impl VoxelDAG64 {
-    pub fn add_aabb_query_volume<V: VolumeQureyAABB>(&mut self, volume: &V) -> OctaResult<DAG64EntryKey> {
-        let offset = volume.get_offset();
-        let dims = volume.get_size().as_uvec3();
+    pub fn add_aabb_query_volume<V: VolumeQureyAABBI>(&mut self, volume: &V) -> OctaResult<DAG64EntryKey> {
+        let offset = volume.get_offset_i();
+        let dims = volume.get_size_i().as_uvec3();
         let mut scale = dims[0].max(dims[1]).max(dims[2]).next_power_of_two();
         scale = scale.max(4);
         if scale.ilog2() % 2 == 1 {
@@ -17,7 +17,7 @@ impl VoxelDAG64 {
 
         let levels = scale.ilog(4) as _;
         
-        let root = self.insert_from_aabb_query_recursive(volume, offset, levels)?;
+        let root = self.add_aabb_query_recursive(volume, offset, levels)?;
         let root_index = self.nodes.push(&[root])?;
         let key = self.entry_points.insert(DAG64EntryData { 
             levels, 
@@ -27,24 +27,22 @@ impl VoxelDAG64 {
  
         Ok(key)
     }
-}
 
-impl VoxelDAG64 {
-    pub fn insert_from_aabb_query_recursive<V: VolumeQureyAABB>(
+    pub fn add_aabb_query_recursive<V: VolumeQureyAABBI>(
         &mut self,
         volume: &V,
-        offset: Vec3A,
+        offset: IVec3,
         node_level: u8,
     ) -> OctaResult<VoxelDAG64Node> {
         let mut bitmask = 0;
 
         if node_level == 1 {
-            let scale = 4_u32.pow(node_level as u32) as f32;
-            let aabb = AABB::new_a(
+            let scale = 4_i32.pow(node_level as u32);
+            let aabb = AABBI::new(
                 offset, 
-                offset + vec3a(scale, scale, scale));
+                offset + scale);
 
-            let res = volume.get_aabb_value(aabb);
+            let res = volume.get_aabb_value_i(aabb);
 
             match res {
                 VolumeQureyAABBResult::Full(v) => {
@@ -62,13 +60,12 @@ impl VoxelDAG64 {
                             for x in 0..4 {
                                 // INFO: DAG Renderer works in XZY Space instead of XYZ like the rest of the
                                 // engine
-                                let pos = UVec3::new(x, z, y);
-                                let index = offset + pos.as_vec3a();
-                                let value = volume.get_value_a(index);
+                                let pos = offset + IVec3::new(x, z, y);
+                                let value = volume.get_value_i(pos);
 
                                 if value != 0 {
                                     vec.push(value);
-                                    bitmask |= 1 << UVec3::new(x, y, z).dot(UVec3::new(1, 4, 16)) as u64;
+                                    bitmask |= 1 << IVec3::new(x, y, z).dot(IVec3::new(1, 4, 16)) as u64;
                                 }
                             }
                         }
@@ -78,12 +75,12 @@ impl VoxelDAG64 {
                 },
             }
         } else {
-            let scale = 4_u32.pow(node_level as u32) as f32;
-            let aabb = AABB::new_a(
+            let scale = 4_i32.pow(node_level as u32);
+            let aabb = AABBI::new(
                 offset, 
-                offset + vec3a(scale, scale, scale));
+                offset + scale);
 
-            let res = volume.get_aabb_value(aabb); 
+            let res = volume.get_aabb_value_i(aabb); 
 
             match res {
                 VolumeQureyAABBResult::Full(v) => {
@@ -94,21 +91,20 @@ impl VoxelDAG64 {
                     }
                 },
                 VolumeQureyAABBResult::Mixed =>  {
-                    let new_scale = 4_u32.pow(node_level as u32 - 1) as f32;
+                    let new_scale = 4_i32.pow(node_level as u32 - 1);
                     let mut nodes = arrayvec::ArrayVec::<_, 64>::new();
                     for z in 0..4 {
                         for y in 0..4 {
-                            for x in 0..4 {
-                                let pos = UVec3::new(x, z, y);
-                                if let Some(child) = self.insert_from_aabb_query_recursive(
+                            for x in 0..4 { 
+                                if let Some(child) = self.add_aabb_query_recursive(
                                     volume,
-                                    offset + pos.as_vec3a() * new_scale,
+                                    offset + IVec3::new(x, z, y) * new_scale,
                                     node_level - 1,
                                 )?
                                     .check_empty()
                                 {
                                     nodes.push(child);
-                                    bitmask |= 1 <<  UVec3::new(x, y, z).dot(UVec3::new(1, 4, 16)) as u64;
+                                    bitmask |= 1 <<  IVec3::new(x, y, z).dot(IVec3::new(1, 4, 16)) as u64;
                                 }
                             }
                         }

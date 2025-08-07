@@ -22,34 +22,31 @@ impl<T: Default + Clone + fmt::Debug> SlotMapCSGTree<T> {
 
         match &node.data {
             SlotMapCSGNodeData::Union(c1, c2) => {
-                self.is_pos_valid_internal(pos, *c1) || self.is_pos_valid_internal(pos, *c2)
-            }
+                        self.is_pos_valid_internal(pos, *c1) || self.is_pos_valid_internal(pos, *c2)
+                    }
             SlotMapCSGNodeData::Remove(c1, c2) => {
-                self.is_pos_valid_internal(pos, *c1) && !self.is_pos_valid_internal(pos, *c2)
-            }
+                        self.is_pos_valid_internal(pos, *c1) && !self.is_pos_valid_internal(pos, *c2)
+                    }
             SlotMapCSGNodeData::Intersect(c1, c2) => {
-                self.is_pos_valid_internal(pos, *c1) && self.is_pos_valid_internal(pos, *c2)
-            }
-            SlotMapCSGNodeData::Mat(mat, c) => {
-                let pos = mat.mul_vec4(pos);
-                self.is_pos_valid_internal(pos, *c)
-            },
+                        self.is_pos_valid_internal(pos, *c1) && self.is_pos_valid_internal(pos, *c2)
+                    }
             SlotMapCSGNodeData::Box(mat, ..) => {
-                let pos = mat.mul_vec4(pos);
+                        let pos = mat.mul_vec4(pos);
 
-                let aabb = AABB::new(
-                    vec3(-0.5, -0.5, -0.5), 
-                    vec3(0.5, 0.5, 0.5));
+                        let aabb = AABB::new(
+                            vec3(-0.5, -0.5, -0.5), 
+                            vec3(0.5, 0.5, 0.5));
 
-                aabb.pos_in_aabb(pos)
-            }
+                        aabb.pos_in_aabb(pos)
+                    }
             SlotMapCSGNodeData::Sphere(mat, ..) => {
-                let pos = Vec3A::from(mat.mul_vec4(pos));
+                        let pos = Vec3A::from(mat.mul_vec4(pos));
 
-                pos.length_squared() < 1.0
-            }
+                        pos.length_squared() < 1.0
+                    }
             SlotMapCSGNodeData::All(..) => true,
-            SlotMapCSGNodeData::VoxelGrid(voxel_grid, ivec3) => todo!(),
+            SlotMapCSGNodeData::OffsetVoxelGrid(voxel_grid) => todo!(),
+            SlotMapCSGNodeData::SharedVoxelGrid(shared_voxel_grid) => todo!(),
         }
     }
 } 

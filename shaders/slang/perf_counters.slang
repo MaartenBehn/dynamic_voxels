@@ -1,16 +1,11 @@
-public enum PerfKey {
-    RayCasts,
-    TraversalIters,
-    ClocksPerRay,
 
-    ReservedStart_ = 10,
-    Count_ = 16,
-};
-public struct PerfStats {
-    public uint64_t Counters[16]; // enum value not constexpr? int(PerfKey.Count_)
-    public uint32_t RayCastItersHistogram[32];
-};
+public static bool COUNT_ITERS = true;
 
-public static PerfStats* g_PerfTracker = nullptr;
+public static int ITERS = 0;
 
-public static int g_CurrTraversalIters = 0;
+public void set_iter_count(int ammount) {
+  if (COUNT_ITERS) {
+    ITERS = ammount;
+  }
+}
+

@@ -219,15 +219,6 @@ impl<T: ModelGenerationTypes> Collapser<T> {
 
         Ok(())
     }
-
-    pub fn set_undo_data(&mut self, index: CollapseNodeKey, data: T::UndoData) -> OctaResult<()> {
-        let node = self.nodes.get_mut(index)
-            .ok_or(anyhow!("Index of build node to set data is not valid!"))?;
-
-        node.undo_data = data;
-
-        Ok(())
-    }
 }
 
 impl<T: ModelGenerationTypes> TemplateTree<T> {

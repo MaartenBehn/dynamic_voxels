@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use octa_force::glam::{vec4, IVec3, UVec3, Vec2, Vec3, Vec3A, Vec4, Vec4Swizzles};
 
-use crate::util::{aabb2d::AABB2D, aabb3d::AABB};
+use crate::util::{aabb2d::AABB2D, aabb3d::AABB, iaabb3d::AABBI};
 
 pub trait VolumeBounds {
     fn calculate_bounds(&mut self);
@@ -28,6 +28,17 @@ pub trait VolumeBounds2D {
     }
 }
 
+pub trait VolumeBoundsI {
+    fn calculate_bounds(&mut self);
+    fn get_bounds_i(&self) -> AABBI;
+    fn get_offset_i(&self) -> IVec3 {
+        self.get_bounds_i().min
+    }
+    fn get_size_i(&self) -> IVec3 {
+        self.get_bounds_i().size()
+    }
+}
+
 pub trait VolumeRandomPos {
     fn get_random_valid_position(&self, search_size: f32) -> Option<Vec3>;
 }
@@ -47,9 +58,12 @@ pub trait VolumeQureyPosValid: VolumeBounds + Clone + Default + Debug {
 }
 
 pub trait VolumeQureyPosValue: VolumeBounds {
-    fn get_value(&self, pos: Vec3) -> u8;
-    fn get_value_a(&self, pos: Vec3A) -> u8;
-    fn get_value_u(&self, pos: UVec3) -> u8;
+    fn get_value(&self, pos: Vec3A) -> u8;
+}
+
+pub trait VolumeQureyPosValueI: VolumeBoundsI {
+    fn get_value_i(&self, pos: IVec3) -> u8;
+    fn get_value_relative_u(&self, pos: UVec3) -> u8;
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -60,7 +74,11 @@ pub enum VolumeQureyAABBResult {
 
 pub trait VolumeQureyAABB: VolumeQureyPosValue {
     fn get_aabb_value(&self, aabb: AABB) -> VolumeQureyAABBResult;
-    }
+}
+
+pub trait VolumeQureyAABBI: VolumeQureyPosValueI {
+    fn get_aabb_value_i(&self, aabb: AABBI) -> VolumeQureyAABBResult;
+}
 
 impl VolumeQureyAABBResult {
     pub fn get_value(self) -> u8 {

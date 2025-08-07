@@ -1,7 +1,7 @@
 
 use std::{rc::Rc, sync::Arc};
 
-use octa_force::{glam::{vec3, vec4, Mat4, Quat, Vec3, Vec3A, Vec3Swizzles, Vec4, Vec4Swizzles}, log::debug, vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
+use octa_force::{anyhow::anyhow, glam::{vec3, vec4, Mat4, Quat, Vec3, Vec3A, Vec3Swizzles, Vec4, Vec4Swizzles}, log::debug, vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
 use parking_lot::Mutex;
 use slotmap::{new_key_type, SlotMap};
 
@@ -42,6 +42,18 @@ impl Scene {
         
         let object = SceneObjectType::DAG64(DAG64SceneObject::new(context, mat, entry_key, dag, &mut self.allocator)?); 
         Ok(self.add_object(object))
+    }
+
+    pub fn set_dag64_entry_key(&mut self, key: SceneObjectKey, entry_key: DAG64EntryKey) -> OctaResult<()> {
+        let object = self.objects.get_mut(key).ok_or_else(|| anyhow!("Invalid SceneObjectKey!"))?;
+        match &mut object.data {
+            SceneObjectType::DAG64(dag64_scene_object) => {
+                dag64_scene_object.entry_key = entry_key;
+            },
+        }
+        object.changed = true;
+
+        Ok(())
     }
 }
 
@@ -85,7 +97,7 @@ impl DAG64SceneObject {
         let mat = Mat4::from_scale_rotation_translation(
             Vec3::splat(scale), 
             Quat::IDENTITY,
-            Vec3::splat(1.0) - Vec3::from(entry.offset) / size as f32,
+            Vec3::splat(1.0) - entry.offset.as_vec3() / size as f32,
         ).mul_mat4(&self.mat.inverse());
 
         let inv_mat = mat.inverse();
@@ -111,8 +123,8 @@ impl DAG64SceneObject {
         let size = entry.get_size();
         AABB::from_min_max(
             &self.mat,
-            entry.offset / VOXELS_PER_SHADER_UNIT as f32, 
-            (entry.offset + Vec3A::splat(size as f32)) / VOXELS_PER_SHADER_UNIT as f32,
+            entry.offset.as_vec3a() / VOXELS_PER_SHADER_UNIT as f32, 
+            (entry.offset.as_vec3a() + Vec3A::splat(size as f32)) / VOXELS_PER_SHADER_UNIT as f32,
         )
     }
 }

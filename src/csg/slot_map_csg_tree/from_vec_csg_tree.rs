@@ -1,6 +1,6 @@
 use slotmap::{Key, SlotMap};
 
-use crate::{csg::vec_csg_tree::tree::{VecCSGNodeData, VecCSGTree}, voxel::renderer::palette::MATERIAL_ID_NONE};
+use crate::{csg::vec_csg_tree::tree::{VecCSGNodeData, VecCSGTree}, voxel::{grid::offset::OffsetVoxelGrid, renderer::palette::MATERIAL_ID_NONE}};
 
 use super::tree::{SlotMapCSGNode, SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey};
 
@@ -50,15 +50,11 @@ impl<T: Default + Copy> VecCSGTree<T> {
 
                 SlotMapCSGNodeData::Intersect(new_c1, new_c2)
             },
-            VecCSGNodeData::Mat(mat, c) => {
-                let new_c = self.convert_node(*c, tree, index);
-
-                SlotMapCSGNodeData::Mat(*mat, new_c)
-            },
+            VecCSGNodeData::Mat(mat, c) => unreachable!(),
             VecCSGNodeData::Box(mat, material) => SlotMapCSGNodeData::Box(*mat, *material),
             VecCSGNodeData::Sphere(mat, material) => SlotMapCSGNodeData::Sphere(*mat, *material),
             VecCSGNodeData::All(material) => SlotMapCSGNodeData::All(*material),
-            VecCSGNodeData::VoxelGrid(grid, offset) => SlotMapCSGNodeData::VoxelGrid(grid.to_owned(), *offset),
+            VecCSGNodeData::VoxelGrid(grid, offset) => SlotMapCSGNodeData::OffsetVoxelGrid(OffsetVoxelGrid::from_grid(grid.to_owned(), *offset)),
         };
 
         tree.nodes.get_mut(index).unwrap().data = data;

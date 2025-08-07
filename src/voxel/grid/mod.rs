@@ -1,5 +1,7 @@
 mod from_vec_csg_tree;
 mod impl_volume;
+pub mod offset;
+pub mod shared;
 
 use std::usize;
 
@@ -15,16 +17,21 @@ const VOXELS_PER_U32: usize = 4;
 pub struct VoxelGrid {
     pub data: Vec<u8>,
     pub size: UVec3,
-    pub offset: Vec3A,
 }
 
 impl VoxelGrid {
-    pub fn new(size: UVec3) -> Self {
+    pub fn empty(size: UVec3) -> Self {
         let data_length = size.element_product() as usize;
         VoxelGrid {
             size,
             data: vec![MATERIAL_ID_NONE as u8; data_length],
-            offset: Vec3A::ZERO,
+        }
+    }
+
+    pub fn from_data(size: UVec3, data: Vec<u8>) -> Self {
+        VoxelGrid {
+            size,
+            data,
         }
     }
 

@@ -3,7 +3,7 @@ use std::iter;
 use feistel_permutation_rs::{DefaultBuildHasher, Permutation};
 use octa_force::glam::{self, ivec3, vec4, Mat4, Vec3, Vec3A, Vec4, Vec4Swizzles};
 
-use super::math::to_3d_ivec3;
+use super::{iaabb3d::AABBI, math::to_3d_ivec3};
 
 
 #[derive(Copy, Clone, Debug)]
@@ -254,6 +254,15 @@ impl From<&bvh::aabb::Aabb<f32, 3>> for AABB {
         AABB {
             min: vec4(value.min.x, value.min.y, value.min.z, 1.0),
             max: vec4(value.max.x, value.max.y, value.max.z, 1.0),
+        }
+    }
+}
+
+impl Into<AABBI> for AABB {
+    fn into(self) -> AABBI {
+        AABBI {
+            min: self.min.xyz().as_ivec3(),
+            max: self.max.xyz().as_ivec3()
         }
     }
 }

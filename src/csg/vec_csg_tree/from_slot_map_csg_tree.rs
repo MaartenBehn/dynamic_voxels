@@ -48,15 +48,11 @@ impl<T: Default + Copy> SlotMapCSGTree<T> {
 
                 VecCSGNodeData::Intersect(new_c1, new_c2)
             },
-            SlotMapCSGNodeData::Mat(mat, c) => {
-                let new_c = self.convert_node(*c, tree, index);
-
-                VecCSGNodeData::Mat(*mat, new_c)
-            },
             SlotMapCSGNodeData::Box(mat, material) => VecCSGNodeData::Box(*mat, *material),
             SlotMapCSGNodeData::Sphere(mat, material) => VecCSGNodeData::Sphere(*mat, *material),
             SlotMapCSGNodeData::All(material) => VecCSGNodeData::All(*material),
-            SlotMapCSGNodeData::VoxelGrid(grid, offset) => VecCSGNodeData::VoxelGrid(grid.to_owned(), *offset),
+            SlotMapCSGNodeData::OffsetVoxelGrid(grid) => VecCSGNodeData::VoxelGrid(grid.grid.to_owned(), grid.offset),
+            SlotMapCSGNodeData::SharedVoxelGrid(shared_voxel_grid) => todo!(),
         };
 
         tree.nodes.get_mut(index).unwrap().data = data;

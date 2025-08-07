@@ -71,6 +71,16 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         self.get_pos(i, child_key)
     }
 
+    pub fn get_dependend_undo_data(&self, index: CollapseNodeKey, identifier: T::Identifier) -> &T::UndoData {
+        let index = self.get_dependend_index(index, identifier);
+        self.get_undo_data(index)
+    }
+
+    pub fn get_dependend_undo_data_mut(&mut self, index: CollapseNodeKey, identifier: T::Identifier) -> &mut T::UndoData {
+        let index = self.get_dependend_index(index, identifier);
+        self.get_undo_data_mut(index)
+    }
+
     pub fn get_parent_pos(&self, index: CollapseNodeKey) -> Vec3 {
         let node = &self.nodes[index];
         self.get_pos(node.defined_by, node.child_key)
@@ -103,5 +113,23 @@ impl<T: ModelGenerationTypes> Collapser<T> {
     pub fn set_position_set_value(&mut self, index: CollapseNodeKey, pos_set: PositionSet<T>) {
         let node = &mut self.nodes[index];
         node.data = NodeDataType::PosSet(pos_set);  
+    }
+
+    pub fn get_undo_data(&self, index: CollapseNodeKey) -> &T::UndoData {
+        &self.nodes[index].undo_data
+    }
+
+    pub fn get_undo_data_mut(&mut self, index: CollapseNodeKey) -> &mut T::UndoData {
+        &mut self.nodes[index].undo_data
+    }
+
+
+    pub fn set_undo_data(&mut self, index: CollapseNodeKey, data: T::UndoData) -> OctaResult<()> {
+        let node = self.nodes.get_mut(index)
+            .ok_or(anyhow!("Index of build node to set data is not valid!"))?;
+
+        node.undo_data = data;
+
+        Ok(())
     }
 }

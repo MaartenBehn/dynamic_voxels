@@ -9,7 +9,7 @@ fn build_from_grid(grid: &VoxelGrid) -> StaticVoxelDAG64 {
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-    let mut grid = VoxelGrid::new(UVec3::ONE * 4_u32.pow(4)); 
+    let mut grid = VoxelGrid::empty(UVec3::ONE * 4_u32.pow(4)); 
     grid.set_example_sphere();
     grid.set_corners();
 

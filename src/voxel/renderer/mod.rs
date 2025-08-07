@@ -1,13 +1,11 @@
 pub mod render_data;
 pub mod palette;
 pub mod g_buffer;
-pub mod frame_perf_stats;
 pub mod shader_stage;
 
 use std::mem;
 use std::time::Duration;
 
-use frame_perf_stats::FramePerfStats;
 use g_buffer::{GBuffer, ImageAndViewAndHandle};
 use octa_force::anyhow::Result;
 use octa_force::camera::Camera;
@@ -41,7 +39,6 @@ pub struct VoxelRenderer {
     pub palette: Palette,
     
     g_buffer: GBuffer,
-    perf_stats: FramePerfStats,
 
     blue_noise_tex: ImageAndViewAndHandle,
    
@@ -66,7 +63,6 @@ pub struct VoxelRenderer {
 pub struct RayManagerData {
     g_buffer_ptr: u64,
     palette_ptr: u64,
-    perf_stats_ptr: u64,
     max_bounces: u32,
     blue_noise_tex: DescriptorHandleValue,
 }
@@ -131,8 +127,6 @@ impl VoxelRenderer {
  
         let g_buffer = GBuffer::new(context, &mut heap, camera, swapchain)?;
 
-        let perf_stats = FramePerfStats::new(context)?;
-
         let img = ImageReader::open("assets/stbn_vec2_2Dx1D_128x128x64_combined.png")?.decode()?;
         let red_green_pixels = img.pixels()
                 .map(|(_, _, p)| [p.0[0], p.0[1]])
@@ -195,7 +189,6 @@ impl VoxelRenderer {
 
             g_buffer,
 
-            perf_stats,
             blue_noise_tex,
 
             trace_ray_stage,
@@ -205,7 +198,7 @@ impl VoxelRenderer {
 
             debug_channel: DebugChannel::None,
             max_bounces: 1,
-            heat_map_max: 20.0,
+            heat_map_max: 256.0,
             temporal_denoise: true,
             denoise_counters: true,
             filter_passes: 2,
@@ -218,7 +211,6 @@ impl VoxelRenderer {
         RayManagerData {
             g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
             palette_ptr: self.palette.buffer.get_device_address(),
-            perf_stats_ptr: self.perf_stats.buffer.get_device_address(),
             max_bounces: self.max_bounces as _,
             blue_noise_tex: self.blue_noise_tex.handle.value,
         }
@@ -250,33 +242,33 @@ impl VoxelRenderer {
 
         self.trace_ray_stage.render(buffer, trace_ray_dispact_params, dispatch_size);
 
-        if self.temporal_denoise {
+        if self.temporal_denoise && self.debug_channel != DebugChannel::HeatMap {
             self.denoise_stage.render(buffer, TemporalDenoiseDispatchParams {
                 g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
                 static_accum_number: self.static_accum_number,
             } ,dispatch_size);
-        }
 
-        for i in 0..self.filter_passes {
+            for i in 0..self.filter_passes {
 
-            let input_tex = if i % 2 == 0 {
-                self.g_buffer.irradiance_tex[engine.get_current_in_flight_frame_index()].handle.value
-            } else {
-                self.temp_irradiance_tex.handle.value 
-            };
+                let input_tex = if i % 2 == 0 {
+                    self.g_buffer.irradiance_tex[engine.get_current_in_flight_frame_index()].handle.value
+                } else {
+                    self.temp_irradiance_tex.handle.value 
+                };
 
-            let output_tex = if i % 2 == 0 {
-                self.temp_irradiance_tex.handle.value 
-            } else {
-                self.g_buffer.irradiance_tex[engine.get_current_in_flight_frame_index()].handle.value
-            };
+                let output_tex = if i % 2 == 0 {
+                    self.temp_irradiance_tex.handle.value 
+                } else {
+                    self.g_buffer.irradiance_tex[engine.get_current_in_flight_frame_index()].handle.value
+                };
 
-            self.filter_stage.render(buffer, AToursFilterDispatchParams {
-                g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
-                in_irradiance_tex: input_tex,
-                out_irradiance_tex: output_tex,
-                pass_index: i as _,
-            } ,dispatch_size);
+                self.filter_stage.render(buffer, AToursFilterDispatchParams {
+                    g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
+                    in_irradiance_tex: input_tex,
+                    out_irradiance_tex: output_tex,
+                    pass_index: i as _,
+                } ,dispatch_size);
+            }
         }
  
         self.blit_stage.render(buffer, ComposeDispatchParams {

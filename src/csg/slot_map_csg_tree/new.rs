@@ -1,7 +1,7 @@
 use octa_force::glam::{vec3, Mat4, Quat, Vec3};
 use slotmap::Key;
 
-use crate::{csg::{vec_csg_tree::tree::VecCSGNodeData, Base}};
+use crate::{csg::{vec_csg_tree::tree::VecCSGNodeData, Base}, voxel::grid::shared::SharedVoxelGrid};
 
 use super::tree::{SlotMapCSGNode, SlotMapCSGNodeData, SlotMapCSGTree, SlotMapCSGTreeKey};
 
@@ -37,6 +37,10 @@ impl <T: Base + Clone> SlotMapCSGNode<T> {
             ).inverse(),
             T::base(),
         ))
+    }
+
+    pub fn new_shared_grid(grid: SharedVoxelGrid) -> Self {
+        SlotMapCSGNode::new(SlotMapCSGNodeData::SharedVoxelGrid(grid))
     }
 } 
 

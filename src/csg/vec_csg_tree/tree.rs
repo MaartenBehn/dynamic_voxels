@@ -162,7 +162,7 @@ impl<T: Base + Clone> VecCSGTree<T> {
 
         let frac = simple_easing::roundtrip((time * 0.1) % 1.0);
 
-        let mut grid = VoxelGrid::new(uvec3(256, 256,256));
+        let mut grid = VoxelGrid::empty(uvec3(256, 256,256));
         grid.set_example_sphere();
 
         let nodes = vec![
@@ -207,7 +207,7 @@ impl<T: Base + Clone> VecCSGTree<T> {
     pub fn new_example_tree_large(time: f32) -> Self {
         puffin::profile_function!();
 
-        let mut grid = VoxelGrid::new(uvec3(4, 4,4));
+        let mut grid = VoxelGrid::empty(uvec3(4, 4,4));
         grid.set_example_sphere();
 
         let nodes = vec![

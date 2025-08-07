@@ -84,7 +84,7 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
     #[cfg(feature="islands")]
     {
         camera.set_meter_per_unit(METERS_PER_SHADER_UNIT as f32);
-        camera.set_position_in_meters(Vec3::new(0.0, -40.0, 0.0)); 
+        camera.set_position_in_meters(Vec3::new(0.0, -40.0, 2.0)); 
         camera.direction = Vec3::new(0.0, 1.0, 0.0).normalize();
         
         camera.speed = 50.0;
@@ -139,9 +139,8 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         let index = csg.append_node_with_remove(
             SlotMapCSGNode::new_sphere(vec3(70.0, 0.0, 0.0), 50.0));
         csg.set_all_aabbs();
-        let aabb = csg.nodes[index].aabb;
 
-        let key = tree64.update_aabb(&csg, aabb, tree64.get_first_key())?;
+        let key = tree64.update_aabb_query_volume(&csg, tree64.get_first_key())?;
 
         let elapsed = now.elapsed();
         info!("Tree Build took {:.2?}", elapsed);
@@ -244,7 +243,7 @@ pub fn record_render_commands(
         &engine.context,
         |ctx| {
              
-            #[cfg(any(feature="scene"))]
+            #[cfg(any(feature="scene", feature="islands"))]
             render_state.renderer.render_ui(ctx);
         },
     )?;

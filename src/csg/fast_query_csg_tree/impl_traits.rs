@@ -20,16 +20,8 @@ impl VolumeQureyPosValid for FastQueryCSGTree<()> {
 }
 
 impl VolumeQureyPosValue for FastQueryCSGTree<u8> {
-    fn get_value(&self, pos: Vec3) -> u8 {
+    fn get_value(&self, pos: Vec3A) -> u8 {
         self.get_pos_internal(Vec4::from((pos, 1.0)), 0)
-    }
-
-    fn get_value_a(&self, pos: Vec3A) -> u8 {
-        self.get_pos_internal(Vec4::from((pos, 1.0)), 0)
-    }
-
-    fn get_value_u(&self, pos: UVec3) -> u8 {
-        self.get_value(pos.as_vec3())
     }
 }
 
