@@ -25,21 +25,21 @@ impl SlotMapCSGTree<u8> {
                         let b = self.get_pos_internal(pos, *c2);
 
                         if a == b { a }
-                        else if a == 0 { b }
+                        else if a == MATERIAL_ID_NONE { b }
                         else { a }
                     }
             SlotMapCSGNodeData::Remove(c1, c2) => {
                         let a = self.get_pos_internal(pos, *c1);
                         let b = self.get_pos_internal(pos, *c2);
 
-                        if b != 0 || a == 0 { 0 }
+                        if b != MATERIAL_ID_NONE || a == MATERIAL_ID_NONE { MATERIAL_ID_NONE }
                         else { a }
                     }
             SlotMapCSGNodeData::Intersect(c1, c2) => {
                         let a = self.get_pos_internal(pos, *c1);
                         let b = self.get_pos_internal(pos, *c2);
 
-                        if a == 0 || b == 0 { 0 }
+                        if a == MATERIAL_ID_NONE || b == MATERIAL_ID_NONE { MATERIAL_ID_NONE }
                         else { a }
                     }
             SlotMapCSGNodeData::Box(mat, v) => {
@@ -50,13 +50,13 @@ impl SlotMapCSGTree<u8> {
                             vec3(0.5, 0.5, 0.5));
 
                         if aabb.pos_in_aabb(pos) { *v }
-                        else { 0 }
+                        else { MATERIAL_ID_NONE }
                     }
             SlotMapCSGNodeData::Sphere(mat, v) => {
                         let pos = Vec3A::from(mat.mul_vec4(pos));
 
                         if pos.length_squared() < 1.0 { *v }
-                        else { 0 }
+                        else { MATERIAL_ID_NONE }
                     }
             SlotMapCSGNodeData::All(v) => *v,
             SlotMapCSGNodeData::OffsetVoxelGrid(voxel_grid) => voxel_grid.get_value(Vec3A::from(pos)),

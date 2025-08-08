@@ -3,17 +3,17 @@ mod impl_volume;
 pub mod offset;
 pub mod shared;
 
-use std::usize;
+use std::{fmt, usize};
 
 use octa_force::glam::{uvec3, vec3, UVec3, Vec3, Vec3A};
 
-use crate::util::math::to_1d;
+use crate::{util::math::to_1d, volume::VolumeBoundsI};
 
 use super::renderer::palette::MATERIAL_ID_NONE;
 
 const VOXELS_PER_U32: usize = 4;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct VoxelGrid {
     pub data: Vec<u8>,
     pub size: UVec3,
@@ -69,6 +69,16 @@ impl VoxelGrid {
     }
 
     pub fn get(&self, pos: UVec3) -> u8 {
+        debug_assert!(pos.cmpge(UVec3::ZERO).all() && pos.cmplt(self.size).all(), "Grid access at {pos} out of bounds! Size: {}", self.size);
         self.data[to_1d(pos, self.size)]
+    }
+}
+
+impl fmt::Debug for VoxelGrid {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("VoxelGrid")
+            .field("data", &())
+            .field("size", &self.size)
+            .finish()
     }
 }

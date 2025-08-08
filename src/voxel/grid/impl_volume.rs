@@ -8,7 +8,7 @@ impl VolumeBoundsI for VoxelGrid {
     fn calculate_bounds(&mut self) {}
 
     fn get_bounds_i(&self) -> AABBI {
-        AABBI::new(IVec3::ZERO, self.size.as_ivec3())
+        AABBI::new(IVec3::ZERO, self.size.as_ivec3() -1)
     }
 
     fn get_size_i(&self) -> IVec3 {
@@ -24,7 +24,7 @@ impl VolumeBoundsI for OffsetVoxelGrid {
     fn calculate_bounds(&mut self) {}
 
     fn get_bounds_i(&self) -> AABBI {
-        AABBI::new(self.offset, self.grid.size.as_ivec3() + self.offset)
+        AABBI::new(self.offset, self.grid.size.as_ivec3() + self.offset - 1)
     }
 
     fn get_size_i(&self) -> IVec3 {
@@ -40,7 +40,7 @@ impl VolumeBoundsI for SharedVoxelGrid {
     fn calculate_bounds(&mut self) {}
 
     fn get_bounds_i(&self) -> AABBI {
-        AABBI::new(self.offset, self.grid.lock().size.as_ivec3() + self.offset)
+        AABBI::new(self.offset, self.grid.lock().size.as_ivec3() + self.offset -1)
     }
 
     fn get_size_i(&self) -> IVec3 {

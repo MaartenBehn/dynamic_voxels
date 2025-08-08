@@ -1,7 +1,7 @@
 use octa_force::glam::{IVec3, Mat4};
 use slotmap::{new_key_type, Key, SlotMap};
 
-use crate::{model::generation::traits::BU, util::aabb3d::AABB, voxel::{grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid, VoxelGrid}, renderer::palette::Material}};
+use crate::{model::generation::traits::BU, util::{aabb3d::AABB, iaabb3d::AABBI}, voxel::{grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid, VoxelGrid}, renderer::palette::Material}};
 
 new_key_type! { pub struct SlotMapCSGTreeKey; }
 
@@ -17,6 +17,7 @@ pub struct SlotMapCSGTree<T> {
 pub struct SlotMapCSGNode<T> {
     pub data: SlotMapCSGNodeData<T>,
     pub aabb: AABB,
+    pub aabbi: AABBI,
     pub parent: SlotMapCSGTreeKey,
 }
 
@@ -37,8 +38,14 @@ impl<T> SlotMapCSGNode<T> {
         SlotMapCSGNode {
             data,
             aabb: Default::default(),
+            aabbi: Default::default(),
             parent: SlotMapCSGTreeKey::null(),
         }
+    }
+
+    pub fn set_aabb(&mut self, aabb: AABB) {
+        self.aabb = aabb;
+        self.aabbi = aabb.into();
     }
 }
 

@@ -87,7 +87,7 @@ impl DAG64SceneObject {
         })
     }
 
-    pub fn push_to_buffer(&mut self, scene_buffer: &mut Buffer) { 
+    pub fn push_to_buffer(&mut self, scene_buffer: &mut Buffer) {
         
         let mut dag = self.dag.lock(); 
         let entry = dag.entry_points[self.entry_key];

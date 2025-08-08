@@ -265,8 +265,6 @@ impl GBuffer {
             iter_tex,
             output_tex) = Self::create_image_datas(context, heap, swapchain)?;
 
-        debug!("Test");
-        
         self.history_len_tex = history_len_tex;
         self.iter_tex = iter_tex;
         self.albedo_tex = albedo_tex;
@@ -274,8 +272,6 @@ impl GBuffer {
         self.depth_tex = depth_tex;
         self.moments_tex = moments_tex;
         self.output_tex = output_tex;
-
-        trace!("Recreate GBuffer done");
         
         Ok(())
     }

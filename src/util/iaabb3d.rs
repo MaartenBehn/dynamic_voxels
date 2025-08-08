@@ -44,4 +44,13 @@ impl Into<AABB> for AABBI {
     fn into(self) -> AABB {
         AABB::new(self.min.as_vec3(), self.max.as_vec3())
     }
-} 
+}
+
+impl Default for AABBI {
+    fn default() -> Self {
+        AABBI {
+            min: IVec3::MAX,
+            max: IVec3::MIN,
+        }
+    }
+}

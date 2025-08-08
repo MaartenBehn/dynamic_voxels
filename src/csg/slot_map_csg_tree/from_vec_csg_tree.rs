@@ -26,6 +26,7 @@ impl<T: Default + Copy> VecCSGTree<T> {
         let new_node = SlotMapCSGNode {
             data: SlotMapCSGNodeData::All(T::default()),
             aabb: node.aabb,
+            aabbi: node.aabb.into(),
             parent: parent,
         };
 

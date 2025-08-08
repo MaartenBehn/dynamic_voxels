@@ -6,7 +6,7 @@ use octa_force::{camera::Camera, glam::{vec3, EulerRot, Mat4, Quat, Vec2, Vec3, 
 use parking_lot::Mutex;
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{csg::{csg_tree_2d::tree::CSGTree2D, fast_query_csg_tree::tree::FastQueryCSGTree, slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGTree, SlotMapCSGTreeKey}, vec_csg_tree::tree::VecCSGTree}, model::generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder}, collapse::{CollapseOperation, Collapser}, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree, traits::{ModelGenerationTypes, BU, IT}}, scene::{dag64::DAG64SceneObject, renderer::SceneRenderer, Scene, SceneObjectData, SceneObjectKey}, util::aabb3d::AABB, volume::{magica_voxel::MagicaVoxelModel, VolumeQureyPosValid}, voxel::{dag64::{DAG64EntryKey, VoxelDAG64}, grid::{shared::SharedVoxelGrid, VoxelGrid}, renderer::palette::Palette}, METERS_PER_SHADER_UNIT};
+use crate::{csg::{csg_tree_2d::tree::CSGTree2D, fast_query_csg_tree::tree::FastQueryCSGTree, slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGTree, SlotMapCSGTreeKey}, vec_csg_tree::tree::VecCSGTree}, model::generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder}, collapse::{CollapseOperation, Collapser}, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree, traits::{ModelGenerationTypes, BU, IT}}, scene::{dag64::DAG64SceneObject, renderer::SceneRenderer, Scene, SceneObjectData, SceneObjectKey}, util::aabb3d::AABB, volume::{magica_voxel::MagicaVoxelModel, VolumeBoundsI, VolumeQureyPosValid}, voxel::{dag64::{DAG64EntryKey, VoxelDAG64}, grid::{shared::SharedVoxelGrid, VoxelGrid}, renderer::palette::Palette}, METERS_PER_SHADER_UNIT};
 
 const COLLAPSES_PER_TICK: usize = 100;
 
@@ -56,7 +56,7 @@ pub struct Island {
 impl Islands {
     pub fn new(palette: &mut Palette) -> OctaResult<Self> {
 
-        let mut dag = VoxelDAG64::new(10000, 100000);
+        let mut dag = VoxelDAG64::new(1000000, 1000000);
         dag.print_memory_info();
         
         let tree_model = MagicaVoxelModel::new("./assets/Fall_Tree.vox")?;
@@ -199,6 +199,9 @@ impl Islands {
                             let pos = collapser.get_parent_pos(index);
                             let island = collapser.get_dependend_undo_data_mut(index, Identifier::IslandBuild);
                             island.csg.append_node_with_union(SlotMapCSGNode::new_shared_grid(self.tree_grid.clone()));
+                            island.csg.calculate_bounds();
+                            dbg!(&island.csg);
+
                             let active_key = self.dag.lock().update_pos_query_volume(&island.csg, island.dag_key)?;
                             island.dag_key = active_key;
                             scene.set_dag64_entry_key(island.scene_key, active_key)?;

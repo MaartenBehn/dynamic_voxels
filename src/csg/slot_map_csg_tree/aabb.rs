@@ -24,7 +24,7 @@ impl<T: Clone> VolumeBoundsI for SlotMapCSGTree<T> {
 
     fn get_bounds_i(&self) -> AABBI {
         let node = &self.nodes[self.root_node];
-        node.aabb.into()
+        node.aabbi
     }
 }
 
@@ -63,20 +63,28 @@ impl<T: Clone> SlotMapCSGTree<T> {
                     },
             SlotMapCSGNodeData::Box(mat, ..) => {
                         let mat = mat.inverse().mul_mat4(base_mat);
-                        self.nodes[i].aabb = AABB::from_box(&mat);
+                        self.nodes[i].set_aabb(AABB::from_box(&mat));
                         changed_nodes.push(i);
                     },
             SlotMapCSGNodeData::Sphere(mat, ..) => {
                         let mat = mat.inverse().mul_mat4(base_mat);
-                        self.nodes[i].aabb = AABB::from_sphere(&mat);
+                        self.nodes[i].set_aabb(AABB::from_sphere(&mat));
                         changed_nodes.push(i);
                     },
             SlotMapCSGNodeData::All(_) => {
-                        self.nodes[i].aabb = AABB::infinte();
+                        self.nodes[i].set_aabb(AABB::infinte());
                         changed_nodes.push(i);
                     },
-            SlotMapCSGNodeData::OffsetVoxelGrid(offset_voxel_grid) => todo!(),
-            SlotMapCSGNodeData::SharedVoxelGrid(shared_voxel_grid) => todo!(),
+            SlotMapCSGNodeData::OffsetVoxelGrid(grid) => {
+                let aabb = grid.get_bounds(); 
+                self.nodes[i].set_aabb(aabb);
+                changed_nodes.push(i);
+            },
+            SlotMapCSGNodeData::SharedVoxelGrid(grid) => {
+                let aabb = grid.get_bounds();
+                self.nodes[i].set_aabb(aabb);
+                changed_nodes.push(i);
+            },
         }
     }
 
@@ -84,13 +92,16 @@ impl<T: Clone> SlotMapCSGTree<T> {
         let node = self.nodes[i].to_owned();
         match node.data {
             SlotMapCSGNodeData::Union(c1, c2) => {
-                self.nodes[i].aabb = self.nodes[c1].aabb.union(self.nodes[c2].aabb);
+                let aabb = self.nodes[c1].aabb.union(self.nodes[c2].aabb);
+                self.nodes[i].set_aabb(aabb);
             }
             SlotMapCSGNodeData::Remove(c1, c2) => {
-                self.nodes[i].aabb = self.nodes[c1].aabb;
+                let aabb = self.nodes[c1].aabb;
+                self.nodes[i].set_aabb(aabb);
             }
             SlotMapCSGNodeData::Intersect(c1, c2) => {
-                self.nodes[i].aabb = self.nodes[c1].aabb.intersect(self.nodes[c2].aabb);
+                let aabb = self.nodes[c1].aabb.intersect(self.nodes[c2].aabb);
+                self.nodes[i].set_aabb(aabb);
             }
             _ => {
                 panic!("propergate_aabb_change can only be called for Union, Remove or Intersect")
