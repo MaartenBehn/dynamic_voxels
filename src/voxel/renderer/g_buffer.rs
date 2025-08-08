@@ -1,20 +1,20 @@
 use std::iter;
 
-use octa_force::{camera::Camera, glam::{self, DVec3, IVec3, Mat4, Quat, UVec2, Vec3}, log::{debug, info, trace}, vulkan::{ash::vk, descriptor_heap::{self, DescriptorHandle, DescriptorHandleValue, DescriptorHeap}, gpu_allocator::MemoryLocation, physical_device::PhysicalDeviceCapabilities, Buffer, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, Image, ImageAndView, ImageBarrier, ImageView, Swapchain, WriteDescriptorSet, WriteDescriptorSetKind}, OctaResult};
+use octa_force::{camera::Camera, glam::{self, DVec3, IVec3, Mat4, Quat, UVec2, Vec3}, log::{debug, info, trace}, vulkan::{ash::vk, descriptor_heap::{self, ImageDescriptorHandle, DescriptorHandleValue, ImageDescriptorHeap}, gpu_allocator::MemoryLocation, physical_device::PhysicalDeviceCapabilities, Buffer, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, Image, ImageAndView, ImageBarrier, ImageView, Swapchain, WriteDescriptorSet, WriteDescriptorSetKind}, OctaResult};
 
 use crate::{METERS_PER_SHADER_UNIT, NUM_FRAMES_IN_FLIGHT};
 
 #[derive(Debug)]
 pub enum OutputTexs {
     Storage([ImageAndViewAndHandle; NUM_FRAMES_IN_FLIGHT]),
-    Swapchain(Vec<DescriptorHandle>)
+    Swapchain(Vec<ImageDescriptorHandle>)
 }
 
 #[derive(Debug)]
 pub struct ImageAndViewAndHandle {
     pub image: Image,
     pub view: ImageView,
-    pub handle: DescriptorHandle,
+    pub handle: ImageDescriptorHandle,
 }
 
 #[derive(Debug)]
@@ -58,7 +58,7 @@ pub struct GBufferUniform {
 }
 
 impl GBuffer {
-    pub fn new(context: &Context, heap: &mut DescriptorHeap, camera: &Camera, swapchain: &Swapchain) -> OctaResult<Self> {
+    pub fn new(context: &Context, heap: &mut ImageDescriptorHeap, camera: &Camera, swapchain: &Swapchain) -> OctaResult<Self> {
         let (albedo_tex, 
             irradiance_tex,
             depth_tex, 
@@ -93,7 +93,7 @@ impl GBuffer {
         Ok(g_buffer)
     }
 
-    fn create_image_datas(context: &Context, heap: &mut DescriptorHeap, swapchain: &Swapchain) -> OctaResult<(
+    fn create_image_datas(context: &Context, heap: &mut ImageDescriptorHeap, swapchain: &Swapchain) -> OctaResult<(
         [ImageAndViewAndHandle; 2], 
         [ImageAndViewAndHandle; 2], 
         [ImageAndViewAndHandle; 2], 
@@ -256,7 +256,7 @@ impl GBuffer {
         inv_proj_mat.mul_mat4(&translation_mat)
     }
 
-    pub fn on_recreate_swapchain(&mut self, context: &Context, heap: &mut DescriptorHeap, swapchain: &Swapchain) -> OctaResult<()> {
+    pub fn on_recreate_swapchain(&mut self, context: &Context, heap: &mut ImageDescriptorHeap, swapchain: &Swapchain) -> OctaResult<()> {
         let (albedo_tex, 
             irradiance_tex,
             depth_tex, 

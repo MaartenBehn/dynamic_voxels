@@ -16,7 +16,7 @@ use octa_force::image::{GenericImageView, ImageReader};
 use octa_force::log::{debug, info};
 use octa_force::puffin_egui::puffin;
 use octa_force::vulkan::ash::vk::{self, BufferDeviceAddressInfo, Format, PushConstantRange, ShaderStageFlags};
-use octa_force::vulkan::descriptor_heap::{DescriptorHandleValue, DescriptorHeap};
+use octa_force::vulkan::descriptor_heap::{DescriptorHandleValue, ImageDescriptorHeap};
 use octa_force::vulkan::gpu_allocator::MemoryLocation;
 use octa_force::vulkan::sampler_pool::{SamplerPool, SamplerSetHandle};
 use octa_force::vulkan::{
@@ -35,7 +35,7 @@ const RENDER_DISPATCH_GROUP_SIZE_Y: u32 = 8;
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct VoxelRenderer {
-    heap: DescriptorHeap,
+    heap: ImageDescriptorHeap,
     pub palette: Palette,
     
     g_buffer: GBuffer,
@@ -112,16 +112,7 @@ impl VoxelRenderer {
         trace_ray_bin: &[u8]
     ) -> OctaResult<VoxelRenderer> {
 
-        let mut heap = context.create_descriptor_heap(vec![
-            vk::DescriptorPoolSize {
-                ty: vk::DescriptorType::SAMPLED_IMAGE,
-                descriptor_count: 30,
-            },
-            vk::DescriptorPoolSize {
-                ty: vk::DescriptorType::STORAGE_IMAGE,
-                descriptor_count: 30,
-            },
-        ])?;
+        let mut heap = context.create_descriptor_heap(40)?;
 
         let palette = Palette::new(context)?;
  
@@ -349,7 +340,6 @@ impl VoxelRenderer {
     ) -> OctaResult<()> {
         self.g_buffer.on_recreate_swapchain(context, &mut self.heap, swapchain)?;
 
-        debug!("Test1");
         let temp_irradiance_image = context.create_image(
             vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC, 
             MemoryLocation::GpuOnly, 
@@ -360,13 +350,11 @@ impl VoxelRenderer {
 
         let temp_irradiance_handle = self.heap.create_image_handle(&temp_irradiance_view, vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC)?;
 
-        debug!("Test2");
         self.temp_irradiance_tex = ImageAndViewAndHandle {
             image: temp_irradiance_image,
             view: temp_irradiance_view,
             handle: temp_irradiance_handle,
         };
-        debug!("Test3");
 
         Ok(())
     }

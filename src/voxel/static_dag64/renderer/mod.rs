@@ -12,7 +12,7 @@ use octa_force::image::{GenericImageView, ImageReader};
 use octa_force::log::info;
 use octa_force::puffin_egui::puffin;
 use octa_force::vulkan::ash::vk::{self, BufferDeviceAddressInfo, Format, PushConstantRange, ShaderStageFlags};
-use octa_force::vulkan::descriptor_heap::{DescriptorHandleValue, DescriptorHeap};
+use octa_force::vulkan::descriptor_heap::{DescriptorHandleValue, ImageDescriptorHeap};
 use octa_force::vulkan::gpu_allocator::MemoryLocation;
 use octa_force::vulkan::sampler_pool::{SamplerPool, SamplerSetHandle};
 use octa_force::vulkan::{

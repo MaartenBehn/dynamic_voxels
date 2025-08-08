@@ -57,7 +57,7 @@ impl SlotMapCSGTree<u8> {
                 else { MATERIAL_ID_NONE }
             }
             SlotMapCSGNodeData::Sphere(mat, v) => {
-                let pos = mat.mul_vec4(Vec4::from((pos.as_vec3(), 1.0)));
+                let pos = Vec3A::from(mat.mul_vec4(Vec4::from((pos.as_vec3(), 1.0))));
 
                 if pos.length_squared() < 1.0 { *v }
                 else { MATERIAL_ID_NONE }

@@ -14,7 +14,7 @@ impl VoxelDAG64 {
         let model_aabb = model.get_bounds_i().into();
         let mut entry_data = self.expand_to_include_aabb(based_on_entry, model_aabb)?;
 
-        let root = self.update_pos_recursive(model, model_aabb,entry_data.levels, entry_data.offset, entry_data.root_index)?;
+        let root = self.update_pos_recursive(model, model_aabb, entry_data.levels, entry_data.offset, entry_data.root_index)?;
         entry_data.root_index = self.nodes.push(&[root])?;
 
         let key = self.entry_points.insert(entry_data);
