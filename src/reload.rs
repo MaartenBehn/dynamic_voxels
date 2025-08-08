@@ -25,7 +25,7 @@ use octa_force::camera::Camera;
 use octa_force::egui_winit::winit::event::WindowEvent;
 use octa_force::glam::{vec3, DVec3, EulerRot, Mat4, Quat, UVec3, Vec3};
 use octa_force::gui::Gui;
-use octa_force::log::{debug, error, info, Log};
+use octa_force::log::{debug, error, info, trace, Log};
 use octa_force::logger::setup_logger;
 use octa_force::puffin_egui::puffin;
 use octa_force::vulkan::ash::vk::AttachmentLoadOp;
@@ -281,5 +281,6 @@ pub fn on_recreate_swapchain(
                 &engine.swapchain,
             )?;
 
+    trace!("On recreate swapchain done");
     Ok(())
 }

@@ -13,7 +13,7 @@ use octa_force::egui::{Align, Frame, Layout};
 use octa_force::engine::Engine;
 use octa_force::glam::{uvec3, UVec2, Vec2, Vec3};
 use octa_force::image::{GenericImageView, ImageReader};
-use octa_force::log::info;
+use octa_force::log::{debug, info};
 use octa_force::puffin_egui::puffin;
 use octa_force::vulkan::ash::vk::{self, BufferDeviceAddressInfo, Format, PushConstantRange, ShaderStageFlags};
 use octa_force::vulkan::descriptor_heap::{DescriptorHandleValue, DescriptorHeap};
@@ -146,7 +146,7 @@ impl VoxelRenderer {
             vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC, 
             MemoryLocation::GpuOnly, 
             Format::R8G8B8A8_UNORM, 
-            swapchain.size.x, swapchain.size.y)?;
+            swapchain.size)?;
 
         let temp_irradiance_view = temp_irradiance_image.create_image_view(false)?;
 
@@ -349,21 +349,24 @@ impl VoxelRenderer {
     ) -> OctaResult<()> {
         self.g_buffer.on_recreate_swapchain(context, &mut self.heap, swapchain)?;
 
+        debug!("Test1");
         let temp_irradiance_image = context.create_image(
             vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC, 
             MemoryLocation::GpuOnly, 
             Format::R8G8B8A8_UNORM, 
-            swapchain.size.x, swapchain.size.y)?;
+            swapchain.size)?;
 
         let temp_irradiance_view = temp_irradiance_image.create_image_view(false)?;
 
         let temp_irradiance_handle = self.heap.create_image_handle(&temp_irradiance_view, vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC)?;
 
+        debug!("Test2");
         self.temp_irradiance_tex = ImageAndViewAndHandle {
             image: temp_irradiance_image,
             view: temp_irradiance_view,
             handle: temp_irradiance_handle,
         };
+        debug!("Test3");
 
         Ok(())
     }

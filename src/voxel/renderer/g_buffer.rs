@@ -1,6 +1,6 @@
 use std::iter;
 
-use octa_force::{camera::Camera, glam::{self, DVec3, IVec3, Mat4, Quat, UVec2, Vec3}, log::{debug, info}, vulkan::{ash::vk, descriptor_heap::{self, DescriptorHandle, DescriptorHandleValue, DescriptorHeap}, gpu_allocator::MemoryLocation, physical_device::PhysicalDeviceCapabilities, Buffer, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, Image, ImageAndView, ImageBarrier, ImageView, Swapchain, WriteDescriptorSet, WriteDescriptorSetKind}, OctaResult};
+use octa_force::{camera::Camera, glam::{self, DVec3, IVec3, Mat4, Quat, UVec2, Vec3}, log::{debug, info, trace}, vulkan::{ash::vk, descriptor_heap::{self, DescriptorHandle, DescriptorHandleValue, DescriptorHeap}, gpu_allocator::MemoryLocation, physical_device::PhysicalDeviceCapabilities, Buffer, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, Image, ImageAndView, ImageBarrier, ImageView, Swapchain, WriteDescriptorSet, WriteDescriptorSetKind}, OctaResult};
 
 use crate::{METERS_PER_SHADER_UNIT, NUM_FRAMES_IN_FLIGHT};
 
@@ -113,7 +113,7 @@ impl GBuffer {
                 base_flags | usage, 
                 MemoryLocation::GpuOnly, 
                 format, 
-                swapchain.size.x, swapchain.size.y)?;
+                swapchain.size)?;
 
             let view = image.create_image_view(false)?;
 
@@ -178,6 +178,7 @@ impl GBuffer {
                     dst_stage_mask: vk::PipelineStageFlags2::ALL_COMMANDS,
                 }
             ).collect::<Vec<_>>();
+
 
         context.execute_one_time_commands(|cmd_buffer| {
             cmd_buffer.pipeline_image_barriers(&barriers);
@@ -263,14 +264,18 @@ impl GBuffer {
             history_len_tex, 
             iter_tex,
             output_tex) = Self::create_image_datas(context, heap, swapchain)?;
+
+        debug!("Test");
         
+        self.history_len_tex = history_len_tex;
+        self.iter_tex = iter_tex;
         self.albedo_tex = albedo_tex;
         self.irradiance_tex = irradiance_tex;
         self.depth_tex = depth_tex;
         self.moments_tex = moments_tex;
-        self.history_len_tex = history_len_tex;
-        self.iter_tex = iter_tex;
         self.output_tex = output_tex;
+
+        trace!("Recreate GBuffer done");
         
         Ok(())
     }

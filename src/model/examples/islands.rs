@@ -56,7 +56,7 @@ pub struct Island {
 impl Islands {
     pub fn new(palette: &mut Palette) -> OctaResult<Self> {
 
-        let mut dag = VoxelDAG64::new(1000000, 1000000);
+        let mut dag = VoxelDAG64::new(10000, 100000);
         dag.print_memory_info();
         
         let tree_model = MagicaVoxelModel::new("./assets/Fall_Tree.vox")?;
@@ -81,7 +81,7 @@ impl Islands {
                 .ammount(BuilderAmmount::OneGlobal)
                 .value(BuilderValue::Const(PositionSet::new_grid_in_volume(
                     island_volume,
-                    1000.0 )
+                    100.0 )
                 ))
             })
             .build(Identifier::IslandBuild, |b| {b
@@ -123,7 +123,7 @@ impl Islands {
         }
         self.last_pos = new_pos;
 
-        let island_volume = VecCSGTree::new_sphere(new_pos, 2000.0); 
+        let island_volume = VecCSGTree::new_sphere(new_pos, 200.0); 
         let island_volume = FastQueryCSGTree::from(island_volume);
 
         self.template.get_node_position_set(Identifier::IslandPositions)?.set_volume(island_volume.clone())?;
@@ -172,7 +172,7 @@ impl Islands {
                         Identifier::IslandBuild => {
                             let pos = collapser.get_parent_pos(index);
 
-                            let csg = SlotMapCSGTree::new_disk(Vec3::ZERO, 1000.0, 10.0);
+                            let csg = SlotMapCSGTree::new_disk(Vec3::ZERO, 100.0, 10.0);
                             let active_key = self.dag.lock().add_aabb_query_volume(&csg)?;
 
                             let scene_object_key = scene.add_dag64(

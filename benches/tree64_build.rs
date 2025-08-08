@@ -1,7 +1,7 @@
 use std::hint::black_box;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use octa_force::glam::{UVec3, Vec3};
-use reload::{csg::{fast_query_csg_tree::tree::FastQueryCSGTree, slot_map_csg_tree::tree::SlotMapCSGTree, vec_csg_tree::tree::VecCSGTree}, multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, volume::VolumeQureyAABB, voxel::{dag64::VoxelDAG64, grid::VoxelGrid}};
+use reload::{csg::{fast_query_csg_tree::tree::FastQueryCSGTree, slot_map_csg_tree::tree::SlotMapCSGTree, vec_csg_tree::tree::VecCSGTree}, multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, volume::{VolumeQureyAABB, VolumeQureyAABBI}, voxel::{dag64::VoxelDAG64, grid::VoxelGrid}};
 
 fn build_from_grid(grid: &VoxelGrid) -> VoxelDAG64 {
     let mut tree64: VoxelDAG64 = VoxelDAG64::new(10000, 64);
@@ -9,7 +9,7 @@ fn build_from_grid(grid: &VoxelGrid) -> VoxelDAG64 {
     tree64
 }
 
-fn build_from_aabb_query<M: VolumeQureyAABB>(model: &M) -> VoxelDAG64 {
+fn build_from_aabb_query<M: VolumeQureyAABBI>(model: &M) -> VoxelDAG64 {
     let mut tree64: VoxelDAG64 = VoxelDAG64::new(10000, 64);
     tree64.add_aabb_query_volume(model).unwrap();
     tree64
