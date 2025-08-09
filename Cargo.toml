@@ -73,6 +73,9 @@ dot_vox = "5"
 
 bitvec = "1"
 
+# for async workers
+smol = "2.0"
+oneshot = "0.1"
 
 [dev-dependencies]
 proptest = "0.9.6"

@@ -26,7 +26,7 @@ impl CompactRange {
     }
 }
 
-impl<T: Copy + Default + fmt::Debug + Sync + Eq + std::hash::Hash, Hasher: std::hash::BuildHasher + Default + fmt::Debug> 
+impl<T: Copy + Default + fmt::Debug + Eq + std::hash::Hash, Hasher: std::hash::BuildHasher + Default + fmt::Debug> 
     CachedVec<T, Hasher> {
     pub fn new(size: usize) -> Self {
         Self { 
