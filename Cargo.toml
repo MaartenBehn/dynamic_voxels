@@ -63,7 +63,7 @@ nalgebra = "=0.33.2"
 
 ## For own DAG64 implementation
 arrayvec = "0.7.6"
-rayon = "1.10.0"
+rayon = "1.10"
 hashbrown = "0.15.2"
 fnv = "1.0.7"
 parking_lot = "0.12"
@@ -72,6 +72,7 @@ parking_lot = "0.12"
 dot_vox = "5"
 
 bitvec = "1"
+
 
 [dev-dependencies]
 proptest = "0.9.6"
