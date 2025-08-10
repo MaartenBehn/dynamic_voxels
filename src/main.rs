@@ -3,9 +3,12 @@ extern crate reload as dynamic_voxels;
 use bvh::bvh::Bvh;
 use dynamic_voxels::csg::fast_query_csg_tree::tree::FastQueryCSGTree;
 use dynamic_voxels::multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator;
+use dynamic_voxels::volume::magica_voxel::MagicaVoxelModel;
 use dynamic_voxels::voxel::dag64::VoxelDAG64;
+use dynamic_voxels::voxel::grid::shared::SharedVoxelGrid;
 use dynamic_voxels::voxel::grid::VoxelGrid;
 use dynamic_voxels::model::examples::islands::Islands;
+use dynamic_voxels::voxel::renderer::palette::Palette;
 use octa_force::binding::r#trait::BindingTrait;
 use octa_force::egui_winit::winit::event::WindowEvent;
 use octa_force::engine::{Engine, EngineConfig, EngineFeatureValue};
@@ -42,24 +45,6 @@ fn main() {
 
     #[cfg(feature = "profile_dag")]
     { 
-        /*
-        let buffer_size = 2_usize.pow(30);
-        let mut allocator = BuddyBufferAllocator::new(buffer_size, 32);
-
-        let USE_CSG = true;
-        let tree64 = if USE_CSG {
-            let csg: FastQueryCSGTree<u8> = VecCSGTree::new_sphere(Vec3::ZERO, 100.0).into();
-            VoxelDAG64::from_aabb_query(&csg, &mut allocator).unwrap()
-        } else {
-            let mut grid = VoxelGrid::new(UVec3::ONE * 4_u32.pow(5)); 
-            grid.set_example_sphere();
-            grid.set_corners();
-
-            VoxelDAG64::from_pos_query(&grid, &mut allocator).unwrap()
-        }; 
-        dbg!(tree64.root_index);
-        
-        */
         return;
     }
 

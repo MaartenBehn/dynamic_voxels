@@ -40,11 +40,11 @@ impl VolumeBoundsI for SharedVoxelGrid {
     fn calculate_bounds(&mut self) {}
 
     fn get_bounds_i(&self) -> AABBI {
-        AABBI::new(self.offset, self.grid.lock().size.as_ivec3() + self.offset -1)
+        AABBI::new(self.offset, self.grid.size.as_ivec3() + self.offset -1)
     }
 
     fn get_size_i(&self) -> IVec3 {
-        self.grid.lock().size.as_ivec3()
+        self.grid.size.as_ivec3()
     }
 
     fn get_offset_i(&self) -> IVec3 {
@@ -104,11 +104,11 @@ impl VolumeQureyPosValueI for OffsetVoxelGrid {
 impl VolumeQureyPosValueI for SharedVoxelGrid {
     fn get_value_i(&self, pos: IVec3) -> u8 {
         let pos = pos - self.offset;
-        self.grid.lock().get_value_i(pos)
+        self.grid.get_value_i(pos)
     }
 
     fn get_value_relative_u(&self, pos: UVec3) -> u8 {
-        self.grid.lock().get_value_relative_u(pos)
+        self.grid.get_value_relative_u(pos)
     }
 }
 

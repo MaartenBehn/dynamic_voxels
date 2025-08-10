@@ -17,9 +17,9 @@ fn build_from_aabb_query<M: VolumeQureyAABBI>(model: &M) -> VoxelDAG64 {
 
 fn build_from_pos_query_par<M: VolumeQureyPosValueI + Sync + Send>(model: &M) -> VoxelDAG64 {
     let dag = VoxelDAG64::new(100000, 64);
-    let mut dag = dag.run_worker(10);
+    let mut dag = dag.parallel();
     dag.add_pos_query_volume(model).unwrap();
-    dag.stop()
+    dag.single()
 }
 
 fn criterion_benchmark(c: &mut Criterion) {

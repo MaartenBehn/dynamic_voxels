@@ -73,7 +73,7 @@ nalgebra = "=0.33.2"
 rayon = "1.10"
 hashbrown = { version = "0.15", features = [ "rayon" ] }
 fnv = "1.0.7"
-parking_lot = "0.12"
+parking_lot = { version = "0.12" }
 
 # For importing magica voxel models
 dot_vox = "5"

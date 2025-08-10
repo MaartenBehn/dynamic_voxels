@@ -5,9 +5,9 @@ use reload::{csg::{csg_tree::tree::CSGTree, fast_query_csg_tree::tree::FastQuery
 
 fn build_from_pos_query_par<M: VolumeQureyPosValueI + Sync + Send>(model: &M) -> VoxelDAG64 {
     let dag = VoxelDAG64::new(1000000, 1000000);
-    let mut dag = dag.run_worker(10);
+    let mut dag = dag.parallel();
     dag.add_pos_query_volume(model).unwrap();
-    dag.stop()
+    dag.single()
 }
 
 fn pos_query_par(c: &mut Criterion) {

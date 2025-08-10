@@ -6,7 +6,7 @@ use super::ParallelVoxelDAG64;
 use rayon::iter::{walk_tree_postfix};
 use rayon::prelude::*;
 
-const PARALLSE_LEAFS: bool = false;
+const PARA_LEAFS: bool = false;
 
 impl ParallelVoxelDAG64 {
     pub fn add_pos_query_volume<M: VolumeQureyPosValueI + Sync + Send>(&mut self, model: &M) -> OctaResult<DAG64EntryKey> {
@@ -14,7 +14,7 @@ impl ParallelVoxelDAG64 {
 
         let root = self.add_pos_query_recursive_par(model, offset, levels)?;
 
-        let root_index = self.nodes.push_single(root).result_blocking()?;
+        let root_index = self.nodes.push(&[root])?;
         let key = self.entry_points.lock().insert(DAG64EntryData { 
             levels, 
             root_index, 
@@ -33,7 +33,7 @@ impl ParallelVoxelDAG64 {
     ) -> OctaResult<VoxelDAG64Node> {
         if node_level == 1 {
 
-            let (vec, bitmask) = if PARALLSE_LEAFS {
+            let (vec, bitmask) = if PARA_LEAFS {
                 get_dag_node_children().into_par_iter()
                     .map(|pos| {
                         let pos = offset + pos.xyz().as_ivec3();
@@ -76,7 +76,7 @@ impl ParallelVoxelDAG64 {
                 (vec, bitmask)
             };
             
-            let ptr = self.data.push(vec).result_blocking()?;
+            let ptr = self.data.push(&vec)?;
             Ok(VoxelDAG64Node::new(true, ptr, bitmask))
         } else {
 
@@ -84,9 +84,10 @@ impl ParallelVoxelDAG64 {
             let new_scale = 4_i32.pow(new_level  as u32);
             let (vec, bitmask) = get_dag_node_children().into_par_iter()
                 .enumerate()
-                .map(|(i, pos)| {
+                .map(move |(i, pos)| {
                     let pos = offset + pos.xyz().as_ivec3() * new_scale;
                     let res = self.add_pos_query_recursive_par(model, pos, new_level);
+
                     if let Ok(res) = res {
                         if res.is_empty() {
                             None
@@ -112,7 +113,7 @@ impl ParallelVoxelDAG64 {
                         Ok((vec_a, bitmask_a))
                     })?;
 
-            let ptr = self.nodes.push(vec).result_blocking()?;
+            let ptr = self.nodes.push(&vec)?;
             Ok(VoxelDAG64Node::new(false, ptr, bitmask))
         }
     }

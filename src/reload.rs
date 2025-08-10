@@ -134,10 +134,10 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         let now = Instant::now();
 
         let dag = VoxelDAG64::new(100000, 64);
-        let mut dag = dag.run_worker(10);
+        let mut dag = dag.parallel();
         dag.add_pos_query_volume(&csg)?;
 
-        let mut dag = dag.stop();
+        let mut dag = dag.single();
 
         let index = csg.append_node_with_remove(
             CSGNode::new_sphere(vec3(70.0, 0.0, 0.0), 50.0));

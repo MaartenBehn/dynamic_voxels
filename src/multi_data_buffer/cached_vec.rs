@@ -8,20 +8,20 @@ use octa_force::{anyhow::bail, itertools::Itertools, log::{debug, error}, vulkan
 
 #[derive(Debug)]
 pub struct CachedVec<T, Hasher = fnv::FnvBuildHasher> {
-    data: Vec<T>,
-    used_ranges: Vec<(usize, usize)>,
-    cache: hashbrown::HashTable<CompactRange>,
+    pub data: Vec<T>,
+    pub used_ranges: Vec<(usize, usize)>,
+    pub cache: hashbrown::HashTable<CompactRange>,
     _phantom: std::marker::PhantomData<Hasher>,
 }
 
 #[derive(Debug, Clone, Copy, PartialOrd, Ord, Eq, PartialEq)]
-struct CompactRange {
-    start: u32,
-    length: u8,
+pub struct CompactRange {
+    pub start: u32,
+    pub length: u8,
 }
 
 impl CompactRange {
-    fn as_range(&self) -> std::ops::Range<usize> {
+    pub fn as_range(&self) -> std::ops::Range<usize> {
         self.start as usize..self.start as usize + self.length as usize
     }
 }
@@ -42,8 +42,7 @@ impl<T: Copy + Default + fmt::Debug + Eq + std::hash::Hash, Hasher: std::hash::B
             return Ok(0);
         }
 
-        
-        
+         
         let hasher = Hasher::default();
         let hash = hasher.hash_one(values);
 
