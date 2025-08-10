@@ -36,7 +36,7 @@ const RENDER_DISPATCH_GROUP_SIZE_Y: u32 = 8;
 #[derive(Debug)]
 pub struct VoxelRenderer {
     heap: ImageDescriptorHeap,
-    pub palette_buffer: PaletteBuffer,
+    palette_buffer: PaletteBuffer,
     
     g_buffer: GBuffer,
 
@@ -211,6 +211,10 @@ impl VoxelRenderer {
         self.g_buffer.update(camera, context, res, in_flight_frame_index, frame_index, self.denoise_counters)?;
 
         Ok(())
+    }
+
+    pub fn push_palette(&self, context: &Context, palette: &Palette) -> OctaResult<()> {
+        self.palette_buffer.push_palette(context, palette)
     }
 
     pub fn render<D>(

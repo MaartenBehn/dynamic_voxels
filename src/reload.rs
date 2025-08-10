@@ -35,7 +35,7 @@ use util::state_saver::StateSaver;
 use volume::VolumeBounds;
 use voxel::dag64::VoxelDAG64;
 use voxel::grid::VoxelGrid;
-use voxel::renderer::palette::Palette;
+use voxel::renderer::palette::{self, Palette};
 use voxel::static_dag64::renderer::StaticDAG64Renderer;
 use voxel::static_dag64::StaticVoxelDAG64;
 use std::f32::consts::PI;
@@ -74,8 +74,8 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
     #[cfg(feature="scene")]
     {
         camera.set_meter_per_unit(METERS_PER_SHADER_UNIT as f32);
-        camera.set_position_in_meters(Vec3::new(15.501491, -12.135776, 3.5071237)); 
-        camera.direction = Vec3::new(-0.580947, 0.7954067, -0.17271005).normalize();
+        camera.set_position_in_meters(Vec3::new(12.648946, 21.449644, 6.6995387)); 
+        camera.direction = Vec3::new(-0.6110025, -0.7362994, -0.29075617).normalize();
         
         camera.speed = 10.0;
         camera.z_near = 0.001;
@@ -133,17 +133,16 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
         let now = Instant::now();
 
-        let dag = VoxelDAG64::new(100000, 64);
+        let mut dag = VoxelDAG64::new(100000, 64);
         let mut dag = dag.parallel();
-        dag.add_pos_query_volume(&csg)?;
-
+        let key = dag.add_aabb_query_volume(&csg)?;
         let mut dag = dag.single();
 
         let index = csg.append_node_with_remove(
             CSGNode::new_sphere(vec3(70.0, 0.0, 0.0), 50.0));
         csg.set_all_aabbs();
 
-        let key = dag.update_aabb_query_volume(&csg, dag.get_first_key())?;
+        let key = dag.update_aabb_query_volume(&csg, key)?;
 
         let elapsed = now.elapsed();
         info!("Tree Build took {:.2?}", elapsed);
@@ -159,7 +158,9 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
             Arc::new(Mutex::new(dag)),
         )?;
 
+        let palette = Palette::new();
         let renderer = SceneRenderer::new(&engine.context, &engine.swapchain, scene, &logic_state.camera)?;
+        renderer.push_palette(&engine.context, &palette)?;
 
         Ok(RenderState {
             gui,
@@ -201,7 +202,7 @@ pub fn update(
     let time = logic_state.start_time.elapsed(); 
 
     logic_state.camera.update(&engine.controls, delta_time);
-    //info!("Camera Pos: {} Dir: {}", logic_state.camera.get_position_in_meters(), logic_state.camera.direction);
+    info!("Camera Pos: {} Dir: {}", logic_state.camera.get_position_in_meters(), logic_state.camera.direction);
     
     #[cfg(any(feature="islands"))]
     {

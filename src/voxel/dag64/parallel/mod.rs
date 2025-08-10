@@ -1,4 +1,5 @@
 pub mod add_pos_query_volume;
+pub mod add_aabb_query_volume;
 
 use std::sync::Arc;
 

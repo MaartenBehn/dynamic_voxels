@@ -2,7 +2,7 @@ use octa_force::{glam::{IVec3, UVec3, Vec3A}, log::debug, OctaResult};
 use smallvec::SmallVec;
 
 
-use crate::{multi_data_buffer::{allocated_vec::AllocatedVec, buddy_buffer_allocator::BuddyBufferAllocator, cached_vec::CachedVec}, volume::{VolumeQureyPosValueI}};
+use crate::{multi_data_buffer::{allocated_vec::AllocatedVec, buddy_buffer_allocator::BuddyBufferAllocator, cached_vec::CachedVec}, util::math::get_dag_node_children_xzy_i, volume::VolumeQureyPosValueI};
 
 use super::{node::VoxelDAG64Node, util::get_dag_offset_levels, DAG64EntryData, DAG64EntryKey, VoxelDAG64};
 
@@ -31,40 +31,35 @@ impl VoxelDAG64 {
 
         if node_level == 1 {
             let mut vec = SmallVec::<[_; 64]>::new();
-            for z in 0..4 {
-                for y in 0..4 {
-                    for x in 0..4 {
-                        // INFO: DAG Renderer works in XZY Space instead of XYZ like the rest of the
-                        // engine
-                        let pos = offset + IVec3::new(x, z, y);
-                        let value = model.get_value_i(pos);
 
-                        if value != 0 {
-                            vec.push(value);
-                            bitmask |= 1 << IVec3::new(x, y, z).dot(IVec3::new(1, 4, 16)) as u64;
-                        }
-                    }
+            // INFO: DAG Renderer works in XZY Space instead of XYZ like the rest of the
+            // engine
+            for (i, pos) in get_dag_node_children_xzy_i().into_iter().enumerate() {
+                let pos = offset + pos;
+                let value = model.get_value_i(pos);
+
+                if value != 0 {
+                    vec.push(value);
+                    bitmask |= 1 << i as u64;
                 }
-            }
+            } 
 
-            Ok(VoxelDAG64Node::new(true, self.data.push(&vec)? as u32, bitmask))
+            let ptr = self.data.push(&vec)?;
+            Ok(VoxelDAG64Node::new(true, ptr, bitmask))
         } else {
-            let new_scale = 4_i32.pow(node_level as u32 - 1);
+            let new_level = node_level -1;
+            let new_scale = 4_i32.pow(new_level as u32);
             let mut nodes = SmallVec::<[_; 64]>::new();
-            for z in 0..4 {
-                for y in 0..4 {
-                    for x in 0..4 {
-                        if let Some(child) = self.add_pos_query_recursive(
-                                model,
-                                offset + IVec3::new(x, z, y) * new_scale,
-                                node_level - 1,
-                            )?
-                            .check_empty()
-                        {
-                            nodes.push(child);
-                            bitmask |= 1 << IVec3::new(x, y, z).dot(IVec3::new(1, 4, 16)) as u64;
-                        }
-                    }
+
+            for (i, pos) in get_dag_node_children_xzy_i().into_iter().enumerate() {
+                let child = self.add_pos_query_recursive(
+                    model,
+                    offset + pos * new_scale,
+                    new_level,
+                )?;
+                if !child.is_empty() {
+                    nodes.push(child);
+                    bitmask |= 1 << i as u64;
                 }
             }
 

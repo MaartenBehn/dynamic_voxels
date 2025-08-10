@@ -1,6 +1,6 @@
 use octa_force::{glam::{vec3a, IVec3, UVec3, Vec3A, Vec4Swizzles}, log::debug, OctaResult};
 
-use crate::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, util::{aabb3d::AABB, iaabb3d::AABBI}, volume::{VolumeQureyAABB, VolumeQureyAABBI}};
+use crate::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, util::{aabb3d::AABB, iaabb3d::AABBI, math::get_dag_node_children_xzy_i}, volume::{VolumeQureyAABB, VolumeQureyAABBI}};
 
 use super::{node::VoxelDAG64Node, DAG64EntryData, DAG64EntryKey, VoxelDAG64};
 
@@ -44,63 +44,61 @@ impl VoxelDAG64 {
 
         let mut new_children = vec![];
         let mut new_bitmask = node.pop_mask;
-                
-        let new_scale = 4_i32.pow(node_level as u32 - 1);
-        for z in (0..4).rev() {
-            for y in (0..4).rev() {
-                for x in (0..4).rev() {
-                    let min = offset + IVec3::new(x, z, y) * new_scale;
-                    let max = min + new_scale;
-                    let node_aabb = AABBI::new(min, max);
 
-                    if aabb.collides_aabb(node_aabb) {
+        let new_level = node_level - 1;
+        let new_scale = 4_i32.pow(new_level as u32);
+        for (i, pos) in get_dag_node_children_xzy_i().into_iter()
+            .enumerate()
+            .rev() {
+            let min = offset + pos * new_scale;
+            let max = min + new_scale;
+            let node_aabb = AABBI::new(min, max);
 
-                        let child_nr = IVec3::new(x, y, z).dot(IVec3::new(1, 4, 16)) as u32;
-                        let index_in_children = node.get_index_in_children_unchecked(child_nr);
-                        if !node.is_occupied(child_nr) {
+            if aabb.collides_aabb(node_aabb) {
 
-                            let new_child_node = self.add_aabb_query_recursive(
-                                model, 
-                                min,
-                                node_level -1,
-                            )?;
+                let index_in_children = node.get_index_in_children_unchecked(i as u32);
+                if !node.is_occupied(i as u32) {
 
-                            if new_child_node.is_empty() {
-                                continue;
-                            }
+                    let new_child_node = self.add_aabb_query_recursive(
+                        model, 
+                        min,
+                        new_level,
+                    )?;
 
-                            if new_children.is_empty() {
-                                new_children = self.nodes.get_range(node.range()).to_vec();
-                            }
+                    if new_child_node.is_empty() {
+                        continue;
+                    }
 
-                            new_children.insert(index_in_children as usize, new_child_node);
-                            new_bitmask |= 1 << child_nr as u64; 
+                    if new_children.is_empty() {
+                        new_children = self.nodes.get_range(node.range()).to_vec();
+                    }
 
-                            continue;
-                        } 
+                    new_children.insert(index_in_children as usize, new_child_node);
+                    new_bitmask |= 1 << i as u64; 
 
-                        let new_child_node = if aabb.contains_aabb(node_aabb) {
-                            self.add_aabb_query_recursive(
-                                model, 
-                                min,
-                                node_level -1,
-                            )?
-                        } else {
-                            self.update_aabb_recursive(
-                                model,
-                                aabb,
-                                node_level - 1,
-                                min,
-                                node.ptr() + index_in_children,
-                            )?
-                        };
+                    continue;
+                } 
 
-                        if new_children.is_empty() {
-                            new_children = self.nodes.get_range(node.range()).to_vec();
-                        }
-                        new_children[index_in_children as usize] = new_child_node;
-                    }                
+                let new_child_node = if aabb.contains_aabb(node_aabb) {
+                    self.add_aabb_query_recursive(
+                        model, 
+                        min,
+                        new_level,
+                    )?
+                } else {
+                    self.update_aabb_recursive(
+                        model,
+                        aabb,
+                        new_level,
+                        min,
+                        node.ptr() + index_in_children,
+                    )?
+                };
+
+                if new_children.is_empty() {
+                    new_children = self.nodes.get_range(node.range()).to_vec();
                 }
+                new_children[index_in_children as usize] = new_child_node;
             }
         }
 

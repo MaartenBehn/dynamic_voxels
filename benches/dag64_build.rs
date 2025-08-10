@@ -22,6 +22,27 @@ fn build_from_pos_query_par<M: VolumeQureyPosValueI + Sync + Send>(model: &M) ->
     dag.single()
 }
 
+fn build_from_aabb_query_par<M: VolumeQureyAABBI + Sync + Send>(model: &M) -> VoxelDAG64 {
+    let dag = VoxelDAG64::new(100000, 64);
+    let mut dag = dag.parallel();
+    dag.add_aabb_query_volume(model).unwrap();
+    dag.single()
+}
+
+fn build_from_pos_query_par_large<M: VolumeQureyPosValueI + Sync + Send>(model: &M) -> VoxelDAG64 {
+    let dag = VoxelDAG64::new(1000000, 64);
+    let mut dag = dag.parallel();
+    dag.add_pos_query_volume(model).unwrap();
+    dag.single()
+}
+
+fn build_from_aabb_query_par_large<M: VolumeQureyAABBI + Sync + Send>(model: &M) -> VoxelDAG64 {
+    let dag = VoxelDAG64::new(1000000, 64);
+    let mut dag = dag.parallel();
+    dag.add_aabb_query_volume(model).unwrap();
+    dag.single()
+}
+
 fn criterion_benchmark(c: &mut Criterion) {
     let mut grid = VoxelGrid::empty(UVec3::ONE * 4_u32.pow(4)); 
     grid.set_example_sphere();
@@ -53,6 +74,26 @@ fn criterion_benchmark(c: &mut Criterion) {
         &csg, 
         |b, csg| 
         b.iter(|| build_from_pos_query_par(csg)));
+
+    c.bench_with_input(
+        BenchmarkId::new("parallel build dag 64 from slotmap csg aabb query", "sphere 100"), 
+        &csg, 
+        |b, csg| 
+        b.iter(|| build_from_aabb_query_par(csg)));
+
+    let csg2 = CSGTree::<u8>::new_sphere(Vec3::ZERO, 200.0);
+    c.bench_with_input(
+        BenchmarkId::new("parallel build dag 64 from slotmap csg pos query", "sphere 200"), 
+        &csg2, 
+        |b, csg| 
+        b.iter(|| build_from_pos_query_par_large(csg)));
+
+    c.bench_with_input(
+        BenchmarkId::new("parallel build dag 64 from slotmap csg aabb query", "sphere 200"), 
+        &csg2, 
+        |b, csg| 
+    b.iter(|| build_from_aabb_query_par_large(csg)));
+
 
 
     let csg: FastQueryCSGTree<u8> = csg.into();

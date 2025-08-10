@@ -1,5 +1,5 @@
 use octa_force::{camera::Camera, egui, engine::Engine, glam::UVec2, vulkan::{CommandBuffer, Context, Swapchain}, OctaResult};
-use crate::voxel::renderer::{RayManagerData, VoxelRenderer};
+use crate::voxel::renderer::{palette::Palette, RayManagerData, VoxelRenderer};
 
 use super::{Scene, SceneData};
 
@@ -46,6 +46,10 @@ impl SceneRenderer {
         self.scene.flush()?;
 
         Ok(())
+    }
+
+    pub fn push_palette(&self, context: &Context, palette: &Palette) -> OctaResult<()> {
+        self.voxel_renderer.push_palette(context, palette)
     }
 
     pub fn render(
