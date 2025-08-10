@@ -202,7 +202,7 @@ pub fn update(
     let time = logic_state.start_time.elapsed(); 
 
     logic_state.camera.update(&engine.controls, delta_time);
-    info!("Camera Pos: {} Dir: {}", logic_state.camera.get_position_in_meters(), logic_state.camera.direction);
+    //info!("Camera Pos: {} Dir: {}", logic_state.camera.get_position_in_meters(), logic_state.camera.direction);
     
     #[cfg(any(feature="islands"))]
     {
