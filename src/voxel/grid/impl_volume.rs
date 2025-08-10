@@ -1,6 +1,6 @@
 use octa_force::glam::{IVec3, UVec3, Vec3, Vec3A};
 
-use crate::{util::{aabb3d::AABB, iaabb3d::AABBI, math::to_1d}, volume::{VolumeBounds, VolumeBoundsI, VolumeQureyPosValue, VolumeQureyPosValueI}};
+use crate::{util::{aabb3d::AABB, iaabb3d::AABBI, math::to_1d}, volume::{VolumeBounds, VolumeBoundsI, VolumeQureyPosValue, VolumeQureyPosValueI}, voxel::renderer::palette::MATERIAL_ID_NONE};
 
 use super::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid, VoxelGrid};
 
@@ -78,6 +78,10 @@ impl VolumeBounds for SharedVoxelGrid {
 
 impl VolumeQureyPosValueI for VoxelGrid {
     fn get_value_i(&self, pos: IVec3) -> u8 {
+        if pos.cmplt(IVec3::ZERO).any() || pos.cmpge(self.size.as_ivec3()).any() {
+            return MATERIAL_ID_NONE;
+        } 
+
         self.get(pos.as_uvec3())
     }
 

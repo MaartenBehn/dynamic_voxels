@@ -41,6 +41,8 @@ impl<T: Copy + Default + fmt::Debug + Eq + std::hash::Hash, Hasher: std::hash::B
         if values.is_empty() {
             return Ok(0);
         }
+
+        
         
         let hasher = Hasher::default();
         let hash = hasher.hash_one(values);

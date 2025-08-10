@@ -25,7 +25,15 @@ name = "static_tree64_build"
 harness = false
 
 [[bench]]
-name = "tree64_build"
+name = "dag64_build"
+harness = false
+
+[[bench]]
+name = "dag64_build_fall_tree"
+harness = false
+
+[[bench]]
+name = "dag64_build_fall_tree_par"
 harness = false
 
 [features]
@@ -62,9 +70,8 @@ nalgebra = "=0.33.2"
 #borrow = "1.3.0"
 
 ## For own DAG64 implementation
-arrayvec = "0.7.6"
 rayon = "1.10"
-hashbrown = "0.15.2"
+hashbrown = { version = "0.15", features = [ "rayon" ] }
 fnv = "1.0.7"
 parking_lot = "0.12"
 
@@ -76,6 +83,8 @@ bitvec = "1"
 # for async workers
 smol = "2.0"
 oneshot = "0.1"
+itertools = "0.14"
+smallvec = {version = "1.15", features = [ "union", "const_new", "const_generics" ]}
 
 [dev-dependencies]
 proptest = "0.9.6"

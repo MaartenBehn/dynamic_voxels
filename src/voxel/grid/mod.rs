@@ -1,4 +1,4 @@
-mod from_vec_csg_tree;
+mod from_csg_tree;
 mod impl_volume;
 pub mod offset;
 pub mod shared;

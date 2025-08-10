@@ -1,23 +1,16 @@
 use octa_force::{glam::{vec3, vec3a, IVec3, UVec3, Vec3, Vec3A}, log::debug, OctaResult};
+use smallvec::SmallVec;
 
 
 use crate::{multi_data_buffer::{allocated_vec::AllocatedVec, buddy_buffer_allocator::BuddyBufferAllocator, cached_vec::CachedVec}, util::{aabb3d::AABB, iaabb3d::AABBI}, volume::{VolumeQureyAABB, VolumeQureyAABBI, VolumeQureyAABBResult}};
 
-use super::{node::VoxelDAG64Node, DAG64EntryData, DAG64EntryKey, VoxelDAG64};
+use super::{node::VoxelDAG64Node, util::get_dag_offset_levels, DAG64EntryData, DAG64EntryKey, VoxelDAG64};
 
 impl VoxelDAG64 {
-    pub fn add_aabb_query_volume<V: VolumeQureyAABBI>(&mut self, volume: &V) -> OctaResult<DAG64EntryKey> {
-        let offset = volume.get_offset_i();
-        let dims = volume.get_size_i().as_uvec3();
-        let mut scale = dims[0].max(dims[1]).max(dims[2]).next_power_of_two();
-        scale = scale.max(4);
-        if scale.ilog2() % 2 == 1 {
-            scale *= 2;
-        }
-
-        let levels = scale.ilog(4) as _;
+    pub fn add_aabb_query_volume<M: VolumeQureyAABBI>(&mut self, model: &M) -> OctaResult<DAG64EntryKey> { 
+        let (offset, levels) = get_dag_offset_levels(model);
         
-        let root = self.add_aabb_query_recursive(volume, offset, levels)?;
+        let root = self.add_aabb_query_recursive(model, offset, levels)?;
         let root_index = self.nodes.push(&[root])?;
         let key = self.entry_points.insert(DAG64EntryData { 
             levels, 
@@ -28,9 +21,9 @@ impl VoxelDAG64 {
         Ok(key)
     }
 
-    pub fn add_aabb_query_recursive<V: VolumeQureyAABBI>(
+    pub fn add_aabb_query_recursive<M: VolumeQureyAABBI>(
         &mut self,
-        volume: &V,
+        model: &M,
         offset: IVec3,
         node_level: u8,
     ) -> OctaResult<VoxelDAG64Node> {
@@ -42,7 +35,7 @@ impl VoxelDAG64 {
                 offset, 
                 offset + scale);
 
-            let res = volume.get_aabb_value_i(aabb);
+            let res = model.get_aabb_value_i(aabb);
 
             match res {
                 VolumeQureyAABBResult::Full(v) => {
@@ -54,14 +47,14 @@ impl VoxelDAG64 {
                 },
                 VolumeQureyAABBResult::Mixed =>  {
                     let new_scale = 4_u32.pow(node_level as u32 - 1) as f32;
-                    let mut vec = arrayvec::ArrayVec::<_, 64>::new();
+                    let mut vec = SmallVec::<[_; 64]>::new();
                     for z in 0..4 {
                         for y in 0..4 {
                             for x in 0..4 {
                                 // INFO: DAG Renderer works in XZY Space instead of XYZ like the rest of the
                                 // engine
                                 let pos = offset + IVec3::new(x, z, y);
-                                let value = volume.get_value_i(pos);
+                                let value = model.get_value_i(pos);
 
                                 if value != 0 {
                                     vec.push(value);
@@ -80,7 +73,7 @@ impl VoxelDAG64 {
                 offset, 
                 offset + scale);
 
-            let res = volume.get_aabb_value_i(aabb); 
+            let res = model.get_aabb_value_i(aabb); 
 
             match res {
                 VolumeQureyAABBResult::Full(v) => {
@@ -92,12 +85,12 @@ impl VoxelDAG64 {
                 },
                 VolumeQureyAABBResult::Mixed =>  {
                     let new_scale = 4_i32.pow(node_level as u32 - 1);
-                    let mut nodes = arrayvec::ArrayVec::<_, 64>::new();
+                    let mut nodes = SmallVec::<[_; 64]>::new();
                     for z in 0..4 {
                         for y in 0..4 {
                             for x in 0..4 { 
                                 if let Some(child) = self.add_aabb_query_recursive(
-                                    volume,
+                                    model,
                                     offset + IVec3::new(x, z, y) * new_scale,
                                     node_level - 1,
                                 )?

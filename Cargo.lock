@@ -1014,7 +1014,6 @@ checksum = "d8b14ccef22fc6f5a8f4d7d768562a182c04ce9a3b3157b91390b52ddfdf1a76"
 name = "dynamic_voxels"
 version = "0.1.0"
 dependencies = [
- "arrayvec",
  "bitvec",
  "bvh",
  "criterion",
@@ -1026,6 +1025,7 @@ dependencies = [
  "fnv",
  "half",
  "hashbrown",
+ "itertools 0.14.0",
  "kiddo",
  "nalgebra",
  "octa-force",
@@ -1035,6 +1035,7 @@ dependencies = [
  "rayon",
  "simple-easing",
  "slotmap",
+ "smallvec",
  "smol",
  "tree64",
 ]
@@ -1598,6 +1599,7 @@ dependencies = [
  "allocator-api2",
  "equivalent",
  "foldhash",
+ "rayon",
 ]
 
 [[package]]

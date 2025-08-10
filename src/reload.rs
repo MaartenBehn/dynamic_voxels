@@ -9,9 +9,8 @@ pub mod util;
 pub mod volume;
 pub mod voxel;
 
+use csg::csg_tree::tree::{CSGNode, CSGTree};
 use csg::fast_query_csg_tree::tree::FastQueryCSGTree;
-use csg::slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGTree};
-use csg::vec_csg_tree::tree::{VecCSGTree, VOXEL_SIZE};
 use model::debug_renderer::ModelDebugRenderer;
 use model::examples::islands::{self, Islands};
 use octa_force::engine::Engine;
@@ -36,6 +35,7 @@ use util::state_saver::StateSaver;
 use volume::VolumeBounds;
 use voxel::dag64::VoxelDAG64;
 use voxel::grid::VoxelGrid;
+use voxel::renderer::palette::Palette;
 use voxel::static_dag64::renderer::StaticDAG64Renderer;
 use voxel::static_dag64::StaticVoxelDAG64;
 use std::f32::consts::PI;
@@ -129,18 +129,21 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     {
         let mut scene = Scene::new(&engine.context)?;
 
-        let mut csg = SlotMapCSGTree::new_sphere(Vec3::ZERO, 100.0);
+        let mut csg = CSGTree::new_sphere(Vec3::ZERO, 100.0);
 
         let now = Instant::now();
 
-        let mut tree64 = VoxelDAG64::new(100000, 64);
-        tree64.add_aabb_query_volume(&csg)?;
+        let dag = VoxelDAG64::new(100000, 64);
+        let mut dag = dag.run_worker(10);
+        dag.add_pos_query_volume(&csg)?;
+
+        let mut dag = dag.stop();
 
         let index = csg.append_node_with_remove(
-            SlotMapCSGNode::new_sphere(vec3(70.0, 0.0, 0.0), 50.0));
+            CSGNode::new_sphere(vec3(70.0, 0.0, 0.0), 50.0));
         csg.set_all_aabbs();
 
-        let key = tree64.update_aabb_query_volume(&csg, tree64.get_first_key())?;
+        let key = dag.update_aabb_query_volume(&csg, dag.get_first_key())?;
 
         let elapsed = now.elapsed();
         info!("Tree Build took {:.2?}", elapsed);
@@ -153,7 +156,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
                 vec3(0.0, 0.0, 0.0)
             ), 
             key,
-            Arc::new(Mutex::new(tree64)),
+            Arc::new(Mutex::new(dag)),
         )?;
 
         let renderer = SceneRenderer::new(&engine.context, &engine.swapchain, scene, &logic_state.camera)?;
@@ -166,17 +169,22 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
     #[cfg(feature="islands")]
     {
-        
+        let mut palette = Palette::new();
         let scene = Scene::new(&engine.context)?; 
         let mut renderer = SceneRenderer::new(&engine.context, &engine.swapchain, scene, &logic_state.camera)?;
-        let islands = Islands::new(&mut renderer.voxel_renderer.palette)?;
-        renderer.voxel_renderer.palette.push_materials(&engine.context)?;
+        let islands = Islands::new(&mut palette)?;
+        renderer.voxel_renderer.palette_buffer.push_palette(&engine.context, &palette)?;
 
         Ok(RenderState {
             gui,
             renderer,
             islands,
         })
+    }
+
+    #[cfg(not(any(feature="islands",feature="scene")))]
+    {
+        Ok(RenderState { gui })
     }
    }
 

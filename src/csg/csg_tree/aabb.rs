@@ -1,11 +1,11 @@
 use octa_force::{glam::Mat4, puffin_egui::puffin};
 use slotmap::Key;
 
-use crate::{csg::slot_map_csg_tree::tree::SlotMapCSGTreeKey, util::{aabb3d::AABB, iaabb3d::AABBI}, volume::{VolumeBoundsI, VolumeBounds}};
+use crate::{util::{aabb3d::AABB, iaabb3d::AABBI}, volume::{VolumeBoundsI, VolumeBounds}};
 
-use super::tree::{SlotMapCSGNodeData, SlotMapCSGTree};
+use super::tree::{CSGNodeData, CSGTree, CSGTreeKey};
 
-impl<T: Clone> VolumeBounds for SlotMapCSGTree<T> {
+impl<T: Clone> VolumeBounds for CSGTree<T> {
     fn calculate_bounds(&mut self) {
         self.set_all_aabbs()
     }
@@ -17,7 +17,7 @@ impl<T: Clone> VolumeBounds for SlotMapCSGTree<T> {
     }
 }
 
-impl<T: Clone> VolumeBoundsI for SlotMapCSGTree<T> {
+impl<T: Clone> VolumeBoundsI for CSGTree<T> {
     fn calculate_bounds(&mut self) {
         self.set_all_aabbs()
     }
@@ -28,7 +28,7 @@ impl<T: Clone> VolumeBoundsI for SlotMapCSGTree<T> {
     }
 }
 
-impl<T: Clone> SlotMapCSGTree<T> {
+impl<T: Clone> CSGTree<T> {
     
     pub fn set_all_aabbs(&mut self) {
         #[cfg(debug_assertions)]
@@ -51,36 +51,36 @@ impl<T: Clone> SlotMapCSGTree<T> {
         }
     }
 
-    pub fn set_primitive_aabbs(&mut self, i: SlotMapCSGTreeKey, base_mat: &Mat4, changed_nodes: &mut Vec<SlotMapCSGTreeKey>) {
+    pub fn set_primitive_aabbs(&mut self, i: CSGTreeKey, base_mat: &Mat4, changed_nodes: &mut Vec<CSGTreeKey>) {
         let node = &self.nodes[i];
         match &node.data {
-            SlotMapCSGNodeData::Union(c1, c2)
-                    | SlotMapCSGNodeData::Remove(c1, c2) 
-                    | SlotMapCSGNodeData::Intersect(c1, c2) => {
+            CSGNodeData::Union(c1, c2)
+                    | CSGNodeData::Remove(c1, c2) 
+                    | CSGNodeData::Intersect(c1, c2) => {
                         let (c1, c2) = (*c1, *c2); // To please borrow checker
                         self.set_primitive_aabbs(c1, base_mat, changed_nodes);
                         self.set_primitive_aabbs(c2, base_mat, changed_nodes);
                     },
-            SlotMapCSGNodeData::Box(mat, ..) => {
+            CSGNodeData::Box(mat, ..) => {
                         let mat = mat.inverse().mul_mat4(base_mat);
                         self.nodes[i].set_aabb(AABB::from_box(&mat));
                         changed_nodes.push(i);
                     },
-            SlotMapCSGNodeData::Sphere(mat, ..) => {
+            CSGNodeData::Sphere(mat, ..) => {
                         let mat = mat.inverse().mul_mat4(base_mat);
                         self.nodes[i].set_aabb(AABB::from_sphere(&mat));
                         changed_nodes.push(i);
                     },
-            SlotMapCSGNodeData::All(_) => {
+            CSGNodeData::All(_) => {
                         self.nodes[i].set_aabb(AABB::infinte());
                         changed_nodes.push(i);
                     },
-            SlotMapCSGNodeData::OffsetVoxelGrid(grid) => {
+            CSGNodeData::OffsetVoxelGrid(grid) => {
                 let aabb = grid.get_bounds(); 
                 self.nodes[i].set_aabb(aabb);
                 changed_nodes.push(i);
             },
-            SlotMapCSGNodeData::SharedVoxelGrid(grid) => {
+            CSGNodeData::SharedVoxelGrid(grid) => {
                 let aabb = grid.get_bounds();
                 self.nodes[i].set_aabb(aabb);
                 changed_nodes.push(i);
@@ -88,18 +88,18 @@ impl<T: Clone> SlotMapCSGTree<T> {
         }
     }
 
-    pub fn propergate_aabb_change(&mut self, i: SlotMapCSGTreeKey) -> SlotMapCSGTreeKey {
+    pub fn propergate_aabb_change(&mut self, i: CSGTreeKey) -> CSGTreeKey {
         let node = self.nodes[i].to_owned();
         match node.data {
-            SlotMapCSGNodeData::Union(c1, c2) => {
+            CSGNodeData::Union(c1, c2) => {
                 let aabb = self.nodes[c1].aabb.union(self.nodes[c2].aabb);
                 self.nodes[i].set_aabb(aabb);
             }
-            SlotMapCSGNodeData::Remove(c1, c2) => {
+            CSGNodeData::Remove(c1, c2) => {
                 let aabb = self.nodes[c1].aabb;
                 self.nodes[i].set_aabb(aabb);
             }
-            SlotMapCSGNodeData::Intersect(c1, c2) => {
+            CSGNodeData::Intersect(c1, c2) => {
                 let aabb = self.nodes[c1].aabb.intersect(self.nodes[c2].aabb);
                 self.nodes[i].set_aabb(aabb);
             }

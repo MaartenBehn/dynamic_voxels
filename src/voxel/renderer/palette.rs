@@ -8,6 +8,10 @@ pub const MATERIAL_ID_BASE: u8 = 1;
 pub struct Palette {
     pub materials: [Material; 256],
     pub used: BitArray<[u64; 4]>,
+}
+
+#[derive(Debug)]
+pub struct PaletteBuffer {
     pub buffer: Buffer,
 }
 
@@ -19,7 +23,7 @@ pub struct Material {
 }
 
 impl Palette {
-    pub fn new(context: &Context) -> OctaResult<Self> {
+    pub fn new() -> Self {
         let mut materials = [Material::default(); 256];
         let mut used = bitarr![u64, Lsb0; 0; 256];
         
@@ -27,20 +31,10 @@ impl Palette {
         materials[1].set_simple_color([255, 255, 255]);
         used.set(1, true);
 
-        let buffer = context.create_buffer(
-            vk::BufferUsageFlags::UNIFORM_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS | vk::BufferUsageFlags::TRANSFER_DST, 
-            MemoryLocation::GpuOnly,
-            (size_of::<u64>() * 256) as _)?;
-
-        let palette = Self { 
+        Self { 
             materials,
             used, 
-            buffer 
-        };
-
-        palette.push_materials(context)?;
-
-        Ok(palette)
+        }
     }
 
     pub fn get_index_simple_color(&mut self, color: [u8; 3]) -> OctaResult<u8> {
@@ -58,9 +52,22 @@ impl Palette {
             bail!("Palette full!");
         }
     }
+}
 
-    pub fn push_materials(&self, context: &Context) -> OctaResult<()> {
-        let packed: Vec<_> = self.materials.iter().map(|m| m.get_encoded()).collect();
+impl PaletteBuffer {
+    pub fn new(context: &Context) -> OctaResult<PaletteBuffer> {
+        let buffer = context.create_buffer(
+            vk::BufferUsageFlags::UNIFORM_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS | vk::BufferUsageFlags::TRANSFER_DST, 
+            MemoryLocation::GpuOnly,
+            (size_of::<u64>() * 256) as _)?;
+
+        Ok(PaletteBuffer {
+            buffer
+        })
+    }
+
+    pub fn push_palette(&self, context: &Context, palette: &Palette) -> OctaResult<()> {
+        let packed: Vec<_> = palette.materials.iter().map(|m| m.get_encoded()).collect();
 
         // TODO Maybe reuse staging buffer?
         context.copy_data_to_gpu_only_buffer(&packed, &self.buffer)

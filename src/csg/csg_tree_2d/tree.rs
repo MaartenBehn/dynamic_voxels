@@ -5,7 +5,6 @@ use slotmap::{new_key_type, Key, SlotMap};
 use std::f32::consts::PI;
 use std::{slice, usize};
 
-use crate::csg::slot_map_csg_tree::tree::{SlotMapCSGNode, SlotMapCSGTreeKey};
 use crate::csg::Base;
 use crate::util::aabb2d::AABB2D;
 use crate::util::aabb3d::AABB;

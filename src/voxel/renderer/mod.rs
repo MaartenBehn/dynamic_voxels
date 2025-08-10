@@ -23,7 +23,7 @@ use octa_force::vulkan::{
     Buffer, CommandBuffer, ComputePipeline, ComputePipelineCreateInfo, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, ImageAndView, PipelineLayout, Swapchain, WriteDescriptorSet, WriteDescriptorSetKind
 };
 use octa_force::{egui, in_flight_frames, OctaResult};
-use palette::Palette;
+use palette::{Palette, PaletteBuffer};
 use render_data::RenderData;
 use shader_stage::ShaderStage;
 
@@ -36,7 +36,7 @@ const RENDER_DISPATCH_GROUP_SIZE_Y: u32 = 8;
 #[derive(Debug)]
 pub struct VoxelRenderer {
     heap: ImageDescriptorHeap,
-    pub palette: Palette,
+    pub palette_buffer: PaletteBuffer,
     
     g_buffer: GBuffer,
 
@@ -114,7 +114,7 @@ impl VoxelRenderer {
 
         let mut heap = context.create_descriptor_heap(40)?;
 
-        let palette = Palette::new(context)?;
+        let palette_buffer = PaletteBuffer::new(context)?;
  
         let g_buffer = GBuffer::new(context, &mut heap, camera, swapchain)?;
 
@@ -176,7 +176,7 @@ impl VoxelRenderer {
          
         Ok(VoxelRenderer {
             heap,
-            palette,
+            palette_buffer,
 
             g_buffer,
 
@@ -201,7 +201,7 @@ impl VoxelRenderer {
     pub fn get_ray_manager_data(&self) -> RayManagerData {
         RayManagerData {
             g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
-            palette_ptr: self.palette.buffer.get_device_address(),
+            palette_ptr: self.palette_buffer.buffer.get_device_address(),
             max_bounces: self.max_bounces as _,
             blue_noise_tex: self.blue_noise_tex.handle.value,
         }

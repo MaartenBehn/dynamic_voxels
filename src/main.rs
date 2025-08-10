@@ -2,7 +2,6 @@ extern crate reload as dynamic_voxels;
 
 use bvh::bvh::Bvh;
 use dynamic_voxels::csg::fast_query_csg_tree::tree::FastQueryCSGTree;
-use dynamic_voxels::csg::vec_csg_tree::tree::VecCSGTree;
 use dynamic_voxels::multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator;
 use dynamic_voxels::voxel::dag64::VoxelDAG64;
 use dynamic_voxels::voxel::grid::VoxelGrid;
@@ -28,6 +27,7 @@ const APP_NAME: &str = "Dynamic Voxels";
 fn main() {
     #[cfg(feature = "profile_islands")]
     {
+        /*
         SimpleLogger::init(log::LevelFilter::Debug, simplelog::Config::default());
         let mut state = Islands::new(true);
         state.run();
@@ -36,11 +36,13 @@ fn main() {
         info!("Node capacity: {}", collapser.nodes.capacity());
         info!("Pending collapse operations capacity: {}", collapser.pending_collapse_opperations.capacity());
 
+        */
         return;
     }
 
     #[cfg(feature = "profile_dag")]
     { 
+        /*
         let buffer_size = 2_usize.pow(30);
         let mut allocator = BuddyBufferAllocator::new(buffer_size, 32);
 
@@ -57,7 +59,7 @@ fn main() {
         }; 
         dbg!(tree64.root_index);
         
-
+        */
         return;
     }
 

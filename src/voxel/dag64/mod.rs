@@ -6,6 +6,8 @@ pub mod add_aabb_query_volume;
 pub mod update_aabb_query_volume;
 pub mod update_pos_query_volume;
 pub mod expand;
+pub mod parallel;
+pub mod util;
 
 use node::VoxelDAG64Node;
 use octa_force::{glam::{IVec3, Vec3, Vec3A}, log::{debug, info}};

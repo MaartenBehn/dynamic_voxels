@@ -1,7 +1,7 @@
 use core::fmt;
 
-use arrayvec::ArrayVec;
-use octa_force::OctaResult;
+use octa_force::{log::debug, OctaResult};
+use smallvec::SmallVec;
 use smol::future::FutureExt;
 
 use crate::util::worker_message::{WorkerMessage, WorkerMessageHandle};
@@ -9,7 +9,7 @@ use crate::util::worker_message::{WorkerMessage, WorkerMessageHandle};
 use super::cached_vec::CachedVec;
 
 pub enum WorkerVecMessage<const N: usize, T> {
-    Push(WorkerMessage<ArrayVec::<T, N>, OctaResult<u32>>),
+    Push(WorkerMessage<SmallVec<[T; N]>, OctaResult<u32>>),
     PushSingle(WorkerMessage<T, OctaResult<u32>>),
 }
 
@@ -35,7 +35,10 @@ impl<T: Send + Copy + Default + fmt::Debug + Eq + std::hash::Hash + 'static> Cac
                             worker_message.awnser(res).await;
                         },
                     },
-                    Err(_) => break, // Channel closed
+                    Err(_) => {
+                        debug!("Got close");
+                        break;
+                    }, // Channel closed
                 }
             } 
 
@@ -50,7 +53,7 @@ impl<T: Send + Copy + Default + fmt::Debug + Eq + std::hash::Hash + 'static> Cac
 }
 
 impl<const N: usize, T> WorkerVec<N, T> {
-    pub fn push(&mut self, data: ArrayVec::<T, N>) -> WorkerMessageHandle<OctaResult<u32>> {
+    pub fn push(&self, data: SmallVec<[T; N]>) -> WorkerMessageHandle<OctaResult<u32>> {
         let (msg, res) = WorkerMessage::new(data);
 
         smol::block_on(async {
@@ -75,7 +78,7 @@ impl<const N: usize, T> WorkerVec<N, T> {
     pub fn stop(self) -> CachedVec<T> {
         self.s.close();
         smol::block_on(async {
-            self.task.cancel().await.expect("WorkerVec: Task did not finish!")
+            self.task.await
         })
     }
 }
