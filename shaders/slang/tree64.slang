@@ -124,7 +124,7 @@ public struct Tree64 {
         node = TreeNodes[nodeIdx];
       }
     }
-    set_iter_count(i);
+    add_iter_count(i);
 
     HitInfo hit;
 
@@ -251,7 +251,7 @@ public struct Tree64 {
         node = TreeNodes[nodeIdx];
       }
     }
-    set_iter_count(i);
+    add_iter_count(i);
 
     HitInfo hit;
 
@@ -397,7 +397,7 @@ public struct Tree64 {
       }
 
     }
-    set_iter_count(j);
+    add_iter_count(j);
 
     HitInfo hit;
     hit.MaterialId = 0;
