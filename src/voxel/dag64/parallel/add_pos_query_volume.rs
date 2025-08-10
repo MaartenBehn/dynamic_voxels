@@ -30,7 +30,7 @@ impl ParallelVoxelDAG64 {
         node_level: u8,
     ) -> OctaResult<VoxelDAG64Node> {
         if node_level == 1 {
-            self.add_pos_query_recursive_par_leaf(model, offset, node_level)
+            self.add_pos_query_leaf(model, offset, node_level)
         } else { 
             let new_level = node_level - 1;
             let new_scale = 4_i32.pow(new_level  as u32);
@@ -73,14 +73,14 @@ impl ParallelVoxelDAG64 {
         }
     }
 
-    pub fn add_pos_query_recursive_par_lower<M: VolumeQureyPosValueI + Sync + Send>(
+    pub fn add_pos_query_recursive_par_lower<M: VolumeQureyPosValueI>(
         &self,
         model: &M,
         offset: IVec3,
         node_level: u8,
     ) -> OctaResult<VoxelDAG64Node> {
         if node_level == 1 {
-            self.add_pos_query_recursive_par_leaf(model, offset, node_level)
+            self.add_pos_query_leaf(model, offset, node_level)
         } else {
             let new_level = node_level -1;
             let new_scale = 4_i32.pow(new_level as u32);
@@ -103,7 +103,7 @@ impl ParallelVoxelDAG64 {
         }
     }
 
-    pub fn add_pos_query_recursive_par_leaf<M: VolumeQureyPosValueI + Sync + Send>(
+    pub fn add_pos_query_leaf<M: VolumeQureyPosValueI>(
         &self,
         model: &M,
         offset: IVec3,

@@ -13,7 +13,7 @@ use node::VoxelDAG64Node;
 use octa_force::{glam::{IVec3, Vec3, Vec3A}, log::{debug, info}};
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{multi_data_buffer::{allocated_vec::AllocatedVec, cached_vec::CachedVec}, util::math::to_mb};
+use crate::{multi_data_buffer::{cached_vec::CachedVec}, util::math::to_mb};
 
 new_key_type! { pub struct DAG64EntryKey; }
 

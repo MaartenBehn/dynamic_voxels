@@ -2,7 +2,7 @@ use octa_force::{glam::{IVec3, UVec3, Vec3A}, log::debug, OctaResult};
 use smallvec::SmallVec;
 
 
-use crate::{multi_data_buffer::{allocated_vec::AllocatedVec, buddy_buffer_allocator::BuddyBufferAllocator, cached_vec::CachedVec}, util::math::get_dag_node_children_xzy_i, volume::VolumeQureyPosValueI};
+use crate::{multi_data_buffer::{buddy_buffer_allocator::BuddyBufferAllocator, cached_vec::CachedVec}, util::math::get_dag_node_children_xzy_i, volume::VolumeQureyPosValueI};
 
 use super::{node::VoxelDAG64Node, util::get_dag_offset_levels, DAG64EntryData, DAG64EntryKey, VoxelDAG64};
 
@@ -67,21 +67,3 @@ impl VoxelDAG64 {
         }
     }
 }
-
-/*
-#[cfg(test)]
-mod tests {
-    use octa_force::glam::UVec3;
-
-    use crate::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, voxel::{dag64::VoxelDAG64, grid::VoxelGrid}};
-
-    #[test]
-    pub fn test() {
-        let mut grid = VoxelGrid::new(UVec3::ONE * 4_u32.pow(4)); 
-        grid.set_example_sphere();
-        grid.set_corners();
-
-        let tree64: VoxelDAG64 = VoxelDAG64::from_pos_query(&grid).unwrap();
-    }
-}
-*/

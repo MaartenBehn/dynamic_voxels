@@ -30,7 +30,7 @@ impl ParallelVoxelDAG64 {
         node_level: u8,
     ) -> OctaResult<VoxelDAG64Node> {
         if node_level == 1 {
-            self.add_aabb_query_recursive_par_leaf(model, offset, node_level)
+            self.add_aabb_query_leaf(model, offset, node_level)
         } else {
             let scale = 4_i32.pow(node_level as u32);
             let aabb = AABBI::new(
@@ -98,7 +98,7 @@ impl ParallelVoxelDAG64 {
         node_level: u8,
     ) -> OctaResult<VoxelDAG64Node> {
         if node_level == 1 {
-            self.add_aabb_query_recursive_par_leaf(model, offset, node_level)
+            self.add_aabb_query_leaf(model, offset, node_level)
         } else {
             let scale = 4_i32.pow(node_level as u32);
             let aabb = AABBI::new(
@@ -139,7 +139,7 @@ impl ParallelVoxelDAG64 {
         }
     }
 
-    pub fn add_aabb_query_recursive_par_leaf<M: VolumeQureyAABBI>(
+    pub fn add_aabb_query_leaf<M: VolumeQureyAABBI>(
         &self,
         model: &M,
         offset: IVec3,
@@ -161,23 +161,7 @@ impl ParallelVoxelDAG64 {
                 }
             },
             VolumeQureyAABBResult::Mixed =>  {
-                let mut vec = SmallVec::<[_; 64]>::new();
-                let mut bitmask = 0;
-
-                // INFO: DAG Renderer works in XZY Space instead of XYZ like the rest of the
-                // engine
-                for (i, pos) in get_dag_node_children_xzy_i().into_iter().enumerate() {
-                    let pos = offset + pos;
-                    let value = model.get_value_i(pos);
-
-                    if value != 0 {
-                        vec.push(value);
-                        bitmask |= 1 << i as u64;
-                    }
-                } 
-
-                let ptr = self.data.push(&vec)?;
-                Ok(VoxelDAG64Node::new(true, ptr, bitmask))
+                self.add_pos_query_leaf(model, offset, node_level)
             },
         }
     }
