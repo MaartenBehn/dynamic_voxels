@@ -141,7 +141,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
             CSGNode::new_sphere(vec3(70.0, 0.0, 0.0), 50.0));
         csg.set_all_aabbs();
 
-        let key = dag.update_pos_query_volume(&csg, key)?;
+        let key = dag.update_aabb_query_volume(&csg, key)?;
         let mut dag = dag.single();
 
         let elapsed = now.elapsed();
