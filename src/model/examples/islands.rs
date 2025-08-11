@@ -6,7 +6,7 @@ use octa_force::{camera::Camera, glam::{vec3, EulerRot, Mat4, Quat, Vec2, Vec3, 
 use parking_lot::Mutex;
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{csg::{csg_tree::tree::{CSGNode, CSGTree}, csg_tree_2d::tree::CSGTree2D, fast_query_csg_tree::tree::FastQueryCSGTree}, model::generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder}, collapse::{CollapseOperation, Collapser}, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree, traits::{ModelGenerationTypes, BU, IT}}, scene::{dag64::DAG64SceneObject, renderer::SceneRenderer, Scene, SceneObjectData, SceneObjectKey}, util::aabb3d::AABB, volume::{magica_voxel::MagicaVoxelModel, VolumeBoundsI, VolumeQureyPosValid}, voxel::{dag64::{DAG64EntryKey, VoxelDAG64}, grid::{shared::SharedVoxelGrid, VoxelGrid}, renderer::palette::Palette}, METERS_PER_SHADER_UNIT};
+use crate::{csg::{csg_tree::tree::{CSGNode, CSGTree}, csg_tree_2d::tree::CSGTree2D, fast_query_csg_tree::tree::FastQueryCSGTree}, model::generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder}, collapse::{CollapseOperation, Collapser}, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree, traits::{ModelGenerationTypes, BU, IT}}, scene::{dag64::DAG64SceneObject, renderer::SceneRenderer, Scene, SceneObjectData, SceneObjectKey}, util::aabb3d::AABB, volume::{magica_voxel::MagicaVoxelModel, VolumeBoundsI, VolumeQureyPosValid}, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, grid::{shared::SharedVoxelGrid, VoxelGrid}, renderer::palette::Palette}, METERS_PER_SHADER_UNIT};
 
 const COLLAPSES_PER_TICK: usize = 100;
 
@@ -40,7 +40,7 @@ pub struct Islands {
     pub template: TemplateTree<IslandGenerationTypes>,
     pub collapser: Collapser<IslandGenerationTypes>,
 
-    pub dag: Arc<Mutex<VoxelDAG64>>,
+    pub dag: ParallelVoxelDAG64,
     pub last_pos: Vec3,
     pub tree_grid: SharedVoxelGrid,
 }
@@ -56,10 +56,10 @@ pub struct Island {
 impl Islands {
     pub fn new(palette: &mut Palette) -> OctaResult<Self> {
 
-        let mut dag = VoxelDAG64::new(1000000, 1000000);
+        let mut dag = VoxelDAG64::new(1000000, 1000000).parallel();
         dag.print_memory_info();
         
-        let tree_model = MagicaVoxelModel::new("./assets/Fall_Tree.vox")?;
+        let tree_model = MagicaVoxelModel::new("./assets/Tree1small.vox")?;
         let tree_grid: SharedVoxelGrid = tree_model.into_grid(palette)?.into();
          
         let island_volume = FastQueryCSGTree::default();
@@ -107,7 +107,7 @@ impl Islands {
         Ok(Self {
             template,
             collapser,
-            dag: Arc::new(Mutex::new(dag)),
+            dag,
             last_pos: Vec3::ZERO,
             tree_grid,
         })
@@ -175,7 +175,7 @@ impl Islands {
                             info!("Island Pos: {pos}");
 
                             let csg = CSGTree::new_disk(Vec3::ZERO, 100.0, 10.0);
-                            let active_key = self.dag.lock().add_aabb_query_volume(&csg)?;
+                            let active_key = self.dag.add_aabb_query_volume(&csg)?;
 
                             let scene_object_key = scene.add_dag64(
                                 context,
@@ -203,7 +203,7 @@ impl Islands {
                             island.csg.append_node_with_union(CSGNode::new_shared_grid(self.tree_grid.clone()));
                             island.csg.calculate_bounds();
 
-                            let active_key = self.dag.lock().update_pos_query_volume(&island.csg, island.dag_key)?;
+                            let active_key = self.dag.update_pos_query_volume(&island.csg, island.dag_key)?;
                             island.dag_key = active_key;
                             scene.set_dag64_entry_key(island.scene_key, active_key)?;
                             

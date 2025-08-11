@@ -6,10 +6,11 @@ pub mod expand;
 
 use std::sync::Arc;
 
+use octa_force::log::info;
 use parking_lot::Mutex;
 use slotmap::SlotMap;
 
-use crate::multi_data_buffer::{parallel_vec::ParallelVec};
+use crate::{multi_data_buffer::parallel_vec::ParallelVec, util::math::to_mb};
 
 use super::{node::VoxelDAG64Node, DAG64EntryData, DAG64EntryKey, VoxelDAG64};
 
@@ -42,5 +43,16 @@ impl ParallelVoxelDAG64 {
         let entry_points = Arc::try_unwrap(self.entry_points).unwrap().into_inner();
 
         VoxelDAG64 { nodes, data, entry_points }
+    }
+
+    pub fn print_memory_info(&self) { 
+        info!("VoxelDAG64: nodes {} MB, data {} MB", 
+            to_mb(self.nodes.get_memory_size()),
+            to_mb(self.data.get_memory_size()),
+        );
+    }
+
+    pub fn get_entry(&self, key: DAG64EntryKey) -> DAG64EntryData {
+        self.entry_points.lock()[key].to_owned()
     }
 }

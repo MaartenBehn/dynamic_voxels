@@ -142,7 +142,6 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         csg.set_all_aabbs();
 
         let key = dag.update_aabb_query_volume(&csg, key)?;
-        let mut dag = dag.single();
 
         let elapsed = now.elapsed();
         info!("Tree Build took {:.2?}", elapsed);
@@ -155,7 +154,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
                 vec3(0.0, 0.0, 0.0)
             ), 
             key,
-            Arc::new(Mutex::new(dag)),
+            dag,
         )?;
 
         let palette = Palette::new();
@@ -171,10 +170,10 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     #[cfg(feature="islands")]
     {
         let mut palette = Palette::new();
+        let islands = Islands::new(&mut palette)?;
         let scene = Scene::new(&engine.context)?; 
         let mut renderer = SceneRenderer::new(&engine.context, &engine.swapchain, scene, &logic_state.camera)?;
-        let islands = Islands::new(&mut palette)?;
-        renderer.voxel_renderer.palette_buffer.push_palette(&engine.context, &palette)?;
+        renderer.push_palette(&engine.context, &palette)?;
 
         Ok(RenderState {
             gui,
