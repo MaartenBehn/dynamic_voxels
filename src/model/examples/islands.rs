@@ -8,7 +8,7 @@ use slotmap::{new_key_type, SlotMap};
 
 use crate::{csg::{csg_tree::tree::{CSGNode, CSGTree}, csg_tree_2d::tree::CSGTree2D, fast_query_csg_tree::tree::FastQueryCSGTree}, model::generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder}, collapse::{CollapseOperation, Collapser}, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree, traits::{ModelGenerationTypes, BU, IT}}, scene::{dag64::DAG64SceneObject, renderer::SceneRenderer, Scene, SceneObjectData, SceneObjectKey}, util::aabb3d::AABB, volume::{magica_voxel::MagicaVoxelModel, VolumeBoundsI, VolumeQureyPosValid}, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, grid::{shared::SharedVoxelGrid, VoxelGrid}, renderer::palette::Palette}, METERS_PER_SHADER_UNIT};
 
-const COLLAPSES_PER_TICK: usize = 100;
+const COLLAPSES_PER_TICK: usize = 1;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Identifier {
@@ -52,7 +52,6 @@ pub struct Island {
     pub dag_key: DAG64EntryKey,
 }
 
-
 impl Islands {
     pub fn new(palette: &mut Palette) -> OctaResult<Self> {
 
@@ -81,7 +80,7 @@ impl Islands {
                 .ammount(BuilderAmmount::OneGlobal)
                 .value(BuilderValue::Const(PositionSet::new_grid_in_volume(
                     island_volume,
-                    100.0 )
+                    200.0 )
                 ))
             })
             .build(Identifier::IslandBuild, |b| {b
@@ -155,7 +154,7 @@ impl Islands {
                         Identifier::TreePositions => {
 
                             //let mut pos = collapser.get_dependend_pos(index, Identifier::IslandPositions, Identifier::IslandBuild);
-                            let tree_volume = CSGTree2D::new_circle(Vec2::ZERO, 10.0); 
+                            let tree_volume = CSGTree2D::new_circle(Vec2::ZERO, 200.0); 
 
                             collapser.set_position_set_value(index, PositionSet::new_grid_on_plane(
                                 tree_volume,
@@ -174,7 +173,7 @@ impl Islands {
                             let pos = collapser.get_parent_pos(index);
                             info!("Island Pos: {pos}");
 
-                            let csg = CSGTree::new_disk(Vec3::ZERO, 100.0, 10.0);
+                            let csg = CSGTree::new_disk(Vec3::ZERO, 300.0, 10.0);
                             let active_key = self.dag.add_aabb_query_volume(&csg)?;
 
                             let scene_object_key = scene.add_dag64(
@@ -200,7 +199,10 @@ impl Islands {
                         Identifier::TreeBuild => {
                             let pos = collapser.get_parent_pos(index);
                             let island = collapser.get_dependend_undo_data_mut(index, Identifier::IslandBuild);
-                            island.csg.append_node_with_union(CSGNode::new_shared_grid(self.tree_grid.clone()));
+                            let mut tree_grid = self.tree_grid.clone();
+                            tree_grid.offset += pos.as_ivec3();
+
+                            island.csg.append_node_with_union(CSGNode::new_shared_grid(tree_grid));
                             island.csg.calculate_bounds();
 
                             let active_key = self.dag.update_pos_query_volume(&island.csg, island.dag_key)?;

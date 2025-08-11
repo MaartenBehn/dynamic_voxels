@@ -170,7 +170,7 @@ impl<T: Copy + Default + fmt::Debug + Eq + std::hash::Hash, Hasher: std::hash::B
         inner_w.data[index..max].copy_from_slice(data);
     }
 
-    pub fn flush(&mut self, buffer: &mut Buffer) {
+    pub fn flush(&self, buffer: &Buffer) {
         let inner_r = self.inner.read();
         buffer.copy_data_to_buffer_without_aligment(&inner_r.data, 0);
     }

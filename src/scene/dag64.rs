@@ -7,18 +7,13 @@ use slotmap::{new_key_type, SlotMap};
 
 use crate::{multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, util::aabb3d::AABB, voxel::dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, VOXELS_PER_METER, VOXELS_PER_SHADER_UNIT};
 
-use super::{Scene, SceneObjectData, SceneObjectKey, SceneObjectType};
-
-new_key_type! { pub struct Tree64Key; }
+use super::{dag_store::SceneDAGKey, Scene, SceneObjectData, SceneObjectKey, SceneObjectType};
 
 #[derive(Debug)]
 pub struct DAG64SceneObject {
     pub mat: Mat4,
-    pub dag: ParallelVoxelDAG64,
+    pub dag_key: SceneDAGKey,
     pub entry_key: DAG64EntryKey,
-    pub allocation: BuddyAllocation,
-    pub node_buffer: Buffer,
-    pub data_buffer: Buffer,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -40,7 +35,7 @@ impl Scene {
         dag: ParallelVoxelDAG64,
     ) -> OctaResult<SceneObjectKey> {
         
-        let object = SceneObjectType::DAG64(DAG64SceneObject::new(context, mat, entry_key, dag, &mut self.allocator)?); 
+        let object = SceneObjectType::DAG64(DAG64SceneObject::new(context, mat, entry_key, dag)?); 
         Ok(self.add_object(object))
     }
 
@@ -58,30 +53,12 @@ impl Scene {
 }
 
 impl DAG64SceneObject {
-    pub fn new(context: &Context, mat: Mat4, entry_key: DAG64EntryKey, dag: ParallelVoxelDAG64, allocator: &mut BuddyBufferAllocator) -> OctaResult<Self> {
-        
-        let mut node_buffer = context.create_buffer(
-            vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS_KHR,
-            MemoryLocation::CpuToGpu,
-            dag.nodes.get_memory_size() as _,
-        )?;
-
-        let mut data_buffer = context.create_buffer(
-            vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS_KHR,
-            MemoryLocation::CpuToGpu,
-            dag.data.get_memory_size() as _,
-        )?;
-
-        let allocation = allocator.alloc(size_of::<DAG64SceneObjectData>())?;
-
-        Ok(Self {
+    pub fn new(context: &Context, mat: Mat4, entry_key: DAG64EntryKey, dag_key: SceneDAGKey) -> Self {
+        Self {
             mat,
-            dag,
-            allocation,
+            dag_key,
             entry_key,
-            node_buffer,
-            data_buffer,
-        })
+        }
     }
 
     pub fn push_to_buffer(&mut self, scene_buffer: &mut Buffer) {
@@ -108,9 +85,6 @@ impl DAG64SceneObject {
         };
 
         scene_buffer.copy_data_to_buffer_without_aligment(&[data], self.allocation.start);
-
-        self.dag.nodes.flush(&mut self.node_buffer);
-        self.dag.data.flush(&mut self.data_buffer);
     }
 
     pub fn get_aabb(&self) -> AABB {

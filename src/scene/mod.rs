@@ -1,5 +1,7 @@
 pub mod dag64;
+pub mod dag_store;
 pub mod renderer;
+pub mod worker;
 
 use bvh::{aabb::{Aabb, Bounded}, bounding_hierarchy::{BHShape, BoundingHierarchy}, bvh::Bvh};
 use dag64::DAG64SceneObject;

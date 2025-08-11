@@ -5,7 +5,6 @@ use super::{Scene, SceneData};
 
 #[derive(Debug)]
 pub struct SceneRenderer {
-    pub scene: Scene,
     pub voxel_renderer: VoxelRenderer,
     pub debug: bool,
 }
@@ -21,7 +20,6 @@ impl SceneRenderer {
     pub fn new(
         context: &Context,
         swapchain: &Swapchain,
-        mut scene: Scene,
         camera: &Camera,
     ) -> OctaResult<SceneRenderer> {
         let mut voxel_renderer = VoxelRenderer::new::<SceneDispatchParams>(
@@ -35,7 +33,6 @@ impl SceneRenderer {
         voxel_renderer.denoise_counters = false;
 
         Ok(SceneRenderer {
-            scene,
             voxel_renderer,
             debug: true,
         })
@@ -43,6 +40,7 @@ impl SceneRenderer {
 
     pub fn update(&mut self, camera: &Camera, context: &Context, res: UVec2, in_flight_frame_index: usize, frame_index: usize) -> OctaResult<()> {
         self.voxel_renderer.update(camera, context, res, in_flight_frame_index, frame_index)?;
+        todo!()
         self.scene.flush()?;
 
         Ok(())
