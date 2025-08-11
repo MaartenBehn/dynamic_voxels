@@ -93,6 +93,9 @@ fn main() {
             lib_name: "reload".to_string(),
         }),*/
 
+
+        backtrace: false,
+
         ..Default::default()
     });
 }

@@ -1,4 +1,5 @@
 use octa_force::{glam::{vec3a, IVec3, UVec3, Vec3A, Vec4Swizzles}, log::debug, OctaResult};
+use smallvec::{SmallVec, ToSmallVec};
 
 use crate::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, util::{aabb3d::AABB, iaabb3d::AABBI, math::get_dag_node_children_xzy_i}, volume::VolumeQureyPosValueI};
 
@@ -42,7 +43,7 @@ impl VoxelDAG64 {
             return Ok(new_node);
         }
 
-        let mut new_children = vec![];
+        let mut new_children: SmallVec<[_; 64]> = SmallVec::new();
         let mut new_bitmask = node.pop_mask;
         
         let new_level = node_level -1;
@@ -70,7 +71,7 @@ impl VoxelDAG64 {
                     }
 
                     if new_children.is_empty() {
-                        new_children = self.nodes.get_range(node.range()).to_vec();
+                        new_children = self.nodes.get_range(node.range()).to_smallvec()
                     }
 
                     new_children.insert(index_in_children as usize, new_child_node);
@@ -96,7 +97,7 @@ impl VoxelDAG64 {
                 };
 
                 if new_children.is_empty() {
-                    new_children = self.nodes.get_range(node.range()).to_vec();
+                    new_children = self.nodes.get_range(node.range()).to_smallvec();
                 }
                 new_children[index_in_children as usize] = new_child_node;
             }           

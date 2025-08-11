@@ -38,7 +38,7 @@ impl ParallelVoxelDAG64 {
                 .enumerate()
                 .map(move |(i, pos)| {
                     let pos = offset + pos * new_scale;
-                    let res = self.add_pos_query_recursive_par_lower(
+                    let res = self.add_pos_query_recursive_lower(
                         model, 
                         pos, 
                         new_level);
@@ -73,7 +73,7 @@ impl ParallelVoxelDAG64 {
         }
     }
 
-    pub fn add_pos_query_recursive_par_lower<M: VolumeQureyPosValueI>(
+    pub fn add_pos_query_recursive_lower<M: VolumeQureyPosValueI>(
         &self,
         model: &M,
         offset: IVec3,
@@ -88,7 +88,7 @@ impl ParallelVoxelDAG64 {
             let mut bitmask = 0;
 
             for (i, pos) in get_dag_node_children_xzy_i().into_iter().enumerate() {
-                let child = self.add_pos_query_recursive_par_lower(
+                let child = self.add_pos_query_recursive_lower(
                     model,
                     offset + pos * new_scale,
                     new_level,

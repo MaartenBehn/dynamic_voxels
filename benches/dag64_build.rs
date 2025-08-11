@@ -95,7 +95,6 @@ fn criterion_benchmark(c: &mut Criterion) {
     b.iter(|| build_from_aabb_query_par_large(csg)));
 
 
-
     let csg: FastQueryCSGTree<u8> = csg.into();
 
     c.bench_with_input(

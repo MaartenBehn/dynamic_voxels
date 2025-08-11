@@ -5,6 +5,7 @@ use parking_lot::RwLock;
 use rayon::{iter::empty, prelude::*};
 
 use octa_force::{anyhow::bail, itertools::Itertools, log::{debug, error}, vulkan::Buffer, OctaResult};
+use smallvec::{SmallVec, ToSmallVec};
 
 use crate::multi_data_buffer::cached_vec::CompactRange;
 
@@ -157,9 +158,9 @@ impl<T: Copy + Default + fmt::Debug + Eq + std::hash::Hash, Hasher: std::hash::B
         inner_r.data[index as usize]
     }
 
-    pub fn get_range(&self, r: std::ops::Range<usize>) -> Vec<T> {
+    pub fn get_range<const N: usize>(&self, r: std::ops::Range<usize>) -> SmallVec<[T; N]> {
         let inner_r = self.inner.read();
-        inner_r.data[r].to_vec()
+        inner_r.data[r].to_smallvec()
     }
 
     pub fn set(&mut self, index: usize, data: &[T]) {

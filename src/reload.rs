@@ -133,16 +133,16 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
         let now = Instant::now();
 
-        let mut dag = VoxelDAG64::new(100000, 64);
+        let mut dag = VoxelDAG64::new(1000000, 64);
         let mut dag = dag.parallel();
         let key = dag.add_aabb_query_volume(&csg)?;
-        let mut dag = dag.single();
 
         let index = csg.append_node_with_remove(
             CSGNode::new_sphere(vec3(70.0, 0.0, 0.0), 50.0));
         csg.set_all_aabbs();
 
-        let key = dag.update_aabb_query_volume(&csg, key)?;
+        let key = dag.update_pos_query_volume(&csg, key)?;
+        let mut dag = dag.single();
 
         let elapsed = now.elapsed();
         info!("Tree Build took {:.2?}", elapsed);
