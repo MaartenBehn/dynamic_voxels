@@ -21,11 +21,11 @@ new_key_type! { pub struct DAG64EntryKey; }
 pub struct VoxelDAG64 {
     pub nodes: CachedVec<VoxelDAG64Node>,
     pub data: CachedVec<u8>,
-    pub entry_points: SlotMap<DAG64EntryKey, DAG64EntryData>
+    pub entry_points: SlotMap<DAG64EntryKey, DAG64Entry>
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct DAG64EntryData {
+pub struct DAG64Entry {
     pub levels: u8,
     pub root_index: u32,
     pub offset: IVec3,
@@ -52,7 +52,7 @@ impl VoxelDAG64 {
     }
 }
 
-impl DAG64EntryData { 
+impl DAG64Entry { 
     pub fn get_size(&self) -> u32 {
         4_u32.pow(self.levels as u32)
     }

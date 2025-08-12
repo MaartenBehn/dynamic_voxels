@@ -2,7 +2,7 @@ use octa_force::{glam::{vec3a, IVec3, UVec3, Vec3A, Vec4Swizzles}, log::debug, O
 
 use crate::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, util::{aabb3d::AABB, iaabb3d::AABBI, math::get_dag_node_children_xzy_i}, volume::{VolumeQureyAABB, VolumeQureyAABBI}};
 
-use super::{node::VoxelDAG64Node, DAG64EntryData, DAG64EntryKey, VoxelDAG64};
+use super::{node::VoxelDAG64Node, DAG64Entry, DAG64EntryKey, VoxelDAG64};
 
 
 impl VoxelDAG64 {

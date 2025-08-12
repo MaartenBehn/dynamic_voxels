@@ -4,7 +4,8 @@ pub mod renderer;
 pub mod worker;
 
 use bvh::{aabb::{Aabb, Bounded}, bounding_hierarchy::{BHShape, BoundingHierarchy}, bvh::Bvh};
-use dag64::DAG64SceneObject;
+use dag64::SceneDAGObject;
+use dag_store::SceneDAGStore;
 use octa_force::{anyhow::anyhow, glam::{vec3, Mat4, Vec3, Vec4Swizzles}, log::{debug, info}, vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
 use slotmap::{new_key_type, SlotMap};
 
@@ -14,17 +15,18 @@ new_key_type! { pub struct SceneObjectKey; }
 
 #[derive(Debug)]
 pub struct Scene {
+    pub dag_store: SceneDAGStore,
+    pub objects: SlotMap<SceneObjectKey, SceneObject>,
+
     pub buffer: Buffer,
     pub allocator: BuddyBufferAllocator,
-    pub objects: SlotMap<SceneObjectKey, SceneObject>,
     pub bvh: Bvh<f32, 3>,
     pub bvh_allocation: BuddyAllocation,
     pub bvh_len: usize,
-
     pub needs_bvh_update: bool,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct SceneData {
     start_ptr: u64,
@@ -41,7 +43,7 @@ pub struct SceneObject {
 
 #[derive(Debug)]
 pub enum SceneObjectType {
-    DAG64(DAG64SceneObject)
+    DAG64(SceneDAGObject)
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -55,6 +57,8 @@ pub struct SceneObjectData {
 
 impl Scene {
     pub fn new(context: &Context) -> OctaResult<Self> {
+        let dag_store = SceneDAGStore::new();
+
         let buffer_size = 2_usize.pow(20);
         info!("Scene Buffer size: {:.04} MB", to_mb(buffer_size));
 
@@ -69,6 +73,7 @@ impl Scene {
         let bvh_allocation = allocator.alloc(1024)?;
 
         Ok(Scene {
+            dag_store,
             buffer,
             allocator,
             objects: Default::default(),
@@ -137,7 +142,7 @@ impl Scene {
     pub fn flush(&mut self) -> OctaResult<()> {
         for object in self.objects.values_mut() {
             if object.changed {
-                object.push_to_buffer(&mut self.buffer);
+                object.push_to_buffer(&mut self.buffer, &self.dag_store);
                 object.changed = false;
             }
         }
@@ -166,9 +171,9 @@ impl SceneObject {
         }
     }
 
-    pub fn push_to_buffer(&mut self, buffer: &mut Buffer) {
+    pub fn push_to_buffer(&mut self, buffer: &mut Buffer, dag_store: &SceneDAGStore) {
         match &mut self.data {
-            SceneObjectType::DAG64(dag) => dag.push_to_buffer(buffer),
+            SceneObjectType::DAG64(o) => o.push_to_buffer(buffer, dag_store),
         }
     }
 
@@ -180,9 +185,7 @@ impl SceneObject {
 
     pub fn get_aabb(&self) -> AABB {
         match &self.data {
-            SceneObjectType::DAG64(dag) => {
-                dag.get_aabb()
-            },
+            SceneObjectType::DAG64(o) => o.get_aabb(),
         }
     }
 }

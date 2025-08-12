@@ -3,7 +3,7 @@ use smallvec::{SmallVec, ToSmallVec};
 
 use crate::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, util::{aabb3d::AABB, iaabb3d::AABBI, math::get_dag_node_children_xzy_i}, volume::VolumeQureyPosValueI};
 
-use super::{node::VoxelDAG64Node, DAG64EntryData, DAG64EntryKey, VoxelDAG64};
+use super::{node::VoxelDAG64Node, DAG64Entry, DAG64EntryKey, VoxelDAG64};
 
 
 impl VoxelDAG64 {

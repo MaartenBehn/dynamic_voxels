@@ -1,10 +1,10 @@
 use octa_force::{glam::UVec3, OctaResult};
 
-use crate::{util::iaabb3d::AABBI, voxel::dag64::{node::VoxelDAG64Node, DAG64EntryData, DAG64EntryKey}};
+use crate::{util::iaabb3d::AABBI, voxel::dag64::{node::VoxelDAG64Node, DAG64Entry, DAG64EntryKey}};
 use super::ParallelVoxelDAG64;
 
 impl ParallelVoxelDAG64 {
-    pub fn expand_to_include_aabb(&mut self, based_on_entry: DAG64EntryKey, aabb: AABBI) -> OctaResult<DAG64EntryData> {
+    pub fn expand_to_include_aabb(&mut self, based_on_entry: DAG64EntryKey, aabb: AABBI) -> OctaResult<DAG64Entry> {
         let mut entry_data = self.entry_points.lock()[based_on_entry].to_owned(); 
 
         let mut size = 4_i32.pow(entry_data.levels as u32);

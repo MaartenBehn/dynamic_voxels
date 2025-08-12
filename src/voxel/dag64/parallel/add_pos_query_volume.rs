@@ -1,7 +1,7 @@
 use itertools::Either;
 use octa_force::{anyhow::{self, anyhow}, glam::{IVec3, Vec3Swizzles}, OctaResult};
 use smallvec::SmallVec;
-use crate::{util::math::{get_dag_node_children, get_dag_node_children_xzy_i}, volume::VolumeQureyPosValueI, voxel::dag64::{node::VoxelDAG64Node, util::get_dag_offset_levels, DAG64EntryData, DAG64EntryKey}};
+use crate::{util::math::{get_dag_node_children, get_dag_node_children_xzy_i}, volume::VolumeQureyPosValueI, voxel::dag64::{node::VoxelDAG64Node, util::get_dag_offset_levels, DAG64Entry, DAG64EntryKey}};
 use super::ParallelVoxelDAG64;
 use rayon::iter::{walk_tree_postfix};
 use rayon::prelude::*;
@@ -14,7 +14,7 @@ impl ParallelVoxelDAG64 {
         let root = self.add_pos_query_recursive_par(model, offset, levels)?;
 
         let root_index = self.nodes.push(&[root])?;
-        let key = self.entry_points.lock().insert(DAG64EntryData { 
+        let key = self.entry_points.lock().insert(DAG64Entry { 
             levels, 
             root_index, 
             offset, 

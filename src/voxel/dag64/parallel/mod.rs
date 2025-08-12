@@ -12,13 +12,13 @@ use slotmap::SlotMap;
 
 use crate::{multi_data_buffer::parallel_vec::ParallelVec, util::math::to_mb};
 
-use super::{node::VoxelDAG64Node, DAG64EntryData, DAG64EntryKey, VoxelDAG64};
+use super::{node::VoxelDAG64Node, DAG64Entry, DAG64EntryKey, VoxelDAG64};
 
 #[derive(Debug, Clone)]
 pub struct ParallelVoxelDAG64 {
     pub nodes: ParallelVec<VoxelDAG64Node>,
     pub data: ParallelVec<u8>,
-    pub entry_points: Arc<Mutex<SlotMap<DAG64EntryKey, DAG64EntryData>>>
+    pub entry_points: Arc<Mutex<SlotMap<DAG64EntryKey, DAG64Entry>>>
 }
 
 impl VoxelDAG64 {
@@ -52,7 +52,7 @@ impl ParallelVoxelDAG64 {
         );
     }
 
-    pub fn get_entry(&self, key: DAG64EntryKey) -> DAG64EntryData {
+    pub fn get_entry(&self, key: DAG64EntryKey) -> DAG64Entry {
         self.entry_points.lock()[key].to_owned()
     }
 }

@@ -1,11 +1,12 @@
 use octa_force::{camera::Camera, egui, engine::Engine, glam::UVec2, vulkan::{CommandBuffer, Context, Swapchain}, OctaResult};
 use crate::voxel::renderer::{palette::Palette, RayManagerData, VoxelRenderer};
 
-use super::{Scene, SceneData};
+use super::{worker::{SceneWorker, SceneWorkerRenderData}, Scene, SceneData};
 
 #[derive(Debug)]
 pub struct SceneRenderer {
     pub voxel_renderer: VoxelRenderer,
+    pub scene_render_data: SceneWorkerRenderData,
     pub debug: bool,
 }
 
@@ -21,6 +22,7 @@ impl SceneRenderer {
         context: &Context,
         swapchain: &Swapchain,
         camera: &Camera,
+        scene_render_data: SceneWorkerRenderData,
     ) -> OctaResult<SceneRenderer> {
         let mut voxel_renderer = VoxelRenderer::new::<SceneDispatchParams>(
             context, 
@@ -34,15 +36,13 @@ impl SceneRenderer {
 
         Ok(SceneRenderer {
             voxel_renderer,
+            scene_render_data,
             debug: true,
         })
     }
 
     pub fn update(&mut self, camera: &Camera, context: &Context, res: UVec2, in_flight_frame_index: usize, frame_index: usize) -> OctaResult<()> {
         self.voxel_renderer.update(camera, context, res, in_flight_frame_index, frame_index)?;
-        todo!()
-        self.scene.flush()?;
-
         Ok(())
     }
 
@@ -57,7 +57,7 @@ impl SceneRenderer {
     ) -> OctaResult<()> {
         self.voxel_renderer.render(buffer, engine, SceneDispatchParams {
             ray_manager: self.voxel_renderer.get_ray_manager_data(),
-            scene: self.scene.get_data(),
+            scene: self.scene_render_data.get_data(),
             debug: self.debug,
         })?;
         //self.debug = false;

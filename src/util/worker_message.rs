@@ -1,26 +1,28 @@
 
 
-pub struct WorkerMessage<S, R> {
+pub struct WithRespose<S, R> {
     pub data: S,
     back_s: oneshot::Sender<R>
 }
 
-pub struct WorkerMessageHandle<R> {
+pub struct WorkerRespose<R> {
     back_r: oneshot::Receiver<R>
 }
 
-impl<S, R> WorkerMessage<S, R> {
-    pub fn new(data: S) -> (WorkerMessage<S, R>, WorkerMessageHandle<R>) {
+impl<S, R> WithRespose<S, R> {
+    pub fn new(data: S) -> (WithRespose<S, R>, WorkerRespose<R>) {
         let (back_s, back_r) = oneshot::channel();
-        (WorkerMessage { data, back_s }, WorkerMessageHandle { back_r })
+        (WithRespose { data, back_s }, WorkerRespose { back_r })
     }
 
-    pub async fn awnser(self, reponse: R) {
-        self.back_s.send(reponse).expect("Back Channel closed!");
+    pub fn unwarp(self) -> (S, impl FnOnce(R)) {
+        (self.data, |res: R| {
+            self.back_s.send(res).expect("Repose channel cloesed!");
+        })
     }
 }
 
-impl<R> WorkerMessageHandle<R> {
+impl<R> WorkerRespose<R> {
     pub fn result_blocking(self) -> R {
         self.back_r.recv().unwrap()
     }

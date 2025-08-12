@@ -5,20 +5,21 @@ use octa_force::{anyhow::anyhow, glam::{vec3, vec4, Mat4, Quat, Vec3, Vec3A, Vec
 use parking_lot::Mutex;
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, util::aabb3d::AABB, voxel::dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, VOXELS_PER_METER, VOXELS_PER_SHADER_UNIT};
+use crate::{multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, util::aabb3d::AABB, voxel::dag64::{parallel::ParallelVoxelDAG64, DAG64Entry, DAG64EntryKey, VoxelDAG64}, VOXELS_PER_METER, VOXELS_PER_SHADER_UNIT};
 
-use super::{dag_store::SceneDAGKey, Scene, SceneObjectData, SceneObjectKey, SceneObjectType};
+use super::{dag_store::{SceneDAG, SceneDAGKey, SceneDAGStore}, Scene, SceneObjectData, SceneObjectKey, SceneObjectType};
 
 #[derive(Debug)]
-pub struct DAG64SceneObject {
+pub struct SceneDAGObject {
+    pub allocation: BuddyAllocation,
     pub mat: Mat4,
     pub dag_key: SceneDAGKey,
-    pub entry_key: DAG64EntryKey,
+    pub entry: DAG64Entry,
 }
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct DAG64SceneObjectData {
+pub struct SceneDAGObjectData {
     pub mat: Mat4,
     pub inv_mat: Mat4,
     pub node_ptr: u64,
@@ -26,24 +27,40 @@ pub struct DAG64SceneObjectData {
     pub root_index: u32,
 }
 
+pub struct SceneAddDAGObject {
+    pub mat: Mat4,
+    pub dag_key: SceneDAGKey,
+    pub entry: DAG64Entry,
+}
+
+pub struct SceneSetDAGEntry {
+    object: SceneObjectKey,
+    entry: DAG64Entry,
+}
+
 impl Scene {
-    pub fn add_dag64(
-        &mut self, 
-        context: &Context, 
-        mat: Mat4, 
-        entry_key: DAG64EntryKey, 
-        dag: ParallelVoxelDAG64,
+    pub fn add_dag64_object(
+        &mut self,
+        add_dag_object: SceneAddDAGObject,
     ) -> OctaResult<SceneObjectKey> {
-        
-        let object = SceneObjectType::DAG64(DAG64SceneObject::new(context, mat, entry_key, dag)?); 
-        Ok(self.add_object(object))
+        let allocation = self.allocator.alloc(size_of::<SceneDAGObjectData>())?;
+        let key = self.add_object(SceneObjectType::DAG64(SceneDAGObject {
+            allocation,
+            mat: add_dag_object.mat,
+            dag_key: add_dag_object.dag_key,
+            entry: add_dag_object.entry,
+        }));
+
+        Ok(key)
     }
 
-    pub fn set_dag64_entry_key(&mut self, key: SceneObjectKey, entry_key: DAG64EntryKey) -> OctaResult<()> {
-        let object = self.objects.get_mut(key).ok_or_else(|| anyhow!("Invalid SceneObjectKey!"))?;
+    pub fn set_dag64_entry(&mut self, set: SceneSetDAGEntry) -> OctaResult<()> {
+        let object = self.objects.get_mut(set.object)
+            .ok_or_else(|| anyhow!("Invalid SceneObjectKey!"))?;
+
         match &mut object.data {
-            SceneObjectType::DAG64(dag64_scene_object) => {
-                dag64_scene_object.entry_key = entry_key;
+            SceneObjectType::DAG64(dag) => {
+                dag.entry = set.entry;
             },
         }
         object.changed = true;
@@ -52,48 +69,38 @@ impl Scene {
     }
 }
 
-impl DAG64SceneObject {
-    pub fn new(context: &Context, mat: Mat4, entry_key: DAG64EntryKey, dag_key: SceneDAGKey) -> Self {
-        Self {
-            mat,
-            dag_key,
-            entry_key,
-        }
-    }
+impl SceneDAGObject { 
+    pub fn push_to_buffer(&mut self, scene_buffer: &mut Buffer, dag_store: &SceneDAGStore) { 
+        let dag = &dag_store.dags[self.dag_key];
 
-    pub fn push_to_buffer(&mut self, scene_buffer: &mut Buffer) {
-        
-        let entry = self.dag.get_entry(self.entry_key);
-
-        let size = entry.get_size();
+        let size = self.entry.get_size();
         let scale = (VOXELS_PER_SHADER_UNIT as u32 / size) as f32; 
         let mat = Mat4::from_scale_rotation_translation(
             Vec3::splat(scale), 
             Quat::IDENTITY,
-            Vec3::splat(1.0) - entry.offset.as_vec3() / size as f32,
+            Vec3::splat(1.0) - self.entry.offset.as_vec3() / size as f32,
         ).mul_mat4(&self.mat.inverse());
 
         let inv_mat = mat.inverse();
 
-        let data = DAG64SceneObjectData {
+        let data = SceneDAGObjectData {
             mat: mat.transpose(),
             inv_mat: inv_mat.transpose(),
             
-            node_ptr: self.node_buffer.get_device_address(),
-            data_ptr: self.data_buffer.get_device_address(),
-            root_index: entry.root_index,
+            node_ptr: dag.node_buffer.get_device_address(),
+            data_ptr: dag.data_buffer.get_device_address(),
+            root_index: self.entry.root_index,
         };
 
         scene_buffer.copy_data_to_buffer_without_aligment(&[data], self.allocation.start);
     }
 
     pub fn get_aabb(&self) -> AABB {
-        let entry = self.dag.get_entry(self.entry_key);
-        let size = entry.get_size();
+        let size = self.entry.get_size();
         AABB::from_min_max(
             &self.mat,
-            entry.offset.as_vec3a() / VOXELS_PER_SHADER_UNIT as f32, 
-            (entry.offset.as_vec3a() + Vec3A::splat(size as f32)) / VOXELS_PER_SHADER_UNIT as f32,
+            self.entry.offset.as_vec3a() / VOXELS_PER_SHADER_UNIT as f32, 
+            (self.entry.offset.as_vec3a() + Vec3A::splat(size as f32)) / VOXELS_PER_SHADER_UNIT as f32,
         )
     }
 }

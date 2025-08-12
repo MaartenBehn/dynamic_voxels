@@ -15,7 +15,6 @@ use model::debug_renderer::ModelDebugRenderer;
 use model::examples::islands::{self, Islands};
 use octa_force::engine::Engine;
 use parking_lot::Mutex;
-use scene::dag64::DAG64SceneObject;
 use scene::renderer::SceneRenderer;
 use scene::{Scene, SceneObjectData, SceneObjectKey, SceneObjectType};
 use slotmap::Key;

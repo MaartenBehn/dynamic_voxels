@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::{multi_data_buffer::{buddy_buffer_allocator::BuddyBufferAllocator, cached_vec::CachedVec}, util::math::get_dag_node_children_xzy_i, volume::VolumeQureyPosValueI};
 
-use super::{node::VoxelDAG64Node, util::get_dag_offset_levels, DAG64EntryData, DAG64EntryKey, VoxelDAG64};
+use super::{node::VoxelDAG64Node, util::get_dag_offset_levels, DAG64Entry, DAG64EntryKey, VoxelDAG64};
 
 impl VoxelDAG64 {
     pub fn add_pos_query_volume<M: VolumeQureyPosValueI>(&mut self, model: &M) -> OctaResult<DAG64EntryKey> {
@@ -12,7 +12,7 @@ impl VoxelDAG64 {
 
         let root = self.add_pos_query_recursive(model, offset, levels)?;
         let root_index = self.nodes.push(&[root])?;
-        let key = self.entry_points.insert(DAG64EntryData { 
+        let key = self.entry_points.insert(DAG64Entry { 
             levels, 
             root_index, 
             offset, 

@@ -5,15 +5,17 @@ use crate::voxel::dag64::parallel::ParallelVoxelDAG64;
 
 new_key_type! { pub struct SceneDAGKey; }
 
+#[derive(Debug)]
 pub struct SceneDAG {
-    dag: ParallelVoxelDAG64,
-    changed: bool,
-    node_buffer: Buffer,
-    data_buffer: Buffer,
+    pub dag: ParallelVoxelDAG64,
+    pub changed: bool,
+    pub node_buffer: Buffer,
+    pub data_buffer: Buffer,
 }
 
+#[derive(Debug)]
 pub struct SceneDAGStore {
-    dags: SlotMap<SceneDAGKey, SceneDAG>,
+    pub dags: SlotMap<SceneDAGKey, SceneDAG>,
 }
 
 impl SceneDAGStore {
@@ -23,7 +25,7 @@ impl SceneDAGStore {
         }
     }   
 
-    pub fn add_dag(&mut self, context: Context, dag: ParallelVoxelDAG64) -> OctaResult<SceneDAGKey> {
+    pub fn add_dag(&mut self, context: &Context, dag: ParallelVoxelDAG64) -> OctaResult<SceneDAGKey> {
         let mut node_buffer = context.create_buffer(
             vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS_KHR,
             MemoryLocation::CpuToGpu,
@@ -46,6 +48,10 @@ impl SceneDAGStore {
 
     pub fn mark_changed(&mut self, key: SceneDAGKey) {
         self.dags[key].changed = true;
+    }
+
+    pub fn get_dag(&self, key: SceneDAGKey) -> &ParallelVoxelDAG64 {
+        &self.dags[key].dag
     }
 
     pub fn flush(&self, context: Context) {

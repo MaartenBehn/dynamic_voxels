@@ -4,7 +4,7 @@ use smallvec::{SmallVec, ToSmallVec};
 
 use crate::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, new_logic_state, util::{aabb3d::AABB, iaabb3d::AABBI, math::get_dag_node_children_xzy_i}, volume::{VolumeQureyAABBI, VolumeQureyPosValueI}, voxel::dag64::node::VoxelDAG64Node};
 
-use super::{DAG64EntryData, DAG64EntryKey, ParallelVoxelDAG64, VoxelDAG64};
+use super::{DAG64Entry, DAG64EntryKey, ParallelVoxelDAG64, VoxelDAG64};
 
 
 impl ParallelVoxelDAG64 {
