@@ -1,9 +1,11 @@
+use core::fmt;
 use std::{ops::Deref, sync::Arc};
 
-use octa_force::{log::{debug, warn}, vulkan::Context};
+use octa_force::{glam::Mat4, log::{debug, warn}, vulkan::{AllocContext, Context}};
 use parking_lot::Mutex;
+use smol::future::FutureExt;
 
-use crate::{util::worker_message::{WithRespose, WorkerRespose}, voxel::dag64::parallel::ParallelVoxelDAG64};
+use crate::{util::worker_message::{WithRespose, WorkerRespose}, voxel::dag64::{parallel::ParallelVoxelDAG64, DAG64Entry}};
 
 use super::{dag64::{SceneAddDAGObject, SceneSetDAGEntry}, dag_store::SceneDAGKey, Scene, SceneData, SceneObjectKey};
 
@@ -11,11 +13,12 @@ pub enum SceneMessage {
     AddDAG(WithRespose<ParallelVoxelDAG64, SceneDAGKey>),
     AddDAGObject(WithRespose<SceneAddDAGObject, SceneObjectKey>),
     SetDAGEntry(SceneSetDAGEntry),
+    RemoveObject(SceneObjectKey),
     Flush,
 }
 
 pub struct SceneWorker {
-    task: smol::Task<Scene>,
+    pub task: smol::Task<Scene>,
     pub send: SceneWorkerSend,
     pub render_data: SceneWorkerRenderData,
 }
@@ -37,15 +40,15 @@ pub struct SceneWorkerRenderData {
 }
 
 impl Scene {
-    pub fn run_worker(mut self, context: Context, cap: usize) -> SceneWorker {
+    pub fn run_worker(mut self, context: AllocContext, cap: usize) -> SceneWorker {
         let (s, r) = smol::channel::bounded(cap); 
+        let (flush_s, flush_r) = smol::channel::bounded(1); 
         let (render_s, render_r) = smol::channel::bounded(1); 
         let data = self.get_data();
 
-
         let task = smol::spawn(async move {
             loop {
-                match r.recv().await {
+                match r.recv().or(flush_r.recv()).await {
                     Ok(m) => match m {
                         SceneMessage::AddDAG(worker_message) => {
                             let (data, awnser) = worker_message.unwarp();
@@ -62,15 +65,25 @@ impl Scene {
                                 .expect("Failed to add DAG Object");
 
                             awnser(key);
+                            let _ = flush_s.force_send(SceneMessage::Flush);
                         },
                         SceneMessage::SetDAGEntry(set) => {
                             let res = self.set_dag64_entry(set);
                             if res.is_err() {
                                 warn!("Set Entry for invalid DAG Object -> Ignoring");
                             }
+                            let _ = flush_s.force_send(SceneMessage::Flush);
+                        },
+                        SceneMessage::RemoveObject(key) => {
+                            let res = self.remove_object(key);
+                            if res.is_err() {
+                                warn!("Typed to removed Scene Object with invalid Key")
+                            }
                         },
                         SceneMessage::Flush => {
-                            self.flush();
+                            debug!("Flush Scene");
+
+                            self.flush().expect("Failed to flush scene");
                             let scene_data = self.get_data();
                             render_s.force_send(scene_data).expect("Failed to send Scene Data");
                         }
@@ -115,10 +128,26 @@ impl SceneWorkerSend {
         res
     }
 
-    pub fn add_dag_object(&self, dag: SceneAddDAGObject) -> WorkerRespose<SceneObjectKey> {
-        let (message, res) = WithRespose::new(dag);
+    pub fn add_dag_object(&self, mat: Mat4, dag_key: SceneDAGKey, entry: DAG64Entry) -> WorkerRespose<SceneObjectKey> {
+        let (message, res) = WithRespose::new(SceneAddDAGObject {
+            mat,
+            dag_key,
+            entry,
+        });
+
         self.send(SceneMessage::AddDAGObject(message));
         res
+    }
+
+    pub fn set_dag_entry(&self, object: SceneObjectKey, entry: DAG64Entry) {
+        self.send(SceneMessage::SetDAGEntry(SceneSetDAGEntry {
+            object,
+            entry,
+        }));
+    }
+
+    pub fn remove_object(&self, object: SceneObjectKey) {
+        self.send(SceneMessage::RemoveObject(object));
     }
 }
 
@@ -138,5 +167,15 @@ impl SceneWorkerRenderData {
                 },
             },
         }
+    }
+}
+
+impl fmt::Debug for SceneWorker {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SceneWorker")
+            .field("task", &())
+            .field("send", &self.send)
+            .field("render_data", &self.render_data)
+            .finish()
     }
 }

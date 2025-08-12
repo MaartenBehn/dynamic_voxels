@@ -15,7 +15,9 @@ use model::debug_renderer::ModelDebugRenderer;
 use model::examples::islands::{self, Islands};
 use octa_force::engine::Engine;
 use parking_lot::Mutex;
+use scene::dag64::SceneAddDAGObject;
 use scene::renderer::SceneRenderer;
+use scene::worker::SceneWorker;
 use scene::{Scene, SceneObjectData, SceneObjectKey, SceneObjectType};
 use slotmap::Key;
 use kiddo::SquaredEuclidean;
@@ -105,6 +107,9 @@ pub struct RenderState {
     pub gui: Gui,
          
     #[cfg(any(feature="scene", feature="islands"))]
+    pub scene: SceneWorker,
+    
+    #[cfg(any(feature="scene", feature="islands"))]
     pub renderer: SceneRenderer,
     
     #[cfg(any(feature="islands"))]
@@ -126,7 +131,16 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
    
     #[cfg(feature="scene")]
     {
-        let mut scene = Scene::new(&engine.context)?;
+        let scene = Scene::new(&engine.context)?.run_worker(engine.context.get_alloc_context(), 10);
+
+        let palette = Palette::new();
+        let renderer = SceneRenderer::new(
+            &engine.context, 
+            &engine.swapchain, 
+            &logic_state.camera,
+            scene.render_data.clone(),
+        )?;
+        renderer.push_palette(&engine.context, &palette)?;
 
         let mut csg = CSGTree::new_sphere(Vec3::ZERO, 100.0);
 
@@ -145,23 +159,20 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         let elapsed = now.elapsed();
         info!("Tree Build took {:.2?}", elapsed);
 
-        scene.add_dag64(
-            &engine.context,
+        let dag_key = scene.send.add_dag(dag.clone()).result_blocking();
+        scene.send.add_dag_object(
             Mat4::from_scale_rotation_translation(
                 Vec3::ONE,
                 Quat::IDENTITY,
                 vec3(0.0, 0.0, 0.0)
-            ), 
-            key,
-            dag,
-        )?;
-
-        let palette = Palette::new();
-        let renderer = SceneRenderer::new(&engine.context, &engine.swapchain, scene, &logic_state.camera)?;
-        renderer.push_palette(&engine.context, &palette)?;
-
+            ),
+            dag_key,
+            dag.get_entry(key),
+        );
+        
         Ok(RenderState {
             gui,
+            scene,
             renderer,
         })
     }

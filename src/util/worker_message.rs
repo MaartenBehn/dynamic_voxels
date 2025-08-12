@@ -17,7 +17,8 @@ impl<S, R> WithRespose<S, R> {
 
     pub fn unwarp(self) -> (S, impl FnOnce(R)) {
         (self.data, |res: R| {
-            self.back_s.send(res).expect("Repose channel cloesed!");
+            // If sending fails the Respose reciver was dropped and the respose is not needed.
+            let _ = self.back_s.send(res);
         })
     }
 }

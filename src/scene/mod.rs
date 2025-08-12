@@ -140,6 +140,8 @@ impl Scene {
     }
 
     pub fn flush(&mut self) -> OctaResult<()> {
+        self.dag_store.flush();
+
         for object in self.objects.values_mut() {
             if object.changed {
                 object.push_to_buffer(&mut self.buffer, &self.dag_store);

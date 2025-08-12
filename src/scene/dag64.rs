@@ -34,8 +34,8 @@ pub struct SceneAddDAGObject {
 }
 
 pub struct SceneSetDAGEntry {
-    object: SceneObjectKey,
-    entry: DAG64Entry,
+    pub object: SceneObjectKey,
+    pub entry: DAG64Entry,
 }
 
 impl Scene {
