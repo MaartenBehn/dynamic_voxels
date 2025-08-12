@@ -54,11 +54,12 @@ impl SceneDAGStore {
         &self.dags[key].dag
     }
 
-    pub fn flush(&self) {
-        for scene_dag in self.dags.values() {
+    pub fn flush(&mut self) {
+        for scene_dag in self.dags.values_mut() {
             if scene_dag.changed {
                 scene_dag.dag.nodes.flush(&scene_dag.node_buffer);
                 scene_dag.dag.data.flush(&scene_dag.data_buffer);
+                scene_dag.changed = false;
             }
         }
     }

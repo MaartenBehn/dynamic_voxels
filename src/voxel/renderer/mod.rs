@@ -1,5 +1,4 @@
 pub mod render_data;
-pub mod palette;
 pub mod g_buffer;
 pub mod shader_stage;
 
@@ -23,11 +22,13 @@ use octa_force::vulkan::{
     Buffer, CommandBuffer, ComputePipeline, ComputePipelineCreateInfo, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, ImageAndView, PipelineLayout, Swapchain, WriteDescriptorSet, WriteDescriptorSetKind
 };
 use octa_force::{egui, in_flight_frames, OctaResult};
-use palette::{Palette, PaletteBuffer};
 use render_data::RenderData;
 use shader_stage::ShaderStage;
+use super::palette::buffer::PaletteBuffer;
+use super::palette::shared::SharedPalette;
 
 use crate::NUM_FRAMES_IN_FLIGHT;
+
 
 const RENDER_DISPATCH_GROUP_SIZE_X: u32 = 8;
 const RENDER_DISPATCH_GROUP_SIZE_Y: u32 = 8;
@@ -109,12 +110,13 @@ impl VoxelRenderer {
         context: &Context,
         swapchain: &Swapchain,
         camera: &Camera,
-        trace_ray_bin: &[u8]
+        palette: SharedPalette,
+        trace_ray_bin: &[u8],
     ) -> OctaResult<VoxelRenderer> {
 
         let mut heap = context.create_descriptor_heap(40)?;
 
-        let palette_buffer = PaletteBuffer::new(context)?;
+        let palette_buffer = PaletteBuffer::new(context, palette)?;
  
         let g_buffer = GBuffer::new(context, &mut heap, camera, swapchain)?;
 
@@ -211,10 +213,6 @@ impl VoxelRenderer {
         self.g_buffer.update(camera, context, res, in_flight_frame_index, frame_index, self.denoise_counters)?;
 
         Ok(())
-    }
-
-    pub fn push_palette(&self, context: &Context, palette: &Palette) -> OctaResult<()> {
-        self.palette_buffer.push_palette(context, palette)
     }
 
     pub fn render<D>(

@@ -21,6 +21,7 @@ use octa_force::vulkan::{
 use octa_force::{egui, in_flight_frames, OctaResult};
 use static_dag64_buffer::{StaticDAG64Buffer, StaticDAG64Data};
 
+use crate::voxel::palette::shared::SharedPalette;
 use crate::voxel::renderer::{RayManagerData, VoxelRenderer};
 use crate::NUM_FRAMES_IN_FLIGHT;
 
@@ -49,12 +50,14 @@ impl StaticDAG64Renderer {
         swapchain: &Swapchain,
         tree: StaticVoxelDAG64,
         camera: &Camera,
+        palette: SharedPalette,
     ) -> Result<StaticDAG64Renderer> {
  
         let voxel_renderer = VoxelRenderer::new::<TraceStaticDAG64DispatchParams>(
             context, 
             swapchain, 
             camera, 
+            palette,
             include_bytes!("../../../../shaders/slang/bin/_trace_tree64.spv"))?;
 
         let voxel_tree64_buffer = tree.into_buffer(context)?;

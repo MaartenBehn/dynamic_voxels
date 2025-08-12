@@ -179,14 +179,21 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
     #[cfg(feature="islands")]
     {
+        let scene = Scene::new(&engine.context)?.run_worker(engine.context.get_alloc_context(), 10); 
+
         let mut palette = Palette::new();
-        let islands = Islands::new(&mut palette)?;
-        let scene = Scene::new(&engine.context)?; 
-        let mut renderer = SceneRenderer::new(&engine.context, &engine.swapchain, scene, &logic_state.camera)?;
+        let islands = Islands::new(&mut palette, &scene.send)?;
+        let mut renderer = SceneRenderer::new(
+            &engine.context, 
+            &engine.swapchain, 
+            &logic_state.camera,
+            scene.render_data.clone()
+        )?;
         renderer.push_palette(&engine.context, &palette)?;
 
         Ok(RenderState {
             gui,
+            scene,
             renderer,
             islands,
         })
@@ -215,7 +222,7 @@ pub fn update(
     
     #[cfg(any(feature="islands"))]
     {
-        if !render_state.islands.tick(&mut render_state.renderer.scene, &engine.context)? {
+        if !render_state.islands.tick(&render_state.scene.send, &engine.context)? {
             render_state.islands.update(&logic_state.camera)?;
         }
     }

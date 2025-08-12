@@ -1,6 +1,6 @@
 use octa_force::glam::{IVec3, UVec3, Vec3, Vec3A};
 
-use crate::{util::{aabb3d::AABB, iaabb3d::AABBI, math::to_1d}, volume::{VolumeBounds, VolumeBoundsI, VolumeQureyPosValue, VolumeQureyPosValueI}, voxel::renderer::palette::MATERIAL_ID_NONE};
+use crate::{util::{aabb3d::AABB, iaabb3d::AABBI, math::to_1d}, volume::{VolumeBounds, VolumeBoundsI, VolumeQureyPosValue, VolumeQureyPosValueI}, voxel::palette::palette::MATERIAL_ID_NONE};
 
 use super::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid, VoxelGrid};
 

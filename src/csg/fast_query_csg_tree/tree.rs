@@ -7,7 +7,7 @@ use std::{slice, usize};
 use crate::util::aabb3d::AABB;
 use crate::util::iaabb3d::AABBI;
 use crate::volume::VolumeQureyAABBResult;
-use crate::voxel::renderer::palette::MATERIAL_ID_NONE;
+use crate::voxel::palette::palette::MATERIAL_ID_NONE;
 
 pub const CSG_PARENT_NONE: usize = usize::MAX;
 

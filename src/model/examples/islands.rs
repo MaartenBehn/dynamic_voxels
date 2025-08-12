@@ -2,13 +2,11 @@
 use std::sync::Arc;
 
 use nalgebra::IsDynamic;
-use octa_force::{camera::Camera, glam::{vec3, EulerRot, Mat4, Quat, Vec2, Vec3, Vec3A, Vec3Swizzles}, log::{error, info}, vulkan::{Context, Swapchain}, OctaResult};
+use octa_force::{camera::Camera, glam::{vec3, EulerRot, Mat4, Quat, Vec2, Vec3, Vec3A, Vec3Swizzles}, log::{error, info}, vulkan::{AllocContext, Context, Swapchain}, OctaResult};
 use parking_lot::Mutex;
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{csg::{csg_tree::tree::{CSGNode, CSGTree}, csg_tree_2d::tree::CSGTree2D, fast_query_csg_tree::tree::FastQueryCSGTree}, model::generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder}, collapse::{CollapseOperation, Collapser}, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree, traits::{ModelGenerationTypes, BU, IT}}, scene::{dag64::{SceneAddDAGObject, SceneDAGObject}, dag_store::SceneDAGKey, renderer::SceneRenderer, worker::SceneWorkerSend, Scene, SceneObjectData, SceneObjectKey}, util::aabb3d::AABB, volume::{magica_voxel::MagicaVoxelModel, VolumeBoundsI, VolumeQureyPosValid}, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, grid::{shared::SharedVoxelGrid, VoxelGrid}, renderer::palette::Palette}, METERS_PER_SHADER_UNIT};
-
-const COLLAPSES_PER_TICK: usize = 1;
+use crate::{csg::{csg_tree::tree::{CSGNode, CSGTree}, csg_tree_2d::tree::CSGTree2D, fast_query_csg_tree::tree::FastQueryCSGTree}, model::generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder}, collapse::{CollapseOperation, Collapser}, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree, traits::{ModelGenerationTypes, BU, IT}}, scene::{dag64::{SceneAddDAGObject, SceneDAGObject}, dag_store::SceneDAGKey, renderer::SceneRenderer, worker::SceneWorkerSend, Scene, SceneObjectData, SceneObjectKey}, util::aabb3d::AABB, volume::{magica_voxel::MagicaVoxelModel, VolumeBoundsI, VolumeQureyPosValid}, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, grid::{shared::SharedVoxelGrid, VoxelGrid}, palette::shared::SharedPalette}, METERS_PER_SHADER_UNIT};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Identifier {
@@ -22,7 +20,6 @@ pub enum Identifier {
     TreePositions,
     TreeBuild,
 }
-
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct IslandGenerationTypes {}
@@ -53,8 +50,12 @@ pub struct Island {
     pub dag_key: DAG64EntryKey,
 }
 
+pub struct UpdateData {
+    pub pos: Vec3,
+}
+
 impl Islands {
-    pub fn new(palette: &mut Palette, scene: &SceneWorkerSend) -> OctaResult<Self> {
+    pub fn new(palette: &mut SharedPalette, scene: &SceneWorkerSend) -> OctaResult<Self> {
 
         let mut dag = VoxelDAG64::new(1000000, 1000000).parallel();
         dag.print_memory_info();
@@ -115,9 +116,8 @@ impl Islands {
         })
     }
 
-    pub fn update(&mut self, camera: &Camera) -> OctaResult<()> {
-
-        let mut new_pos = camera.get_position_in_meters();
+    pub fn update(&mut self, update_data: UpdateData) -> OctaResult<()> {
+        let mut new_pos = update_data.pos;
         new_pos.z = 0.0;
 
         if new_pos == self.last_pos {
@@ -137,7 +137,7 @@ impl Islands {
         Ok(())
     }
 
-    pub fn tick(&mut self, scene: &SceneWorkerSend, context: &Context) -> OctaResult<bool> {
+    pub fn tick(&mut self, scene: &SceneWorkerSend, ticks: usize) -> OctaResult<bool> {
         let mut ticked = false;
         let mut i = 0;
 
@@ -233,13 +233,9 @@ impl Islands {
             } 
 
             i += 1;
-            if i > COLLAPSES_PER_TICK {
+            if i > ticks {
                 break;
             }
-        }
-
-        if !ticked {
-            //info!("Idle");
         }
 
         Ok(ticked)

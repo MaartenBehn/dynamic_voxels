@@ -1,6 +1,6 @@
 use octa_force::glam::vec3;
 
-use crate::{util::{aabb3d::AABB, iaabb3d::AABBI}, volume::{VolumeQureyAABB, VolumeQureyAABBI, VolumeQureyAABBResult}, voxel::renderer::palette::MATERIAL_ID_NONE};
+use crate::{util::{aabb3d::AABB, iaabb3d::AABBI}, volume::{VolumeQureyAABB, VolumeQureyAABBI, VolumeQureyAABBResult}, voxel::palette::palette::MATERIAL_ID_NONE};
 
 use super::tree::{CSGNodeData, CSGTree, CSGTreeKey};
 

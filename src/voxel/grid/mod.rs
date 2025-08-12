@@ -9,7 +9,7 @@ use octa_force::glam::{uvec3, vec3, UVec3, Vec3, Vec3A};
 
 use crate::{util::math::to_1d, volume::VolumeBoundsI};
 
-use super::renderer::palette::MATERIAL_ID_NONE;
+use super::palette::palette::MATERIAL_ID_NONE;
 
 const VOXELS_PER_U32: usize = 4;
 

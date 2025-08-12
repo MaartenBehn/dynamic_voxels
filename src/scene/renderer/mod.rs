@@ -1,5 +1,5 @@
 use octa_force::{camera::Camera, egui, engine::Engine, glam::UVec2, vulkan::{CommandBuffer, Context, Swapchain}, OctaResult};
-use crate::voxel::renderer::{palette::Palette, RayManagerData, VoxelRenderer};
+use crate::voxel::{palette::shared::SharedPalette, renderer::{RayManagerData, VoxelRenderer}};
 
 use super::{worker::{SceneWorker, SceneWorkerRenderData}, Scene, SceneData};
 
@@ -23,11 +23,13 @@ impl SceneRenderer {
         swapchain: &Swapchain,
         camera: &Camera,
         scene_render_data: SceneWorkerRenderData,
+        palette: SharedPalette,
     ) -> OctaResult<SceneRenderer> {
         let mut voxel_renderer = VoxelRenderer::new::<SceneDispatchParams>(
             context, 
             swapchain, 
-            camera, 
+            camera,
+            palette,
             include_bytes!("../../../shaders/slang/bin/_trace_scene.spv"))?;
 
         voxel_renderer.max_bounces = 0;
@@ -44,10 +46,6 @@ impl SceneRenderer {
     pub fn update(&mut self, camera: &Camera, context: &Context, res: UVec2, in_flight_frame_index: usize, frame_index: usize) -> OctaResult<()> {
         self.voxel_renderer.update(camera, context, res, in_flight_frame_index, frame_index)?;
         Ok(())
-    }
-
-    pub fn push_palette(&self, context: &Context, palette: &Palette) -> OctaResult<()> {
-        self.voxel_renderer.push_palette(context, palette)
     }
 
     pub fn render(

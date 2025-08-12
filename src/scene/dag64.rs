@@ -52,6 +52,7 @@ impl Scene {
             dag_key: add_dag_object.dag_key,
             entry: add_dag_object.entry,
         }));
+        self.dag_store.mark_changed(add_dag_object.dag_key);
 
         Ok(key)
     }
@@ -63,6 +64,7 @@ impl Scene {
         match &mut object.data {
             SceneObjectType::DAG64(dag) => {
                 dag.entry = set.entry;
+                self.dag_store.mark_changed(dag.dag_key);
             },
         }
         object.changed = true;

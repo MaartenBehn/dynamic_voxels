@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::voxel::renderer::palette::MATERIAL_ID_BASE;
+use crate::voxel::palette::palette::MATERIAL_ID_BASE;
 
 pub mod csg_tree;
 pub mod csg_tree_2d;

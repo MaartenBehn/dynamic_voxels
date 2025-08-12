@@ -1,7 +1,7 @@
 use octa_force::{anyhow::bail, glam::{uvec3, vec4, Vec4, Vec4Swizzles}, OctaResult};
 
 
-use crate::{csg::csg_tree::tree::CSGTree, util::math::to_1d, volume::{VolumeQureyPosValid, VolumeQureyPosValueI}, voxel::renderer::palette::{MATERIAL_ID_BASE, MATERIAL_ID_NONE}};
+use crate::{csg::csg_tree::tree::CSGTree, util::math::to_1d, volume::{VolumeQureyPosValid, VolumeQureyPosValueI}};
 
 use super::VoxelGrid;
 

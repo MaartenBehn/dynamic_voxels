@@ -1,7 +1,7 @@
 use octa_force::{anyhow::anyhow, glam::{IVec3, Mat3, UVec3, Vec3, Vec3A}, OctaResult};
 use dot_vox::*;
 
-use crate::{util::{aabb3d::AABB, math::to_1d}, voxel::{grid::{offset::OffsetVoxelGrid, VoxelGrid}, renderer::palette::{Palette, MATERIAL_ID_BASE}}};
+use crate::{util::{aabb3d::AABB, math::to_1d}, voxel::{grid::{offset::OffsetVoxelGrid, VoxelGrid}, palette::Palette}};
 
 use super::{VolumeBounds, VolumeQureyPosValue};
 
@@ -103,7 +103,7 @@ impl VolumeBounds for MagicaVoxelModel {
 }
 
 impl MagicaVoxelModel {
-    pub fn into_grid(self, palette: &mut Palette) -> OctaResult<OffsetVoxelGrid> { 
+    pub fn into_grid<P: Palette>(self, palette: &mut P) -> OctaResult<OffsetVoxelGrid> { 
 
         let size = (self.max - self.min + 1).as_uvec3();
 
