@@ -24,11 +24,11 @@ impl PaletteBuffer {
         })
     }
 
-    pub fn update(&self, context: &Context, palette: &SharedPalette) -> OctaResult<()> {
-        if palette.changed.load(Ordering::Relaxed) {
-            palette.changed.store(false, Ordering::Relaxed);
+    pub fn update(&self, context: &Context) -> OctaResult<()> {
+        if self.palette.changed.load(Ordering::Relaxed) {
+            self.palette.changed.store(false, Ordering::Relaxed);
 
-            let inner = palette.palette.read();
+            let inner = self.palette.palette.read();
             let packed: Vec<_> = inner.materials.iter().map(|m| m.get_encoded()).collect();
 
             // TODO Maybe reuse staging buffer?

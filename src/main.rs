@@ -8,7 +8,6 @@ use dynamic_voxels::voxel::dag64::VoxelDAG64;
 use dynamic_voxels::voxel::grid::shared::SharedVoxelGrid;
 use dynamic_voxels::voxel::grid::VoxelGrid;
 use dynamic_voxels::model::examples::islands::Islands;
-use dynamic_voxels::voxel::renderer::palette::Palette;
 use octa_force::binding::r#trait::BindingTrait;
 use octa_force::egui_winit::winit::event::WindowEvent;
 use octa_force::engine::{Engine, EngineConfig, EngineFeatureValue};
@@ -28,6 +27,10 @@ const HEIGHT: u32 = 1080;
 const APP_NAME: &str = "Dynamic Voxels";
 
 fn main() {
+    unsafe {
+        env::set_var("SMOL_THREADS", "4");
+    }
+
     #[cfg(feature = "profile_islands")]
     {
         /*

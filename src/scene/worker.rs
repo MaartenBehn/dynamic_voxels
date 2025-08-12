@@ -5,7 +5,7 @@ use octa_force::{glam::Mat4, log::{debug, trace, warn}, vulkan::{AllocContext, C
 use parking_lot::Mutex;
 use smol::future::FutureExt;
 
-use crate::{util::worker_message::{WithRespose, WorkerRespose}, voxel::dag64::{parallel::ParallelVoxelDAG64, DAG64Entry}};
+use crate::{util::worker_response::{WithRespose, WorkerRespose}, voxel::dag64::{parallel::ParallelVoxelDAG64, DAG64Entry}};
 
 use super::{dag64::{SceneAddDAGObject, SceneSetDAGEntry}, dag_store::SceneDAGKey, Scene, SceneData, SceneObjectKey};
 

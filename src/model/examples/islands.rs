@@ -2,7 +2,7 @@
 use std::sync::Arc;
 
 use nalgebra::IsDynamic;
-use octa_force::{camera::Camera, glam::{vec3, EulerRot, Mat4, Quat, Vec2, Vec3, Vec3A, Vec3Swizzles}, log::{error, info}, vulkan::{AllocContext, Context, Swapchain}, OctaResult};
+use octa_force::{camera::Camera, glam::{vec3, EulerRot, Mat4, Quat, Vec2, Vec3, Vec3A, Vec3Swizzles}, log::{debug, error, info}, vulkan::{AllocContext, Context, Swapchain}, OctaResult};
 use parking_lot::Mutex;
 use slotmap::{new_key_type, SlotMap};
 
@@ -55,11 +55,11 @@ pub struct UpdateData {
 }
 
 impl Islands {
-    pub fn new(palette: &mut SharedPalette, scene: &SceneWorkerSend) -> OctaResult<Self> {
+    pub async fn new(palette: &mut SharedPalette, scene: &SceneWorkerSend) -> OctaResult<Self> {
 
         let mut dag = VoxelDAG64::new(1000000, 1000000).parallel();
         dag.print_memory_info();
-        let scene_dag_key = scene.add_dag(dag.clone()).result_blocking();
+        let scene_dag_key = scene.add_dag(dag.clone()).result_async().await;
         
         let tree_model = MagicaVoxelModel::new("./assets/Tree1small.vox")?;
         let tree_grid: SharedVoxelGrid = tree_model.into_grid(palette)?.into();
@@ -137,13 +137,12 @@ impl Islands {
         Ok(())
     }
 
-    pub fn tick(&mut self, scene: &SceneWorkerSend, ticks: usize) -> OctaResult<bool> {
+    pub async fn tick(&mut self, scene: &SceneWorkerSend, ticks: usize) -> OctaResult<bool> {
         let mut ticked = false;
         let mut i = 0;
 
         while let Some((hook, collapser)) 
             = self.collapser.next(&self.template)? {
-
             ticked = true;
 
             match hook {
@@ -187,7 +186,7 @@ impl Islands {
                                 ), 
                                 self.scene_dag_key,
                                 self.dag.get_entry(active_key),
-                            ).result_blocking();
+                            ).result_async().await;
 
                             let island = Island {
                                 csg,

@@ -13,6 +13,7 @@ use csg::csg_tree::tree::{CSGNode, CSGTree};
 use csg::fast_query_csg_tree::tree::FastQueryCSGTree;
 use model::debug_renderer::ModelDebugRenderer;
 use model::examples::islands::{self, Islands};
+use model::examples::islands_worker::IslandsWorker;
 use octa_force::engine::Engine;
 use parking_lot::Mutex;
 use scene::dag64::SceneAddDAGObject;
@@ -36,7 +37,7 @@ use util::state_saver::StateSaver;
 use volume::VolumeBounds;
 use voxel::dag64::VoxelDAG64;
 use voxel::grid::VoxelGrid;
-use voxel::renderer::palette::{self, Palette};
+use voxel::palette::shared::SharedPalette;
 use voxel::static_dag64::renderer::StaticDAG64Renderer;
 use voxel::static_dag64::StaticVoxelDAG64;
 use std::f32::consts::PI;
@@ -113,7 +114,7 @@ pub struct RenderState {
     pub renderer: SceneRenderer,
     
     #[cfg(any(feature="islands"))]
-    pub islands: Islands,
+    pub islands: IslandsWorker,
 }
 
 #[unsafe(no_mangle)]
@@ -179,17 +180,17 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
     #[cfg(feature="islands")]
     {
-        let scene = Scene::new(&engine.context)?.run_worker(engine.context.get_alloc_context(), 10); 
+        let scene = Scene::new(&engine.context)?.run_worker(engine.context.get_alloc_context(), 1000); 
 
-        let mut palette = Palette::new();
-        let islands = Islands::new(&mut palette, &scene.send)?;
+        let mut palette = SharedPalette::new();
+        let islands = IslandsWorker::new(palette.clone(), scene.send.clone());
         let mut renderer = SceneRenderer::new(
             &engine.context, 
             &engine.swapchain, 
             &logic_state.camera,
-            scene.render_data.clone()
+            scene.render_data.clone(),
+            palette.clone(),
         )?;
-        renderer.push_palette(&engine.context, &palette)?;
 
         Ok(RenderState {
             gui,
@@ -222,9 +223,7 @@ pub fn update(
     
     #[cfg(any(feature="islands"))]
     {
-        if !render_state.islands.tick(&render_state.scene.send, &engine.context)? {
-            render_state.islands.update(&logic_state.camera)?;
-        }
+        render_state.islands.update(&logic_state.camera);
     }
 
     #[cfg(any(feature="scene", feature="islands"))]

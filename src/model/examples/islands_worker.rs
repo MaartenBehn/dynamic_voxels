@@ -1,9 +1,10 @@
-use octa_force::camera::Camera;
+use octa_force::{camera::Camera, log::debug};
 
 use crate::{scene::worker::SceneWorkerSend, voxel::palette::shared::SharedPalette};
 
 use super::islands::{Islands, UpdateData};
 
+#[derive(Debug)]
 pub struct IslandsWorker {
     pub task: smol::Task<Islands>,
     pub update_s: smol::channel::Sender<UpdateData>
@@ -15,10 +16,10 @@ impl IslandsWorker {
 
 
         let task = smol::spawn(async move {
-            let mut islands = Islands::new(&mut palette, &scene).expect("Failed to create Islands");
+            let mut islands = Islands::new(&mut palette, &scene).await.expect("Failed to create Islands");
 
             loop {
-                let ticked = islands.tick(&scene, 10).expect("Failed to tick");
+                let ticked = islands.tick(&scene, 10).await.expect("Failed to tick");
 
                 if ticked {
                     match update_r.try_recv() {
@@ -52,7 +53,7 @@ impl IslandsWorker {
     pub fn update(&self, camera: &Camera) {
         self.update_s.force_send(UpdateData {
             pos: camera.get_position_in_meters(),
-        });
+        }).expect("Islands Worker Update Channel closed");
     }
 
     pub fn stop(self) -> Islands {
