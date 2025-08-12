@@ -1,5 +1,5 @@
 
-
+#[derive(Debug)]
 pub struct WithRespose<S, R> {
     pub data: S,
     back_s: oneshot::Sender<R>

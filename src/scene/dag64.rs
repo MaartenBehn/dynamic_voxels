@@ -27,12 +27,14 @@ pub struct SceneDAGObjectData {
     pub root_index: u32,
 }
 
+#[derive(Debug)]
 pub struct SceneAddDAGObject {
     pub mat: Mat4,
     pub dag_key: SceneDAGKey,
     pub entry: DAG64Entry,
 }
 
+#[derive(Debug)]
 pub struct SceneSetDAGEntry {
     pub object: SceneObjectKey,
     pub entry: DAG64Entry,
