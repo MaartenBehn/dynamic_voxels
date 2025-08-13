@@ -19,6 +19,26 @@ impl<T: Send + Sync> VolumeBounds for CSGUnion<T> {
     }
 }
 
+impl<T> VolumeBounds for CSGUnionNode<T> {
+    fn calculate_bounds(&mut self) {
+        match &mut self.data {
+            CSGUnionNodeData::Box(d) => d.calculate_bounds(),
+            CSGUnionNodeData::Sphere(d) => d.calculate_bounds(),
+            CSGUnionNodeData::OffsetVoxelGrid(d) => d.calculate_bounds(),
+            CSGUnionNodeData::SharedVoxelGrid(d) => d.calculate_bounds(),
+        }
+    }
+
+    fn get_bounds(&self) -> AABB {
+        match &self.data {
+            CSGUnionNodeData::Box(d) => d.get_bounds(),
+            CSGUnionNodeData::Sphere(d) => d.get_bounds(),
+            CSGUnionNodeData::OffsetVoxelGrid(d) => d.get_bounds(),
+            CSGUnionNodeData::SharedVoxelGrid(d) => d.get_bounds(),
+        }
+    }
+}
+
 impl<T: Send + Sync> CSGUnion<T> {
     pub fn update_bounds(&mut self) {
         if !self.changed {
@@ -31,8 +51,9 @@ impl<T: Send + Sync> CSGUnion<T> {
             let leaf = shape != u32::MAX;
 
             if leaf {
+                let aabb: AABB = self.nodes[shape as usize].get_bounds().into();
                 BVHNode {
-                    aabb: aabb.into(),
+                    aabb: aabb,
                     exit: exit as _,
                     leaf: Some(shape as _),
                 }
@@ -51,12 +72,7 @@ impl<T: Send + Sync> CSGUnion<T> {
 
 impl<T> Bounded<f32, 3> for CSGUnionNode<T> {
     fn aabb(&self) -> bvh::aabb::Aabb<f32, 3> {
-        match &self.data {
-            CSGUnionNodeData::Box(d) => d.get_bounds(),
-            CSGUnionNodeData::Sphere(d) => d.get_bounds(),
-            CSGUnionNodeData::OffsetVoxelGrid(d) => d.get_bounds(),
-            CSGUnionNodeData::SharedVoxelGrid(d) => d.get_bounds(),
-        }.into()
+        self.get_bounds().into()
     }
 }
 

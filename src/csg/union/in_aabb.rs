@@ -6,7 +6,7 @@ impl VolumeQureyAABB for CSGUnion<u8> {
     fn get_aabb_value(&self, aabb: AABB) -> VolumeQureyAABBResult {
         let mut i = 0;
         while i < self.bvh.len() {
-            let b = &self.bvh[0];
+            let b = &self.bvh[i];
             if b.aabb.contains_aabb(aabb) {
                 if let Some(leaf) = b.leaf {
                     let node = &self.nodes[leaf];

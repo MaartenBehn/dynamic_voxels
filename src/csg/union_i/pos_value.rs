@@ -10,7 +10,7 @@ impl VolumeQureyPosValueI for CSGUnionI<u8> {
 
         let mut i = 0;
         while i < self.bvh.len() {
-            let b = &self.bvh[0];
+            let b = &self.bvh[i];
             if b.aabb.pos_in_aabb(pos) {
                 if let Some(leaf) = b.leaf {
                     let node = &self.nodes[leaf];
