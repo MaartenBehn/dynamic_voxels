@@ -4,7 +4,7 @@ use std::{borrow::Cow, marker::PhantomData, time::Instant};
 use egui_node_graph2::{DataTypeTrait, Graph, GraphEditorState, InputParamKind, NodeDataTrait, NodeId, NodeResponse, NodeTemplateIter, NodeTemplateTrait, UserResponseTrait, WidgetValueTrait};
 use octa_force::{controls::Controls, egui, log::debug, OctaResult};
 
-use crate::csg::{csg_tree::tree::CSGTreeKey, csg_tree_2d::tree::CSGTree2D, fast_query_csg_tree::tree::FastQueryCSGTree};
+use crate::csg::{csg_tree::tree::{CSGTree, CSGTreeKey}, csg_tree_2d::tree::CSGTree2D, fast_query_csg_tree::tree::FastQueryCSGTree};
 
 use super::{examples::islands::{Identifier}, generation::{collapse::{CollapseNodeKey, Collapser}, traits::{ModelGenerationTypes, BU, IT}}};
 
@@ -13,7 +13,7 @@ pub struct GenerationTypes {}
 impl ModelGenerationTypes for GenerationTypes {
     type Identifier = Identifier;
     type UndoData = CSGTreeKey;
-    type Volume = FastQueryCSGTree<()>;
+    type Volume = CSGTree<()>;
     type Volume2D = CSGTree2D<()>;
 }
 

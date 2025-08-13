@@ -143,44 +143,33 @@ impl<T: ModelGenerationTypes> Collapser<T> {
                 self.push_restricts_collapse_opperations(node_index, template);
             },
             NodeDataType::PosSet(pos_set) => {
-                match &pos_set.rule {
-                    PositionSetRule::GridInVolume(grid_data) => {
 
-                        let mut new_positions = grid_data.volume.get_grid_positions(grid_data.spacing).collect::<Vec<_>>();
-                        pos_set.positions.retain(|key, p| {
-                            if let Some(i) = new_positions.iter().position(|t| *t == *p) {
-                                new_positions.swap_remove(i);
-                                true
-                            } else {
-                                false
-                            }
-                        });
-                        let to_create_children = new_positions.iter()
-                            .map(|p| pos_set.positions.insert(*p))
-                            .collect::<Vec<_>>();
-                        
-                        self.update_defined_by_pos_set(node_index, &to_create_children, template, template_node);
+
+                let mut new_positions = match &pos_set.rule {
+                    PositionSetRule::GridInVolume(grid_data) => {
+                        grid_data.volume.get_grid_positions(grid_data.spacing).collect::<Vec<_>>()
                     },
                     PositionSetRule::GridOnPlane(grid_data) => {
-                        let mut new_positions = grid_data.volume.get_grid_positions(grid_data.spacing)
+                        grid_data.volume.get_grid_positions(grid_data.spacing)
                             .map(|p| vec3(p.x, p.y, grid_data.height))
-                            .collect::<Vec<_>>();
-
-                        pos_set.positions.retain(|key, p| {
-                            if let Some(i) = new_positions.iter().position(|t| *t == *p) {
-                                new_positions.swap_remove(i);
-                                true
-                            } else {
-                                false
-                            }
-                        });
-                        let to_create_children = new_positions.iter()
-                            .map(|p| pos_set.positions.insert(*p))
-                            .collect::<Vec<_>>();
-                        
-                        self.update_defined_by_pos_set(node_index, &to_create_children, template, template_node);
+                            .collect::<Vec<_>>()
                     },
-                }
+                    PositionSetRule::Path(path) => path.get_positions(),
+                };
+
+                pos_set.positions.retain(|key, p| {
+                    if let Some(i) = new_positions.iter().position(|t| *t == *p) {
+                        new_positions.swap_remove(i);
+                        true
+                    } else {
+                        false
+                    }
+                });
+                let to_create_children = new_positions.iter()
+                    .map(|p| pos_set.positions.insert(*p))
+                    .collect::<Vec<_>>();
+
+                self.update_defined_by_pos_set(node_index, &to_create_children, template, template_node);
 
                 self.push_restricts_collapse_opperations(node_index, template);
             },

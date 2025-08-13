@@ -1,5 +1,7 @@
 use octa_force::OctaResult;
 
+use crate::volume::remove_trait::VolumeRemove;
+
 use super::{collapse::{CollapseNodeKey, CollapseOperation, Collapser}, template::TemplateTree, traits::ModelGenerationTypes};
 
 impl<T: ModelGenerationTypes> Collapser<T> {
@@ -17,8 +19,18 @@ impl<T: ModelGenerationTypes> Collapser<T> {
     }
 
     pub fn restrict_number_range<F: Fn(i32) -> bool>(&mut self, index: CollapseNodeKey, filter: F) {
-        let number_range = self.get_number_range_mut(index);
-        number_range.values.retain(|i| filter(*i));
+        let values = self.get_number_values_mut(index);
+        values.retain(|i| filter(*i));
+    }
+
+    pub fn restricts_volume(&mut self, index: CollapseNodeKey, remove: T::Volume) {
+        let volume = self.get_volume_mut(index);
+        volume.remove_volume(remove);
+    }
+
+    pub fn restricts_volume2d(&mut self, index: CollapseNodeKey, remove: T::Volume2D) {
+        let volume = self.get_volume2d_mut(index);
+        volume.remove_volume(remove);
     }
 
 }

@@ -1,4 +1,5 @@
 pub mod magica_voxel;
+pub mod remove_trait;
 
 use std::fmt::Debug;
 

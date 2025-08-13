@@ -1,10 +1,22 @@
 use core::fmt;
 
 use octa_force::{anyhow::{anyhow, bail, ensure, Context}, OctaResult};
-use slotmap::Key;
+use slotmap::{Key, SlotMap};
+
+use crate::volume::remove_trait::VolumeRemove;
 
 use super::tree::{CSGNode, CSGNodeData, CSGTree, CSGTreeKey};
 
+impl<T: fmt::Debug> VolumeRemove for CSGTree<T> {
+    fn remove_volume(&mut self, other: Self) {
+        if other.nodes.len() == 1 {
+            let node = other.nodes.into_iter().next().unwrap().1;
+            self.append_node_with_remove(node);
+        } else {
+            todo!()
+        }
+    }
+}
 
 impl<T: fmt::Debug> CSGTree<T> {
     pub fn append_node_with_union(&mut self, node: CSGNode<T>) -> CSGTreeKey {

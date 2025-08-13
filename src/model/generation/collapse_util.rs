@@ -16,22 +16,33 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         &(template.nodes[self.nodes[node_index].template_index])
     }
 
-    pub fn get_number_range(&self, index: CollapseNodeKey) -> &NumberRange {
-        match &self.nodes.get(index).expect("Number by index not found").data {
-            NodeDataType::NumberRange(d) => d,
-            _ => panic!("Number by index is not of Type Number")
-        }
-    }
 
-    pub fn get_number_range_mut(&mut self, index: CollapseNodeKey) -> &mut NumberRange {
+    pub fn get_number_values_mut(&mut self, index: CollapseNodeKey) -> &mut Vec<i32> {
         match &mut self.nodes.get_mut(index).expect("Number by index not found").data {
-            NodeDataType::NumberRange(d) => d,
+            NodeDataType::NumberRange(d) => &mut d.values,
             _ => panic!("Number by index is not of Type Number")
         }
     }
 
     pub fn get_number(&self, index: CollapseNodeKey) -> i32 {
-        self.get_number_range(index).value
+        match &self.nodes.get(index).expect("Number by index not found").data {
+            NodeDataType::NumberRange(d) => d.value,
+            _ => panic!("Number by index is not of Type Number")
+        }
+    }
+
+    pub fn get_volume_mut(&mut self, index: CollapseNodeKey) -> &mut T::Volume {
+        match &mut self.nodes.get_mut(index).expect("Pos Set by index not found").data {
+            NodeDataType::PosSet(d) => d.get_volume_mut(),
+            _ => panic!("Index is not of Type Pos Set")
+        }
+    }
+
+    pub fn get_volume2d_mut(&mut self, index: CollapseNodeKey) -> &mut T::Volume2D {
+        match &mut self.nodes.get_mut(index).expect("Pos Set by index not found").data {
+            NodeDataType::PosSet(d) => d.get_volume2d_mut(),
+            _ => panic!("Index is not of Type Pos Set")
+        }
     }
      
     pub fn get_pos(&self, index: CollapseNodeKey, pos_key: CollapseChildKey) -> Vec3 {

@@ -16,9 +16,11 @@ pub enum Identifier {
     IslandRadius,
     BeachWidth,
     IslandPositions,
-    IslandBuild,
+    Island,
     TreePositions,
     TreeBuild,
+    Rivers,
+    RiverNode,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -28,7 +30,7 @@ impl BU for Island {}
 impl ModelGenerationTypes for IslandGenerationTypes {
     type Identifier = Identifier;
     type UndoData = Island;
-    type Volume = FastQueryCSGTree<()>;
+    type Volume = CSGTree<()>;
     type Volume2D = CSGTree2D<()>;
 }
 
@@ -64,7 +66,7 @@ impl Islands {
         let tree_model = MagicaVoxelModel::new("./assets/Tree1small.vox")?;
         let tree_grid: SharedVoxelGrid = tree_model.into_grid(palette)?.into();
          
-        let island_volume = FastQueryCSGTree::default();
+        let island_volume = CSGTree::default();
 
         let mut wfc_builder = ModelSynthesisBuilder::new()
             .number_range(Identifier::MinIslandDistance, |b|{b
@@ -86,12 +88,12 @@ impl Islands {
                     200.0 )
                 ))
             })
-            .build(Identifier::IslandBuild, |b| {b
+            .build(Identifier::Island, |b| {b
                 .ammount(BuilderAmmount::DefinedBy(Identifier::IslandPositions))
                 .depends(Identifier::IslandPositions)
             })
             .position_set(Identifier::TreePositions, |b| {b
-                .ammount(BuilderAmmount::OnePer(Identifier::IslandBuild))
+                .ammount(BuilderAmmount::OnePer(Identifier::Island))
                 .value(BuilderValue::Hook)
                 .depends(Identifier::IslandPositions)
             })
@@ -99,7 +101,23 @@ impl Islands {
             .build(Identifier::TreeBuild, |b|{b
                 .ammount(BuilderAmmount::DefinedBy(Identifier::TreePositions))
                 .depends(Identifier::TreePositions)
-                .depends(Identifier::IslandBuild)
+                .depends(Identifier::Island)
+            })
+
+            .position_set(Identifier::Rivers, |b|{b
+                .ammount(BuilderAmmount::OnePer(Identifier::Island))
+                .value(BuilderValue::Const(PositionSet::new_path(
+                5.0,
+                    vec3(0.5, 0.5, 0.0),
+                    vec3(-100.0, -100.0, 8.0),
+                    vec3(100.0, 100.0, 8.0),
+                )))
+            })
+
+            .build(Identifier::RiverNode, |b| {b
+                .ammount(BuilderAmmount::DefinedBy(Identifier::Rivers))
+                .depends(Identifier::Rivers)
+                .depends(Identifier::Island)
             });
 
         let template = wfc_builder.build_template();
@@ -126,7 +144,6 @@ impl Islands {
         self.last_pos = new_pos;
 
         let island_volume = CSGTree::new_sphere(new_pos, 200.0); 
-        let island_volume = FastQueryCSGTree::from(island_volume);
 
         self.template.get_node_position_set(Identifier::IslandPositions).set_volume(island_volume.clone());
         let pos_set = self.collapser.get_position_set_by_identifier_mut(Identifier::IslandPositions); 
@@ -176,7 +193,7 @@ impl Islands {
                 CollapseOperation::BuildHook { index, identifier } => {
 
                     match identifier {
-                        Identifier::IslandBuild => {
+                        Identifier::Island => {
 
                             let pos = collapser.get_parent_pos(index);
                             info!("Island Pos: {pos}");
@@ -205,7 +222,7 @@ impl Islands {
                         },
                         Identifier::TreeBuild => {
                             let pos = collapser.get_parent_pos(index);
-                            let island = collapser.get_dependend_undo_data_mut(index, Identifier::IslandBuild);
+                            let island = collapser.get_dependend_undo_data_mut(index, Identifier::Island);
                             let mut tree_grid = self.tree_grid.clone();
                             tree_grid.offset += pos.as_ivec3();
 
@@ -218,6 +235,19 @@ impl Islands {
 
                             info!("Tree Pos: {pos}");
                         },
+                        Identifier::RiverNode => {
+                            let pos = collapser.get_parent_pos(index);
+                            let island = collapser.get_dependend_undo_data_mut(index, Identifier::Island);
+
+                            island.csg.append_node_with_union(CSGNode::new_sphere(pos, 10.0));
+                            island.csg.calculate_bounds();
+
+                            let active_key = self.dag.update_pos_query_volume(&island.csg, island.dag_key)?;
+                            island.dag_key = active_key;
+                            scene.set_dag_entry(island.scene_key, self.dag.get_entry(active_key));
+
+                            info!("River Pos: {pos}");
+                        }
                         _ => unreachable!()
                     }
 
@@ -226,12 +256,10 @@ impl Islands {
                     info!("Undo {:?}", identifier);
 
                     match identifier {
-                        Identifier::IslandBuild => {
+                        Identifier::Island => {
                             scene.remove_object(undo_data.scene_key);
                         },
-                        Identifier::TreeBuild => {}
-                        Identifier::TreePositions => {}
-                        _ => unreachable!()
+                        _ => {}
                     }
                 },
                 CollapseOperation::None => {},

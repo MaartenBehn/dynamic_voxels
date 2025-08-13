@@ -1,4 +1,4 @@
-use std::iter;
+use std::{collections::VecDeque, iter};
 
 use octa_force::log::debug;
 
@@ -7,7 +7,7 @@ use super::collapse::{CollapseNodeKey};
 
 #[derive(Debug, Clone)]
 pub struct PendingOperations {
-    pending_per_level: Vec<Vec<CollapseNodeKey>>,
+    pending_per_level: Vec<VecDeque<CollapseNodeKey>>,
     min_with_value: usize,
 }
 
@@ -15,18 +15,18 @@ pub struct PendingOperations {
 impl PendingOperations {
     pub fn new(max_level: usize) -> Self {
         Self {
-            pending_per_level: iter::repeat_with(|| {vec![]}).take(max_level).collect(),
+            pending_per_level: iter::repeat_with(|| {VecDeque::new()}).take(max_level).collect(),
             min_with_value: max_level,
         }
     }
 
     pub fn push(&mut self, level: usize, index: CollapseNodeKey) {
-        self.pending_per_level[level - 1].push(index);
+        self.pending_per_level[level - 1].push_back(index);
         self.min_with_value = self.min_with_value.min(level - 1);
     }
 
     pub fn pop(&mut self) -> Option<CollapseNodeKey> {
-        let res = self.pending_per_level[self.min_with_value].pop();
+        let res = self.pending_per_level[self.min_with_value].pop_front();
         if res.is_none() {
             return None;
         }
@@ -48,7 +48,7 @@ impl PendingOperations {
         }
 
         for i in to_delete {
-            self.pending_per_level[level - 1].swap_remove(i);
+            self.pending_per_level[level - 1].swap_remove_back(i);
         }
 
         self.find_next_higher_filled_level();
