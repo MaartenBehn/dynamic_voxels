@@ -3,23 +3,24 @@ use smallvec::ToSmallVec;
 
 use crate::{util::{aabb3d::AABB, iaabb3d::AABBI}, volume::{VolumeBounds, VolumeBoundsI}};
 
-use super::tree::{BVHNode, CSGUnion, CSGUnionNode, CSGUnionNodeData};
+use super::tree::{BVHNodeI, CSGUnionI, CSGUnionNodeI, CSGUnionNodeDataI};
 
-impl<T: Send + Sync> VolumeBounds for CSGUnion<T> {
+impl<T: Send + Sync> VolumeBoundsI for CSGUnionI<T> {
     fn calculate_bounds(&mut self) {
         self.update_bounds();
     }
 
-    fn get_bounds(&self) -> AABB {
+    fn get_bounds_i(&self) -> AABBI {
         if self.bvh.is_empty() {
-            return AABB::default()
+            return AABBI::default()
         }
 
-        self.bvh[0].aabb.into()
+        let aabb: AABB = self.bvh[0].aabb.into();
+        aabb.into()
     }
 }
 
-impl<T: Send + Sync> CSGUnion<T> {
+impl<T: Send + Sync> CSGUnionI<T> {
     pub fn update_bounds(&mut self) {
         if !self.changed {
             return;
@@ -28,15 +29,16 @@ impl<T: Send + Sync> CSGUnion<T> {
         let bvh = Bvh::build_par(&mut self.nodes);
         let flat_bvh = bvh.flatten_custom(&|aabb, index, exit, shape| {
             let leaf = shape != u32::MAX;
+            let aabb: AABB = aabb.into();
 
             if leaf {
-                BVHNode {
+                BVHNodeI {
                     aabb: aabb.into(),
                     exit: exit as _,
                     leaf: Some(shape as _),
                 }
             } else {
-                 BVHNode {
+                 BVHNodeI {
                     aabb: aabb.into(),
                     exit: exit as _,
                     leaf: None,
@@ -48,18 +50,18 @@ impl<T: Send + Sync> CSGUnion<T> {
     }
 }
 
-impl<T> Bounded<f32, 3> for CSGUnionNode<T> {
+impl<T> Bounded<f32, 3> for CSGUnionNodeI<T> {
     fn aabb(&self) -> bvh::aabb::Aabb<f32, 3> {
         match &self.data {
-            CSGUnionNodeData::Box(d) => d.get_bounds(),
-            CSGUnionNodeData::Sphere(d) => d.get_bounds(),
-            CSGUnionNodeData::OffsetVoxelGrid(d) => d.get_bounds(),
-            CSGUnionNodeData::SharedVoxelGrid(d) => d.get_bounds(),
+            CSGUnionNodeDataI::Box(d) => d.get_bounds(),
+            CSGUnionNodeDataI::Sphere(d) => d.get_bounds(),
+            CSGUnionNodeDataI::OffsetVoxelGrid(d) => d.get_bounds(),
+            CSGUnionNodeDataI::SharedVoxelGrid(d) => d.get_bounds(),
         }.into()
     }
 }
 
-impl<T> BHShape<f32, 3> for CSGUnionNode<T> {
+impl<T> BHShape<f32, 3> for CSGUnionNodeI<T> {
     fn set_bh_node_index(&mut self, i: usize) {
         self.bh_index = i;
     }

@@ -1,6 +1,6 @@
 use octa_force::glam::{IVec3, UVec3, Vec3A};
 
-use crate::{util::{aabb3d::AABB, iaabb3d::AABBI}, volume::{VolumeBounds, VolumeBoundsI, VolumeQureyAABB, VolumeQureyAABBResult, VolumeQureyPosValid, VolumeQureyPosValue, VolumeQureyPosValueI}};
+use crate::{util::{aabb3d::AABB, iaabb3d::AABBI}, volume::{VolumeBounds, VolumeBoundsI, VolumeQureyAABB, VolumeQureyAABBI, VolumeQureyAABBResult, VolumeQureyPosValid, VolumeQureyPosValue, VolumeQureyPosValueI}};
 
 #[derive(Clone, Copy, Debug)]
 pub struct CSGAll<T> {
@@ -39,5 +39,11 @@ impl VolumeQureyPosValueI for CSGAll<u8> {
 impl VolumeQureyAABB for CSGAll<u8> {
     fn get_aabb_value(&self, _: AABB) -> VolumeQureyAABBResult {
         VolumeQureyAABBResult::Full(self.v)
+    }
+}
+
+impl VolumeQureyAABBI for CSGAll<u8> {
+    fn get_aabb_value_i(&self, _: AABBI) -> VolumeQureyAABBResult {
+         VolumeQureyAABBResult::Full(self.v)
     }
 }

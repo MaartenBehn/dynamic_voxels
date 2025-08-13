@@ -1,6 +1,6 @@
 use octa_force::glam::{vec3, IVec3, Mat4, Quat, UVec3, Vec3, Vec3A, Vec4};
 
-use crate::{util::{aabb3d::AABB, iaabb3d::AABBI}, volume::{VolumeBounds, VolumeBoundsI, VolumeQureyAABB, VolumeQureyAABBResult, VolumeQureyPosValid, VolumeQureyPosValue, VolumeQureyPosValueI}, voxel::palette::palette::MATERIAL_ID_NONE};
+use crate::{util::{aabb3d::AABB, iaabb3d::AABBI}, volume::{VolumeBounds, VolumeBoundsI, VolumeQureyAABB, VolumeQureyAABBI, VolumeQureyAABBResult, VolumeQureyPosValid, VolumeQureyPosValue, VolumeQureyPosValueI}, voxel::palette::palette::MATERIAL_ID_NONE};
 
 use super::Base;
 
@@ -80,5 +80,11 @@ impl VolumeQureyAABB for CSGBox<u8> {
             VolumeQureyAABBResult::Full(MATERIAL_ID_NONE)
         }
 
+    }
+}
+
+impl VolumeQureyAABBI for CSGBox<u8> {
+    fn get_aabb_value_i(&self, aabb: AABBI) -> VolumeQureyAABBResult {
+        self.get_aabb_value(aabb.into())
     }
 }
