@@ -1,3 +1,5 @@
+use octa_force::OctaResult;
+
 use super::{collapse::{CollapseNodeKey, CollapseOperation, Collapser}, template::TemplateTree, traits::ModelGenerationTypes};
 
 impl<T: ModelGenerationTypes> Collapser<T> {
@@ -12,6 +14,11 @@ impl<T: ModelGenerationTypes> Collapser<T> {
                 restricts_identifier: *identifier, 
             });
         }
+    }
+
+    pub fn restrict_number_range<F: Fn(i32) -> bool>(&mut self, index: CollapseNodeKey, filter: F) {
+        let number_range = self.get_number_range_mut(index);
+        number_range.values.retain(|i| filter(*i));
     }
 
 }

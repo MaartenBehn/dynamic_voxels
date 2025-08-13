@@ -10,7 +10,7 @@ use super::{collapse::{CollapseNode, CollapseNodeKey, Collapser, NodeDataType}, 
 
 impl<T: ModelGenerationTypes> Collapser<T> {
 
-    pub fn create_defines_n(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<T>) -> OctaResult<()> {
+    pub fn create_defines_n(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<T>) {
         let node = &self.nodes[node_index];
         let template_node = &template.nodes[node.template_index];
 
@@ -20,17 +20,15 @@ impl<T: ModelGenerationTypes> Collapser<T> {
                 ammount.index,   
                 template,
                 template_node,
-                &ammount.dependecy_tree)?;
+                &ammount.dependecy_tree);
 
             for _ in 0..ammount.ammount {
                 self.add_node(ammount.index, restricts.clone(), depends.clone(), knows.clone(), node_index, CollapseChildKey::null(), template); 
             }
         }
-
-        Ok(())
     }
 
-    pub fn update_defined_by_number_range(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<T>, n: usize) -> OctaResult<()> {
+    pub fn update_defined_by_number_range(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<T>, n: usize) {
         let node = &self.nodes[node_index];
         let template_node = &template.nodes[node.template_index];
 
@@ -48,7 +46,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
                     ammount.index,   
                     template,
                     template_node,
-                    &ammount.dependecy_tree)?;
+                    &ammount.dependecy_tree);
 
                 for _ in present_children_len..n {
                     self.add_node(ammount.index, restricts.clone(), depends.clone(), knows.clone(), node_index, CollapseChildKey::null(), template); 
@@ -56,12 +54,10 @@ impl<T: ModelGenerationTypes> Collapser<T> {
             } else if present_children_len > n {
 
                 for child in present_children.to_owned().into_iter().take(n) {
-                    self.delete_node(child, template)?;
+                    self.delete_node(child, template);
                 }
             } 
         }
-
-        Ok(())
     }
 
     pub fn update_defined_by_pos_set<'a>(
@@ -70,7 +66,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         to_create_children: &[CollapseChildKey], 
         template: &'a TemplateTree<T>, 
         template_node: &'a TemplateNode<T>
-    ) -> OctaResult<()> {
+    ) {
 
         for ammount in template_node.defines_by_value.iter() {
             let node = &self.nodes[node_index];
@@ -92,18 +88,16 @@ impl<T: ModelGenerationTypes> Collapser<T> {
                 ammount.index, 
                 template,
                 template_node,
-                &ammount.dependecy_tree)?;
+                &ammount.dependecy_tree);
 
             for child_index in to_remove_children {
-                self.delete_node(child_index, template)?;
+                self.delete_node(child_index, template);
             }
 
             for new_child in to_create_children {
                 self.add_node(ammount.index, restricts.clone(), depends.clone(), knows.clone(), node_index, *new_child, template); 
             }
         }
-
-        Ok(())
     }
   
     pub fn get_restricts_depends_and_knows_for_template<'a>(
@@ -113,7 +107,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         template: &'a TemplateTree<T>,
         template_node: &'a TemplateNode<T>,
         tree: &'a RelativePathTree,
-    ) -> OctaResult<(Vec<(T::Identifier, CollapseNodeKey)>, Vec<(T::Identifier, CollapseNodeKey)>, Vec<(T::Identifier, CollapseNodeKey)>)> {
+    ) -> (Vec<(T::Identifier, CollapseNodeKey)>, Vec<(T::Identifier, CollapseNodeKey)>, Vec<(T::Identifier, CollapseNodeKey)>) {
         let new_node_template = &template.nodes[new_template_node_index];
 
         // Contains a list of node indecies matching the template dependency
@@ -197,7 +191,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         let depends = transform_depends_and_knows(&new_node_template.depends, depends);
         let knows = transform_depends_and_knows(&new_node_template.knows, knows);
 
-        Ok((restricts, depends, knows))
+        (restricts, depends, knows)
     }
 
     pub fn add_node(

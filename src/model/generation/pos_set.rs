@@ -69,18 +69,16 @@ impl<T: ModelGenerationTypes> PositionSet<T> {
         self.positions.contains_key(pos_key)
     }
 
-    pub fn set_volume(&mut self, volume: T::Volume) -> OctaResult<()> {
+    pub fn set_volume(&mut self, volume: T::Volume) {
         let PositionSetRule::GridInVolume(data) = &mut self.rule 
-        else { bail!("Not a Position Set that uses a volume.") };
+        else { panic!("Not a Position Set that uses a volume.") };
         data.volume = volume;
-        Ok(())
     }
 
-    pub fn set_volume2d(&mut self, volume: T::Volume2D) -> OctaResult<()> {
+    pub fn set_volume2d(&mut self, volume: T::Volume2D) {
         let PositionSetRule::GridOnPlane(data) = &mut self.rule 
-        else { bail!("Not a Position Set that uses a volume.") };
+        else { panic!("Not a Position Set that uses a volume 2d.") };
         data.volume = volume;
-        Ok(())
     }
 }
 

@@ -97,7 +97,7 @@ fn main() {
         }),*/
 
 
-        backtrace: false,
+        backtrace: true,
 
         ..Default::default()
     });

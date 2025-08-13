@@ -9,8 +9,8 @@ use super::{collapse::{CollapseNodeKey, Collapser}, template::TemplateTree, trai
 
 impl<T: ModelGenerationTypes> Collapser<T> {
 
-    pub fn reset_node(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<T>) -> OctaResult<()> {
-        let node = self.get_node_ref_from_node_index(node_index)?;
+    pub fn reset_node(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<T>) {
+        let node = &self.nodes[node_index];
         info!("{:?} Reset {:?}", node_index, node.identifier);
 
         let node_template = self.get_template_from_node_ref(node, template);
@@ -27,23 +27,21 @@ impl<T: ModelGenerationTypes> Collapser<T> {
             .copied()
             .collect::<Vec<_>>() {
 
-            self.delete_node(child, template)?;
+            self.delete_node(child, template);
         }
 
-        let node = self.get_node_ref_from_node_index(node_index)?; 
+        let node = &self.nodes[node_index]; 
         
         self.pending_collapses.push(node_template.level, node_index);
-
-        Ok(())
     }
 
-    pub fn delete_node(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<T>) -> OctaResult<()> {
+    pub fn delete_node(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<T>) {
         let node = self.nodes.remove(node_index);
         if node.is_none() {
-            return Ok(());
+            return;
         }
         let node = node.unwrap();
-        ensure!(!node.defined_by.is_null(), "Trying to delete root node!");
+        assert!(!node.defined_by.is_null(), "Trying to delete root node!");
 
         info!("{:?} Delete {:?}", node_index, node.identifier);
 
@@ -52,20 +50,18 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         self.pending_collapses.delete(template_node.level, node_index);
 
         for (_, depends) in node.depends.iter() {
-            let depends_node = self.get_node_mut_from_node_index(*depends);
-            if depends_node.is_err() {
+            let Some(depends_node) = self.nodes.get_mut(*depends) else { 
                 continue;
-            }
-            let depends_node = depends_node.unwrap();
+            };
 
             let children = depends_node.children.iter_mut()
                 .find(|(template_index, _)| *template_index == node.template_index)
                 .map(|(_, c)| c)
-                .ok_or(anyhow!("When deleting node the template index of the node was not present in the children of a dependency"))?;
+                .expect("When deleting node the template index of the node was not present in the children of a dependency");
 
             let i = children.iter()
                 .position(|t| *t == node_index)
-                .ok_or(anyhow!("When deleting node index of the node was not present in the children of a dependency"))?;
+                .expect("When deleting node index of the node was not present in the children of a dependency");
             
             children.swap_remove(i);
         }
@@ -79,17 +75,13 @@ impl<T: ModelGenerationTypes> Collapser<T> {
             .map(|(_, c)| c) 
             .flatten() {
 
-            self.delete_node(*child, template)?;
+            self.delete_node(*child, template);
         }
- 
-        return Ok(());
     }
 
-    pub fn set_next_reset(&mut self, index: CollapseNodeKey, set_to: CollapseNodeKey) -> OctaResult<()> {
-        let node = self.get_node_mut_from_node_index(index)?;
+    pub fn set_next_reset(&mut self, index: CollapseNodeKey, set_to: CollapseNodeKey) {
+        let node = &mut self.nodes[index];
         node.next_reset = set_to;
-
-        Ok(())
     }
 
 }

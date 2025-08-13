@@ -128,11 +128,10 @@ impl Islands {
         let island_volume = CSGTree::new_sphere(new_pos, 200.0); 
         let island_volume = FastQueryCSGTree::from(island_volume);
 
-        self.template.get_node_position_set(Identifier::IslandPositions)?.set_volume(island_volume.clone())?;
-        if let Ok(pos_set) = self.collapser.get_position_set_by_identifier_mut(Identifier::IslandPositions) {
-            pos_set.set_volume(island_volume)?;
-            self.collapser.re_collapse_all_nodes_with_identifier(Identifier::IslandPositions);
-        }
+        self.template.get_node_position_set(Identifier::IslandPositions).set_volume(island_volume.clone());
+        let pos_set = self.collapser.get_position_set_by_identifier_mut(Identifier::IslandPositions); 
+        pos_set.set_volume(island_volume);
+        self.collapser.re_collapse_all_nodes_with_identifier(Identifier::IslandPositions);
 
         Ok(())
     }
@@ -142,7 +141,7 @@ impl Islands {
         let mut i = 0;
 
         while let Some((hook, collapser)) 
-            = self.collapser.next(&self.template)? {
+            = self.collapser.next(&self.template) {
             ticked = true;
 
             match hook {
@@ -201,7 +200,7 @@ impl Islands {
                                 dag_key: active_key,
                             };
 
-                            collapser.set_undo_data(index, island)?;
+                            collapser.set_undo_data(index, island);
 
                         },
                         Identifier::TreeBuild => {

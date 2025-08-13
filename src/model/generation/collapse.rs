@@ -74,24 +74,24 @@ pub enum CollapseOperation<T: ModelGenerationTypes> {
 
 impl<T: ModelGenerationTypes> Collapser<T> {
     pub fn next(&mut self, template: &TemplateTree<T>) 
-    -> OctaResult<Option<(CollapseOperation<T>, &mut Collapser<T>)>> {
+    -> Option<(CollapseOperation<T>, &mut Collapser<T>)> {
 
         if let Some(collapse_opperation) = self.pending_collapse_opperations.pop_front() {
-            return Ok(Some((collapse_opperation, self)));
+            return Some((collapse_opperation, self));
         }
 
         if let Some(key) = self.pending_collapses.pop() {
-            self.collapse_node(key, template)?;
+            self.collapse_node(key, template);
         }
 
         if let Some(collapse_opperation) = self.pending_collapse_opperations.pop_front() {
-            return Ok(Some((collapse_opperation, self)));
+            return Some((collapse_opperation, self));
         } else {
-            Ok(None)
+            None
         }
     }
 
-    fn collapse_node(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<T>) -> OctaResult<()> {
+    fn collapse_node(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<T>) {
         let node = &mut self.nodes[node_index];
         let template_node = &template.nodes[node.template_index]; 
         //info!("{:?} Collapse: {:?}", node_index, node.identifier);
@@ -122,7 +122,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
                 }
 
                 self.pending_collapses.push(template_node.level, node_index);
-                return Ok(());
+                return;
             }
 
             NodeDataType::NumberRange(number_data) => {
@@ -130,16 +130,16 @@ impl<T: ModelGenerationTypes> Collapser<T> {
                     info!("{:?} Resetting Number faild", node_index);
 
                     let next_reset = node.next_reset;
-                    self.reset_node(next_reset, template)?;
+                    self.reset_node(next_reset, template);
 
                     self.pending_collapses.push(template_node.level, node_index);
 
-                    return Ok(());
+                    return;
                 }
 
                 let value = number_data.value;
                 info!("{:?} {:?}: {}", node_index, node.identifier, value);
-                self.update_defined_by_number_range(node_index, template, value as usize)?;
+                self.update_defined_by_number_range(node_index, template, value as usize);
                 self.push_restricts_collapse_opperations(node_index, template);
             },
             NodeDataType::PosSet(pos_set) => {
@@ -159,7 +159,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
                             .map(|p| pos_set.positions.insert(*p))
                             .collect::<Vec<_>>();
                         
-                        self.update_defined_by_pos_set(node_index, &to_create_children, template, template_node)?;
+                        self.update_defined_by_pos_set(node_index, &to_create_children, template, template_node);
                     },
                     PositionSetRule::GridOnPlane(grid_data) => {
                         let mut new_positions = grid_data.volume.get_grid_positions(grid_data.spacing)
@@ -178,7 +178,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
                             .map(|p| pos_set.positions.insert(*p))
                             .collect::<Vec<_>>();
                         
-                        self.update_defined_by_pos_set(node_index, &to_create_children, template, template_node)?;
+                        self.update_defined_by_pos_set(node_index, &to_create_children, template, template_node);
                     },
                 }
 
@@ -196,8 +196,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
             NodeDataType::None => {},
         }
 
-        self.create_defines_n(node_index, template)?;
-        Ok(())
+        self.create_defines_n(node_index, template);
     }
  
     pub fn pos_collapse_failed(&mut self, index: CollapseNodeKey) {
@@ -206,7 +205,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         todo!();
     }
 
-    pub fn collapse_failed(&mut self, index: CollapseNodeKey, template: &TemplateTree<T>) -> OctaResult<()> {        
+    pub fn collapse_failed(&mut self, index: CollapseNodeKey, template: &TemplateTree<T>) {        
         let node = self.nodes.get(index).expect("Reset CollapseNodeKey not valid!");
         info!("{:?} Collapse Faild {:?}", index, node.identifier);
 
@@ -217,15 +216,13 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         let mut last = CollapseNodeKey::null();
         for (_, i) in node.depends.to_owned().into_iter().rev() {
             if last.is_null() {
-                self.reset_node(i, template)?;
+                self.reset_node(i, template);
             } else {
-                self.set_next_reset(last, i)?; 
+                self.set_next_reset(last, i); 
             }
 
             last = i;
         }
-
-        Ok(())
     }
 }
 

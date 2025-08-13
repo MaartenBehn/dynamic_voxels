@@ -1,37 +1,13 @@
-use octa_force::{anyhow::{anyhow, bail}, glam::Vec3, OctaResult};
+use octa_force::{anyhow::{anyhow, bail, Context}, glam::Vec3, OctaResult};
 use slotmap::{Key, SlotMap};
 use octa_force::log::info;
 
 use crate::volume::{VolumeQureyPosValid, VolumeQureyPosValid2D};
 
-use super::{collapse::{CollapseChildKey, CollapseNode, CollapseNodeKey, Collapser, NodeDataType}, pos_set::PositionSet, template::{TemplateNode, TemplateTree}, traits::ModelGenerationTypes};
+use super::{collapse::{CollapseChildKey, CollapseNode, CollapseNodeKey, Collapser, NodeDataType}, number_range::NumberRange, pos_set::PositionSet, template::{TemplateNode, TemplateTree}, traits::ModelGenerationTypes};
 
 
 impl<T: ModelGenerationTypes> Collapser<T> { 
-    pub fn has_index(&self, node_index: CollapseNodeKey) -> bool {
-        self.nodes.contains_key(node_index)
-    }
-
-    pub fn has_index_unpacked(nodes: &SlotMap<CollapseNodeKey, CollapseNode<T>>, node_index: CollapseNodeKey) -> bool {
-        nodes.contains_key(node_index)
-    }
-
-    pub fn get_node_ref_from_node_index(&self, node_index: CollapseNodeKey) -> OctaResult<&CollapseNode<T>> {
-        self.nodes.get(node_index).ok_or(anyhow!("Node index invalid!"))
-    }
-
-    pub fn get_node_ref_from_node_index_unpacked(nodes: &SlotMap<CollapseNodeKey, CollapseNode<T>>, node_index: CollapseNodeKey) -> OctaResult<&CollapseNode<T>> {
-        nodes.get(node_index).ok_or(anyhow!("Node index invalid!"))
-    }
-
-    pub fn get_node_mut_from_node_index(&mut self, node_index: CollapseNodeKey) -> OctaResult<&mut CollapseNode<T>> {
-        self.nodes.get_mut(node_index).ok_or(anyhow!("Node index invalid!"))
-    }
-
-    pub fn get_node_mut_from_node_index_unpacked(nodes: &mut SlotMap<CollapseNodeKey, CollapseNode<T>>, node_index: CollapseNodeKey) -> OctaResult<&mut CollapseNode<T>> {
-        nodes.get_mut(node_index).ok_or(anyhow!("Node index invalid!"))
-    }
-
     pub fn get_template_from_node_ref<'a>(&self, node: &CollapseNode<T>, template: &'a TemplateTree<T>) -> &'a TemplateNode<T> {
         &template.nodes[node.template_index]
     }
@@ -40,13 +16,24 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         &(template.nodes[self.nodes[node_index].template_index])
     }
 
-    pub fn get_number(&self, index: CollapseNodeKey) -> i32 {
+    pub fn get_number_range(&self, index: CollapseNodeKey) -> &NumberRange {
         match &self.nodes.get(index).expect("Number by index not found").data {
-            NodeDataType::NumberRange(d) => d.value,
+            NodeDataType::NumberRange(d) => d,
             _ => panic!("Number by index is not of Type Number")
         }
     }
 
+    pub fn get_number_range_mut(&mut self, index: CollapseNodeKey) -> &mut NumberRange {
+        match &mut self.nodes.get_mut(index).expect("Number by index not found").data {
+            NodeDataType::NumberRange(d) => d,
+            _ => panic!("Number by index is not of Type Number")
+        }
+    }
+
+    pub fn get_number(&self, index: CollapseNodeKey) -> i32 {
+        self.get_number_range(index).value
+    }
+     
     pub fn get_pos(&self, index: CollapseNodeKey, pos_key: CollapseChildKey) -> Vec3 {
         match &self.nodes.get(index).expect("Pos Set by index not found").data {
             NodeDataType::PosSet(d) => d.get_pos(pos_key),
@@ -96,18 +83,18 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         self.get_number(index)
     }
 
-    pub fn get_node_index_by_identifier(&self, identifier: T::Identifier) -> OctaResult<CollapseNodeKey> {
+    pub fn get_node_index_by_identifier(&self, identifier: T::Identifier) -> CollapseNodeKey {
         self.nodes.iter()
             .find(|(key, n)| n.identifier == identifier)
-            .map(|(key, _)| Ok(key))
-            .unwrap_or(Err(anyhow!("No node for identifier found")))
+            .map(|(key, _)| key)
+            .expect("No node for identifier found")
     }
 
-    pub fn get_position_set_by_identifier_mut(&mut self, identifier: T::Identifier) -> OctaResult<&mut PositionSet<T>> {
-        let index = self.get_node_index_by_identifier(identifier)?;
+    pub fn get_position_set_by_identifier_mut(&mut self, identifier: T::Identifier) -> &mut PositionSet<T> {
+        let index = self.get_node_index_by_identifier(identifier);
         let node = &mut self.nodes[index];
-        let NodeDataType::PosSet(pos_set) = &mut node.data else { bail!("Node is not pos set") };
-        Ok(pos_set)
+        let NodeDataType::PosSet(pos_set) = &mut node.data else { panic!("Node is not pos set") };
+        pos_set
     }
 
     pub fn set_position_set_value(&mut self, index: CollapseNodeKey, pos_set: PositionSet<T>) {
@@ -124,12 +111,10 @@ impl<T: ModelGenerationTypes> Collapser<T> {
     }
 
 
-    pub fn set_undo_data(&mut self, index: CollapseNodeKey, data: T::UndoData) -> OctaResult<()> {
+    pub fn set_undo_data(&mut self, index: CollapseNodeKey, data: T::UndoData) {
         let node = self.nodes.get_mut(index)
-            .ok_or(anyhow!("Index of build node to set data is not valid!"))?;
+            .expect("Index of build node to set data is not valid!");
 
         node.undo_data = data;
-
-        Ok(())
     }
 }

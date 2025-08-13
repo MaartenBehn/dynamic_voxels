@@ -5,25 +5,26 @@ use crate::volume::{VolumeQureyPosValid, VolumeQureyPosValid2D};
 use super::{builder::ModelSynthesisBuilder, collapse::Collapser, pos_set::PositionSet, template::{NodeTemplateValue, TemplateIndex, TemplateTree}, traits::ModelGenerationTypes};
 
 impl<T: ModelGenerationTypes> TemplateTree<T> {
-    pub fn get_node_position_set(&mut self, identifier: T::Identifier) -> OctaResult<&mut PositionSet<T>> {
-        let index = self.get_node_index_by_identifier(identifier)
-            .ok_or(anyhow!("Identifier not found in template!"))?;
+    pub fn get_node_position_set(&mut self, identifier: T::Identifier) -> &mut PositionSet<T> {
+        let index = self.get_node_index_by_identifier(identifier);
         self.get_node_position_set_by_index(index)
     }
 
-    pub fn get_node_position_set_by_index(&mut self, index: TemplateIndex) -> OctaResult<&mut PositionSet<T>> {
+    pub fn get_node_position_set_by_index(&mut self, index: TemplateIndex) -> &mut PositionSet<T> {
         let node = &mut self.nodes[index];
 
         if !matches!(node.value, NodeTemplateValue::PosSet(..)) {
-            bail!("Node Value is not Position Set {node:?}");
+            panic!("Node Value is not Position Set {node:?}");
         }
 
         let NodeTemplateValue::PosSet(pos_set) = &mut node.value else { unreachable!() };
-        Ok(pos_set)
+        pos_set
     }
 
-    pub fn get_node_index_by_identifier(&self, identifier: T::Identifier) -> Option<TemplateIndex> {
-        self.nodes.iter().position(|n| n.identifier == identifier)
+    pub fn get_node_index_by_identifier(&self, identifier: T::Identifier) -> TemplateIndex {
+        self.nodes.iter()
+            .position(|n| n.identifier == identifier)
+            .expect("No Node with Identifier")
     }
 }
 
