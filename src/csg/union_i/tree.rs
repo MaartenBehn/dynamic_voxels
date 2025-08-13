@@ -24,7 +24,7 @@ pub struct BVHNodeI {
     pub leaf: Option<usize>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CSGUnionI<T> {
     pub nodes: Vec<CSGUnionNodeI<T>>,
     pub bvh: Vec<BVHNodeI>,

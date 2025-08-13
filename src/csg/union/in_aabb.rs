@@ -7,7 +7,7 @@ impl VolumeQureyAABB for CSGUnion<u8> {
         let mut i = 0;
         while i < self.bvh.len() {
             let b = &self.bvh[i];
-            if b.aabb.contains_aabb(aabb) {
+            if b.aabb.collides_aabb(aabb) {
                 if let Some(leaf) = b.leaf {
                     let node = &self.nodes[leaf];
                     let v = match &node.data {

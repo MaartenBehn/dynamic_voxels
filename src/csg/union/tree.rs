@@ -3,6 +3,7 @@ use octa_force::glam::Mat4;
 
 use crate::{csg::{r#box::CSGBox, sphere::CSGSphere}, util::aabb3d::AABB, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid}};
 
+#[derive(Debug, Clone)]
 pub enum CSGUnionNodeData<T> {
     Box(CSGBox<T>),
     Sphere(CSGSphere<T>),
@@ -10,17 +11,20 @@ pub enum CSGUnionNodeData<T> {
     SharedVoxelGrid(SharedVoxelGrid),
 }
 
+#[derive(Debug, Clone)]
 pub struct CSGUnionNode<T> {
     pub bh_index: usize,
     pub data: CSGUnionNodeData<T>
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct BVHNode {
     pub aabb: AABB,
     pub exit: usize,
     pub leaf: Option<usize>,
 }
 
+#[derive(Debug, Clone, Default)]
 pub struct CSGUnion<T> {
     pub nodes: Vec<CSGUnionNode<T>>,
     pub bvh: Vec<BVHNode>,

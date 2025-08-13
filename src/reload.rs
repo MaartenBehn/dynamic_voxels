@@ -10,6 +10,7 @@ pub mod volume;
 pub mod voxel;
 
 use csg::csg_tree::tree::{CSGNode, CSGTree};
+use csg::union_i::tree::CSGUnionI;
 use model::debug_renderer::ModelDebugRenderer;
 use model::examples::islands::{self, Islands};
 use model::examples::islands_worker::IslandsWorker;
@@ -33,7 +34,7 @@ use octa_force::vulkan::{Context, Fence};
 use octa_force::{log, OctaResult};
 use util::profiler::ShaderProfiler;
 use util::state_saver::StateSaver;
-use volume::VolumeBounds;
+use volume::{VolumeBounds, VolumeBoundsI};
 use voxel::dag64::VoxelDAG64;
 use voxel::grid::VoxelGrid;
 use voxel::palette::shared::SharedPalette;
@@ -133,28 +134,32 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     {
         let scene = Scene::new(&engine.context)?.run_worker(engine.context.get_alloc_context(), 10);
 
-        let palette = Palette::new();
+        let palette = SharedPalette::new();
         let renderer = SceneRenderer::new(
             &engine.context, 
             &engine.swapchain, 
             &logic_state.camera,
             scene.render_data.clone(),
+            palette.clone(),
         )?;
-        renderer.push_palette(&engine.context, &palette)?;
 
-        let mut csg = CSGTree::new_sphere(Vec3::ZERO, 100.0);
+        let mut u = CSGUnionI::<u8>::new();
+        u.add_sphere(Vec3::ZERO, 100.0);
+        u.calculate_bounds_i();
 
         let now = Instant::now();
 
         let mut dag = VoxelDAG64::new(1000000, 64);
         let mut dag = dag.parallel();
-        let key = dag.add_aabb_query_volume(&csg)?;
+        let key = dag.add_aabb_query_volume(&u)?;
 
+       /* 
         let index = csg.append_node_with_remove(
             CSGNode::new_sphere(vec3(70.0, 0.0, 0.0), 50.0));
         csg.set_all_aabbs();
 
         let key = dag.update_aabb_query_volume(&csg, key)?;
+*/
 
         let elapsed = now.elapsed();
         info!("Tree Build took {:.2?}", elapsed);

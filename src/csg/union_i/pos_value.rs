@@ -8,6 +8,7 @@ use super::{new, tree::{CSGUnionI, CSGUnionNodeDataI}};
 impl VolumeQureyPosValueI for CSGUnionI<u8> {
     fn get_value_i(&self, pos: IVec3) -> u8 {
 
+
         let mut i = 0;
         while i < self.bvh.len() {
             let b = &self.bvh[i];
