@@ -19,7 +19,7 @@ impl<T> VolumeBounds for CSGAll<T> {
 }
 
 impl<T> VolumeBoundsI for CSGAll<T> {
-    fn calculate_bounds(&mut self) {}
+    fn calculate_bounds_i(&mut self) {}
     fn get_bounds_i(&self) -> AABBI { AABBI::infinte() }
 }
 

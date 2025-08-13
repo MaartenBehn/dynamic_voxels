@@ -44,7 +44,7 @@ impl<T> VolumeBounds for CSGSphere<T> {
 }
 
 impl<T> VolumeBoundsI for CSGSphere<T> {
-    fn calculate_bounds(&mut self) {}
+    fn calculate_bounds_i(&mut self) {}
     fn get_bounds_i(&self) -> AABBI { self.get_bounds().into() }
 }
 

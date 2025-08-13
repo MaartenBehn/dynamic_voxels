@@ -227,7 +227,7 @@ impl Islands {
                             tree_grid.offset += pos.as_ivec3();
 
                             island.csg.append_node_with_union(CSGNode::new_shared_grid(tree_grid));
-                            island.csg.calculate_bounds();
+                            island.csg.calculate_bounds_i();
 
                             let active_key = self.dag.update_pos_query_volume(&island.csg, island.dag_key)?;
                             island.dag_key = active_key;
@@ -240,7 +240,7 @@ impl Islands {
                             let island = collapser.get_dependend_undo_data_mut(index, Identifier::Island);
 
                             island.csg.append_node_with_union(CSGNode::new_sphere(Vec3::from(pos), 10.0));
-                            island.csg.calculate_bounds();
+                            island.csg.calculate_bounds_i();
 
                             let active_key = self.dag.update_pos_query_volume(&island.csg, island.dag_key)?;
                             island.dag_key = active_key;

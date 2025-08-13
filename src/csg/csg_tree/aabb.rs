@@ -18,7 +18,7 @@ impl<T: Clone> VolumeBounds for CSGTree<T> {
 }
 
 impl<T: Clone> VolumeBoundsI for CSGTree<T> {
-    fn calculate_bounds(&mut self) {
+    fn calculate_bounds_i(&mut self) {
         self.set_all_aabbs()
     }
 

@@ -5,7 +5,7 @@ use crate::{util::{aabb3d::AABB, iaabb3d::AABBI, math::to_1d}, volume::{VolumeBo
 use super::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid, VoxelGrid};
 
 impl VolumeBoundsI for VoxelGrid {
-    fn calculate_bounds(&mut self) {}
+    fn calculate_bounds_i(&mut self) {}
 
     fn get_bounds_i(&self) -> AABBI {
         AABBI::new(IVec3::ZERO, self.size.as_ivec3() -1)
@@ -21,7 +21,7 @@ impl VolumeBoundsI for VoxelGrid {
 }
 
 impl VolumeBoundsI for OffsetVoxelGrid {
-    fn calculate_bounds(&mut self) {}
+    fn calculate_bounds_i(&mut self) {}
 
     fn get_bounds_i(&self) -> AABBI {
         AABBI::new(self.offset, self.grid.size.as_ivec3() + self.offset - 1)
@@ -37,7 +37,7 @@ impl VolumeBoundsI for OffsetVoxelGrid {
 }
 
 impl VolumeBoundsI for SharedVoxelGrid {
-    fn calculate_bounds(&mut self) {}
+    fn calculate_bounds_i(&mut self) {}
 
     fn get_bounds_i(&self) -> AABBI {
         AABBI::new(self.offset, self.grid.size.as_ivec3() + self.offset -1)

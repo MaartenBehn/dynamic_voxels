@@ -24,6 +24,7 @@ impl<T: Send + Sync> CSGUnion<T> {
         if !self.changed {
             return;
         }
+        self.changed = false;
 
         let bvh = Bvh::build_par(&mut self.nodes);
         let flat_bvh = bvh.flatten_custom(&|aabb, index, exit, shape| {

@@ -6,7 +6,7 @@ use crate::{util::{aabb2d::AABB2D, aabb3d::AABB}, volume::VolumeBounds2D};
 use super::tree::{CSGNodeData2D, CSGTree2D, CSGTreeKey2D};
 
 impl<T: Clone> VolumeBounds2D for CSGTree2D<T> {
-    fn calculate_bounds(&mut self) {
+    fn calculate_bounds_2d(&mut self) {
         self.set_all_aabbs()
     }
 

@@ -19,7 +19,7 @@ pub trait VolumeBounds {
 }
 
 pub trait VolumeBounds2D {
-    fn calculate_bounds(&mut self);
+    fn calculate_bounds_2d(&mut self);
     fn get_bounds(&self) -> AABB2D;
     fn get_offset(&self) -> Vec2 {
         self.get_bounds().min
@@ -30,7 +30,7 @@ pub trait VolumeBounds2D {
 }
 
 pub trait VolumeBoundsI {
-    fn calculate_bounds(&mut self);
+    fn calculate_bounds_i(&mut self);
     fn get_bounds_i(&self) -> AABBI;
     fn get_offset_i(&self) -> IVec3 {
         self.get_bounds_i().min

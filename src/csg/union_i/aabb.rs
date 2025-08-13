@@ -6,7 +6,7 @@ use crate::{util::{aabb3d::AABB, iaabb3d::AABBI}, volume::{VolumeBounds, VolumeB
 use super::tree::{BVHNodeI, CSGUnionI, CSGUnionNodeI, CSGUnionNodeDataI};
 
 impl<T: Send + Sync> VolumeBoundsI for CSGUnionI<T> {
-    fn calculate_bounds(&mut self) {
+    fn calculate_bounds_i(&mut self) {
         self.update_bounds();
     }
 
@@ -20,25 +20,47 @@ impl<T: Send + Sync> VolumeBoundsI for CSGUnionI<T> {
     }
 }
 
+impl<T> VolumeBoundsI for CSGUnionNodeI<T> {
+    fn calculate_bounds_i(&mut self) {
+        match &mut self.data {
+            CSGUnionNodeDataI::Box(d) => d.calculate_bounds_i(),
+            CSGUnionNodeDataI::Sphere(d) => d.calculate_bounds_i(),
+            CSGUnionNodeDataI::OffsetVoxelGrid(d) => d.calculate_bounds_i(),
+            CSGUnionNodeDataI::SharedVoxelGrid(d) => d.calculate_bounds_i(),
+        }
+    }
+
+    fn get_bounds_i(&self) -> AABBI {
+        match &self.data {
+            CSGUnionNodeDataI::Box(d) => d.get_bounds_i(),
+            CSGUnionNodeDataI::Sphere(d) => d.get_bounds_i(),
+            CSGUnionNodeDataI::OffsetVoxelGrid(d) => d.get_bounds_i(),
+            CSGUnionNodeDataI::SharedVoxelGrid(d) => d.get_bounds_i(),
+        }
+    }
+}
+
 impl<T: Send + Sync> CSGUnionI<T> {
     pub fn update_bounds(&mut self) {
         if !self.changed {
             return;
         }
+        self.changed = false;
 
         let bvh = Bvh::build_par(&mut self.nodes);
         let flat_bvh = bvh.flatten_custom(&|aabb, index, exit, shape| {
             let leaf = shape != u32::MAX;
-            let aabb: AABB = aabb.into();
 
             if leaf {
+                let aabb: AABB = self.nodes[shape as usize].get_bounds_i().into();
                 BVHNodeI {
                     aabb: aabb.into(),
                     exit: exit as _,
                     leaf: Some(shape as _),
                 }
             } else {
-                 BVHNodeI {
+                let aabb: AABB = aabb.into();
+                BVHNodeI {
                     aabb: aabb.into(),
                     exit: exit as _,
                     leaf: None,
@@ -52,12 +74,8 @@ impl<T: Send + Sync> CSGUnionI<T> {
 
 impl<T> Bounded<f32, 3> for CSGUnionNodeI<T> {
     fn aabb(&self) -> bvh::aabb::Aabb<f32, 3> {
-        match &self.data {
-            CSGUnionNodeDataI::Box(d) => d.get_bounds(),
-            CSGUnionNodeDataI::Sphere(d) => d.get_bounds(),
-            CSGUnionNodeDataI::OffsetVoxelGrid(d) => d.get_bounds(),
-            CSGUnionNodeDataI::SharedVoxelGrid(d) => d.get_bounds(),
-        }.into()
+        let aabb: AABB = self.get_bounds_i().into();
+        aabb.into()
     }
 }
 
