@@ -2,11 +2,11 @@
 use std::sync::Arc;
 
 use nalgebra::IsDynamic;
-use octa_force::{camera::Camera, glam::{vec3, EulerRot, Mat4, Quat, Vec2, Vec3, Vec3A, Vec3Swizzles}, log::{debug, error, info}, vulkan::{AllocContext, Context, Swapchain}, OctaResult};
+use octa_force::{camera::Camera, glam::{vec3, vec3a, EulerRot, Mat4, Quat, Vec2, Vec3, Vec3A, Vec3Swizzles}, log::{debug, error, info}, vulkan::{AllocContext, Context, Swapchain}, OctaResult};
 use parking_lot::Mutex;
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{csg::{csg_tree::tree::{CSGNode, CSGTree}, csg_tree_2d::tree::CSGTree2D, fast_query_csg_tree::tree::FastQueryCSGTree}, model::generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder}, collapse::{CollapseOperation, Collapser}, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree, traits::{ModelGenerationTypes, BU, IT}}, scene::{dag64::{SceneAddDAGObject, SceneDAGObject}, dag_store::SceneDAGKey, renderer::SceneRenderer, worker::SceneWorkerSend, Scene, SceneObjectData, SceneObjectKey}, util::aabb3d::AABB, volume::{magica_voxel::MagicaVoxelModel, VolumeBoundsI, VolumeQureyPosValid}, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, grid::{shared::SharedVoxelGrid, VoxelGrid}, palette::shared::SharedPalette}, METERS_PER_SHADER_UNIT};
+use crate::{csg::{csg_tree::tree::{CSGNode, CSGTree}, csg_tree_2d::tree::CSGTree2D}, model::generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder}, collapse::{CollapseOperation, Collapser}, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree, traits::{ModelGenerationTypes, BU, IT}}, scene::{dag64::{SceneAddDAGObject, SceneDAGObject}, dag_store::SceneDAGKey, renderer::SceneRenderer, worker::SceneWorkerSend, Scene, SceneObjectData, SceneObjectKey}, util::aabb3d::AABB, volume::{magica_voxel::MagicaVoxelModel, VolumeBoundsI, VolumeQureyPosValid}, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, grid::{shared::SharedVoxelGrid, VoxelGrid}, palette::shared::SharedPalette}, METERS_PER_SHADER_UNIT};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Identifier {
@@ -108,9 +108,9 @@ impl Islands {
                 .ammount(BuilderAmmount::OnePer(Identifier::Island))
                 .value(BuilderValue::Const(PositionSet::new_path(
                 5.0,
-                    vec3(0.5, 0.5, 0.0),
-                    vec3(-100.0, -100.0, 8.0),
-                    vec3(100.0, 100.0, 8.0),
+                    vec3a(0.5, 0.5, 0.0),
+                    vec3a(-100.0, -100.0, 8.0),
+                    vec3a(100.0, 100.0, 8.0),
                 )))
             })
 
@@ -205,7 +205,7 @@ impl Islands {
                                 Mat4::from_scale_rotation_translation(
                                     Vec3::ONE,
                                     Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, 0.0),
-                                    pos.to_owned() / METERS_PER_SHADER_UNIT as f32
+                                    Vec3::from(pos) / METERS_PER_SHADER_UNIT as f32
                                 ), 
                                 self.scene_dag_key,
                                 self.dag.get_entry(active_key),
@@ -239,7 +239,7 @@ impl Islands {
                             let pos = collapser.get_parent_pos(index);
                             let island = collapser.get_dependend_undo_data_mut(index, Identifier::Island);
 
-                            island.csg.append_node_with_union(CSGNode::new_sphere(pos, 10.0));
+                            island.csg.append_node_with_union(CSGNode::new_sphere(Vec3::from(pos), 10.0));
                             island.csg.calculate_bounds();
 
                             let active_key = self.dag.update_pos_query_volume(&island.csg, island.dag_key)?;

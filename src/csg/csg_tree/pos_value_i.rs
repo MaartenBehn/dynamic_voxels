@@ -46,25 +46,11 @@ impl CSGTree<u8> {
                 if a == MATERIAL_ID_NONE || b == MATERIAL_ID_NONE { MATERIAL_ID_NONE }
                 else { a }
             }
-            CSGNodeData::Box(mat, v) => {
-                let pos = mat.mul_vec4(Vec4::from((pos.as_vec3(), 1.0)));
-
-                let aabb = AABB::new(
-                    vec3(-0.5, -0.5, -0.5), 
-                    vec3(0.5, 0.5, 0.5));
-
-                if aabb.pos_in_aabb(pos) { *v }
-                else { MATERIAL_ID_NONE }
-            }
-            CSGNodeData::Sphere(mat, v) => {
-                let pos = Vec3A::from(mat.mul_vec4(Vec4::from((pos.as_vec3(), 1.0))));
-
-                if pos.length_squared() < 1.0 { *v }
-                else { MATERIAL_ID_NONE }
-            }
-            CSGNodeData::All(v) => *v,
-            CSGNodeData::OffsetVoxelGrid(voxel_grid) => voxel_grid.get_value_i(pos),
-            CSGNodeData::SharedVoxelGrid(shared_voxel_grid) => shared_voxel_grid.get_value_i(pos),
+            CSGNodeData::Box(d) => d.get_value_i(pos), 
+            CSGNodeData::Sphere(d) => d.get_value_i(pos), 
+            CSGNodeData::All(d) => d.get_value_i(pos), 
+            CSGNodeData::OffsetVoxelGrid(d) => d.get_value_i(pos),
+            CSGNodeData::SharedVoxelGrid(d) => d.get_value_i(pos),
         }
     }
 }

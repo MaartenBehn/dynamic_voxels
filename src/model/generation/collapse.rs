@@ -2,7 +2,7 @@
 use std::{collections::{HashMap, VecDeque}, fmt::{Debug, Octal}, iter, marker::PhantomData, mem, task::ready, usize};
 
 use feistel_permutation_rs::{DefaultBuildHasher, OwnedPermutationIterator, Permutation, PermutationIterator};
-use octa_force::{anyhow::{anyhow, bail, ensure}, glam::{vec3, IVec3, Vec3}, log::{debug, error, info}, vulkan::ash::vk::OpaqueCaptureDescriptorDataCreateInfoEXT, OctaResult};
+use octa_force::{anyhow::{anyhow, bail, ensure}, glam::{vec3, vec3a, IVec3, Vec3}, log::{debug, error, info}, vulkan::ash::vk::OpaqueCaptureDescriptorDataCreateInfoEXT, OctaResult};
 use slotmap::{new_key_type, Key, SlotMap};
 
 
@@ -151,7 +151,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
                     },
                     PositionSetRule::GridOnPlane(grid_data) => {
                         grid_data.volume.get_grid_positions(grid_data.spacing)
-                            .map(|p| vec3(p.x, p.y, grid_data.height))
+                            .map(|p| vec3a(p.x, p.y, grid_data.height))
                             .collect::<Vec<_>>()
                     },
                     PositionSetRule::Path(path) => path.get_positions(),

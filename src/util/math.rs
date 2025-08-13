@@ -1,6 +1,6 @@
 use std::iter;
 
-use octa_force::glam::{ivec3, uvec3, IVec3, UVec3};
+use octa_force::glam::{ivec3, uvec3, IVec3, UVec3, Vec3A};
 use rayon::iter::IntoParallelRefIterator;
 
 
@@ -59,6 +59,10 @@ pub fn to_mb(size: usize) -> f32 {
 
 pub fn to_kb(size: usize) -> f32 {
     size as f32 * 0.001
+}
+
+pub fn vec3a_to_nalgebra_point(v: Vec3A) -> nalgebra::Point3<f32> {
+    nalgebra::Point3::new(v.x, v.y, v.z)
 }
 
 /*

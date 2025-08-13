@@ -1,7 +1,7 @@
 use std::hint::black_box;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use octa_force::glam::{UVec3, Vec3};
-use reload::{csg::{csg_tree::tree::CSGTree, fast_query_csg_tree::tree::FastQueryCSGTree}, multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, volume::{magica_voxel::MagicaVoxelModel, VolumeQureyAABB, VolumeQureyAABBI, VolumeQureyPosValueI}, voxel::{dag64::VoxelDAG64, grid::{shared::SharedVoxelGrid, VoxelGrid}}};
+use reload::{csg::{csg_tree::tree::CSGTree}, multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, volume::{magica_voxel::MagicaVoxelModel, VolumeQureyAABB, VolumeQureyAABBI, VolumeQureyPosValueI}, voxel::{dag64::VoxelDAG64, grid::{shared::SharedVoxelGrid, VoxelGrid}}};
 
 fn build_from_pos_query<M: VolumeQureyPosValueI>(model: &M) -> VoxelDAG64 {
     let mut dag = VoxelDAG64::new(100000, 64);
@@ -93,23 +93,6 @@ fn criterion_benchmark(c: &mut Criterion) {
         &csg2, 
         |b, csg| 
     b.iter(|| build_from_aabb_query_par_large(csg)));
-
-
-    let csg: FastQueryCSGTree<u8> = csg.into();
-
-    c.bench_with_input(
-        BenchmarkId::new("build dag 64 from fast csg abb query", "sphere 100"), 
-        &csg, 
-        |b, csg| 
-        b.iter(|| build_from_pos_query(csg)));
-
-    /*
-    c.bench_with_input(
-        BenchmarkId::new("build dag 64 from fast csg abb query", "sphere 100"), 
-        &csg, 
-        |b, csg| 
-        b.iter(|| build_from_aabb_query(csg)));
-    */   
 }
 
 criterion_group!(benches, criterion_benchmark);

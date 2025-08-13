@@ -48,13 +48,13 @@ pub trait VolumeGradient {
     fn get_gradient_at_position(&self, pos: Vec3) -> Vec3;
 }
 
-pub trait VolumeQureyPosValid: VolumeBounds + Clone + Default + Debug {
-    fn is_position_valid_vec3(&self, pos: Vec4) -> bool;
+pub trait VolumeQureyPosValid: VolumeBounds {
+    fn is_position_valid_vec3(&self, pos: Vec3A) -> bool;
      
-    fn get_grid_positions(&self, step: f32) -> impl Iterator<Item = Vec3> {
+    fn get_grid_positions(&self, step: f32) -> impl Iterator<Item = Vec3A> {
         let aabb = self.get_bounds();
         aabb.get_sampled_positions(step).into_iter()
-            .filter(|p| self.is_position_valid_vec3(vec4(p.x, p.y, p.z, 1.0)))
+            .filter(|p| self.is_position_valid_vec3(*p))
     }
 }
 

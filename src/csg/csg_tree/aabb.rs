@@ -3,7 +3,7 @@ use slotmap::Key;
 
 use crate::{util::{aabb3d::AABB, iaabb3d::AABBI}, volume::{VolumeBoundsI, VolumeBounds}};
 
-use super::tree::{CSGNodeData, CSGTree, CSGTreeKey};
+use super::tree::{CSGNode, CSGNodeData, CSGTree, CSGTreeKey};
 
 impl<T: Clone> VolumeBounds for CSGTree<T> {
     fn calculate_bounds(&mut self) {
@@ -55,26 +55,27 @@ impl<T: Clone> CSGTree<T> {
         let node = &self.nodes[i];
         match &node.data {
             CSGNodeData::Union(c1, c2)
-                    | CSGNodeData::Remove(c1, c2) 
-                    | CSGNodeData::Intersect(c1, c2) => {
-                        let (c1, c2) = (*c1, *c2); // To please borrow checker
-                        self.set_primitive_aabbs(c1, base_mat, changed_nodes);
-                        self.set_primitive_aabbs(c2, base_mat, changed_nodes);
-                    },
-            CSGNodeData::Box(mat, ..) => {
-                        let mat = mat.inverse().mul_mat4(base_mat);
-                        self.nodes[i].set_aabb(AABB::from_box(&mat));
-                        changed_nodes.push(i);
-                    },
-            CSGNodeData::Sphere(mat, ..) => {
-                        let mat = mat.inverse().mul_mat4(base_mat);
-                        self.nodes[i].set_aabb(AABB::from_sphere(&mat));
-                        changed_nodes.push(i);
-                    },
-            CSGNodeData::All(_) => {
-                        self.nodes[i].set_aabb(AABB::infinte());
-                        changed_nodes.push(i);
-                    },
+            | CSGNodeData::Remove(c1, c2) 
+            | CSGNodeData::Intersect(c1, c2) => {
+                let (c1, c2) = (*c1, *c2); // To please borrow checker
+                self.set_primitive_aabbs(c1, base_mat, changed_nodes);
+                self.set_primitive_aabbs(c2, base_mat, changed_nodes);
+            },
+            CSGNodeData::Box(d) => {
+                let aabb = d.get_bounds();
+                self.nodes[i].set_aabb(aabb);
+                changed_nodes.push(i);
+            },
+            CSGNodeData::Sphere(d) => {
+                let aabb = d.get_bounds();
+                self.nodes[i].set_aabb(aabb);
+                changed_nodes.push(i);
+            },
+            CSGNodeData::All(d) => {
+                let aabb = d.get_bounds();
+                self.nodes[i].set_aabb(aabb);
+                changed_nodes.push(i);
+            },
             CSGNodeData::OffsetVoxelGrid(grid) => {
                 let aabb = grid.get_bounds(); 
                 self.nodes[i].set_aabb(aabb);

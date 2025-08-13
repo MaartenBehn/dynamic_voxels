@@ -1,4 +1,4 @@
-use octa_force::{anyhow::{anyhow, bail, Context}, glam::Vec3, OctaResult};
+use octa_force::{anyhow::{anyhow, bail, Context}, glam::{Vec3, Vec3A}, OctaResult};
 use slotmap::{Key, SlotMap};
 use octa_force::log::info;
 
@@ -45,7 +45,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         }
     }
      
-    pub fn get_pos(&self, index: CollapseNodeKey, pos_key: CollapseChildKey) -> Vec3 {
+    pub fn get_pos(&self, index: CollapseNodeKey, pos_key: CollapseChildKey) -> Vec3A {
         match &self.nodes.get(index).expect("Pos Set by index not found").data {
             NodeDataType::PosSet(d) => d.get_pos(pos_key),
             _ => panic!("Number by index is not of Type Number")
@@ -62,7 +62,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         self.get_number(index)
     }
 
-    pub fn get_dependend_pos(&self, index: CollapseNodeKey, identifier: T::Identifier, pos_set_child_idetifier: T::Identifier) -> Vec3 {
+    pub fn get_dependend_pos(&self, index: CollapseNodeKey, identifier: T::Identifier, pos_set_child_idetifier: T::Identifier) -> Vec3A {
         let i = self.get_dependend_index(index, identifier);
         let ci = self.get_dependend_index(index, pos_set_child_idetifier);
         let child_key = self.nodes[ci].child_key;
@@ -79,7 +79,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         self.get_undo_data_mut(index)
     }
 
-    pub fn get_parent_pos(&self, index: CollapseNodeKey) -> Vec3 {
+    pub fn get_parent_pos(&self, index: CollapseNodeKey) -> Vec3A {
         let node = &self.nodes[index];
         self.get_pos(node.defined_by, node.child_key)
     }

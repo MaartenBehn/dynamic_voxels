@@ -84,35 +84,9 @@ impl CSGTree<u8> {
                 else if a == b { VolumeQureyAABBResult::Full(a) }
                 else { VolumeQureyAABBResult::Mixed }
             }
-            CSGNodeData::Box(mat, v) => {
-                let aabb = aabb.mul_mat(mat);
-
-                let b = AABB::new(
-                    vec3(-0.5, -0.5, -0.5), 
-                    vec3(0.5, 0.5, 0.5));
-
-                if aabb.contains_aabb(b) {
-                    VolumeQureyAABBResult::Full(*v)
-                } else if aabb.collides_aabb(b) {
-                    VolumeQureyAABBResult::Mixed
-                } else {
-                    VolumeQureyAABBResult::Full(MATERIAL_ID_NONE)
-                }
-            }
-            CSGNodeData::Sphere(mat, v) => {
-                let aabb = aabb.mul_mat(mat);
-
-                let (min, max) = aabb.collides_unit_sphere();
-
-                if max {
-                    VolumeQureyAABBResult::Full(*v)
-                } else if min {
-                    VolumeQureyAABBResult::Mixed
-                } else {
-                    VolumeQureyAABBResult::Full(MATERIAL_ID_NONE)
-                }
-            }
-            CSGNodeData::All(v) => VolumeQureyAABBResult::Full(*v),
+            CSGNodeData::Box(d) => d.get_aabb_value(aabb),
+            CSGNodeData::Sphere(d) => d.get_aabb_value(aabb),
+            CSGNodeData::All(d) => d.get_aabb_value(aabb),
             CSGNodeData::OffsetVoxelGrid(offset_voxel_grid) => todo!(),
             CSGNodeData::SharedVoxelGrid(shared_voxel_grid) => todo!(),
         }

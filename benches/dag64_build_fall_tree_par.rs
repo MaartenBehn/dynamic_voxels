@@ -1,7 +1,7 @@
 use std::hint::black_box;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use octa_force::glam::{UVec3, Vec3};
-use reload::{csg::{csg_tree::tree::CSGTree, fast_query_csg_tree::tree::FastQueryCSGTree}, multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, volume::{magica_voxel::MagicaVoxelModel, VolumeQureyAABB, VolumeQureyAABBI, VolumeQureyPosValueI}, voxel::{dag64::VoxelDAG64, grid::{shared::SharedVoxelGrid, VoxelGrid}, palette::palette::LocalPalette}};
+use reload::{csg::{csg_tree::tree::CSGTree}, multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, volume::{magica_voxel::MagicaVoxelModel, VolumeQureyAABB, VolumeQureyAABBI, VolumeQureyPosValueI}, voxel::{dag64::VoxelDAG64, grid::{shared::SharedVoxelGrid, VoxelGrid}, palette::palette::LocalPalette}};
 
 fn build_from_pos_query_par<M: VolumeQureyPosValueI + Sync + Send>(model: &M) -> VoxelDAG64 {
     let dag = VoxelDAG64::new(1000000, 1000000);

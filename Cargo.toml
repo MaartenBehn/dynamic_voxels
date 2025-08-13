@@ -36,6 +36,10 @@ harness = false
 name = "dag64_build_fall_tree_par"
 harness = false
 
+[[bench]]
+name = "query_large_union"
+harness = false
+
 [features]
 islands = []
 profile_islands = []

@@ -1,14 +1,14 @@
-use octa_force::{anyhow::bail, glam::{Mat4, Vec3}, OctaResult};
+use octa_force::{anyhow::bail, glam::{Mat4, Vec3, Vec3A}, OctaResult};
 use slotmap::{new_key_type, SecondaryMap, SlotMap};
 
-use crate::{csg::fast_query_csg_tree::tree::FastQueryCSGTree, volume::{VolumeQureyPosValid, VolumeQureyPosValid2D}};
+use crate::{volume::{VolumeQureyPosValid, VolumeQureyPosValid2D}};
 
 use super::{collapse::{CollapseChildKey, CollapseNodeKey, Collapser}, traits::ModelGenerationTypes};
 
 #[derive(Debug, Clone)]
 pub struct PositionSet<T: ModelGenerationTypes> {
     pub rule: PositionSetRule<T>,
-    pub positions: SlotMap<CollapseChildKey, Vec3>,
+    pub positions: SlotMap<CollapseChildKey, Vec3A>,
 }
 
 #[derive(Debug, Clone)]
@@ -34,9 +34,9 @@ pub struct GridOnPlaneData<T: ModelGenerationTypes> {
 #[derive(Debug, Clone)]
 pub struct Path {
     pub spacing: f32,
-    pub side_variance: Vec3,
-    pub start: Vec3,
-    pub end: Vec3,
+    pub side_variance: Vec3A,
+    pub start: Vec3A,
+    pub end: Vec3A,
 }
 
 #[derive(Debug, Clone)]
@@ -66,7 +66,7 @@ impl<T: ModelGenerationTypes> PositionSet<T> {
         }
     }
  
-    pub fn new_path(spacing: f32, side_variance: Vec3, start: Vec3, end: Vec3) -> Self {
+    pub fn new_path(spacing: f32, side_variance: Vec3A, start: Vec3A, end: Vec3A) -> Self {
         Self { 
             rule: PositionSetRule::Path(Path {
                 spacing,
@@ -82,7 +82,7 @@ impl<T: ModelGenerationTypes> PositionSet<T> {
         self.positions.len()
     }
 
-    pub fn get_pos(&self, pos_key: CollapseChildKey) -> Vec3 {
+    pub fn get_pos(&self, pos_key: CollapseChildKey) -> Vec3A {
         self.positions[pos_key]
     }
 
@@ -119,7 +119,7 @@ impl<T: ModelGenerationTypes> PositionSet<T> {
 
 
 impl Path {
-    pub fn get_positions(&self) -> Vec<Vec3> {
+    pub fn get_positions(&self) -> Vec<Vec3A> {
 
         let mut points = vec![self.start];
         let mut current = self.start;
@@ -132,7 +132,7 @@ impl Path {
                 return points;
             }
 
-            let r = Vec3::new(fastrand::f32(), fastrand::f32(), fastrand::f32()) * 2.0 - 1.0;
+            let r = Vec3A::new(fastrand::f32(), fastrand::f32(), fastrand::f32()) * 2.0 - 1.0;
             let side = r * self.side_variance * length;
             let dir = (delta + side).normalize();
             current = current + dir * self.spacing;

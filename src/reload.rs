@@ -10,7 +10,6 @@ pub mod volume;
 pub mod voxel;
 
 use csg::csg_tree::tree::{CSGNode, CSGTree};
-use csg::fast_query_csg_tree::tree::FastQueryCSGTree;
 use model::debug_renderer::ModelDebugRenderer;
 use model::examples::islands::{self, Islands};
 use model::examples::islands_worker::IslandsWorker;

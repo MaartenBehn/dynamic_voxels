@@ -21,6 +21,13 @@ impl AABBI {
         (self.max + self.min) / 2
     }
 
+    pub fn infinte() -> AABBI {
+        AABBI {
+            min: IVec3::MIN,
+            max: IVec3::MAX,
+        }
+    }
+
     pub fn pos_in_aabb(self, pos: IVec3) -> bool {
         self.min.x <= pos.x && pos.x <= self.max.x
      && self.min.y <= pos.y && pos.y <= self.max.y
