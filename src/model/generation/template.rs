@@ -32,6 +32,7 @@ pub struct TemplateNode<T: ModelGenerationTypes> {
     pub identifier: T::Identifier,
     pub index: TemplateIndex,
     pub value: NodeTemplateValue<T>,
+    pub restricts: Vec<TemplateIndex>,
     pub depends: Vec<TemplateIndex>,
     pub dependend: Vec<TemplateIndex>,
     pub knows: Vec<TemplateIndex>,
@@ -58,7 +59,8 @@ impl<T: ModelGenerationTypes> TemplateTree<T> {
         let mut nodes = vec![TemplateNode { 
             identifier: T::Identifier::default(),
             index: 0,
-            value: NodeTemplateValue::Groupe {  }, 
+            value: NodeTemplateValue::Groupe {  },
+            restricts: vec![],
             depends: vec![], 
             dependend: vec![], 
             knows: vec![], 
@@ -73,6 +75,7 @@ impl<T: ModelGenerationTypes> TemplateTree<T> {
                 identifier: builder_node.identifier,
                 index: i + 1,
                 value: builder_node.value.to_owned(),
+                restricts: vec![],
                 depends: vec![],
                 dependend: vec![],
                 knows: vec![],
@@ -90,6 +93,7 @@ impl<T: ModelGenerationTypes> TemplateTree<T> {
 
             let template_node = &nodes[template_node_index];
 
+            // defined_by
             let mut add_defines_n = |ammount: usize, parent_index: usize| -> usize {
                 nodes[parent_index].defines_n.push(TemplateAmmountN{
                     ammount,
@@ -98,7 +102,7 @@ impl<T: ModelGenerationTypes> TemplateTree<T> {
                 });
                 parent_index
             };
-
+ 
             let parent_index = match builder_node.ammount {
                 BuilderAmmount::OneGlobal => add_defines_n(1, 0), 
                 BuilderAmmount::OnePer(i) => add_defines_n(1, builder.get_node_index_by_identifier(i) + 1),
@@ -112,6 +116,18 @@ impl<T: ModelGenerationTypes> TemplateTree<T> {
                     parent_index
                 }
             };
+
+            // restricts
+            let mut restricts = vec![]; 
+            for i in builder_node.restricts.iter() {
+                let restricts_index = builder.get_node_index_by_identifier(*i) + 1;
+                if !restricts.contains(&restricts_index) {
+                    restricts.push(restricts_index);
+                }
+            }
+            nodes[template_node_index].restricts = restricts;
+
+            // depends and dependend
             nodes[parent_index].dependend.push(template_node_index);
                 
             let mut depends = vec![parent_index]; 
@@ -124,6 +140,7 @@ impl<T: ModelGenerationTypes> TemplateTree<T> {
             }
             nodes[template_node_index].depends = depends;
 
+            // knows
             let mut knows = vec![];
             for i in builder_node.knows.iter() {
                 let knows_index = builder.get_node_index_by_identifier(*i) + 1;
@@ -152,6 +169,7 @@ impl<T: ModelGenerationTypes> TemplateTree<T> {
                 tree.nodes[i].defines_n[j].dependecy_tree = RelativePathTree::get_paths_to_other_dependcies_from_parent(
                     &tree, 
                     i,
+                    &new_node.restricts,
                     &new_node.depends,
                     &new_node.knows);
             }
@@ -162,6 +180,7 @@ impl<T: ModelGenerationTypes> TemplateTree<T> {
                 tree.nodes[i].defines_by_value[j].dependecy_tree = RelativePathTree::get_paths_to_other_dependcies_from_parent(
                     &tree, 
                     i,
+                    &new_node.restricts,
                     &new_node.depends,
                     &new_node.knows);
             }

@@ -1,5 +1,5 @@
 use feistel_permutation_rs::{DefaultBuildHasher, Permutation};
-use octa_force::glam::Vec3;
+use octa_force::{glam::Vec3, log::error};
 
 use std::{fmt::Debug, iter, marker::PhantomData, ops::RangeBounds};
 
@@ -31,6 +31,7 @@ pub enum BuilderValue<V>{
 pub struct BuilderNode<T: ModelGenerationTypes> {
     pub identifier: T::Identifier,
     pub value: NodeTemplateValue<T>,
+    pub restricts: Vec<T::Identifier>,
     pub depends: Vec<T::Identifier>,
     pub knows: Vec<T::Identifier>,
     pub ammount: BuilderAmmount<T>,
@@ -38,6 +39,7 @@ pub struct BuilderNode<T: ModelGenerationTypes> {
 
 #[derive(Debug, Clone)]
 pub struct NodeBuilder<T: ModelGenerationTypes, V> {
+    pub restricts: Vec<T::Identifier>,
     pub depends: Vec<T::Identifier>,
     pub knows: Vec<T::Identifier>,
     pub ammount: BuilderAmmount<T>,
@@ -57,6 +59,7 @@ impl<T: ModelGenerationTypes> ModelSynthesisBuilder<T> {
         b: fn(NodeBuilder<T, ()>) -> NodeBuilder<T, ()>
     ) -> Self {
         let mut builder = NodeBuilder {
+            restricts: vec![],
             depends: vec![],
             knows: vec![],
             ammount: BuilderAmmount::OneGlobal,
@@ -64,6 +67,7 @@ impl<T: ModelGenerationTypes> ModelSynthesisBuilder<T> {
         };
 
         builder = b(builder);
+        builder.check_valid(identifier);
 
         assert!(
             matches!(builder.value, BuilderValue::Const(())), 
@@ -73,6 +77,7 @@ impl<T: ModelGenerationTypes> ModelSynthesisBuilder<T> {
         let node = BuilderNode {
             value: NodeTemplateValue::new_group(),
             identifier,
+            restricts: builder.restricts,
             depends: builder.depends,
             knows: builder.knows,
             ammount: builder.ammount,
@@ -88,6 +93,7 @@ impl<T: ModelGenerationTypes> ModelSynthesisBuilder<T> {
         b: F, 
     ) -> Self {
         let mut builder = NodeBuilder {
+            restricts: vec![],
             depends: vec![],
             knows: vec![],
             ammount: BuilderAmmount::OneGlobal,
@@ -95,6 +101,7 @@ impl<T: ModelGenerationTypes> ModelSynthesisBuilder<T> {
         };
 
         builder = b(builder);
+        builder.check_valid(identifier);
 
         let node = BuilderNode {
             value: match builder.value {
@@ -102,6 +109,7 @@ impl<T: ModelGenerationTypes> ModelSynthesisBuilder<T> {
                 BuilderValue::Hook => NodeTemplateValue::NumberRangeHook,
             },
             identifier,
+            restricts: builder.restricts,
             depends: builder.depends,
             knows: builder.knows,
             ammount: builder.ammount,
@@ -119,6 +127,7 @@ impl<T: ModelGenerationTypes> ModelSynthesisBuilder<T> {
     ) -> Self {
 
         let mut builder = NodeBuilder {
+            restricts: vec![],
             depends: vec![],
             knows: vec![],
             ammount: BuilderAmmount::OneGlobal,
@@ -126,6 +135,7 @@ impl<T: ModelGenerationTypes> ModelSynthesisBuilder<T> {
         };
 
         builder = b(builder);
+        builder.check_valid(identifier);
 
         let node = BuilderNode {
             value: match builder.value {
@@ -133,6 +143,7 @@ impl<T: ModelGenerationTypes> ModelSynthesisBuilder<T> {
                 BuilderValue::Hook => NodeTemplateValue::PosSetHook,
             },
             identifier,
+            restricts: builder.restricts,
             depends: builder.depends,
             knows: builder.knows,
             ammount: builder.ammount,
@@ -149,6 +160,7 @@ impl<T: ModelGenerationTypes> ModelSynthesisBuilder<T> {
         b: F, 
     ) -> Self {
         let mut builder = NodeBuilder {
+            restricts: vec![],
             depends: vec![],
             knows: vec![],
             ammount: BuilderAmmount::OneGlobal,
@@ -156,6 +168,7 @@ impl<T: ModelGenerationTypes> ModelSynthesisBuilder<T> {
         };
 
         builder = b(builder);
+        builder.check_valid(identifier);
 
         let node = BuilderNode {
             value: match builder.value {
@@ -163,6 +176,7 @@ impl<T: ModelGenerationTypes> ModelSynthesisBuilder<T> {
                 _ => panic!("Build Value only supports: Hook"),
             },            
             identifier,
+            restricts: builder.restricts,
             depends: builder.depends, 
             knows: builder.knows, 
             ammount: builder.ammount,
@@ -196,6 +210,35 @@ impl<T: ModelGenerationTypes, V> NodeBuilder<T, V> {
     pub fn value(mut self, v: BuilderValue<V>) -> Self {
         self.value = v;
         self
+    }
+
+    pub fn restricts(mut self, identifier: T::Identifier) -> Self {
+        self.restricts.push(identifier);
+        self
+    }
+
+    fn check_valid(&mut self, identifier: T::Identifier) {
+        for i in (0..self.knows.len()).rev() {
+            if self.restricts.contains(&self.knows[i]) {
+                error!("{:?} - {:?} found in restricts and knows. Only use restricts -> removimg from knows", identifier, self.knows[i]);
+                self.knows.swap_remove(i);
+                continue;
+            }
+
+            if self.depends.contains(&self.knows[i]) {
+                error!("{:?} - {:?} found in depends and knows. Only use depends -> removimg from knows", identifier, self.knows[i]);
+                self.knows.swap_remove(i);
+                continue;
+            }
+        }
+
+        for i in (0..self.depends.len()).rev() {
+            if self.restricts.contains(&self.depends[i]) {
+                error!("{:?} - {:?} found in restricts and depends. Only use restricts -> removimg from depends", identifier, self.depends[i]);
+                self.depends.swap_remove(i);
+                continue;
+            }
+        }
     }
 }
 

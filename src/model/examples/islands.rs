@@ -167,6 +167,13 @@ impl Islands {
                         _ => unreachable!()
                     }
                 },
+                CollapseOperation::RestrictHook { 
+                    index, 
+                    identifier, 
+                    restricts_index, 
+                    restricts_identifier } => {
+
+                },
                 CollapseOperation::BuildHook { index, identifier } => {
 
                     match identifier {
@@ -209,7 +216,7 @@ impl Islands {
                             let active_key = self.dag.update_pos_query_volume(&island.csg, island.dag_key)?;
                             island.dag_key = active_key;
                             scene.set_dag_entry(island.scene_key, self.dag.get_entry(active_key));
-                            
+
                             info!("Tree Pos: {pos}");
                         },
                         _ => unreachable!()
@@ -227,7 +234,7 @@ impl Islands {
                         Identifier::TreePositions => {}
                         _ => unreachable!()
                     }
-                                    },
+                },
                 CollapseOperation::None => {},
             } 
 

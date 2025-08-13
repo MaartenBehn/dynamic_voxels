@@ -70,7 +70,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
             children.swap_remove(i);
         }
 
-        self.pending_collapse_opperations.push(CollapseOperation::Undo { 
+        self.pending_collapse_opperations.push_back(CollapseOperation::Undo { 
             identifier: node.identifier, 
             undo_data: node.undo_data,
         });

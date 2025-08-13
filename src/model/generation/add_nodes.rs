@@ -15,7 +15,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         let template_node = &template.nodes[node.template_index];
 
         for ammount in template_node.defines_n.iter() {
-            let (depends, knows) = self.get_depends_and_knows_for_template(
+            let (restricts, depends, knows) = self.get_restricts_depends_and_knows_for_template(
                 node_index, 
                 ammount.index,   
                 template,
@@ -23,7 +23,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
                 &ammount.dependecy_tree)?;
 
             for _ in 0..ammount.ammount {
-                self.add_node(ammount.index, depends.clone(), knows.clone(), node_index, CollapseChildKey::null(), template); 
+                self.add_node(ammount.index, restricts.clone(), depends.clone(), knows.clone(), node_index, CollapseChildKey::null(), template); 
             }
         }
 
@@ -43,7 +43,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
 
             let present_children_len = present_children.len(); 
             if present_children_len < n {
-                let (depends, knows) = self.get_depends_and_knows_for_template(
+                let (restricts, depends, knows) = self.get_restricts_depends_and_knows_for_template(
                     node_index, 
                     ammount.index,   
                     template,
@@ -51,7 +51,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
                     &ammount.dependecy_tree)?;
 
                 for _ in present_children_len..n {
-                    self.add_node(ammount.index, depends.clone(), knows.clone(), node_index, CollapseChildKey::null(), template); 
+                    self.add_node(ammount.index, restricts.clone(), depends.clone(), knows.clone(), node_index, CollapseChildKey::null(), template); 
                 }
             } else if present_children_len > n {
 
@@ -64,7 +64,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         Ok(())
     }
 
-    pub fn upadte_defined_by_pos_set<'a>(
+    pub fn update_defined_by_pos_set<'a>(
         &mut self, 
         node_index: CollapseNodeKey, 
         to_create_children: &[CollapseChildKey], 
@@ -87,7 +87,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
                 .collect::<Vec<_>>();
 
 
-            let (depends, knows) = self.get_depends_and_knows_for_template(
+            let (restricts, depends, knows) = self.get_restricts_depends_and_knows_for_template(
                 node_index, 
                 ammount.index, 
                 template,
@@ -99,24 +99,27 @@ impl<T: ModelGenerationTypes> Collapser<T> {
             }
 
             for new_child in to_create_children {
-                self.add_node(ammount.index, depends.clone(), knows.clone(), node_index, *new_child, template); 
+                self.add_node(ammount.index, restricts.clone(), depends.clone(), knows.clone(), node_index, *new_child, template); 
             }
         }
 
         Ok(())
     }
   
-    pub fn get_depends_and_knows_for_template<'a>(
+    pub fn get_restricts_depends_and_knows_for_template<'a>(
         &self, 
         node_index: CollapseNodeKey,
         new_template_node_index: usize, 
         template: &'a TemplateTree<T>,
         template_node: &'a TemplateNode<T>,
         tree: &'a RelativePathTree,
-    ) -> OctaResult<(Vec<(T::Identifier, CollapseNodeKey)>, Vec<(T::Identifier, CollapseNodeKey)>)> {
+    ) -> OctaResult<(Vec<(T::Identifier, CollapseNodeKey)>, Vec<(T::Identifier, CollapseNodeKey)>, Vec<(T::Identifier, CollapseNodeKey)>)> {
         let new_node_template = &template.nodes[new_template_node_index];
 
         // Contains a list of node indecies matching the template dependency
+        let mut restricts = iter::repeat_with(|| vec![])
+            .take(new_node_template.restricts.len())
+            .collect::<Vec<_>>();
         let mut depends = iter::repeat_with(|| vec![])
             .take(new_node_template.depends.len())
             .collect::<Vec<_>>();
@@ -148,6 +151,11 @@ impl<T: ModelGenerationTypes> Collapser<T> {
 
             match step.leaf {
                 LeafType::None => {},
+                LeafType::Restricts(i) => {
+                    for edge in edges.iter() {
+                        restricts[i].push(*edge);
+                    }
+                },
                 LeafType::Depends(i) => {
                     for edge in edges.iter() {
                         depends[i].push(*edge);
@@ -185,15 +193,17 @@ impl<T: ModelGenerationTypes> Collapser<T> {
                 }).collect::<Vec<_>>()
         };
 
+        let restricts = transform_depends_and_knows(&new_node_template.restricts, restricts);
         let depends = transform_depends_and_knows(&new_node_template.depends, depends);
         let knows = transform_depends_and_knows(&new_node_template.knows, knows);
 
-        Ok((depends, knows))
+        Ok((restricts, depends, knows))
     }
 
     pub fn add_node(
         &mut self, 
         new_node_template_index: TemplateIndex, 
+        restricts: Vec<(T::Identifier, CollapseNodeKey)>, 
         depends: Vec<(T::Identifier, CollapseNodeKey)>, 
         knows: Vec<(T::Identifier, CollapseNodeKey)>,
         defined_by: CollapseNodeKey,
@@ -212,23 +222,24 @@ impl<T: ModelGenerationTypes> Collapser<T> {
             NodeTemplateValue::PosSet(pos_set) => NodeDataType::PosSet(pos_set.to_owned()),
         };
 
-        self.push_new_node(new_node_template, depends, knows, defined_by, child_key, data)
+        self.push_new_node(new_node_template, restricts, depends, knows, defined_by, child_key, data)
     }
  
     pub fn push_new_node(&mut self, 
         new_node_template: &TemplateNode<T>, 
+        restricts: Vec<(T::Identifier, CollapseNodeKey)>, 
         depends: Vec<(T::Identifier, CollapseNodeKey)>, 
         knows: Vec<(T::Identifier, CollapseNodeKey)>, 
         defined_by: CollapseNodeKey, 
         child_key: CollapseChildKey, 
         data: NodeDataType<T>
-    ) {
-        
+    ) {        
         let index = self.nodes.insert(CollapseNode {
             template_index: new_node_template.index,
             identifier: new_node_template.identifier,
             level: new_node_template.level,
             children: vec![],
+            restricts: restricts.clone(),
             depends: depends.clone(),
             knows,
             defined_by,
@@ -239,18 +250,18 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         });
         info!("{:?} Node added {:?}", index, new_node_template.identifier);
 
-        for (_, depend) in depends {
-            let children_list = self.nodes[depend].children.iter_mut()
+        for (_, depend) in restricts.iter().chain(depends.iter()) {
+            let children_list = self.nodes[*depend].children.iter_mut()
                 .find(|(template_index, _)| *template_index == new_node_template.index)
                 .map(|(_, c)| c);
 
             if children_list.is_none() {
-                self.nodes[depend].children.push((new_node_template.index, vec![index]));
+                self.nodes[*depend].children.push((new_node_template.index, vec![index]));
             } else {
                 children_list.unwrap().push(index);
             };
         }
-        
+                
         self.pending_collapses.push(new_node_template.level, index);
     }
 }

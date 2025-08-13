@@ -1,5 +1,5 @@
 use feistel_permutation_rs::{DefaultBuildHasher, Permutation};
-use octa_force::OctaResult;
+use octa_force::{anyhow::bail, OctaResult};
 
 use crate::volume::VolumeQureyPosValid;
 
@@ -7,24 +7,27 @@ use super::{collapse::{CollapseNodeKey, CollapseOperation, Collapser}, template:
 
 #[derive(Debug, Clone)]
 pub struct NumberRange {
-    pub min: i32,
-    pub max: i32,
-    pub permutation: Permutation<DefaultBuildHasher>,
-    pub perm_counter: usize,
+    pub values: Vec<i32>,
     pub value: i32,
 }
 
 impl NumberRange {
     pub fn new(min: i32, max: i32) -> Self {
-        let seed = fastrand::u64(0..1000);
-
         Self {
-            min,
-            max, 
-            permutation: Permutation::new((max - min) as _, seed, DefaultBuildHasher::new()),
-            perm_counter: 0,
+            values: (min..=max).collect(),
             value: 0,
         }
+    }
+
+    pub fn next_value(&mut self) -> OctaResult<()> {
+        if self.values.is_empty() {
+            bail!("Number Range empty");
+        }
+
+        let i = fastrand::usize(0..self.values.len());
+        self.value = self.values[i];
+
+        Ok(())
     }
 }
 

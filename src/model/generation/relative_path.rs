@@ -23,6 +23,7 @@ pub struct RelativePathStep {
 #[derive(Debug, Clone)]
 pub enum LeafType {
     None,
+    Restricts(usize),
     Depends(usize),
     Knows(usize)
 }
@@ -31,10 +32,12 @@ impl RelativePathTree {
     pub fn get_paths_to_other_dependcies_from_parent<T: ModelGenerationTypes>(
         tree: &TemplateTree<T>, 
         parent_index: TemplateIndex, 
-        dependencies: &[TemplateIndex], 
+        restricts: &[TemplateIndex], 
+        depends: &[TemplateIndex], 
         knows: &[TemplateIndex]
     ) -> RelativePathTree {
-        let mut dependencies = dependencies.iter().copied().enumerate().collect::<Vec<_>>();
+        let mut restricts = restricts.iter().copied().enumerate().collect::<Vec<_>>();
+        let mut depends = depends.iter().copied().enumerate().collect::<Vec<_>>();
         let mut knows = knows.iter().copied().enumerate().collect::<Vec<_>>();
 
         let mut open_child_paths: VecDeque<(&TemplateNode<T>, Vec<RelativePathStep>)> = VecDeque::new();
@@ -46,17 +49,33 @@ impl RelativePathTree {
         };
 
         let mut check_hit = |node: &TemplateNode<T>, path: &Vec<RelativePathStep>| {
-            if let Some((i, dependency_index, dependecy)) = dependencies.iter()
+            if let Some((i, restrict_index, restrict)) = restricts.iter()
                 .enumerate()
                 .find(|(_, (_, i))| *i == node.index)
                 .map(|(i, (j, k))|(i, *j, *k))
             {
-                dependencies.swap_remove(i);
+                restricts.swap_remove(i);
                 
-                if parent_index != dependecy {
+                if parent_index != restrict {
                     let leaf_index = path_tree.copy_path(node, path); 
 
-                    path_tree.steps[leaf_index].leaf = LeafType::Depends(dependency_index);        
+                    path_tree.steps[leaf_index].leaf = LeafType::Restricts(restrict_index);       
+                    return
+                }
+            }
+
+            if let Some((i, depends_index, depend)) = depends.iter()
+                .enumerate()
+                .find(|(_, (_, i))| *i == node.index)
+                .map(|(i, (j, k))|(i, *j, *k))
+            {
+                depends.swap_remove(i);
+                
+                if parent_index != depend {
+                    let leaf_index = path_tree.copy_path(node, path); 
+
+                    path_tree.steps[leaf_index].leaf = LeafType::Depends(depends_index);   
+                    return
                 }
             }
             
@@ -70,7 +89,8 @@ impl RelativePathTree {
                 if parent_index != know {
                     let leaf_index = path_tree.copy_path(node, path); 
 
-                    path_tree.steps[leaf_index].leaf = LeafType::Knows(knows_index);        
+                    path_tree.steps[leaf_index].leaf = LeafType::Knows(knows_index); 
+                    return
                 }
            } 
         };
