@@ -1,4 +1,4 @@
-use octa_force::{camera::Camera, log::debug};
+use octa_force::{anyhow::Context, camera::Camera, log::{debug, error, trace}, OctaResult};
 
 use crate::{scene::worker::SceneWorkerSend, voxel::palette::shared::SharedPalette};
 
@@ -24,39 +24,20 @@ pub struct TemplateChangeReciver<T: ModelGenerationTypes> {
 }
 
 impl<M: Model + 'static> ModelWorker<M> {
-    pub fn new(mut palette: SharedPalette, scene: SceneWorkerSend) -> ModelWorker<M> {
+    pub fn new(palette: SharedPalette, scene: SceneWorkerSend) -> ModelWorker<M> {
         let (update_s, update_r) = smol::channel::bounded(1);
         let (template_s, template_r) = smol::channel::bounded(1);
         let change_s = ModelChangeSender::new(template_s);
 
         let task = smol::spawn(async move {
-            let mut model = M::new(&mut palette, &scene, &change_s).await.expect("Failed to create Model");
-            loop {}
-
-            loop {
-                let ticked = model.tick(&scene, 10, &change_s).await.expect("Failed to tick");
-
-                if ticked {
-                    match update_r.try_recv() {
-                        Ok(data) => {
-                            model.update(data, &change_s).await.expect("Failed to update Model");
-                        },
-                        Err(e) => match e {
-                            smol::channel::TryRecvError::Empty => {},
-                            smol::channel::TryRecvError::Closed => break,
-                        },
-                    }
-                } else {
-                    match update_r.recv().await {
-                        Ok(data) => {
-                            model.update(data, &change_s).await.expect("Failed to update Islands");
-                        },
-                        Err(e) => break,
-                    }
-                }
+            match Self::run(palette, scene, update_r, change_s).await {
+                Ok(m) => m,
+                Err(err) => {
+                    error!("{:#}", err);
+                    trace!("{}", err.backtrace());
+                    panic!("{:#}", err);
+                },
             }
-
-            model
         });
 
         ModelWorker {
@@ -64,6 +45,41 @@ impl<M: Model + 'static> ModelWorker<M> {
             update_s,
             template_r,
         }
+    }
+
+    async fn run(
+        mut palette: SharedPalette, 
+        scene: SceneWorkerSend, 
+        update_r: smol::channel::Receiver<M::UpdateData>, 
+        change_s: ModelChangeSender<M::GenerationTypes>,
+    ) -> OctaResult<M> {
+
+        let mut model = M::new(&mut palette, &scene, &change_s).await.context("Failed to create Model")?;
+
+        loop {
+            let ticked = model.tick(&scene, 10, &change_s).await.context("Failed to tick Model")?;
+
+            if ticked {
+                match update_r.try_recv() {
+                    Ok(data) => {
+                        model.update(data, &change_s).await.context("Failed to update Model")?;
+                    },
+                    Err(e) => match e {
+                        smol::channel::TryRecvError::Empty => {},
+                        smol::channel::TryRecvError::Closed => break,
+                    },
+                }
+            } else {
+                match update_r.recv().await {
+                    Ok(data) => {
+                        model.update(data, &change_s).await.context("Failed to update Model")?;
+                    },
+                    Err(e) => break,
+                }
+            }
+        }
+
+        Ok(model)
     }
 
     pub fn update(&self, update_data: M::UpdateData) {

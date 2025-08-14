@@ -1,4 +1,5 @@
 #![forbid(unused_must_use)]
+
 extern crate self as dynamic_voxels;
 
 pub mod csg;

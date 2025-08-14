@@ -66,7 +66,6 @@ impl<T: ModelGenerationTypes> ModelSynthesisBuilder<T> {
         };
 
         builder = b(builder);
-        builder.check_valid(identifier);
 
         assert!(
             matches!(builder.value, BuilderValue::Const(())), 
@@ -100,7 +99,6 @@ impl<T: ModelGenerationTypes> ModelSynthesisBuilder<T> {
         };
 
         builder = b(builder);
-        builder.check_valid(identifier);
 
         let node = BuilderNode {
             value: match builder.value {
@@ -134,7 +132,6 @@ impl<T: ModelGenerationTypes> ModelSynthesisBuilder<T> {
         };
 
         builder = b(builder);
-        builder.check_valid(identifier);
 
         let node = BuilderNode {
             value: match builder.value {
@@ -167,7 +164,6 @@ impl<T: ModelGenerationTypes> ModelSynthesisBuilder<T> {
         };
 
         builder = b(builder);
-        builder.check_valid(identifier);
 
         let node = BuilderNode {
             value: match builder.value {
@@ -214,30 +210,6 @@ impl<T: ModelGenerationTypes, V> NodeBuilder<T, V> {
     pub fn restricts(mut self, identifier: T::Identifier) -> Self {
         self.restricts.push(identifier);
         self
-    }
-
-    fn check_valid(&mut self, identifier: T::Identifier) {
-        for i in (0..self.knows.len()).rev() {
-            if self.restricts.contains(&self.knows[i]) {
-                error!("{:?} - {:?} found in restricts and knows. Only use restricts -> removimg from knows", identifier, self.knows[i]);
-                self.knows.swap_remove(i);
-                continue;
-            }
-
-            if self.depends.contains(&self.knows[i]) {
-                error!("{:?} - {:?} found in depends and knows. Only use depends -> removimg from knows", identifier, self.knows[i]);
-                self.knows.swap_remove(i);
-                continue;
-            }
-        }
-
-        for i in (0..self.depends.len()).rev() {
-            if self.restricts.contains(&self.depends[i]) {
-                error!("{:?} - {:?} found in restricts and depends. Only use restricts -> removimg from depends", identifier, self.depends[i]);
-                self.depends.swap_remove(i);
-                continue;
-            }
-        }
     }
 }
 

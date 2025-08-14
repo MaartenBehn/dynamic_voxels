@@ -2,7 +2,7 @@
 use std::sync::Arc;
 
 use nalgebra::IsDynamic;
-use octa_force::{camera::Camera, glam::{vec3, vec3a, EulerRot, Mat4, Quat, Vec2, Vec3, Vec3A, Vec3Swizzles}, log::{debug, error, info}, vulkan::{AllocContext, Context, Swapchain}, OctaResult};
+use octa_force::{anyhow::bail, camera::Camera, glam::{vec3, vec3a, EulerRot, Mat4, Quat, Vec2, Vec3, Vec3A, Vec3Swizzles}, log::{debug, error, info}, vulkan::{AllocContext, Context, Swapchain}, OctaResult};
 use parking_lot::Mutex;
 use slotmap::{new_key_type, SlotMap};
 
@@ -125,7 +125,6 @@ impl Model for Islands {
             .build(Identifier::IslandDone, |b| {b
                 .ammount(BuilderAmmount::OnePer(Identifier::Island))
                 .depends(Identifier::RiverNode)
-                .depends(Identifier::Tree)
             });
 
         let template = wfc_builder.build_template();
@@ -154,9 +153,12 @@ impl Model for Islands {
 
         let island_volume = CSGTree::new_sphere(new_pos, 200.0); 
 
-        self.template.get_node_position_set(Identifier::IslandPositions).set_volume(island_volume.clone());
-        let pos_set = self.collapser.get_position_set_by_identifier_mut(Identifier::IslandPositions); 
-        pos_set.set_volume(island_volume);
+        self.template.get_node_position_set(Identifier::IslandPositions)?
+            .set_volume(island_volume.clone())?;
+
+        let pos_set = self.collapser.get_position_set_by_identifier_mut(Identifier::IslandPositions)?; 
+        pos_set.set_volume(island_volume)?;
+
         self.collapser.re_collapse_all_nodes_with_identifier(Identifier::IslandPositions);
 
         Ok(())
@@ -187,7 +189,7 @@ impl Model for Islands {
                                 tree_volume,
                                 50.0, 
                                 0.0)
-                            );    
+                            )?;    
                         },
                         _ => unreachable!()
                     }
@@ -204,7 +206,7 @@ impl Model for Islands {
                     match identifier {
                         Identifier::Island => {
 
-                            let pos = collapser.get_parent_pos(index);
+                            let pos = collapser.get_parent_pos(index)?;
                             info!("Island Pos: {pos}");
 
                             let mut u = CSGUnionI::new();
@@ -215,8 +217,9 @@ impl Model for Islands {
                             }));
                         },
                         Identifier::Tree => {
-                            let pos = collapser.get_parent_pos(index);
-                            let UndoData::Island(island) = collapser.get_dependend_undo_data_mut(index, Identifier::Island) else { unreachable!() };
+                            let pos = collapser.get_parent_pos(index)?;
+                            let UndoData::Island(island) = collapser.get_dependend_undo_data_mut(index, Identifier::Island)? 
+                            else { unreachable!() };
                             
                             let mut tree_grid = self.tree_grid.clone();
                             tree_grid.offset += pos.as_ivec3();
@@ -225,8 +228,9 @@ impl Model for Islands {
                             info!("Tree Pos: {pos}");
                         },
                         Identifier::RiverNode => {
-                            let pos = collapser.get_parent_pos(index);
-                            let UndoData::Island(island) = collapser.get_dependend_undo_data_mut(index, Identifier::Island) else { unreachable!() };
+                            let pos = collapser.get_parent_pos(index)?;
+                            let UndoData::Island(island) = collapser.get_dependend_undo_data_mut(index, Identifier::Island)?
+                            else { unreachable!() };
 
                             island.union.add_sphere(Vec3::from(pos), 10.0);
 
@@ -234,8 +238,10 @@ impl Model for Islands {
                         }
                         Identifier::IslandDone => {
 
-                            let pos = collapser.get_dependend_pos(index, Identifier::IslandPositions, Identifier::Island);
-                            let UndoData::Island(island) = collapser.get_dependend_undo_data_mut(index, Identifier::Island) else { unreachable!() };
+                            let pos = collapser.get_dependend_pos(index, Identifier::IslandPositions, Identifier::Island)?;
+                            let UndoData::Island(island) = collapser.get_dependend_undo_data_mut(index, Identifier::Island)?
+                            else { unreachable!() };
+
                             island.union.calculate_bounds_i();
 
                             let active_key = self.dag.add_aabb_query_volume(&island.union)?;
@@ -263,7 +269,9 @@ impl Model for Islands {
 
                     match identifier {
                         Identifier::IslandDone => {
-                            let UndoData::IslandDone(island_done) = undo_data else { unreachable!() };
+                            let UndoData::IslandDone(island_done) = undo_data
+                            else { unreachable!() };
+
                             scene.remove_object(island_done.scene_key);
                         },
                         _ => {}

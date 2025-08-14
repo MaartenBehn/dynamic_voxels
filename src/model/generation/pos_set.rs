@@ -86,17 +86,17 @@ impl<T: ModelGenerationTypes> PositionSet<T> {
         self.positions[pos_key]
     }
 
-    pub fn get_volume_mut(&mut self) -> &mut T::Volume {
+    pub fn get_volume_mut(&mut self) -> OctaResult<&mut T::Volume> {
         match &mut self.rule {
-            PositionSetRule::GridInVolume(d) => &mut d.volume,
-            _ => panic!("Not a Position Set that uses a volume.")
+            PositionSetRule::GridInVolume(d) => Ok(&mut d.volume),
+            _ => bail!("Not a Position Set that uses a volume.")
         }
     }
 
-    pub fn get_volume2d_mut(&mut self) -> &mut T::Volume2D {
+    pub fn get_volume2d_mut(&mut self) -> OctaResult<&mut T::Volume2D> {
         match &mut self.rule {
-            PositionSetRule::GridOnPlane(d) => &mut d.volume,
-            _ => panic!("Not a Position Set that uses a volume2d.")
+            PositionSetRule::GridOnPlane(d) => Ok(&mut d.volume),
+            _ => bail!("Not a Position Set that uses a volume2d.")
         }
     }
 
@@ -104,16 +104,20 @@ impl<T: ModelGenerationTypes> PositionSet<T> {
         self.positions.contains_key(pos_key)
     }
 
-    pub fn set_volume(&mut self, volume: T::Volume) {
+    pub fn set_volume(&mut self, volume: T::Volume) -> OctaResult<()> {
         let PositionSetRule::GridInVolume(data) = &mut self.rule 
-        else { panic!("Not a Position Set that uses a volume.") };
+        else { bail!("Not a Position Set that uses a volume.") };
         data.volume = volume;
+
+        Ok(())
     }
 
-    pub fn set_volume2d(&mut self, volume: T::Volume2D) {
-        let PositionSetRule::GridOnPlane(data) = &mut self.rule 
-        else { panic!("Not a Position Set that uses a volume 2d.") };
+    pub fn set_volume2d(&mut self, volume: T::Volume2D) -> OctaResult<()> {
+        let PositionSetRule::GridOnPlane(data) = &mut self.rule
+        else { bail!("Not a Position Set that uses a volume 2d.") };
         data.volume = volume;
+
+        Ok(())
     }
 }
 

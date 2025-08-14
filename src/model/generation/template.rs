@@ -124,7 +124,6 @@ impl<T: ModelGenerationTypes> TemplateTree<T> {
                     restricts.push(restricts_index);
                 }
             }
-            nodes[template_node_index].restricts = restricts;
 
             // depends and dependend
             nodes[parent_index].dependend.push(template_node_index);
@@ -137,7 +136,6 @@ impl<T: ModelGenerationTypes> TemplateTree<T> {
                     nodes[depends_index].dependend.push(template_node_index);
                 }
             }
-            nodes[template_node_index].depends = depends;
 
             // knows
             let mut knows = vec![];
@@ -147,7 +145,10 @@ impl<T: ModelGenerationTypes> TemplateTree<T> {
                     knows.push(knows_index);
                 }
             }
+            nodes[template_node_index].restricts = restricts;
+            nodes[template_node_index].depends = depends;
             nodes[template_node_index].knows = knows;
+
         }
 
         let mut tree = TemplateTree {
@@ -155,17 +156,18 @@ impl<T: ModelGenerationTypes> TemplateTree<T> {
             max_level: 0,
         };
 
-        // Set create paths und levels
-        for i in 1..tree.nodes.len() {
+            
+        // Set create paths and levels
+        for i in 0..tree.nodes.len() {
             if tree.nodes[i].level == 0 {
                 tree.set_level_of_node(i);
             }
 
-            let index = tree.nodes[i].index;
             for j in 0..tree.nodes[i].defines_n.len() {
-                let new_node = &tree.nodes[tree.nodes[i].defines_n[j].index];
+                let new_index = tree.nodes[i].defines_n[j].index; 
+                let new_node = &tree.nodes[new_index];
 
-                tree.nodes[i].defines_n[j].dependecy_tree = RelativePathTree::get_paths_to_other_dependcies_from_parent(
+                tree.nodes[i].defines_n[j].dependecy_tree = RelativePathTree::get_paths_to_other_dependcies(
                     &tree, 
                     i,
                     &new_node.restricts,
@@ -174,9 +176,10 @@ impl<T: ModelGenerationTypes> TemplateTree<T> {
             }
 
             for j in 0..tree.nodes[i].defines_by_value.len() {
-                let new_node = &tree.nodes[tree.nodes[i].defines_by_value[j].index];
+                let new_index = tree.nodes[i].defines_by_value[j].index; 
+                let new_node = &tree.nodes[new_index];
 
-                tree.nodes[i].defines_by_value[j].dependecy_tree = RelativePathTree::get_paths_to_other_dependcies_from_parent(
+                tree.nodes[i].defines_by_value[j].dependecy_tree = RelativePathTree::get_paths_to_other_dependcies(
                     &tree, 
                     i,
                     &new_node.restricts,

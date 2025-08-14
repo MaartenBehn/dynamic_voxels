@@ -1,6 +1,8 @@
 
 use std::{collections::VecDeque, usize};
 
+use smallvec::SmallVec;
+
 use crate::volume::{VolumeQureyPosValid, VolumeQureyPosValid2D};
 
 use super::{builder::{BuilderNode, ModelSynthesisBuilder, NodeBuilder}, template::{TemplateIndex, TemplateNode, TemplateTree}, traits::ModelGenerationTypes};
@@ -8,7 +10,6 @@ use super::{builder::{BuilderNode, ModelSynthesisBuilder, NodeBuilder}, template
 
 #[derive(Debug, Clone, Default)]
 pub struct RelativePathTree {
-    pub starts: Vec<usize>,
     pub steps: Vec<RelativePathStep>,
 }
 
@@ -17,19 +18,18 @@ pub struct RelativePathStep {
     pub into_index: TemplateIndex,
     pub children: Vec<usize>,
     pub up: bool, 
-    pub leaf: LeafType,
+    pub leafs: SmallVec<[LeafType; 3]>,
 }
 
 #[derive(Debug, Clone)]
 pub enum LeafType {
-    None,
     Restricts(usize),
     Depends(usize),
     Knows(usize)
 }
 
 impl RelativePathTree {
-    pub fn get_paths_to_other_dependcies_from_parent<T: ModelGenerationTypes>(
+    pub fn get_paths_to_other_dependcies<T: ModelGenerationTypes>(
         tree: &TemplateTree<T>, 
         parent_index: TemplateIndex, 
         restricts: &[TemplateIndex], 
@@ -42,57 +42,56 @@ impl RelativePathTree {
 
         let mut open_child_paths: VecDeque<(&TemplateNode<T>, Vec<RelativePathStep>)> = VecDeque::new();
         let mut open_parent_paths: VecDeque<(&TemplateNode<T>, Vec<RelativePathStep>)> = VecDeque::new();
-        open_parent_paths.push_back((&tree.nodes[parent_index], vec![]));
+
+        open_parent_paths.push_back((
+            &tree.nodes[parent_index], 
+            vec![RelativePathStep { 
+                into_index: parent_index,
+                children: vec![],
+                up: true,
+                leafs: SmallVec::new(),
+            }]
+        ));
+
         let mut path_tree = RelativePathTree { 
             steps: vec![],
-            starts: vec![],
         };
 
         let mut check_hit = |node: &TemplateNode<T>, path: &Vec<RelativePathStep>| {
-            if let Some((i, restrict_index, restrict)) = restricts.iter()
+            let restricts_res = restricts.iter()
                 .enumerate()
                 .find(|(_, (_, i))| *i == node.index)
-                .map(|(i, (j, k))|(i, *j, *k))
-            {
-                restricts.swap_remove(i);
-                
-                if parent_index != restrict {
-                    let leaf_index = path_tree.copy_path(node, path); 
+                .map(|(i, (j, _))|(i, *j));
 
-                    path_tree.steps[leaf_index].leaf = LeafType::Restricts(restrict_index);       
-                    return
+            let depends_res = depends.iter()
+                .enumerate()
+                .find(|(_, (_, i))| *i == node.index)
+                .map(|(i, (j, _))|(i, *j));
+
+            let knows_res = knows.iter()
+                .enumerate()
+                .find(|(_, (_, i))| *i == node.index)
+                .map(|(i, (j, _))|(i, *j));
+
+
+            if restricts_res.is_some() || depends_res.is_some() || knows_res.is_some() {
+                let leaf_index = path_tree.copy_path(node, path);
+
+                if let Some((i, restrict_index)) = restricts_res {
+                    restricts.swap_remove(i);
+                    path_tree.steps[leaf_index].leafs.push(LeafType::Restricts(restrict_index));       
+                }
+
+                if let Some((i, depends_index)) = depends_res {
+                    depends.swap_remove(i);
+                    path_tree.steps[leaf_index].leafs.push(LeafType::Depends(depends_index));        
+                }
+
+                if let Some((i, knows_index)) = knows_res {
+                    knows.swap_remove(i);
+                    path_tree.steps[leaf_index].leafs.push(LeafType::Knows(knows_index));       
                 }
             }
-
-            if let Some((i, depends_index, depend)) = depends.iter()
-                .enumerate()
-                .find(|(_, (_, i))| *i == node.index)
-                .map(|(i, (j, k))|(i, *j, *k))
-            {
-                depends.swap_remove(i);
-                
-                if parent_index != depend {
-                    let leaf_index = path_tree.copy_path(node, path); 
-
-                    path_tree.steps[leaf_index].leaf = LeafType::Depends(depends_index);   
-                    return
-                }
-            }
-            
-            if let Some((i, knows_index, know)) = knows.iter()
-                .enumerate()
-                .find(|(_, (_, i))| *i == node.index)
-                .map(|(i, (j, k))|(i, *j, *k))
-            {
-                knows.swap_remove(i);
-                 
-                if parent_index != know {
-                    let leaf_index = path_tree.copy_path(node, path); 
-
-                    path_tree.steps[leaf_index].leaf = LeafType::Knows(knows_index); 
-                    return
-                }
-           } 
         };
              
         loop {
@@ -107,7 +106,7 @@ impl RelativePathTree {
                         into_index: *index,
                         children: vec![],
                         up: false,
-                        leaf: LeafType::None,
+                        leafs: SmallVec::new(),
                     });
 
                     open_child_paths.push_back((child, child_path));
@@ -124,7 +123,7 @@ impl RelativePathTree {
                         into_index: *index,
                         children: vec![],
                         up: false,
-                        leaf: LeafType::None,
+                        leafs: SmallVec::new(),
                     });
 
                     open_child_paths.push_back((child, child_path));
@@ -138,7 +137,7 @@ impl RelativePathTree {
                         into_index: *parent_index,
                         children: vec![],
                         up: true,
-                        leaf: LeafType::None,
+                        leafs: SmallVec::new(),
                     });
                     open_parent_paths.push_back((parent, parent_path));
                 }
@@ -156,50 +155,41 @@ impl RelativePathTree {
         node: &TemplateNode<T>, 
         path: &Vec<RelativePathStep>, 
     ) -> usize {
-        assert!(!path.is_empty(), "Relative path can not be empty because we ignore the node itself in the dependencies!");
+        if self.steps.is_empty() {
+            for step in path {
+                self.steps.push(step.clone());
+            } 
+            return self.steps.len() - 1;
+        } 
+        assert!(path[0].into_index == self.steps[0].into_index, "We should allways first go into the parent");
+        
+        let mut insert_index = 0;
+        let mut path_index = 1;
 
-        let (mut insert_index, mut instert_from_step) = if let Some(index) =  self.starts.iter()
-            .find(|i| { 
-                self.steps[**i].into_index == path[0].into_index 
-            }) {
+        loop {
+            let path_step = &path[path_index];
+            let tree_step = &self.steps[insert_index];
 
-            let mut insert_index = *index;
-            let mut path_index = 0;
+            if let Some(index) = tree_step.children.iter()
+                .find(|i| { 
+                    self.steps[**i].into_index == path_step.into_index 
+                }) {
 
-            loop {
-                let path_step = &path[path_index];
-                let tree_step = &self.steps[insert_index];
-
-                if let Some(index) = tree_step.children.iter()
-                    .find(|i| { 
-                        self.steps[**i].into_index == path_step.into_index 
-                    }) {
-
-                    insert_index = *index;
-                    path_index += 1;
-                } else {
-                    path_index += 1;
-                    break;
-                }
+                insert_index = *index;
+                path_index += 1;
+            } else {
+                break;
             }
+        }
 
-            (insert_index, path_index)
-        } else {
-            let index = self.steps.len();
-            self.steps.push(path[0].clone());
-            self.starts.push(index);
-            (index, 1)
-        };
-        
-        
-        while instert_from_step < path.len() {
-            
+        while path_index < path.len() {
+
             let new_index = self.steps.len();
-            self.steps.push(path[instert_from_step].clone());
+            self.steps.push(path[path_index].clone());
             self.steps[insert_index].children.push(new_index);
 
             insert_index = new_index;
-            instert_from_step += 1;
+            path_index += 1;
         }
 
         insert_index

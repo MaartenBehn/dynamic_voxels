@@ -103,7 +103,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
   
     pub fn get_restricts_depends_and_knows_for_template<'a>(
         &self, 
-        node_index: CollapseNodeKey,
+        parent_index: CollapseNodeKey,
         new_template_node_index: usize, 
         template: &'a TemplateTree<T>,
         template_node: &'a TemplateNode<T>,
@@ -122,53 +122,45 @@ impl<T: ModelGenerationTypes> Collapser<T> {
             .take(new_node_template.knows.len())
             .collect::<Vec<_>>();
 
-        let mut pending_paths = tree.starts.iter()
-            .map(|start| {
-                (&tree.steps[*start], node_index)
-            }).collect::<Vec<_>>();
-
+        let mut pending_paths = vec![(&tree.steps[0], parent_index)];
         while let Some((step, index)) = pending_paths.pop() {
             let step_node = &self.nodes[index];
-             
-            let edges = if step.up { 
-                step_node.depends.iter()
-                    .map(|(_, i)|*i)
-                    .filter(|i| self.nodes[*i].template_index == step.into_index)
-                    .collect::<Vec<_>>()
-            } else { 
-                step_node.children.iter()
-                    .filter(|(template_index, _)| *template_index == step.into_index)
-                    .map(|(template_index, c)|c)
-                    .flatten()
-                    .copied()
-                    .collect::<Vec<_>>()
-            };
 
-            match step.leaf {
-                LeafType::None => {},
-                LeafType::Restricts(i) => {
-                    for edge in edges.iter() {
-                        restricts[i].push(*edge);
-                    }
-                },
-                LeafType::Depends(i) => {
-                    for edge in edges.iter() {
-                        depends[i].push(*edge);
-                    }
-                },
-                LeafType::Knows(i) => {
-                    for edge in edges.iter() {
-                         knows[i].push(*edge);
-                    }
-                },
+            for leaf in step.leafs.iter() {
+                match leaf {
+                    LeafType::Restricts(i) => {
+                        restricts[*i].push(index);
+                    },
+                    LeafType::Depends(i) => {
+                        depends[*i].push(index);
+                    },
+                    LeafType::Knows(i) => {
+                        knows[*i].push(index);
+                    },
+                }
             }
 
-            for edge in edges {
-                for child_index in step.children.iter() {
-                    let child_step = &tree.steps[*child_index];
-                    pending_paths.push((child_step, edge))
+            for child_index in step.children.iter() {
+                let child_step = &tree.steps[*child_index];
+
+                let edges = if step.up { 
+                    step_node.depends.iter()
+                        .map(|(_, i)|*i)
+                        .filter(|i| self.nodes[*i].template_index == child_step.into_index)
+                        .collect::<Vec<_>>()
+                } else { 
+                    step_node.children.iter()
+                        .filter(|(template_index, _)| *template_index == child_step.into_index)
+                        .map(|(template_index, c)|c)
+                        .flatten()
+                        .copied()
+                        .collect::<Vec<_>>()
+                };
+
+                for edge in edges {
+                    pending_paths.push((child_step, edge));
                 }
-            }  
+            }
         }
 
         let transform_depends_and_knows = |
@@ -178,12 +170,11 @@ impl<T: ModelGenerationTypes> Collapser<T> {
             template_list.iter()
                 .zip(found_list)
                 .map(|(depend_template_node, nodes)| {
-                    if *depend_template_node == template_node.index {
-                        return (template_node.identifier, node_index);
-                    }                    
 
                     let depend_template_node = &template.nodes[*depend_template_node];
-                    assert_eq!(nodes.len(), 1, "Invalid number of nodes for dependency or knows of node found! \n Identifier: {:?} Nodes: {:?}", new_node_template.identifier, nodes);
+                    assert_eq!(nodes.len(), 1, 
+                        "Invalid number of nodes for dependency or knows of node found! \n {:?} tyring to find {:?}", 
+                        new_node_template.identifier, depend_template_node.identifier);
                     (depend_template_node.identifier, nodes[0])
                 }).collect::<Vec<_>>()
         };
