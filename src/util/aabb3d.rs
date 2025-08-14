@@ -1,6 +1,5 @@
 use std::iter;
 
-use feistel_permutation_rs::{DefaultBuildHasher, Permutation};
 use octa_force::glam::{self, ivec3, vec4, Mat4, Vec3, Vec3A, Vec4, Vec4Swizzles};
 
 use super::{iaabb3d::AABBI, math::to_3d_ivec3};
@@ -186,20 +185,7 @@ impl AABB {
             .flat_map(move |(x, y)| iter::repeat((x, y)).zip(min.z..=max.z))
             .map(move |((x, y), z)| ivec3(x, y, z).as_vec3a() * step)
     }
-
-    pub fn get_random_sampled_positions(self, step: f32) -> impl Iterator<Item = Vec3> {
-        let min = (self.min / step).xyz().as_ivec3();
-        let max = (self.max / step).xyz().as_ivec3();
-        let size = max - min;
-        let n = size.element_product();
-
-        let seed = fastrand::u64(0..1000);
-        let perm = Permutation::new(n as _, seed, DefaultBuildHasher::new());
-
-        perm.into_iter()
-            .map(move |i| (to_3d_ivec3(i as usize, size) + min).as_vec3() * step)
-    }
-
+ 
     pub fn size(&self) -> Vec4 {
         self.max - self.min
     }

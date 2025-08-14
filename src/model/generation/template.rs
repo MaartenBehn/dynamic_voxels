@@ -1,6 +1,5 @@
 use std::{iter, ops::RangeBounds};
 
-use feistel_permutation_rs::{DefaultBuildHasher, Permutation};
 use octa_force::glam::Vec3;
 
 use crate::volume::{VolumeQureyPosValid, VolumeQureyPosValid2D};
@@ -11,7 +10,7 @@ pub type TemplateIndex = usize;
 pub const TEMPLATE_INDEX_ROOT: TemplateIndex = 0;
 pub const AMMOUNT_PATH_INDEX: usize = 0;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct TemplateTree<T: ModelGenerationTypes> {
     pub nodes: Vec<TemplateNode<T>>,
     pub max_level: usize,

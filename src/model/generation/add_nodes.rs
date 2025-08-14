@@ -2,6 +2,7 @@ use std::iter;
 
 use octa_force::{anyhow::{anyhow, bail}, glam::Vec3, log::{debug, info}, OctaResult};
 use slotmap::Key;
+use tree64::Node;
 
 use crate::{model::generation::collapse::CollapseChildKey, volume::{VolumeQureyPosValid, VolumeQureyPosValid2D}};
 
@@ -182,7 +183,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
                     }                    
 
                     let depend_template_node = &template.nodes[*depend_template_node];
-                    assert_eq!(nodes.len(), 1, "Invalid number of nodes for dependency or knows of node found");
+                    assert_eq!(nodes.len(), 1, "Invalid number of nodes for dependency or knows of node found! \n Identifier: {:?} Nodes: {:?}", new_node_template.identifier, nodes);
                     (depend_template_node.identifier, nodes[0])
                 }).collect::<Vec<_>>()
         };

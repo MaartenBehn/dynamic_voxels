@@ -11,9 +11,9 @@ pub mod voxel;
 
 use csg::csg_tree::tree::{CSGNode, CSGTree};
 use csg::union_i::tree::CSGUnionI;
-use model::debug_renderer::ModelDebugRenderer;
-use model::examples::islands::{self, Islands};
-use model::examples::islands_worker::IslandsWorker;
+use model::debug_gui::template::TemplateDebugGui;
+use model::examples::islands::{self, IslandGenerationTypes, IslandUpdateData, Islands};
+use model::worker::ModelWorker;
 use octa_force::engine::Engine;
 use parking_lot::Mutex;
 use scene::dag64::SceneAddDAGObject;
@@ -21,7 +21,6 @@ use scene::renderer::SceneRenderer;
 use scene::worker::SceneWorker;
 use scene::{Scene, SceneObjectData, SceneObjectKey, SceneObjectType};
 use slotmap::Key;
-use kiddo::SquaredEuclidean;
 use octa_force::camera::Camera;
 use octa_force::egui_winit::winit::event::WindowEvent;
 use octa_force::glam::{vec3, DVec3, EulerRot, Mat4, Quat, UVec3, Vec3};
@@ -114,7 +113,10 @@ pub struct RenderState {
     pub renderer: SceneRenderer,
     
     #[cfg(any(feature="islands"))]
-    pub islands: IslandsWorker,
+    pub islands: ModelWorker<Islands>,
+
+    #[cfg(any(feature="islands"))]
+    pub template_debug: TemplateDebugGui<IslandGenerationTypes>,
 }
 
 #[unsafe(no_mangle)]
@@ -187,7 +189,9 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         let scene = Scene::new(&engine.context)?.run_worker(engine.context.get_alloc_context(), 1000); 
 
         let mut palette = SharedPalette::new();
-        let islands = IslandsWorker::new(palette.clone(), scene.send.clone());
+        let islands = ModelWorker::new(palette.clone(), scene.send.clone());
+        let template_debug = TemplateDebugGui::new(islands.get_template());
+
         let mut renderer = SceneRenderer::new(
             &engine.context, 
             &engine.swapchain, 
@@ -201,6 +205,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
             scene,
             renderer,
             islands,
+            template_debug,
         })
     }
 
@@ -227,7 +232,7 @@ pub fn update(
     
     #[cfg(any(feature="islands"))]
     {
-        render_state.islands.update(&logic_state.camera);
+        render_state.islands.update(IslandUpdateData::new(&logic_state.camera));
     }
 
     #[cfg(any(feature="scene", feature="islands"))]
@@ -273,6 +278,9 @@ pub fn record_render_commands(
              
             #[cfg(any(feature="scene", feature="islands"))]
             render_state.renderer.render_ui(ctx);
+
+            #[cfg(any(feature="islands"))]
+            render_state.template_debug.render(ctx);
         },
     )?;
 

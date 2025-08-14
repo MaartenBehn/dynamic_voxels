@@ -6,30 +6,36 @@ use octa_force::{camera::Camera, glam::{vec3, vec3a, EulerRot, Mat4, Quat, Vec2,
 use parking_lot::Mutex;
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{csg::{csg_tree::tree::{CSGNode, CSGTree}, csg_tree_2d::tree::CSGTree2D, sphere::CSGSphere, union::tree::CSGUnion, union_i::tree::CSGUnionI}, model::generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder}, collapse::{CollapseOperation, Collapser}, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree, traits::{ModelGenerationTypes, BU, IT}}, scene::{dag64::{SceneAddDAGObject, SceneDAGObject}, dag_store::SceneDAGKey, renderer::SceneRenderer, worker::SceneWorkerSend, Scene, SceneObjectData, SceneObjectKey}, util::aabb3d::AABB, volume::{magica_voxel::MagicaVoxelModel, VolumeBoundsI, VolumeQureyPosValid}, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, grid::{shared::SharedVoxelGrid, VoxelGrid}, palette::shared::SharedPalette}, METERS_PER_SHADER_UNIT};
+use crate::{csg::{csg_tree::tree::{CSGNode, CSGTree}, csg_tree_2d::tree::CSGTree2D, sphere::CSGSphere, union::tree::CSGUnion, union_i::tree::CSGUnionI}, model::{generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder}, collapse::{CollapseOperation, Collapser}, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree, traits::{Model, ModelGenerationTypes, BU, IT}}, worker::ModelChangeSender}, scene::{dag64::{SceneAddDAGObject, SceneDAGObject}, dag_store::SceneDAGKey, renderer::SceneRenderer, worker::SceneWorkerSend, Scene, SceneObjectData, SceneObjectKey}, util::aabb3d::AABB, volume::{magica_voxel::MagicaVoxelModel, VolumeBoundsI, VolumeQureyPosValid}, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, grid::{shared::SharedVoxelGrid, VoxelGrid}, palette::shared::SharedPalette}, METERS_PER_SHADER_UNIT};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Identifier {
     #[default]
-    None,
-    MinIslandDistance,
-    IslandRadius,
-    BeachWidth,
+    Root,
     IslandPositions,
     Island,
     TreePositions,
-    TreeBuild,
+    Tree,
     Rivers,
     RiverNode,
+    IslandDone
+}
+
+#[derive(Clone, Debug, Default)]
+pub enum UndoData {
+    #[default]
+    None,
+    Island(Island),
+    IslandDone(IslandDone),
 }
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct IslandGenerationTypes {}
 impl IT for Identifier {}
-impl BU for Island {}
+impl BU for UndoData {}
 impl ModelGenerationTypes for IslandGenerationTypes {
     type Identifier = Identifier;
-    type UndoData = Island;
+    type UndoData = UndoData;
     type Volume = CSGTree<()>;
     type Volume2D = CSGTree2D<()>;
 }
@@ -48,16 +54,24 @@ pub struct Islands {
 #[derive(Clone, Debug, Default)]
 pub struct Island {
     pub union: CSGUnionI<u8>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct IslandDone {
     pub scene_key: SceneObjectKey,
     pub dag_key: DAG64EntryKey,
 }
 
-pub struct UpdateData {
+#[derive(Debug)]
+pub struct IslandUpdateData {
     pub pos: Vec3,
 }
 
-impl Islands {
-    pub async fn new(palette: &mut SharedPalette, scene: &SceneWorkerSend) -> OctaResult<Self> {
+impl Model for Islands {
+    type GenerationTypes = IslandGenerationTypes;
+    type UpdateData = IslandUpdateData;
+
+    async fn new(palette: &mut SharedPalette, scene: &SceneWorkerSend, change: &ModelChangeSender<IslandGenerationTypes>) -> OctaResult<Self> {
 
         let mut dag = VoxelDAG64::new(1000000, 1000000).parallel();
         dag.print_memory_info();
@@ -69,18 +83,6 @@ impl Islands {
         let island_volume = CSGTree::default();
 
         let mut wfc_builder = ModelSynthesisBuilder::new()
-            .number_range(Identifier::MinIslandDistance, |b|{b
-                .ammount(BuilderAmmount::OneGlobal)
-                .value(BuilderValue::Const(3..=10))
-            })
-            .number_range(Identifier::IslandRadius, |b|{b
-                .ammount(BuilderAmmount::OneGlobal)
-                .value(BuilderValue::Const(1..=3))
-            })
-            .number_range(Identifier::BeachWidth, |b| {b
-                .ammount(BuilderAmmount::OneGlobal)
-                .value(BuilderValue::Const(0..=2))
-            })
             .position_set(Identifier::IslandPositions, |b| {b
                 .ammount(BuilderAmmount::OneGlobal)
                 .value(BuilderValue::Const(PositionSet::new_grid_in_volume(
@@ -98,7 +100,7 @@ impl Islands {
                 .depends(Identifier::IslandPositions)
             })
             
-            .build(Identifier::TreeBuild, |b|{b
+            .build(Identifier::Tree, |b|{b
                 .ammount(BuilderAmmount::DefinedBy(Identifier::TreePositions))
                 .depends(Identifier::TreePositions)
                 .depends(Identifier::Island)
@@ -118,9 +120,16 @@ impl Islands {
                 .ammount(BuilderAmmount::DefinedBy(Identifier::Rivers))
                 .depends(Identifier::Rivers)
                 .depends(Identifier::Island)
+            })
+
+            .build(Identifier::IslandDone, |b| {b
+                .ammount(BuilderAmmount::OnePer(Identifier::Island))
+                .depends(Identifier::RiverNode)
+                .depends(Identifier::Tree)
             });
 
         let template = wfc_builder.build_template();
+        change.send_template(template.clone());
 
         let collapser = template.get_collaper();
 
@@ -134,7 +143,7 @@ impl Islands {
         })
     }
 
-    pub fn update(&mut self, update_data: UpdateData) -> OctaResult<()> {
+    async fn update(&mut self, update_data: IslandUpdateData, change: &ModelChangeSender<IslandGenerationTypes>) -> OctaResult<()> {
         let mut new_pos = update_data.pos;
         new_pos.z = 0.0;
 
@@ -153,7 +162,7 @@ impl Islands {
         Ok(())
     }
 
-    pub async fn tick(&mut self, scene: &SceneWorkerSend, ticks: usize) -> OctaResult<bool> {
+    async fn tick(&mut self, scene: &SceneWorkerSend, ticks: usize, change: &ModelChangeSender<IslandGenerationTypes>) -> OctaResult<bool> {
         let mut ticked = false;
         let mut i = 0;
 
@@ -200,10 +209,36 @@ impl Islands {
 
                             let mut u = CSGUnionI::new();
                             u.add_disk(Vec3::ZERO, 300.0, 10.0);
-                            u.calculate_bounds_i();
 
-                            let active_key = self.dag.add_aabb_query_volume(&u)?;
+                            collapser.set_undo_data(index, UndoData::Island(Island {
+                                union: u,
+                            }));
+                        },
+                        Identifier::Tree => {
+                            let pos = collapser.get_parent_pos(index);
+                            let UndoData::Island(island) = collapser.get_dependend_undo_data_mut(index, Identifier::Island) else { unreachable!() };
+                            
+                            let mut tree_grid = self.tree_grid.clone();
+                            tree_grid.offset += pos.as_ivec3();
+                            island.union.add_shared_grid(tree_grid);
 
+                            info!("Tree Pos: {pos}");
+                        },
+                        Identifier::RiverNode => {
+                            let pos = collapser.get_parent_pos(index);
+                            let UndoData::Island(island) = collapser.get_dependend_undo_data_mut(index, Identifier::Island) else { unreachable!() };
+
+                            island.union.add_sphere(Vec3::from(pos), 10.0);
+
+                            info!("River Pos: {pos}");
+                        }
+                        Identifier::IslandDone => {
+
+                            let pos = collapser.get_dependend_pos(index, Identifier::IslandPositions, Identifier::Island);
+                            let UndoData::Island(island) = collapser.get_dependend_undo_data_mut(index, Identifier::Island) else { unreachable!() };
+                            island.union.calculate_bounds_i();
+
+                            let active_key = self.dag.add_aabb_query_volume(&island.union)?;
                             let scene_object_key = scene.add_dag_object(
                                 Mat4::from_scale_rotation_translation(
                                     Vec3::ONE,
@@ -214,42 +249,10 @@ impl Islands {
                                 self.dag.get_entry(active_key),
                             ).result_async().await;
 
-                            let island = Island {
-                                union: u,
+                            collapser.set_undo_data(index, UndoData::IslandDone(IslandDone {
                                 scene_key: scene_object_key,
                                 dag_key: active_key,
-                            };
-
-                            collapser.set_undo_data(index, island);
-
-                        },
-                        Identifier::TreeBuild => {
-                            let pos = collapser.get_parent_pos(index);
-                            let island = collapser.get_dependend_undo_data_mut(index, Identifier::Island);
-                            let mut tree_grid = self.tree_grid.clone();
-                            tree_grid.offset += pos.as_ivec3();
-
-                            island.union.add_shared_grid(tree_grid);
-                            island.union.calculate_bounds_i();
-
-                            let active_key = self.dag.update_pos_query_volume(&island.union, island.dag_key)?;
-                            island.dag_key = active_key;
-                            scene.set_dag_entry(island.scene_key, self.dag.get_entry(active_key));
-
-                            info!("Tree Pos: {pos}");
-                        },
-                        Identifier::RiverNode => {
-                            let pos = collapser.get_parent_pos(index);
-                            let island = collapser.get_dependend_undo_data_mut(index, Identifier::Island);
-
-                            island.union.add_sphere(Vec3::from(pos), 10.0);
-                            island.union.calculate_bounds_i();
-
-                            let active_key = self.dag.update_pos_query_volume(&island.union, island.dag_key)?;
-                            island.dag_key = active_key;
-                            scene.set_dag_entry(island.scene_key, self.dag.get_entry(active_key));
-
-                            info!("River Pos: {pos}");
+                            }));
                         }
                         _ => unreachable!()
                     }
@@ -259,8 +262,9 @@ impl Islands {
                     info!("Undo {:?}", identifier);
 
                     match identifier {
-                        Identifier::Island => {
-                            scene.remove_object(undo_data.scene_key);
+                        Identifier::IslandDone => {
+                            let UndoData::IslandDone(island_done) = undo_data else { unreachable!() };
+                            scene.remove_object(island_done.scene_key);
                         },
                         _ => {}
                     }
@@ -275,6 +279,14 @@ impl Islands {
         }
 
         Ok(ticked)
+    }
+}
+
+impl IslandUpdateData {
+    pub fn new(camera: &Camera) -> Self {
+        Self {
+            pos: camera.get_position_in_meters(),
+        }
     }
 }
 
