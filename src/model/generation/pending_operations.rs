@@ -6,26 +6,26 @@ use super::collapse::{CollapseNodeKey};
 
 
 #[derive(Debug, Clone)]
-pub struct PendingOperations {
-    pending_per_level: Vec<VecDeque<CollapseNodeKey>>,
+pub struct PendingOperations<T: Eq> {
+    pending_per_level: Vec<VecDeque<T>>,
     min_with_value: usize,
 }
 
 
-impl PendingOperations {
+impl<T: Eq> PendingOperations<T> {
     pub fn new(max_level: usize) -> Self {
         Self {
             pending_per_level: iter::repeat_with(|| {VecDeque::new()}).take(max_level).collect(),
-            min_with_value: max_level,
+            min_with_value: max_level -1,
         }
     }
 
-    pub fn push(&mut self, level: usize, index: CollapseNodeKey) {
-        self.pending_per_level[level - 1].push_back(index);
+    pub fn push(&mut self, level: usize, value: T) {
+        self.pending_per_level[level - 1].push_back(value);
         self.min_with_value = self.min_with_value.min(level - 1);
     }
 
-    pub fn pop(&mut self) -> Option<CollapseNodeKey> {
+    pub fn pop(&mut self) -> Option<T> {
         let res = self.pending_per_level[self.min_with_value].pop_front();
         if res.is_none() {
             return None;
@@ -36,10 +36,10 @@ impl PendingOperations {
         res
     }
 
-    pub fn delete(&mut self, level: usize, index: CollapseNodeKey) {
+    pub fn delete(&mut self, level: usize, value: T) {
         let to_delete: Vec<_> = self.pending_per_level[level - 1].iter()
             .enumerate()
-            .filter(|(_, key)| **key == index)
+            .filter(|(_, key)| **key == value)
             .map(|(i, _)| i)
             .collect();
 

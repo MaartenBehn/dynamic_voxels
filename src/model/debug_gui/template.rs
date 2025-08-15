@@ -47,12 +47,12 @@ impl<T: ModelGenerationTypes> TemplateDebugGui<T> {
             if !node.defines_n.is_empty() || !node.defines_by_value.is_empty() {
                 ui.strong("Defines:");
                 for ammount in node.defines_n.iter() {
-                    Self::node(template, ui, ammount.index, &ammount.dependecy_tree);
+                    Self::node(template, ui, ammount.template_index, &ammount.dependecy_tree);
                     ui.label(format!("Ammount: {}", ammount.ammount));
                 }
 
                 for by_value in node.defines_by_value.iter() {
-                    Self::node(template, ui, by_value.index, &by_value.dependecy_tree);
+                    Self::node(template, ui, by_value.template_index, &by_value.dependecy_tree);
                     ui.label("Ammount: by value");
                 }
             }

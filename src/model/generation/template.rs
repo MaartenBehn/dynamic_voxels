@@ -43,13 +43,13 @@ pub struct TemplateNode<T: ModelGenerationTypes> {
 #[derive(Debug, Clone)]
 pub struct TemplateAmmountN {
     pub ammount: usize,
-    pub index: TemplateIndex,
+    pub template_index: TemplateIndex,
     pub dependecy_tree: RelativePathTree,
 }
 
 #[derive(Debug, Clone)]
 pub struct TemplateAmmountValue {
-    pub index: TemplateIndex,
+    pub template_index: TemplateIndex,
     pub dependecy_tree: RelativePathTree,
 }
 
@@ -96,7 +96,7 @@ impl<T: ModelGenerationTypes> TemplateTree<T> {
             let mut add_defines_n = |ammount: usize, parent_index: usize| -> usize {
                 nodes[parent_index].defines_n.push(TemplateAmmountN{
                     ammount,
-                    index: template_node_index,
+                    template_index: template_node_index,
                     dependecy_tree: RelativePathTree::default(),
                 });
                 parent_index
@@ -109,7 +109,7 @@ impl<T: ModelGenerationTypes> TemplateTree<T> {
                 BuilderAmmount::DefinedBy(i) =>  {
                     let parent_index = builder.get_node_index_by_identifier(i) + 1;
                     nodes[parent_index].defines_by_value.push(TemplateAmmountValue{
-                        index: template_node_index,
+                        template_index: template_node_index,
                         dependecy_tree: RelativePathTree::default(),
                     });
                     parent_index
@@ -164,7 +164,7 @@ impl<T: ModelGenerationTypes> TemplateTree<T> {
             }
 
             for j in 0..tree.nodes[i].defines_n.len() {
-                let new_index = tree.nodes[i].defines_n[j].index; 
+                let new_index = tree.nodes[i].defines_n[j].template_index; 
                 let new_node = &tree.nodes[new_index];
 
                 tree.nodes[i].defines_n[j].dependecy_tree = RelativePathTree::get_paths_to_other_dependcies(
@@ -176,7 +176,7 @@ impl<T: ModelGenerationTypes> TemplateTree<T> {
             }
 
             for j in 0..tree.nodes[i].defines_by_value.len() {
-                let new_index = tree.nodes[i].defines_by_value[j].index; 
+                let new_index = tree.nodes[i].defines_by_value[j].template_index; 
                 let new_node = &tree.nodes[new_index];
 
                 tree.nodes[i].defines_by_value[j].dependecy_tree = RelativePathTree::get_paths_to_other_dependcies(

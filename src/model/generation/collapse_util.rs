@@ -34,7 +34,9 @@ impl<T: ModelGenerationTypes> Collapser<T> {
     
     pub fn set_position_set_value(&mut self, index: CollapseNodeKey, pos_set: PositionSet<T>) -> OctaResult<()> {
         let node = &mut self.nodes[index];
-        ensure!(matches!(node.data, NodeDataType::PosSet(..)), "{:?} is not a Pos Set", node.identifier);
+
+        ensure!(matches!(node.data, NodeDataType::PosSet(..)) || matches!(node.data, NodeDataType::NotValid), 
+            "Trying to set position set value: {:?} is not a Pos Set", node.identifier);
 
         node.data = NodeDataType::PosSet(pos_set); 
         Ok(())
@@ -88,24 +90,24 @@ impl<T: ModelGenerationTypes> Collapser<T> {
  
     // -- Depends --
 
-    pub(super) fn get_dependend_index(&self, index: CollapseNodeKey, identifier: T::Identifier) -> OctaResult<CollapseNodeKey> {
+    pub(super) fn get_dependend_index(&self, index: CollapseNodeKey, identifier: T::Identifier) -> OctaResult<&[CollapseNodeKey]> {
         let node = self.nodes.get(index).expect("Node by index not found"); 
 
-        Ok(node.depends.iter().find(|(i, _)| *i == identifier)
+        Ok(&node.depends.iter().find(|(i, _)| *i == identifier)
             .context(format!("{:?} does not depend on {:?}", node.identifier, identifier))?
             .1
         )
     }
-
+ 
     pub fn get_dependend_number(&self, index: CollapseNodeKey, identifier: T::Identifier) -> OctaResult<i32> {
         let index = self.get_dependend_index(index, identifier)
-            .context("Trying to get dependend number")?;
+            .context("Trying to get dependend number")?[0];
         self.get_number(index)
     }
 
     pub fn get_dependend_pos(&self, index: CollapseNodeKey, identifier: T::Identifier, pos_set_child_idetifier: T::Identifier) -> OctaResult<Vec3A> {
-        let i = self.get_dependend_index(index, identifier)?;
-        let ci = self.get_dependend_index(index, pos_set_child_idetifier)?;
+        let i = self.get_dependend_index(index, identifier)?[0];
+        let ci = self.get_dependend_index(index, pos_set_child_idetifier)?[0];
         let child_key = self.nodes[ci].child_key;
 
         ensure!(child_key != CollapseChildKey::null(), "{:?} is not a child of a pos set", pos_set_child_idetifier);
@@ -113,12 +115,12 @@ impl<T: ModelGenerationTypes> Collapser<T> {
     }
 
     pub fn get_dependend_undo_data(&self, index: CollapseNodeKey, identifier: T::Identifier) -> OctaResult<&T::UndoData> {
-        let index = self.get_dependend_index(index, identifier)?;
+        let index = self.get_dependend_index(index, identifier)?[0];
         Ok(self.get_undo_data(index))
     }
 
     pub fn get_dependend_undo_data_mut(&mut self, index: CollapseNodeKey, identifier: T::Identifier) -> OctaResult<&mut T::UndoData> {
-        let index = self.get_dependend_index(index, identifier)?;
+        let index = self.get_dependend_index(index, identifier)?[0];
         Ok(self.get_undo_data_mut(index))
     }
 
@@ -129,17 +131,17 @@ impl<T: ModelGenerationTypes> Collapser<T> {
 
     // -- Knows --
     
-    pub(super) fn get_known_index(&self, index: CollapseNodeKey, identifier: T::Identifier) -> OctaResult<CollapseNodeKey> {
+    pub(super) fn get_known_index(&self, index: CollapseNodeKey, identifier: T::Identifier) -> OctaResult<&[CollapseNodeKey]> {
         let node = self.nodes.get(index).expect("Node by index not found"); 
 
-        Ok(node.knows.iter().find(|(i, _)| *i == identifier)
+        Ok(&node.knows.iter().find(|(i, _)| *i == identifier)
             .context(format!("{:?} does not know {:?}", node.identifier, identifier))?
             .1
         )
     }
 
     pub fn get_known_number(&self, index: CollapseNodeKey, identifier: T::Identifier) -> OctaResult<i32> {
-        let index = self.get_known_index(index, identifier)?;
+        let index = self.get_known_index(index, identifier)?[0];
         self.get_number(index)
     }
 
@@ -154,7 +156,9 @@ impl<T: ModelGenerationTypes> Collapser<T> {
     }
  
     pub fn get_position_set_by_identifier_mut(&mut self, identifier: T::Identifier) -> OctaResult<&mut PositionSet<T>> {
-        let index = self.get_node_index_by_identifier(identifier)?;
+        let index = self.get_node_index_by_identifier(identifier)
+            .context("Trying to get collapser position set node by identifier")?;
+
         let node = &mut self.nodes[index];
         let NodeDataType::PosSet(pos_set) = &mut node.data else { bail!("{:?} is not pos set", identifier) };
         Ok(pos_set)

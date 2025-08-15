@@ -16,9 +16,9 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         let node_template = self.get_template_from_node_ref(node, template);
         for child in node.children.iter()
             .filter(|(template_index, _)| node_template.defines_n.iter()
-                .map(|a| a.index)
+                .map(|a| a.template_index)
                 .chain(node_template.defines_by_value.iter()
-                    .map(|a| a.index)
+                    .map(|a| a.template_index)
                 )
                 .find(|index| *index == *template_index)
                 .is_none())
@@ -50,23 +50,25 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         self.pending_collapses.delete(template_node.level, node_index);
 
         for (_, depends) in node.depends.iter() {
-            let Some(depends_node) = self.nodes.get_mut(*depends) else { 
-                continue;
-            };
+            for depend in depends {
+                let Some(depends_node) = self.nodes.get_mut(*depend) else { 
+                    continue;
+                };
 
-            let children = depends_node.children.iter_mut()
-                .find(|(template_index, _)| *template_index == node.template_index)
-                .map(|(_, c)| c)
-                .expect("When deleting node the template index of the node was not present in the children of a dependency");
+                let children = depends_node.children.iter_mut()
+                    .find(|(template_index, _)| *template_index == node.template_index)
+                    .map(|(_, c)| c)
+                    .expect("When deleting node the template index of the node was not present in the children of a dependency");
 
-            let i = children.iter()
-                .position(|t| *t == node_index)
-                .expect("When deleting node index of the node was not present in the children of a dependency");
-            
-            children.swap_remove(i);
+                let i = children.iter()
+                    .position(|t| *t == node_index)
+                    .expect("When deleting node index of the node was not present in the children of a dependency");
+
+                children.swap_remove(i);
+            }
         }
 
-        self.pending_collapse_opperations.push_back(CollapseOperation::Undo { 
+        self.pending_user_opperations.push_back(CollapseOperation::Undo { 
             identifier: node.identifier, 
             undo_data: node.undo_data,
         });

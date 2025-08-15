@@ -6,8 +6,11 @@ use super::{builder::ModelSynthesisBuilder, collapse::Collapser, pos_set::Positi
 
 impl<T: ModelGenerationTypes> TemplateTree<T> {
     pub fn get_node_position_set(&mut self, identifier: T::Identifier) -> OctaResult<&mut PositionSet<T>> {
-        let index = self.get_node_index_by_identifier(identifier)?;
+        let index = self.get_node_index_by_identifier(identifier)
+            .context("Tyring to get template position set node by identifier")?;
+
         self.get_node_position_set_by_index(index)
+            .context("Tyring to get template position set node by identifier")
     }
 
     pub(super) fn get_node_position_set_by_index(&mut self, index: TemplateIndex) -> OctaResult<&mut PositionSet<T>> {

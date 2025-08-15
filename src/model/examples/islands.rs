@@ -125,6 +125,7 @@ impl Model for Islands {
             .build(Identifier::IslandDone, |b| {b
                 .ammount(BuilderAmmount::OnePer(Identifier::Island))
                 .depends(Identifier::RiverNode)
+                .depends(Identifier::IslandPositions)
             });
 
         let template = wfc_builder.build_template();
@@ -153,13 +154,15 @@ impl Model for Islands {
 
         let island_volume = CSGTree::new_sphere(new_pos, 200.0); 
 
-        self.template.get_node_position_set(Identifier::IslandPositions)?
-            .set_volume(island_volume.clone())?;
+        self.template.get_node_position_set(Identifier::IslandPositions)?.set_volume(island_volume.clone())?;
 
-        let pos_set = self.collapser.get_position_set_by_identifier_mut(Identifier::IslandPositions)?; 
-        pos_set.set_volume(island_volume)?;
+        if let Ok(pos_set) = self.collapser.get_position_set_by_identifier_mut(
+            Identifier::IslandPositions) {
 
-        self.collapser.re_collapse_all_nodes_with_identifier(Identifier::IslandPositions);
+            pos_set.set_volume(island_volume)?;
+
+            self.collapser.re_collapse_all_nodes_with_identifier(Identifier::IslandPositions);
+        }
 
         Ok(())
     }
@@ -244,7 +247,7 @@ impl Model for Islands {
 
                             island.union.calculate_bounds_i();
 
-                            let active_key = self.dag.add_aabb_query_volume(&island.union)?;
+                            let active_key = self.dag.add_pos_query_volume(&island.union)?;
                             let scene_object_key = scene.add_dag_object(
                                 Mat4::from_scale_rotation_translation(
                                     Vec3::ONE,
