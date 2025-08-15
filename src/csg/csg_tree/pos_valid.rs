@@ -2,7 +2,7 @@ use core::fmt;
 
 use octa_force::glam::{vec3, Vec3A, Vec4};
 
-use crate::{util::aabb3d::AABB, volume::VolumeQureyPosValid};
+use crate::{util::aabb3d::AABB3, volume::VolumeQureyPosValid};
 
 use super::tree::{CSGNodeData, CSGTree, CSGTreeKey};
 

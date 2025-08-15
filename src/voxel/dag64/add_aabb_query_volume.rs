@@ -2,12 +2,12 @@ use octa_force::{glam::{vec3, vec3a, IVec3, UVec3, Vec3, Vec3A}, log::debug, Oct
 use smallvec::SmallVec;
 
 
-use crate::{multi_data_buffer::{buddy_buffer_allocator::BuddyBufferAllocator, cached_vec::CachedVec}, util::{aabb3d::AABB, iaabb3d::AABBI, math::get_dag_node_children_xzy_i}, volume::{VolumeQureyAABB, VolumeQureyAABBI, VolumeQureyAABBResult}};
+use crate::{multi_data_buffer::{buddy_buffer_allocator::BuddyBufferAllocator, cached_vec::CachedVec}, util::{aabb3d::AABB3, iaabb3d::AABBI, math::get_dag_node_children_xzy_i, math_config::MC}, volume::{VolumeQureyAABB, VolumeQureyAABBResult}};
 
 use super::{node::VoxelDAG64Node, util::get_dag_offset_levels, DAG64Entry, DAG64EntryKey, VoxelDAG64};
 
 impl VoxelDAG64 {
-    pub fn add_aabb_query_volume<M: VolumeQureyAABBI>(&mut self, model: &M) -> OctaResult<DAG64EntryKey> { 
+    pub fn add_aabb_query_volume<C: MC<3>, M: VolumeQureyAABB<C, 3>>(&mut self, model: &M) -> OctaResult<DAG64EntryKey> { 
         let (offset, levels) = get_dag_offset_levels(model);
         
         let root = self.add_aabb_query_recursive(model, offset, levels)?;
@@ -21,7 +21,7 @@ impl VoxelDAG64 {
         Ok(key)
     }
 
-    pub fn add_aabb_query_recursive<M: VolumeQureyAABBI>(
+    pub fn add_aabb_query_recursive<C: MC<3>, M: VolumeQureyAABB<C, 3>>(
         &mut self,
         model: &M,
         offset: IVec3,
@@ -35,7 +35,7 @@ impl VoxelDAG64 {
                 offset, 
                 offset + scale);
 
-            let res = model.get_aabb_value_i(aabb);
+            let res = model.get_aabb_value(aabb);
 
             match res {
                 VolumeQureyAABBResult::Full(v) => {
@@ -70,7 +70,7 @@ impl VoxelDAG64 {
                 offset, 
                 offset + scale);
 
-            let res = model.get_aabb_value_i(aabb); 
+            let res = model.get_aabb_value(aabb); 
 
             match res {
                 VolumeQureyAABBResult::Full(v) => {

@@ -1,7 +1,7 @@
 use octa_force::{glam::Mat4, puffin_egui::puffin};
 use slotmap::Key;
 
-use crate::{util::{aabb2d::AABB2D, aabb3d::AABB}, volume::VolumeBounds2D};
+use crate::{util::{aabb2d::AABB2, aabb3d::AABB3}, volume::VolumeBounds2D};
 
 use super::tree::{CSGNodeData2D, CSGTree2D, CSGTreeKey2D};
 
@@ -10,7 +10,7 @@ impl<T: Clone> VolumeBounds2D for CSGTree2D<T> {
         self.set_all_aabbs()
     }
 
-    fn get_bounds(&self) -> AABB2D {
+    fn get_bounds(&self) -> AABB2 {
         let node = &self.nodes[self.root_node];
 
         node.aabb
@@ -48,15 +48,15 @@ impl<T: Clone> CSGTree2D<T> {
                 self.set_primitive_aabbs(c2, changed_nodes);
             },
             CSGNodeData2D::Box(mat, ..) => {
-                self.nodes[i].aabb = AABB2D::from_box(&mat.inverse());
+                self.nodes[i].aabb = AABB2::from_box(&mat.inverse());
                 changed_nodes.push(i);
             },
             CSGNodeData2D::Circle(mat, ..) => {
-                self.nodes[i].aabb = AABB2D::from_circle(&mat.inverse());
+                self.nodes[i].aabb = AABB2::from_circle(&mat.inverse());
                 changed_nodes.push(i);
             },
             CSGNodeData2D::All(_) => {
-                self.nodes[i].aabb = AABB2D::infinte();
+                self.nodes[i].aabb = AABB2::infinte();
                 changed_nodes.push(i);
             },
         }

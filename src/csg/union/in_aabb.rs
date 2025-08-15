@@ -1,9 +1,9 @@
-use crate::{util::aabb3d::AABB, volume::{VolumeQureyAABB, VolumeQureyAABBResult}, voxel::palette::palette::MATERIAL_ID_NONE};
+use crate::{util::{aabb::AABB, aabb3d::AABB3, math_config::MC}, volume::{VolumeQureyAABB, VolumeQureyAABBResult}, voxel::palette::palette::MATERIAL_ID_NONE};
 
 use super::tree::{CSGUnion, CSGUnionNodeData};
 
-impl VolumeQureyAABB for CSGUnion<u8> {
-    fn get_aabb_value(&self, aabb: AABB) -> VolumeQureyAABBResult {
+impl<C: MC<D>, const D: usize> VolumeQureyAABB<C, D> for CSGUnion<u8, C, D> {
+    fn get_aabb_value(&self, aabb: AABB<C, D>) -> VolumeQureyAABBResult {
         let mut i = 0;
         while i < self.bvh.len() {
             let b = &self.bvh[i];

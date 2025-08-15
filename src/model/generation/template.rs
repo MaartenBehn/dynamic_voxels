@@ -2,8 +2,6 @@ use std::{iter, ops::RangeBounds};
 
 use octa_force::glam::Vec3;
 
-use crate::volume::{VolumeQureyPosValid, VolumeQureyPosValid2D};
-
 use super::{builder::{BuilderAmmount, BuilderNode, ModelSynthesisBuilder}, number_range::NumberRange, pos_set::PositionSet, relative_path::RelativePathTree, traits::ModelGenerationTypes};
 
 pub type TemplateIndex = usize;

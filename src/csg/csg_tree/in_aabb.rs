@@ -1,12 +1,12 @@
 use octa_force::glam::vec3;
 
-use crate::{util::{aabb3d::AABB, iaabb3d::AABBI}, volume::{VolumeQureyAABB, VolumeQureyAABBI, VolumeQureyAABBResult}, voxel::palette::palette::MATERIAL_ID_NONE};
+use crate::{util::{aabb3d::AABB3, iaabb3d::AABBI}, volume::{VolumeQureyAABB, VolumeQureyAABBI, VolumeQureyAABBResult}, voxel::palette::palette::MATERIAL_ID_NONE};
 
 use super::tree::{CSGNodeData, CSGTree, CSGTreeKey};
 
 
 impl VolumeQureyAABB for CSGTree<u8> {
-    fn get_aabb_value(&self, aabb: AABB) -> VolumeQureyAABBResult {
+    fn get_aabb_value(&self, aabb: AABB3) -> VolumeQureyAABBResult {
        self.get_aabb_internal(aabb, self.root_node) 
     }
 }
@@ -18,7 +18,7 @@ impl VolumeQureyAABBI for CSGTree<u8> {
 }
 
 impl CSGTree<u8> {
-    fn get_aabb_internal(&self, aabb: AABB, index: CSGTreeKey ) -> VolumeQureyAABBResult  {
+    fn get_aabb_internal(&self, aabb: AABB3, index: CSGTreeKey ) -> VolumeQureyAABBResult  {
         let node = &self.nodes[index];
 
         if !node.aabb.collides_aabb(aabb) {

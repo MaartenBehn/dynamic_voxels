@@ -1,7 +1,7 @@
 use octa_force::{glam::Mat4, puffin_egui::puffin};
 use slotmap::Key;
 
-use crate::{util::{aabb3d::AABB, iaabb3d::AABBI}, volume::{VolumeBoundsI, VolumeBounds}};
+use crate::{util::{aabb3d::AABB3, iaabb3d::AABBI}, volume::{VolumeBoundsI, VolumeBounds}};
 
 use super::tree::{CSGNode, CSGNodeData, CSGTree, CSGTreeKey};
 
@@ -10,7 +10,7 @@ impl<T: Clone> VolumeBounds for CSGTree<T> {
         self.set_all_aabbs()
     }
 
-    fn get_bounds(&self) -> AABB {
+    fn get_bounds(&self) -> AABB3 {
         let node = &self.nodes[self.root_node];
 
         node.aabb

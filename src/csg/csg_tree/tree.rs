@@ -2,7 +2,7 @@ use octa_force::glam::{IVec3, Mat4};
 use slotmap::{new_key_type, Key, SlotMap};
 use smallvec::SmallVec;
 
-use crate::{csg::{all::CSGAll, r#box::CSGBox, sphere::CSGSphere}, model::generation::traits::BU, util::{aabb3d::AABB, iaabb3d::AABBI}, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid, VoxelGrid}};
+use crate::{csg::{all::CSGAll, r#box::CSGBox, sphere::CSGSphere}, model::generation::traits::BU, util::{aabb3d::AABB3, iaabb3d::AABBI}, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid, VoxelGrid}};
 
 new_key_type! { pub struct CSGTreeKey; }
 
@@ -17,7 +17,7 @@ pub struct CSGTree<T> {
 #[derive(Clone, Debug)]
 pub struct CSGNode<T> {
     pub data: CSGNodeData<T>,
-    pub aabb: AABB,
+    pub aabb: AABB3,
     pub aabbi: AABBI,
     pub parent: CSGTreeKey,
 }
@@ -44,7 +44,7 @@ impl<T> CSGNode<T> {
         }
     }
 
-    pub fn set_aabb(&mut self, aabb: AABB) {
+    pub fn set_aabb(&mut self, aabb: AABB3) {
         self.aabb = aabb;
         self.aabbi = aabb.into();
     }

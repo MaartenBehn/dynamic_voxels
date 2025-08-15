@@ -2,31 +2,30 @@ use std::iter;
 
 use octa_force::glam::{self, ivec3, vec4, Mat4, Vec3, Vec3A, Vec4, Vec4Swizzles};
 
-use super::{iaabb3d::AABBI, math::to_3d_ivec3};
-
+use super::{aabb::AABB, iaabb3d::AABBI, math::to_3d_ivec3};
 
 #[derive(Copy, Clone, Debug)]
-pub struct AABB {
+pub struct AABB3 {
     pub min: Vec4,
     pub max: Vec4,
 }
 
-impl AABB {
-    pub fn new(min: Vec3, max: Vec3) -> AABB {
-        AABB {
+impl AABB3 {
+    pub fn new(min: Vec3, max: Vec3) -> AABB3 {
+        AABB3 {
             min: vec4(min.x, min.y, min.z, 1.0),
             max: vec4(max.x, max.y, max.z, 1.0)
         }
     }
 
-    pub fn new_a(min: Vec3A, max: Vec3A) -> AABB {
-        AABB {
+    pub fn new_a(min: Vec3A, max: Vec3A) -> AABB3 {
+        AABB3 {
             min: vec4(min.x, min.y, min.z, 1.0),
             max: vec4(max.x, max.y, max.z, 1.0)
         }
     }
 
-    pub fn from_box(mat: &Mat4) -> AABB {
+    pub fn from_box(mat: &Mat4) -> AABB3 {
         let corners = [
             vec4(-0.5, -0.5, -0.5, 1.0),
             vec4(-0.5, -0.5, 0.5, 1.0),
@@ -47,13 +46,13 @@ impl AABB {
             max = max.max(transformed_corner);
         }
 
-        AABB {
+        AABB3 {
             min: min,
             max: max,
         }
     }
 
-    pub fn from_sphere(mat: &Mat4) -> AABB {
+    pub fn from_sphere(mat: &Mat4) -> AABB3 {
         let a = vec4(
             f32::sqrt(mat.x_axis.x.powf(2.0) + mat.x_axis.y.powf(2.0) + mat.x_axis.z.powf(2.0)),
             f32::sqrt(mat.y_axis.x.powf(2.0) + mat.y_axis.y.powf(2.0) + mat.y_axis.z.powf(2.0)),
@@ -62,22 +61,22 @@ impl AABB {
         );
         let b = vec4(mat.w_axis.x, mat.w_axis.y, mat.w_axis.z, 1.0);
 
-        AABB {
+        AABB3 {
             min: b - a,
             max: b + a,
         }
     }
 
     
-    pub fn from_size(mat: &Mat4, size: Vec3A) -> AABB {
-        AABB::from_min_max(mat, Vec3A::ZERO, size)
+    pub fn from_size(mat: &Mat4, size: Vec3A) -> AABB3 {
+        AABB3::from_min_max(mat, Vec3A::ZERO, size)
     }
 
-    pub fn from_centered_size(mat: &Mat4, size: Vec3A) -> AABB {
-        AABB::from_min_max(mat, size * -0.5, size * 0.5)
+    pub fn from_centered_size(mat: &Mat4, size: Vec3A) -> AABB3 {
+        AABB3::from_min_max(mat, size * -0.5, size * 0.5)
     }
 
-    pub fn from_min_max(mat: &Mat4, min: Vec3A, max: Vec3A) -> AABB {
+    pub fn from_min_max(mat: &Mat4, min: Vec3A, max: Vec3A) -> AABB3 {
         let corners = [
             vec4(min.x, min.y, min.z, 1.0),
             vec4(min.x, min.y, max.z, 1.0),
@@ -98,22 +97,22 @@ impl AABB {
             max = max.max(transformed_corner);
         }
 
-        AABB {
+        AABB3 {
             min: min,
             max: max,
         }
     }
 
 
-    pub fn union(self, other: AABB) -> AABB {
-        AABB {
+    pub fn union(self, other: AABB3) -> AABB3 {
+        AABB3 {
             min: self.min.min(other.min),
             max: self.max.max(other.max),
         }
     }
 
-    pub fn intersect(self, other: AABB) -> AABB {
-        AABB {
+    pub fn intersect(self, other: AABB3) -> AABB3 {
+        AABB3 {
             min: self.min.max(other.min),
             max: self.max.min(other.max),
         }
@@ -125,13 +124,13 @@ impl AABB {
      && self.min.z <= pos.z && pos.z <= self.max.z
     }
 
-    pub fn collides_aabb(self, other: AABB) -> bool {
+    pub fn collides_aabb(self, other: AABB3) -> bool {
         self.min.x <= other.max.x && other.min.x <= self.max.x
      && self.min.y <= other.max.y && other.min.y <= self.max.y
      && self.min.z <= other.max.z && other.min.z <= self.max.z
     }
 
-    pub fn contains_aabb(self, other: AABB) -> bool {
+    pub fn contains_aabb(self, other: AABB3) -> bool {
         self.min.x <= other.min.x && other.max.x <= self.max.x
      && self.min.y <= other.min.y && other.max.y <= self.max.y
      && self.min.z <= other.min.z && other.max.z <= self.max.z
@@ -190,15 +189,15 @@ impl AABB {
         self.max - self.min
     }
 
-    pub fn mul_mat(&self, mat: &Mat4) -> AABB {
-        AABB {
+    pub fn mul_mat(&self, mat: &Mat4) -> AABB3 {
+        AABB3 {
             min: mat.mul_vec4(self.min),
             max: mat.mul_vec4(self.max),
         }
     }
 
-    pub fn infinte() -> AABB {
-        AABB {
+    pub fn infinte() -> AABB3 {
+        AABB3 {
             min: vec4(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY, 1.0),
             max: vec4(f32::INFINITY, f32::INFINITY, f32::INFINITY, 1.0),
         }
@@ -209,16 +208,16 @@ impl AABB {
     }
 }
 
-impl Default for AABB {
+impl Default for AABB3 {
     fn default() -> Self {
-        AABB {
+        AABB3 {
             min: vec4(f32::INFINITY, f32::INFINITY, f32::INFINITY, 1.0),
             max: vec4(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY, 1.0),
         }
     }
 }
 
-impl Into<bvh::aabb::Aabb<f32, 3>> for AABB {
+impl Into<bvh::aabb::Aabb<f32, 3>> for AABB3 {
     fn into(self) -> bvh::aabb::Aabb<f32, 3> {
         bvh::aabb::Aabb::with_bounds(
             nalgebra::Point3::new(self.min.x, self.min.y, self.min.z),
@@ -226,25 +225,25 @@ impl Into<bvh::aabb::Aabb<f32, 3>> for AABB {
     }
 }
 
-impl From<bvh::aabb::Aabb<f32, 3>> for AABB {
+impl From<bvh::aabb::Aabb<f32, 3>> for AABB3 {
     fn from(value: bvh::aabb::Aabb<f32, 3>) -> Self {
-        AABB {
+        AABB3 {
             min: vec4(value.min.x, value.min.y, value.min.z, 1.0),
             max: vec4(value.max.x, value.max.y, value.max.z, 1.0),
         }
     }
 }
 
-impl From<&bvh::aabb::Aabb<f32, 3>> for AABB {
+impl From<&bvh::aabb::Aabb<f32, 3>> for AABB3 {
     fn from(value: &bvh::aabb::Aabb<f32, 3>) -> Self {
-        AABB {
+        AABB3 {
             min: vec4(value.min.x, value.min.y, value.min.z, 1.0),
             max: vec4(value.max.x, value.max.y, value.max.z, 1.0),
         }
     }
 }
 
-impl Into<AABBI> for AABB {
+impl Into<AABBI> for AABB3 {
     fn into(self) -> AABBI {
         AABBI {
             min: self.min.xyz().as_ivec3(),
@@ -257,15 +256,15 @@ impl Into<AABBI> for AABB {
 mod tests {
     use octa_force::glam::vec3;
 
-    use super::AABB;
+    use super::AABB3;
 
     #[test]
     pub fn test_uint_sphere() {
-        let aabb = AABB::new(vec3(0.0, 0.0, 0.0), vec3(1.0, 1.0, 1.0));
+        let aabb = AABB3::new(vec3(0.0, 0.0, 0.0), vec3(1.0, 1.0, 1.0));
 
         assert_eq!(aabb.collides_unit_sphere_slow(), aabb.collides_unit_sphere());
         
-        let aabb = AABB::new(vec3(-0.1, -0.1, -0.1), vec3(0.1, 0.1, 0.1));
+        let aabb = AABB3::new(vec3(-0.1, -0.1, -0.1), vec3(0.1, 0.1, 0.1));
 
         assert_eq!(aabb.collides_unit_sphere_slow(), aabb.collides_unit_sphere());
     }

@@ -4,7 +4,7 @@ use octa_force::{anyhow::{anyhow, bail}, glam::Vec3, log::{debug, info}, OctaRes
 use slotmap::Key;
 use tree64::Node;
 
-use crate::{model::generation::collapse::CollapseChildKey, volume::{VolumeQureyPosValid, VolumeQureyPosValid2D}};
+use crate::{model::generation::collapse::CollapseChildKey};
 
 use super::{collapse::{CollapseNode, CollapseNodeKey, Collapser, NodeDataType, CreateDefinesOperation}, pos_set::PositionSet, relative_path::{LeafType, RelativePathTree}, template::{NodeTemplateValue, TemplateAmmountN, TemplateIndex, TemplateNode, TemplateTree}, traits::ModelGenerationTypes};
 

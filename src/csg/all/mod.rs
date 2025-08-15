@@ -1,49 +1,35 @@
 use octa_force::glam::{IVec3, UVec3, Vec3A};
 
-use crate::{util::{aabb3d::AABB, iaabb3d::AABBI}, volume::{VolumeBounds, VolumeBoundsI, VolumeQureyAABB, VolumeQureyAABBI, VolumeQureyAABBResult, VolumeQureyPosValid, VolumeQureyPosValue, VolumeQureyPosValueI}};
+use crate::{util::{aabb::AABB, aabb3d::AABB3, iaabb3d::AABBI, math_config::MC}, volume::{VolumeBounds, VolumeQureyAABB, VolumeQureyAABBResult, VolumeQureyPosValid, VolumeQureyPosValue}};
+
+use super::Base;
 
 #[derive(Clone, Copy, Debug)]
-pub struct CSGAll<T> {
-    v: T,
+pub struct CSGAll<V> {
+    v: V
 }
 
-impl<T> CSGAll<T> {
-    pub fn new(v: T) -> Self {
-        Self { v }
+impl<V: Base> CSGAll<V> {
+    pub fn new() -> Self {
+        CSGAll {
+            v: V::base(),
+        }
     }
 }
 
-impl<T> VolumeBounds for CSGAll<T> {
+impl<V, C: MC<D>, const D: usize> VolumeBounds<C, D> for CSGAll<V> {
     fn calculate_bounds(&mut self) {}
-    fn get_bounds(&self) -> AABB { AABB::infinte() }
+    fn get_bounds(&self) -> AABB<C, D> { AABB::infinte() }
 }
 
-impl<T> VolumeBoundsI for CSGAll<T> {
-    fn calculate_bounds_i(&mut self) {}
-    fn get_bounds_i(&self) -> AABBI { AABBI::infinte() }
+impl<V, C: MC<D>, const D: usize> VolumeQureyPosValid<C, D> for CSGAll<V> {
+    fn is_position_valid(&self, pos: C::Vector) -> bool { true }
 }
 
-impl<T> VolumeQureyPosValid for CSGAll<T> {
-    fn is_position_valid_vec3(&self, _: Vec3A) -> bool { true }
+impl<C: MC<D>, const D: usize> VolumeQureyPosValue<C, D> for CSGAll<u8> {
+    fn get_value(&self, pos: C::Vector) -> u8 { self.v }
 }
 
-impl VolumeQureyPosValue for CSGAll<u8> {
-    fn get_value(&self, pos: Vec3A) -> u8 { self.v }
-}
-
-impl VolumeQureyPosValueI for CSGAll<u8> {
-    fn get_value_i(&self, _: IVec3) -> u8 { self.v }
-    fn get_value_relative_u(&self, _: UVec3) -> u8 { self.v }
-}
-
-impl VolumeQureyAABB for CSGAll<u8> {
-    fn get_aabb_value(&self, _: AABB) -> VolumeQureyAABBResult {
-        VolumeQureyAABBResult::Full(self.v)
-    }
-}
-
-impl VolumeQureyAABBI for CSGAll<u8> {
-    fn get_aabb_value_i(&self, _: AABBI) -> VolumeQureyAABBResult {
-         VolumeQureyAABBResult::Full(self.v)
-    }
+impl<C: MC<D>, const D: usize> VolumeQureyAABB<C, D> for CSGAll<u8> {
+    fn get_aabb_value(&self, aabb: AABB<C, D>) -> VolumeQureyAABBResult { VolumeQureyAABBResult::Full(self.v) }
 }

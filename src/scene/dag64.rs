@@ -5,7 +5,7 @@ use octa_force::{anyhow::anyhow, glam::{vec3, vec4, Mat4, Quat, Vec3, Vec3A, Vec
 use parking_lot::Mutex;
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, util::aabb3d::AABB, voxel::dag64::{parallel::ParallelVoxelDAG64, DAG64Entry, DAG64EntryKey, VoxelDAG64}, VOXELS_PER_METER, VOXELS_PER_SHADER_UNIT};
+use crate::{multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, util::aabb3d::AABB3, voxel::dag64::{parallel::ParallelVoxelDAG64, DAG64Entry, DAG64EntryKey, VoxelDAG64}, VOXELS_PER_METER, VOXELS_PER_SHADER_UNIT};
 
 use super::{dag_store::{SceneDAG, SceneDAGKey, SceneDAGStore}, Scene, SceneObjectData, SceneObjectKey, SceneObjectType};
 
@@ -99,9 +99,9 @@ impl SceneDAGObject {
         scene_buffer.copy_data_to_buffer_without_aligment(&[data], self.allocation.start);
     }
 
-    pub fn get_aabb(&self) -> AABB {
+    pub fn get_aabb(&self) -> AABB3 {
         let size = self.entry.get_size();
-        AABB::from_min_max(
+        AABB3::from_min_max(
             &self.mat,
             self.entry.offset.as_vec3a() / VOXELS_PER_SHADER_UNIT as f32, 
             (self.entry.offset.as_vec3a() + Vec3A::splat(size as f32)) / VOXELS_PER_SHADER_UNIT as f32,

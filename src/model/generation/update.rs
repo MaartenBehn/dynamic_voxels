@@ -1,7 +1,5 @@
 use octa_force::{anyhow::{self, anyhow, bail, Context}, OctaResult};
 
-use crate::volume::{VolumeQureyPosValid, VolumeQureyPosValid2D};
-
 use super::{builder::ModelSynthesisBuilder, collapse::Collapser, pos_set::PositionSet, template::{NodeTemplateValue, TemplateIndex, TemplateTree}, traits::ModelGenerationTypes};
 
 impl<T: ModelGenerationTypes> TemplateTree<T> {

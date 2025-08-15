@@ -1,63 +1,58 @@
 use octa_force::glam::{vec3, IVec3, Mat4, Quat, UVec3, Vec3, Vec3A, Vec4};
 
-use crate::{util::{aabb3d::AABB, iaabb3d::AABBI}, volume::{VolumeBounds, VolumeBoundsI, VolumeQureyAABB, VolumeQureyAABBI, VolumeQureyAABBResult, VolumeQureyPosValid, VolumeQureyPosValue, VolumeQureyPosValueI}, voxel::palette::palette::MATERIAL_ID_NONE};
+use crate::{util::{aabb::AABB, aabb3d::AABB3, iaabb3d::AABBI, math_config::MC, matrix::Ma, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyAABB, VolumeQureyAABBResult, VolumeQureyPosValid, VolumeQureyPosValue}, voxel::palette::palette::MATERIAL_ID_NONE};
 
-use super::{r#box::CSGBox, Base};
+use super::{Base};
 
 #[derive(Clone, Copy, Debug)]
-pub struct CSGSphere<T> {
-    mat: Mat4,
-    v: T
+pub struct CSGSphere<V, C: MC<D>, const D: usize> {
+    mat: C::Matrix,
+    v: V
 }
 
-impl<T: Base> CSGSphere<T> {
-    pub fn new_sphere(center: Vec3, radius: f32) -> Self {
+impl<V: Base, C: MC<D>, const D: usize> CSGSphere<V, C, D> {
+    pub fn new_sphere(center: C::VectorF, radius: f32) -> Self {
         CSGSphere {
-            mat: Mat4::from_scale_rotation_translation(
-                Vec3::ONE * radius,
-                Quat::IDENTITY,
+            mat: C::Matrix::from_scale_translation(
+                C::VectorF::ONE * radius,
                 center,
             ).inverse(),
-            v: T::base(),
-        }
-    }
-
-    pub fn new_disk(center: Vec3, radius: f32, height: f32) -> Self {
-        CSGSphere {
-            mat: Mat4::from_scale_rotation_translation(
-                vec3(radius, radius, height),
-                Quat::IDENTITY,
-                center,
-            ).inverse(),
-            v: T::base(),
+            v: V::base(),
         }
     }
 }
 
-impl<T> VolumeBounds for CSGSphere<T> {
+impl<V: Base, C: MC<3>> CSGSphere<V, C, 3> {
+    pub fn new_disk(center: C::VectorF, radius: f32, height: f32) -> Self {
+        CSGSphere {
+            mat: C::Matrix::from_scale_translation(
+                C::VectorF::new([radius, radius, height]),
+                center,
+            ).inverse(),
+            v: V::base(),
+        }
+    }
+}
+
+impl<V, C: MC<D>, const D: usize> VolumeBounds<C, D> for CSGSphere<V, C, D> {
     fn calculate_bounds(&mut self) {}
 
-    fn get_bounds(&self) -> AABB {
+    fn get_bounds(&self) -> AABB<C, D> {
         let mat = self.mat.inverse();
         AABB::from_sphere(&mat)
     }
 }
 
-impl<T> VolumeBoundsI for CSGSphere<T> {
-    fn calculate_bounds_i(&mut self) {}
-    fn get_bounds_i(&self) -> AABBI { self.get_bounds().into() }
-}
-
-impl<T> VolumeQureyPosValid for CSGSphere<T> {
-    fn is_position_valid_vec3(&self, pos: Vec3A) -> bool {
-        let pos = Vec3A::from(self.mat.mul_vec4(Vec4::from((pos, 1.0))));
-        pos.length_squared() < 1.0
+impl<V, C: MC<D>, const D: usize> VolumeQureyPosValid<C, D> for CSGSphere<V, C, D> {
+    fn is_position_valid(&self, pos: C::Vector) -> bool {
+        let pos = self.mat.mul_vector(C::to_vector_f(pos));
+        pos.length_squared() < C::Number::ONE
     }
 }
 
-impl VolumeQureyPosValue for CSGSphere<u8> {
-    fn get_value(&self, pos: Vec3A) -> u8 {
-        if self.is_position_valid_vec3(pos) {
+impl<C: MC<D>, const D: usize> VolumeQureyPosValue<C, D> for CSGSphere<u8, C, D> {
+    fn get_value(&self, pos: C::Vector) -> u8 {
+        if self.is_position_valid(pos) {
             self.v
         } else {
             MATERIAL_ID_NONE
@@ -65,18 +60,8 @@ impl VolumeQureyPosValue for CSGSphere<u8> {
     }
 }
 
-impl VolumeQureyPosValueI for CSGSphere<u8> {
-    fn get_value_i(&self, pos: IVec3) -> u8 {
-        self.get_value(pos.as_vec3a())
-    }
-
-    fn get_value_relative_u(&self, pos: UVec3) -> u8 {
-        unimplemented!()
-    }
-}
-
-impl VolumeQureyAABB for CSGSphere<u8> {
-    fn get_aabb_value(&self, aabb: AABB) -> VolumeQureyAABBResult {
+impl<C: MC<D>, const D: usize> VolumeQureyAABB<C, D> for CSGSphere<u8, C, D> {
+    fn get_aabb_value(&self, aabb: AABB<C, D>) -> VolumeQureyAABBResult {
         let aabb = aabb.mul_mat(&self.mat);
 
         let (min, max) = aabb.collides_unit_sphere();
@@ -88,11 +73,5 @@ impl VolumeQureyAABB for CSGSphere<u8> {
         } else {
             VolumeQureyAABBResult::Full(MATERIAL_ID_NONE)
         }
-    }
-}
-
-impl VolumeQureyAABBI for CSGSphere<u8> {
-    fn get_aabb_value_i(&self, aabb: AABBI) -> VolumeQureyAABBResult {
-        self.get_aabb_value(aabb.into())
     }
 }

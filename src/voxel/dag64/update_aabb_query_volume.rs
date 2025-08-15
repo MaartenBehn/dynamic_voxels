@@ -1,17 +1,18 @@
 use octa_force::{glam::{vec3a, IVec3, UVec3, Vec3A, Vec4Swizzles}, log::debug, OctaResult};
 
-use crate::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, util::{aabb3d::AABB, iaabb3d::AABBI, math::get_dag_node_children_xzy_i}, volume::{VolumeQureyAABB, VolumeQureyAABBI}};
+use crate::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, util::{aabb::AABB, aabb3d::AABB3, iaabb3d::AABBI, math::get_dag_node_children_xzy_i, math_config::MC, vector::Ve}, volume::VolumeQureyAABB};
+
 
 use super::{node::VoxelDAG64Node, DAG64Entry, DAG64EntryKey, VoxelDAG64};
 
 
 impl VoxelDAG64 {
-    pub fn update_aabb_query_volume<M: VolumeQureyAABBI>(
+    pub fn update_aabb_query_volume<C: MC<3>, M: VolumeQureyAABB<C, 3>>(
         &mut self, 
         model: &M,
         based_on_entry: DAG64EntryKey,
     ) -> OctaResult<DAG64EntryKey> {
-        let model_aabb = model.get_bounds_i();
+        let model_aabb = model.get_bounds();
         let mut entry_data = self.expand_to_include_aabb(based_on_entry, model_aabb)?;
 
         let root = self.update_aabb_recursive(model, model_aabb,entry_data.levels, entry_data.offset, entry_data.root_index)?;
@@ -22,10 +23,10 @@ impl VoxelDAG64 {
         Ok(key)
     }
 
-    fn update_aabb_recursive<M: VolumeQureyAABBI>(
+    fn update_aabb_recursive<C: MC<3>, M: VolumeQureyAABB<C, 3>>(
         &mut self, 
         model: &M, 
-        aabb: AABBI, 
+        aabb: AABB<C, 3>, 
         node_level: u8, 
         offset: IVec3, 
         index: u32
@@ -52,9 +53,9 @@ impl VoxelDAG64 {
             .rev() {
             let min = offset + pos * new_scale;
             let max = min + new_scale;
-            let node_aabb = AABBI::new(min, max);
+            let node_aabb = AABB::new(C::Vector::from_ivec3(min), C::Vector::from_ivec3(max));
 
-            if aabb.collides_aabb(node_aabb) {
+            if aabb.collides_aabb(&node_aabb) {
 
                 let index_in_children = node.get_index_in_children_unchecked(i as u32);
                 if !node.is_occupied(i as u32) {
@@ -79,7 +80,7 @@ impl VoxelDAG64 {
                     continue;
                 } 
 
-                let new_child_node = if aabb.contains_aabb(node_aabb) {
+                let new_child_node = if aabb.contains_aabb(&node_aabb) {
                     self.add_aabb_query_recursive(
                         model, 
                         min,

@@ -1,13 +1,11 @@
 use octa_force::glam::{Vec3A, Vec4};
 
-use crate::volume::VolumeQureyPosValid;
+use crate::{util::math_config::MC, volume::VolumeQureyPosValid};
 
 use super::tree::{CSGUnion, CSGUnionNodeData};
 
-impl<T: Send + Sync> VolumeQureyPosValid for CSGUnion<T> {
-    fn is_position_valid_vec3(&self, posa: Vec3A) -> bool {
-        let pos = Vec4::from((posa, 1.0));
-
+impl<V: Send + Sync, C: MC<D>, const D: usize> VolumeQureyPosValid<C, D> for CSGUnion<V, C, D> {
+    fn is_position_valid(&self, pos: C::Vector) -> bool {
         let mut i = 0;
         while i < self.bvh.len() {
             let b = &self.bvh[i];
@@ -15,8 +13,8 @@ impl<T: Send + Sync> VolumeQureyPosValid for CSGUnion<T> {
                 if let Some(leaf) = b.leaf {
                     let node = &self.nodes[leaf];
                     let v = match &node.data {
-                        CSGUnionNodeData::Box(d) => d.is_position_valid_vec3(posa),
-                        CSGUnionNodeData::Sphere(d) => d.is_position_valid_vec3(posa),
+                        CSGUnionNodeData::Box(d) => d.is_position_valid(pos),
+                        CSGUnionNodeData::Sphere(d) => d.is_position_valid(pos),
                         CSGUnionNodeData::OffsetVoxelGrid(d) => todo!(),
                         CSGUnionNodeData::SharedVoxelGrid(d) => todo!(),
                     };

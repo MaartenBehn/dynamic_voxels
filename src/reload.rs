@@ -10,8 +10,6 @@ pub mod util;
 pub mod volume;
 pub mod voxel;
 
-use csg::csg_tree::tree::{CSGNode, CSGTree};
-use csg::union_i::tree::CSGUnionI;
 use model::debug_gui::template::TemplateDebugGui;
 use model::examples::islands::{self, IslandGenerationTypes, IslandUpdateData, Islands};
 use model::worker::ModelWorker;
@@ -34,7 +32,7 @@ use octa_force::vulkan::{Context, Fence};
 use octa_force::{log, OctaResult};
 use util::profiler::ShaderProfiler;
 use util::state_saver::StateSaver;
-use volume::{VolumeBounds, VolumeBoundsI};
+use volume::{VolumeBounds};
 use voxel::dag64::VoxelDAG64;
 use voxel::grid::VoxelGrid;
 use voxel::palette::shared::SharedPalette;

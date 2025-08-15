@@ -1,7 +1,7 @@
 use octa_force::{anyhow::{self, ensure, anyhow}, log::info, OctaResult};
 use slotmap::Key;
 
-use crate::{model::generation::collapse::CollapseOperation, volume::{VolumeQureyPosValid, VolumeQureyPosValid2D}};
+use crate::{model::generation::collapse::CollapseOperation};
 
 use super::{collapse::{CollapseNodeKey, Collapser}, template::TemplateTree, traits::ModelGenerationTypes};
 

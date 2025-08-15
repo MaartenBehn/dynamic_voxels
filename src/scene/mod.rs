@@ -9,7 +9,7 @@ use dag_store::SceneDAGStore;
 use octa_force::{anyhow::anyhow, glam::{vec3, Mat4, Vec3, Vec4Swizzles}, log::{debug, info}, vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, util::{aabb3d::AABB, math::to_mb}, VOXELS_PER_SHADER_UNIT};
+use crate::{multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, util::{aabb3d::AABB3, math::to_mb}, VOXELS_PER_SHADER_UNIT};
 
 new_key_type! { pub struct SceneObjectKey; }
 
@@ -116,7 +116,7 @@ impl Scene {
                     exit: exit << 1 | nr,
                 }
             } else {
-                let aabb: AABB = aabb.into();
+                let aabb: AABB3 = aabb.into();
                 SceneObjectData {
                     min: aabb.min.xyz(),
                     child: index << 1,
@@ -185,7 +185,7 @@ impl SceneObject {
         }
     }
 
-    pub fn get_aabb(&self) -> AABB {
+    pub fn get_aabb(&self) -> AABB3 {
         match &self.data {
             SceneObjectType::DAG64(o) => o.get_aabb(),
         }

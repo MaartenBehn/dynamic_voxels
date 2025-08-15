@@ -6,8 +6,8 @@ use std::f32::consts::PI;
 use std::{slice, usize};
 
 use crate::csg::Base;
-use crate::util::aabb2d::AABB2D;
-use crate::util::aabb3d::AABB;
+use crate::util::aabb2d::AABB2;
+use crate::util::aabb3d::AABB3;
 use crate::volume::VolumeQureyAABBResult;
 
 new_key_type! { pub struct CSGTreeKey2D; }
@@ -25,7 +25,7 @@ pub enum CSGNodeData2D<T> {
 #[derive(Clone, Debug)]
 pub struct CSGNode2D<T> {
     pub data: CSGNodeData2D<T>,
-    pub aabb: AABB2D,
+    pub aabb: AABB2,
     pub parent: CSGTreeKey2D,
 }
 

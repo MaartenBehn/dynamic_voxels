@@ -2,8 +2,6 @@ use octa_force::{glam::Vec3, log::error};
 
 use std::{fmt::Debug, iter, marker::PhantomData, ops::RangeBounds};
 
-use crate::volume::{VolumeQureyPosValid, VolumeQureyPosValid2D};
-
 use super::{collapse::CollapseNode, pos_set::PositionSet, relative_path::{self, RelativePathTree}, template::{NodeTemplateValue, TemplateTree}, traits::ModelGenerationTypes};
 
 

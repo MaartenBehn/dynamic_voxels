@@ -27,12 +27,14 @@ impl<T: ModelGenerationTypes> Collapser<T> {
 
     pub fn restricts_volume(&mut self, index: CollapseNodeKey, remove: T::Volume) {
         let volume = self.get_volume_mut(index).unwrap();
-        volume.remove_volume(remove);
+        todo!()
+        //volume.remove_volume(remove);
     }
 
     pub fn restricts_volume2d(&mut self, index: CollapseNodeKey, remove: T::Volume2D) {
         let volume = self.get_volume2d_mut(index).unwrap();
-        volume.remove_volume(remove);
+        todo!()
+        //volume.remove_volume(remove);
     }
 
 }

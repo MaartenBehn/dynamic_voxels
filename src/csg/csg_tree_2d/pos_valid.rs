@@ -3,7 +3,7 @@ use core::fmt;
 use octa_force::glam::{vec2, vec3, Vec2, Vec3A, Vec4};
 
 
-use crate::{util::aabb2d::AABB2D, volume::VolumeQureyPosValid2D};
+use crate::{util::aabb2d::AABB2, volume::VolumeQureyPosValid2D};
 
 use super::tree::{CSGNodeData2D, CSGTree2D, CSGTreeKey2D};
 
@@ -35,7 +35,7 @@ impl<T: Default + Clone + fmt::Debug> CSGTree2D<T> {
             CSGNodeData2D::Box(mat, ..) => {
                 let pos = mat.transform_point2(pos);
 
-                let aabb = AABB2D::new(
+                let aabb = AABB2::new(
                     vec2(-0.5, -0.5), 
                     vec2(0.5, 0.5));
 

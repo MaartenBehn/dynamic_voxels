@@ -5,7 +5,7 @@ use octa_force::{anyhow::{anyhow, bail, ensure}, glam::{vec3, vec3a, IVec3, Vec3
 use slotmap::{new_key_type, Key, SlotMap};
 
 
-use crate::{model::generation::pos_set::PositionSetRule, volume::{VolumeQureyPosValid, VolumeQureyPosValid2D}};
+use crate::{model::generation::pos_set::PositionSetRule};
 
 use super::{builder::{BuilderNode, ModelSynthesisBuilder}, number_range::NumberRange, pending_operations::PendingOperations, pos_set::PositionSet, relative_path::{LeafType, RelativePathTree}, template::{NodeTemplateValue, TemplateIndex, TemplateNode, TemplateTree}, traits::ModelGenerationTypes};
 

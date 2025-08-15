@@ -1,16 +1,17 @@
 use bvh::{aabb::Bounded, bounding_hierarchy::{BHShape, BoundingHierarchy}, bvh::Bvh, flat_bvh::FlatBvh};
+use octa_force::egui::emath::Numeric;
 use smallvec::ToSmallVec;
 
-use crate::{util::{aabb3d::AABB, iaabb3d::AABBI}, volume::{VolumeBounds, VolumeBoundsI}};
+use crate::{util::{aabb::AABB, aabb3d::AABB3, iaabb3d::AABBI, math_config::MC}, volume::VolumeBounds};
 
 use super::tree::{BVHNode, CSGUnion, CSGUnionNode, CSGUnionNodeData};
 
-impl<T: Send + Sync> VolumeBounds for CSGUnion<T> {
+impl<V: Send + Sync, C: MC<D>, const D: usize> VolumeBounds<C, D> for CSGUnion<V, C, D> {
     fn calculate_bounds(&mut self) {
         self.update_bounds();
     }
 
-    fn get_bounds(&self) -> AABB {
+    fn get_bounds(&self) -> AABB<C, D> {
         if self.bvh.is_empty() {
             return AABB::default()
         }
@@ -19,7 +20,7 @@ impl<T: Send + Sync> VolumeBounds for CSGUnion<T> {
     }
 }
 
-impl<T> VolumeBounds for CSGUnionNode<T> {
+impl<V: Send + Sync, C: MC<D>, const D: usize> VolumeBounds<C, D> for CSGUnionNode<V, C, D> {
     fn calculate_bounds(&mut self) {
         match &mut self.data {
             CSGUnionNodeData::Box(d) => d.calculate_bounds(),
@@ -29,7 +30,7 @@ impl<T> VolumeBounds for CSGUnionNode<T> {
         }
     }
 
-    fn get_bounds(&self) -> AABB {
+    fn get_bounds(&self) -> AABB<C, D> {
         match &self.data {
             CSGUnionNodeData::Box(d) => d.get_bounds(),
             CSGUnionNodeData::Sphere(d) => d.get_bounds(),
@@ -39,7 +40,7 @@ impl<T> VolumeBounds for CSGUnionNode<T> {
     }
 }
 
-impl<T: Send + Sync> CSGUnion<T> {
+impl<V: Send + Sync, C: MC<D>, const D: usize> CSGUnion<V, C, D> {
     pub fn update_bounds(&mut self) {
         if !self.changed {
             return;
@@ -51,7 +52,7 @@ impl<T: Send + Sync> CSGUnion<T> {
             let leaf = shape != u32::MAX;
 
             if leaf {
-                let aabb: AABB = self.nodes[shape as usize].get_bounds().into();
+                let aabb: AABB<C, D> = self.nodes[shape as usize].get_bounds().into();
                 BVHNode {
                     aabb: aabb,
                     exit: exit as _,
@@ -70,13 +71,13 @@ impl<T: Send + Sync> CSGUnion<T> {
     }
 }
 
-impl<T> Bounded<f32, 3> for CSGUnionNode<T> {
-    fn aabb(&self) -> bvh::aabb::Aabb<f32, 3> {
+impl<V: Send + Sync, C: MC<D>, const D: usize> Bounded<f32, D> for CSGUnionNode<V, C, D> {
+    fn aabb(&self) -> bvh::aabb::Aabb<f32, D> {
         self.get_bounds().into()
     }
 }
 
-impl<T> BHShape<f32, 3> for CSGUnionNode<T> {
+impl<V: Send + Sync, C: MC<D>, const D: usize> BHShape<f32, D> for CSGUnionNode<V, C, D> {
     fn set_bh_node_index(&mut self, i: usize) {
         self.bh_index = i;
     }

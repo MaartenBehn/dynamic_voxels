@@ -5,38 +5,16 @@ use std::fmt::Debug;
 
 use octa_force::glam::{vec4, IVec3, UVec3, Vec2, Vec3, Vec3A, Vec4, Vec4Swizzles};
 
-use crate::util::{aabb2d::AABB2D, aabb3d::AABB, iaabb3d::AABBI};
+use crate::util::{aabb::AABB, aabb2d::AABB2, aabb3d::AABB3, iaabb3d::AABBI, math_config::MC};
 
-pub trait VolumeBounds {
+pub trait VolumeBounds<C: MC<D>, const D: usize> {
     fn calculate_bounds(&mut self);
-    fn get_bounds(&self) -> AABB;
-    fn get_offset(&self) -> Vec3A {
-        Vec3A::from(self.get_bounds().min)
+    fn get_bounds(&self) -> AABB<C, D>;
+    fn get_offset(&self) -> C::Vector {
+        self.get_bounds().min()
     }
-    fn get_size(&self) -> Vec3A {
-        Vec3A::from(self.get_bounds().size())
-    }
-}
-
-pub trait VolumeBounds2D {
-    fn calculate_bounds_2d(&mut self);
-    fn get_bounds(&self) -> AABB2D;
-    fn get_offset(&self) -> Vec2 {
-        self.get_bounds().min
-    }
-    fn get_size(&self) -> Vec2 {
+    fn get_size(&self) -> C::Vector {
         self.get_bounds().size()
-    }
-}
-
-pub trait VolumeBoundsI {
-    fn calculate_bounds_i(&mut self);
-    fn get_bounds_i(&self) -> AABBI;
-    fn get_offset_i(&self) -> IVec3 {
-        self.get_bounds_i().min
-    }
-    fn get_size_i(&self) -> IVec3 {
-        self.get_bounds_i().size()
     }
 }
 
@@ -48,23 +26,18 @@ pub trait VolumeGradient {
     fn get_gradient_at_position(&self, pos: Vec3) -> Vec3;
 }
 
-pub trait VolumeQureyPosValid: VolumeBounds {
-    fn is_position_valid_vec3(&self, pos: Vec3A) -> bool;
+pub trait VolumeQureyPosValid<C: MC<D>, const D: usize>: VolumeBounds<C, D> {
+    fn is_position_valid(&self, pos: C::Vector) -> bool;
      
-    fn get_grid_positions(&self, step: f32) -> impl Iterator<Item = Vec3A> {
+    fn get_grid_positions(&self, step: C::Number) -> impl Iterator<Item = C::Vector> {
         let aabb = self.get_bounds();
         aabb.get_sampled_positions(step).into_iter()
-            .filter(|p| self.is_position_valid_vec3(*p))
+            .filter(|p| self.is_position_valid(*p))
     }
 }
 
-pub trait VolumeQureyPosValue: VolumeBounds {
-    fn get_value(&self, pos: Vec3A) -> u8;
-}
-
-pub trait VolumeQureyPosValueI: VolumeBoundsI {
-    fn get_value_i(&self, pos: IVec3) -> u8;
-    fn get_value_relative_u(&self, pos: UVec3) -> u8;
+pub trait VolumeQureyPosValue<C: MC<D>, const D: usize>: VolumeBounds<C, D> {
+    fn get_value(&self, pos: C::Vector) -> u8;
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -73,12 +46,8 @@ pub enum VolumeQureyAABBResult {
     Mixed,
 }
 
-pub trait VolumeQureyAABB: VolumeQureyPosValue {
-    fn get_aabb_value(&self, aabb: AABB) -> VolumeQureyAABBResult;
-}
-
-pub trait VolumeQureyAABBI: VolumeQureyPosValueI {
-    fn get_aabb_value_i(&self, aabb: AABBI) -> VolumeQureyAABBResult;
+pub trait VolumeQureyAABB<C: MC<D>, const D: usize>: VolumeQureyPosValue<C, D> {
+    fn get_aabb_value(&self, aabb: AABB<C, D>) -> VolumeQureyAABBResult;
 }
 
 impl VolumeQureyAABBResult {
@@ -87,15 +56,5 @@ impl VolumeQureyAABBResult {
             VolumeQureyAABBResult::Full(v) => v,
             VolumeQureyAABBResult::Mixed => unreachable!(),
         }
-    }
-}
-
-pub trait VolumeQureyPosValid2D: VolumeBounds2D + Clone + Default + Debug {
-    fn is_position_valid(&self, pos: Vec2) -> bool;
-     
-    fn get_grid_positions(&self, step: f32) -> impl Iterator<Item = Vec2> {
-        let aabb = self.get_bounds();
-        aabb.get_sampled_positions(step).into_iter()
-            .filter(|p| self.is_position_valid(*p))
     }
 }

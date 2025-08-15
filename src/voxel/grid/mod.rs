@@ -1,4 +1,4 @@
-mod from_csg_tree;
+//mod from_csg_tree;
 mod impl_volume;
 pub mod offset;
 pub mod shared;
@@ -7,7 +7,7 @@ use std::{fmt, usize};
 
 use octa_force::glam::{uvec3, vec3, UVec3, Vec3, Vec3A};
 
-use crate::{util::math::to_1d, volume::VolumeBoundsI};
+use crate::{util::math::to_1d};
 
 use super::palette::palette::MATERIAL_ID_NONE;
 

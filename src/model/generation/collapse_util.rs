@@ -2,8 +2,6 @@ use octa_force::{anyhow::{anyhow, bail, ensure, Context}, glam::{Vec3, Vec3A}, O
 use slotmap::{Key, SlotMap};
 use octa_force::log::info;
 
-use crate::volume::{VolumeQureyPosValid, VolumeQureyPosValid2D};
-
 use super::{collapse::{CollapseChildKey, CollapseNode, CollapseNodeKey, Collapser, NodeDataType}, number_range::NumberRange, pos_set::PositionSet, template::{TemplateNode, TemplateTree}, traits::ModelGenerationTypes};
 
 

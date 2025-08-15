@@ -1,0 +1,263 @@
+use std::{fmt::Debug, ops::{Add, Div, Index, Mul, Neg, Sub}, process::Output};
+
+use octa_force::glam::{vec2, IVec2, IVec3, UVec3, Vec2, Vec3, Vec3A, Vec4, Vec4Swizzles};
+
+use super::number::Nu;
+
+pub trait Ve<T: Nu, const D: usize>: 
+    Sized    
+    + Copy
+    + Debug
+    + Default
+    + Send
+    + Sync
+    + Sub<Output = Self> 
+    + Sub<T, Output = Self> 
+    + Add<Output = Self> 
+    + Add<T, Output = Self> 
+    + Mul<Output = Self>
+    + Mul<T, Output = Self>
+    + Div<Output = Self>
+    + Div<T, Output = Self>
+    + Neg<Output = Self>
+    + Index<usize, Output = T>
+{
+    const ZERO: Self;
+    const ONE: Self;
+    const MIN: Self;
+    const MAX: Self;
+
+    fn new(v: [T; D]) -> Self;
+    fn from_iter<I: Iterator<Item = T>>(iter: I) -> Self;
+    fn length_squared(self) -> T;
+    fn element_sum(self) -> T;
+    fn min(self, other: Self) -> Self;
+    fn max(self, other: Self) -> Self;
+    fn lt(self, other: Self) -> Self;
+    fn gt(self, other: Self) -> Self;
+
+    fn cmplt_any(self, other: Self) -> bool;
+    fn cmpgt_any(self, other: Self) -> bool;
+    fn cmple_any(self, other: Self) -> bool;
+    fn cmpge_any(self, other: Self) -> bool;
+    fn cmpeq_any(self, other: Self) -> bool;
+    fn cmpne_any(self, other: Self) -> bool;
+    fn cmplt_all(self, other: Self) -> bool;
+    fn cmpgt_all(self, other: Self) -> bool;
+    fn cmple_all(self, other: Self) -> bool;
+    fn cmpge_all(self, other: Self) -> bool;
+    fn cmpeq_all(self, other: Self) -> bool;
+    fn cmpne_all(self, other: Self) -> bool;
+
+
+    fn to_vec3a(self) -> Vec3A;
+    fn to_vec3(self) -> Vec3;
+    fn to_vec2(self) -> Vec2;
+    fn to_ivec3(self) -> IVec3;
+    fn to_ivec2(self) -> IVec2;
+    fn to_uvec3(self) -> UVec3;
+    
+    fn from_vec4h(v: Vec4) -> Self;
+    fn from_vec3a(v: Vec3A) -> Self;
+    fn from_vec2(v: Vec2) -> Self;
+    fn from_ivec3(v: IVec3) -> Self;
+    fn from_ivec2(v: IVec2) -> Self;
+    fn from_uvec3(v: UVec3) -> Self;
+}
+
+impl Ve<f32, 2> for Vec2 {
+    const ZERO: Self = Vec2::ZERO;
+    const ONE: Self = Vec2::ONE;
+    const MIN: Self = Vec2::MIN;
+    const MAX: Self = Vec2::MAX;
+
+    fn new(v: [f32; 2]) -> Self { Vec2::from_array(v) }
+    fn from_iter<I: Iterator<Item = f32>>(mut iter: I) -> Self {
+        let mut v = Vec2::ZERO;
+        v.x = iter.next().unwrap();
+        v.y = iter.next().unwrap();
+        v
+    }
+    fn length_squared(self) -> f32 { Vec2::length_squared(self) }
+    fn element_sum(self) -> f32 { Vec2::element_sum(self) }
+    fn min(self, other: Self) -> Self { Vec2::min(self, other) }
+    fn max(self, other: Self) -> Self { Vec2::max(self, other) }
+    fn lt(self, other: Self) -> Self { Vec2::from(Vec2::cmplt(self, other)) }
+    fn gt(self, other: Self) -> Self { Vec2::from(Vec2::cmpgt(self, other)) }
+    
+    fn cmplt_any(self, other: Self) -> bool { self.cmplt(other).any() }
+    fn cmpgt_any(self, other: Self) -> bool { self.cmpgt(other).any() }
+    fn cmple_any(self, other: Self) -> bool { self.cmple(other).any() }
+    fn cmpge_any(self, other: Self) -> bool { self.cmpge(other).any() }
+    fn cmpeq_any(self, other: Self) -> bool { self.cmpeq(other).any() }
+    fn cmpne_any(self, other: Self) -> bool { self.cmpne(other).any() }
+    fn cmplt_all(self, other: Self) -> bool { self.cmplt(other).all() }
+    fn cmpgt_all(self, other: Self) -> bool { self.cmpgt(other).all() }
+    fn cmple_all(self, other: Self) -> bool { self.cmple(other).all() }
+    fn cmpge_all(self, other: Self) -> bool { self.cmpge(other).all() }
+    fn cmpeq_all(self, other: Self) -> bool { self.cmpeq(other).all() }
+    fn cmpne_all(self, other: Self) -> bool { self.cmpne(other).all() }
+
+    fn to_vec3a(self) -> Vec3A { unreachable!() }
+    fn to_vec3(self) -> Vec3 { unreachable!() }
+    fn to_vec2(self) -> Vec2 { self }
+    fn to_ivec3(self) -> IVec3 { unreachable!() }
+    fn to_ivec2(self) -> IVec2 { self.as_ivec2() }
+    fn to_uvec3(self) -> UVec3 { unreachable!() }
+
+    fn from_vec4h(v: Vec4) -> Self { unreachable!() }
+    fn from_vec3a(v: Vec3A) -> Self { unreachable!() }
+    fn from_vec2(v:  Vec2) -> Self { v }
+    fn from_ivec3(v: IVec3) -> Self { unreachable!() }
+    fn from_ivec2(v: IVec2) -> Self { v.as_vec2() }
+    fn from_uvec3(v: UVec3) -> Self { unreachable!() }
+}
+
+impl Ve<f32, 3> for Vec3 { 
+    const ZERO: Self = Vec3::ZERO;
+    const ONE: Self = Vec3::ONE;
+    const MIN: Self = Vec3::MIN;
+    const MAX: Self = Vec3::MAX;
+
+    fn new(v: [f32; 3]) -> Self { Vec3::from_array(v) }
+    fn from_iter<I: Iterator<Item = f32>>(mut iter: I) -> Self {
+        let mut v = Vec3::ZERO;
+        v.x = iter.next().unwrap();
+        v.y = iter.next().unwrap();
+        v.z = iter.next().unwrap();
+        v
+    }
+    fn length_squared(self) -> f32 { Vec3::length_squared(self) }
+    fn element_sum(self) -> f32 { Vec3::element_sum(self) }
+    fn min(self, other: Self) -> Self { Vec3::min(self, other) }
+    fn max(self, other: Self) -> Self { Vec3::max(self, other) }
+    fn lt(self, other: Self) -> Self { Vec3::from(Vec3::cmplt(self, other)) }
+    fn gt(self, other: Self) -> Self { Vec3::from(Vec3::cmpgt(self, other)) }
+
+    fn cmplt_any(self, other: Self) -> bool { self.cmplt(other).any() }
+    fn cmpgt_any(self, other: Self) -> bool { self.cmpgt(other).any() }
+    fn cmple_any(self, other: Self) -> bool { self.cmple(other).any() }
+    fn cmpge_any(self, other: Self) -> bool { self.cmpge(other).any() }
+    fn cmpeq_any(self, other: Self) -> bool { self.cmpeq(other).any() }
+    fn cmpne_any(self, other: Self) -> bool { self.cmpne(other).any() }
+    fn cmplt_all(self, other: Self) -> bool { self.cmplt(other).all() }
+    fn cmpgt_all(self, other: Self) -> bool { self.cmpgt(other).all() }
+    fn cmple_all(self, other: Self) -> bool { self.cmple(other).all() }
+    fn cmpge_all(self, other: Self) -> bool { self.cmpge(other).all() }
+    fn cmpeq_all(self, other: Self) -> bool { self.cmpeq(other).all() }
+    fn cmpne_all(self, other: Self) -> bool { self.cmpne(other).all() }
+
+    fn to_vec3a(self) -> Vec3A { Vec3A::from(self) }
+    fn to_vec3(self) -> Vec3 { self }
+    fn to_vec2(self) -> Vec2 { unreachable!() }
+    fn to_ivec3(self) -> IVec3 { self.as_ivec3() }
+    fn to_ivec2(self) -> IVec2 { unreachable!() }
+    fn to_uvec3(self) -> UVec3 { self.as_uvec3() }
+
+    fn from_vec4h(v: Vec4) -> Self { v.xyz() }
+    fn from_vec3a(v: Vec3A) -> Self { Vec3::from(v) }
+    fn from_vec2(v:  Vec2) -> Self { unreachable!() }
+    fn from_ivec3(v: IVec3) -> Self { v.as_vec3() }
+    fn from_ivec2(v: IVec2) -> Self { unreachable!() }
+    fn from_uvec3(v: UVec3) -> Self { v.as_vec3() }
+}
+
+impl Ve<f32, 3> for Vec3A { 
+    const ZERO: Self = Vec3A::ZERO;
+    const ONE: Self = Vec3A::ONE;
+    const MIN: Self = Vec3A::MIN;
+    const MAX: Self = Vec3A::MAX;
+
+    fn new(v: [f32; 3]) -> Self { Vec3A::from_array(v) }
+    fn from_iter<I: Iterator<Item = f32>>(mut iter: I) -> Self {
+        let mut v = Vec3A::ZERO;
+        v.x = iter.next().unwrap();
+        v.y = iter.next().unwrap();
+        v.z = iter.next().unwrap();
+        v
+    }
+    fn length_squared(self) -> f32 { Vec3A::length_squared(self) }
+    fn element_sum(self) -> f32 { Vec3A::element_sum(self) }
+    fn min(self, other: Self) -> Self { Vec3A::min(self, other) }
+    fn max(self, other: Self) -> Self { Vec3A::max(self, other) }
+    fn lt(self, other: Self) -> Self { Vec3A::from(Vec3A::cmplt(self, other)) }
+    fn gt(self, other: Self) -> Self { Vec3A::from(Vec3A::cmpgt(self, other)) }
+
+    fn cmplt_any(self, other: Self) -> bool { self.cmplt(other).any() }
+    fn cmpgt_any(self, other: Self) -> bool { self.cmpgt(other).any() }
+    fn cmple_any(self, other: Self) -> bool { self.cmple(other).any() }
+    fn cmpge_any(self, other: Self) -> bool { self.cmpge(other).any() }
+    fn cmpeq_any(self, other: Self) -> bool { self.cmpeq(other).any() }
+    fn cmpne_any(self, other: Self) -> bool { self.cmpne(other).any() }
+    fn cmplt_all(self, other: Self) -> bool { self.cmplt(other).all() }
+    fn cmpgt_all(self, other: Self) -> bool { self.cmpgt(other).all() }
+    fn cmple_all(self, other: Self) -> bool { self.cmple(other).all() }
+    fn cmpge_all(self, other: Self) -> bool { self.cmpge(other).all() }
+    fn cmpeq_all(self, other: Self) -> bool { self.cmpeq(other).all() }
+    fn cmpne_all(self, other: Self) -> bool { self.cmpne(other).all() }
+
+    fn to_vec3a(self) -> Vec3A { self }
+    fn to_vec3(self) -> Vec3 { Vec3::from(self) }
+    fn to_vec2(self) -> Vec2 { unreachable!() }
+    fn to_ivec3(self) -> IVec3 { self.as_ivec3() }
+    fn to_ivec2(self) -> IVec2 { unreachable!() }
+    fn to_uvec3(self) -> UVec3 { self.as_uvec3() }
+
+    fn from_vec4h(v: Vec4) -> Self { Vec3A::from(v) }
+    fn from_vec3a(v: Vec3A) -> Self { v }
+    fn from_vec2(v:  Vec2) -> Self { unreachable!() }
+    fn from_ivec3(v: IVec3) -> Self { v.as_vec3a() }
+    fn from_ivec2(v: IVec2) -> Self { unreachable!() }
+    fn from_uvec3(v: UVec3) -> Self { v.as_vec3a() }
+}
+
+impl Ve<i32, 3> for IVec3 { 
+    const ZERO: Self = IVec3::ZERO;
+    const ONE: Self = IVec3::ONE;
+    const MIN: Self = IVec3::MIN;
+    const MAX: Self = IVec3::MAX;
+
+    fn new(v: [i32; 3]) -> Self { IVec3::from_array(v) }
+    fn from_iter<I: Iterator<Item = i32>>(mut iter: I) -> Self {
+        let mut v = IVec3::ZERO;
+        v.x = iter.next().unwrap();
+        v.y = iter.next().unwrap();
+        v.z = iter.next().unwrap();
+        v
+    }
+    fn length_squared(self) -> i32 { IVec3::length_squared(self) }
+    fn element_sum(self) -> i32 { IVec3::element_sum(self) }
+    fn min(self, other: Self) -> Self { IVec3::min(self, other) }
+    fn max(self, other: Self) -> Self { IVec3::max(self, other) }
+
+    fn lt(self, other: Self) -> Self { IVec3::from(IVec3::cmplt(self, other)) }
+    fn gt(self, other: Self) -> Self { IVec3::from(IVec3::cmpgt(self, other)) }
+
+    fn cmplt_any(self, other: Self) -> bool { self.cmplt(other).any() }
+    fn cmpgt_any(self, other: Self) -> bool { self.cmpgt(other).any() }
+    fn cmple_any(self, other: Self) -> bool { self.cmple(other).any() }
+    fn cmpge_any(self, other: Self) -> bool { self.cmpge(other).any() }
+    fn cmpeq_any(self, other: Self) -> bool { self.cmpeq(other).any() }
+    fn cmpne_any(self, other: Self) -> bool { self.cmpne(other).any() }
+    fn cmplt_all(self, other: Self) -> bool { self.cmplt(other).all() }
+    fn cmpgt_all(self, other: Self) -> bool { self.cmpgt(other).all() }
+    fn cmple_all(self, other: Self) -> bool { self.cmple(other).all() }
+    fn cmpge_all(self, other: Self) -> bool { self.cmpge(other).all() }
+    fn cmpeq_all(self, other: Self) -> bool { self.cmpeq(other).all() }
+    fn cmpne_all(self, other: Self) -> bool { self.cmpne(other).all() }
+
+    fn to_vec3a(self) -> Vec3A { self.as_vec3a() }
+    fn to_vec3(self) -> Vec3 { self.as_vec3() }
+    fn to_vec2(self) -> Vec2 { unreachable!() }
+    fn to_ivec3(self) -> IVec3 { self }
+    fn to_ivec2(self) -> IVec2 { unreachable!() }
+    fn to_uvec3(self) -> UVec3 { self.as_uvec3() }
+    
+    fn from_vec4h(v: Vec4) -> Self { v.xyz().as_ivec3() }
+    fn from_vec3a(v: Vec3A) -> Self { v.as_ivec3() }
+    fn from_vec2(v:  Vec2) -> Self { unreachable!() }
+    fn from_ivec3(v: IVec3) -> Self { v }
+    fn from_ivec2(v: IVec2) -> Self { unreachable!() }
+    fn from_uvec3(v: UVec3) -> Self { v.as_ivec3() }
+}
+

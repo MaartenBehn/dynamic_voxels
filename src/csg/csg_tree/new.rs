@@ -1,7 +1,7 @@
 use octa_force::glam::{vec3, Mat4, Quat, Vec3};
 use slotmap::Key;
 
-use crate::{csg::{sphere::CSGSphere, Base}, util::aabb3d::AABB, voxel::grid::shared::SharedVoxelGrid};
+use crate::{csg::{sphere::CSGSphere, Base}, util::aabb3d::AABB3, voxel::grid::shared::SharedVoxelGrid};
 
 use super::tree::{CSGNode, CSGNodeData, CSGTree, CSGTreeKey};
 

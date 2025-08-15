@@ -1,6 +1,6 @@
 use octa_force::glam::IVec3;
 
-use super::aabb3d::AABB;
+use super::aabb3d::AABB3;
 
 #[derive(Copy, Clone, Debug)]
 pub struct AABBI {
@@ -47,9 +47,9 @@ impl AABBI {
     }
 }
 
-impl Into<AABB> for AABBI {
-    fn into(self) -> AABB {
-        AABB::new(self.min.as_vec3(), self.max.as_vec3())
+impl Into<AABB3> for AABBI {
+    fn into(self) -> AABB3 {
+        AABB3::new(self.min.as_vec3(), self.max.as_vec3())
     }
 }
 

@@ -3,8 +3,6 @@ use std::{collections::VecDeque, usize};
 
 use smallvec::SmallVec;
 
-use crate::volume::{VolumeQureyPosValid, VolumeQureyPosValid2D};
-
 use super::{builder::{BuilderNode, ModelSynthesisBuilder, NodeBuilder}, template::{TemplateIndex, TemplateNode, TemplateTree}, traits::ModelGenerationTypes};
 
 

@@ -1,6 +1,6 @@
 use octa_force::OctaResult;
 
-use crate::{model::worker::ModelChangeSender, scene::worker::SceneWorkerSend, volume::{remove_trait::VolumeRemove, VolumeQureyPosValid, VolumeQureyPosValid2D}, voxel::palette::shared::SharedPalette};
+use crate::{model::worker::ModelChangeSender, scene::worker::SceneWorkerSend, util::math_config::{Float2D, Float3D}, volume::{remove_trait::VolumeRemove, VolumeQureyPosValid}, voxel::palette::shared::SharedPalette};
 use std::fmt::Debug;
 
 pub trait IT: Debug + Copy + Eq + Default + Sync + Send {}
@@ -9,8 +9,8 @@ pub trait BU: Debug + Clone + Default + Sync + Send {}
 pub trait ModelGenerationTypes: Debug + Clone + Default + Sync + Send  {
     type Identifier: IT; 
     type UndoData: BU;
-    type Volume: VolumeQureyPosValid + VolumeRemove + Debug + Clone + Sync + Send ;
-    type Volume2D: VolumeQureyPosValid2D + VolumeRemove + Debug + Clone + Sync + Send ;
+    type Volume: VolumeQureyPosValid<Float3D, 3> + Debug + Clone + Sync + Send ;
+    type Volume2D: VolumeQureyPosValid<Float2D, 2> + Debug + Clone + Sync + Send ;
 }
 
 pub trait Model: Sized + Sync + Send {
