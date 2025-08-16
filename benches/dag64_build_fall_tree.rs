@@ -9,8 +9,15 @@ fn build_from_pos_query<V: Ve<i32, 3>, M: VolumeQureyPosValue<V, i32, 3>>(model:
     dag
 }
 
+fn build_from_pos_query_par<V: Ve<i32, 3>, M: VolumeQureyPosValue<V, i32, 3> + Sync + Send>(model: &M) -> VoxelDAG64 {
+    let dag = VoxelDAG64::new(1000000, 1000000);
+    let mut dag = dag.parallel();
+    dag.add_pos_query_volume(model).unwrap();
+    dag.single()
+}
+
 fn pos_query(c: &mut Criterion) {
-    let mut group = c.benchmark_group("Sample 10");
+    let mut group = c.benchmark_group("Fall Tree");
     group.sample_size(10);
 
     let mut palette = LocalPalette::new();
@@ -18,10 +25,17 @@ fn pos_query(c: &mut Criterion) {
     let tree_grid: SharedVoxelGrid = tree_model.into_grid(&mut palette).unwrap().into();
 
     group.bench_with_input(
-        BenchmarkId::new("build dag 64 from grid pos query", "Fall_Tree"), 
+        BenchmarkId::new("dag 64 from grid", "Fall_Tree pos"), 
         &tree_grid, 
         |b, tree_grid | 
-        b.iter(|| build_from_pos_query::<IVec3, _>(tree_grid))); 
+        b.iter(|| build_from_pos_query::<IVec3, _>(tree_grid)));
+
+    group.bench_with_input(
+        BenchmarkId::new("dag 64 from grid", "Fall_Tree pos par"), 
+        &tree_grid, 
+        |b, tree_grid | 
+        b.iter(|| build_from_pos_query_par::<IVec3, _>(tree_grid)));
+
 }
 
 criterion_group!(benches, pos_query);

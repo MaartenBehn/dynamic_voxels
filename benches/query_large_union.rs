@@ -18,7 +18,7 @@ fn build_from_pos_query_par<V: Ve<i32, 3>, M: VolumeQureyPosValue<V, i32, 3> + S
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-    let mut group = c.benchmark_group("Sample 10");
+    let mut group = c.benchmark_group("Large Union");
     group.sample_size(10);
 
     //let mut csg = CSGTree::<u8>::new_sphere(Vec3::ZERO, 10.0);
@@ -50,13 +50,13 @@ fn criterion_benchmark(c: &mut Criterion) {
 
 
     group.bench_with_input(
-        BenchmarkId::new("build dag 64 from csg union_i pos query", "100 x sphere 10"), 
+        BenchmarkId::new("dag 64 from union", "100 x sphere 10 pos "), 
         &union, 
         |b, union| 
         b.iter(|| build_from_pos_query(union)));
 
     group.bench_with_input(
-        BenchmarkId::new("parallel build dag 64 from csg union_ pos query", "100 x sphere 10"), 
+        BenchmarkId::new("dag 64 from union", "100 x sphere 10 pos par"), 
         &union, 
         |b, union| 
         b.iter(|| build_from_pos_query_par(union))); 

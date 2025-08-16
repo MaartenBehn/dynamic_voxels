@@ -21,19 +21,11 @@ path = "src/reload.rs"
 crate-type = ["rlib", "dylib"]
 
 [[bench]]
-name = "static_tree64_build"
-harness = false
-
-[[bench]]
 name = "dag64_build"
 harness = false
 
 [[bench]]
 name = "dag64_build_fall_tree"
-harness = false
-
-[[bench]]
-name = "dag64_build_fall_tree_par"
 harness = false
 
 [[bench]]

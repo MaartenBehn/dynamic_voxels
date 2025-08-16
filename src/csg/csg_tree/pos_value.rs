@@ -5,7 +5,7 @@ use super::{remove::CSGTreeRemove, tree::{CSGTreeNodeData, CSGTree, CSGTreeIndex
 
 impl<C: MC<D>, const D: usize> VolumeQureyPosValue<C::Vector, C::Number, D> for CSGTree<u8, C, D> { 
     fn get_value(&self, pos: C::Vector) -> u8 {
-        todo!()
+        self.get_value_index(self.root, pos)
     }
 }
 
