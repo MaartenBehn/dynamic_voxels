@@ -121,8 +121,7 @@ fn criterion_benchmark(c: &mut Criterion) {
  
 
 
-    let mut csg = CSGTree::<u8, Int3D, 3>::default();
-    csg.add_sphere(Vec3A::ZERO, 100.0);
+    let mut csg = CSGTree::<u8, Int3D, 3>::new_sphere(Vec3A::ZERO, 100.0);
 
     group.bench_with_input(
         BenchmarkId::new("dag 64 from csg", "pos int"), 
@@ -149,8 +148,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         b.iter(|| build_from_aabb_query_par(csg)));
 
 
-    let mut csg = CSGTree::<u8, Float3D, 3>::default();
-    csg.add_sphere(Vec3A::ZERO, 100.0);
+    let mut csg = CSGTree::<u8, Float3D, 3>::new_sphere(Vec3A::ZERO, 100.0);
 
     group.bench_with_input(
         BenchmarkId::new("dag 64 from csg", "pos float"), 

@@ -7,3 +7,12 @@ pub struct CSGTreeRemove {
     pub base: CSGTreeIndex,
     pub remove: CSGTreeIndex,
 }
+
+impl CSGTreeRemove {
+    pub fn new(base: CSGTreeIndex, remove: CSGTreeIndex) -> Self {
+        Self {
+            base,
+            remove,
+        }
+    }
+}

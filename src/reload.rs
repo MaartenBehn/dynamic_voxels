@@ -10,6 +10,7 @@ pub mod util;
 pub mod volume;
 pub mod voxel;
 
+use csg::union::tree::CSGUnion;
 use model::debug_gui::collapser::CollapserDebugGui;
 use model::debug_gui::template::TemplateDebugGui;
 use model::examples::islands::{self, IslandGenerationTypes, IslandUpdateData, Islands};
@@ -23,7 +24,7 @@ use scene::{Scene, SceneObjectData, SceneObjectKey, SceneObjectType};
 use slotmap::Key;
 use octa_force::camera::Camera;
 use octa_force::egui_winit::winit::event::WindowEvent;
-use octa_force::glam::{vec3, DVec3, EulerRot, Mat4, Quat, UVec3, Vec3};
+use octa_force::glam::{vec3, DVec3, EulerRot, Mat4, Quat, UVec3, Vec3, Vec3A};
 use octa_force::gui::Gui;
 use octa_force::log::{debug, error, info, trace, Log};
 use octa_force::logger::setup_logger;
@@ -31,6 +32,7 @@ use octa_force::puffin_egui::puffin;
 use octa_force::vulkan::ash::vk::AttachmentLoadOp;
 use octa_force::vulkan::{Context, Fence};
 use octa_force::{log, OctaResult};
+use util::math_config::Int3D;
 use util::profiler::ShaderProfiler;
 use util::state_saver::StateSaver;
 use volume::{VolumeBounds};
@@ -148,9 +150,9 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
             palette.clone(),
         )?;
 
-        let mut u = CSGUnionI::<u8>::new();
-        u.add_sphere(Vec3::ZERO, 100.0);
-        u.calculate_bounds_i();
+        let mut u = CSGUnion::<u8, Int3D, 3>::new();
+        u.add_sphere(Vec3A::ZERO, 100.0);
+        u.calculate_bounds();
 
         let now = Instant::now();
 

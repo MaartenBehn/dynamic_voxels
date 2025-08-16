@@ -1,5 +1,6 @@
 pub mod tree;
 pub mod new;
+pub mod add;
 pub mod union;
 pub mod remove;
 pub mod aabb;

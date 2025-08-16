@@ -10,6 +10,11 @@ use super::{tree::{CSGTreeNode, CSGTreeNodeData, CSGTree, CSGTreeIndex}, union::
 
 impl<V: Send + Sync, C: MC<D>, const D: usize> VolumeBounds<C::Vector, C::Number, D> for CSGTree<V, C, D> {
     fn calculate_bounds(&mut self) {
+        if !self.changed {
+            return;
+        }
+        self.changed = false;
+
         self.calculate_bounds_index(self.root);
     }
 
@@ -24,10 +29,15 @@ impl<V: Send + Sync, C: MC<D>, const D: usize> CSGTree<V, C, D> {
 
         match &mut node.data {
             CSGTreeNodeData::Union(d) => {
-                        let mut union = mem::take(d);
-                        self.calculate_bounds_union(&mut union);
-                        self.nodes[index].data = CSGTreeNodeData::Union(union);
-                    },
+                if !d.changed {
+                    return;
+                }
+                d.changed = false;
+
+                let mut union = mem::take(d);
+                self.calculate_bounds_union(&mut union);
+                self.nodes[index].data = CSGTreeNodeData::Union(union);
+            },
             CSGTreeNodeData::Remove(csgtree_remove) => {
                 let base = csgtree_remove.base;
                 self.calculate_bounds_index(base);
@@ -36,9 +46,9 @@ impl<V: Send + Sync, C: MC<D>, const D: usize> CSGTree<V, C, D> {
             CSGTreeNodeData::Box(d) => d.calculate_bounds(),
             CSGTreeNodeData::Sphere(d) => d.calculate_bounds(),
             CSGTreeNodeData::OffsetVoxelGrid(d) => 
-                        <OffsetVoxelGrid as VolumeBounds<C::Vector, C::Number, D>>::calculate_bounds(d),
+            <OffsetVoxelGrid as VolumeBounds<C::Vector, C::Number, D>>::calculate_bounds(d),
             CSGTreeNodeData::SharedVoxelGrid(d) => 
-                        <SharedVoxelGrid as VolumeBounds<C::Vector, C::Number, D>>::calculate_bounds(d),
+            <SharedVoxelGrid as VolumeBounds<C::Vector, C::Number, D>>::calculate_bounds(d),
         }
     }
 
