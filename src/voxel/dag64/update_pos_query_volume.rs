@@ -1,13 +1,13 @@
 use octa_force::{glam::{vec3a, IVec3, UVec3, Vec3A, Vec4Swizzles}, log::debug, OctaResult};
 use smallvec::{SmallVec, ToSmallVec};
 
-use crate::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, util::{aabb::AABB, aabb3d::AABB3, iaabb3d::AABBI, math::get_dag_node_children_xzy_i, math_config::MC, vector::Ve}, volume::VolumeQureyPosValue};
+use crate::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, util::{aabb::AABB, math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::VolumeQureyPosValue};
 
 use super::{node::VoxelDAG64Node, DAG64Entry, DAG64EntryKey, VoxelDAG64};
 
 
 impl VoxelDAG64 {
-    pub fn update_pos_query_volume<C: MC<3>, M: VolumeQureyPosValue<C, 3>>(
+    pub fn update_pos_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3>>(
         &mut self, 
         model: &M,
         based_on_entry: DAG64EntryKey,
@@ -23,10 +23,10 @@ impl VoxelDAG64 {
         Ok(key)
     }
 
-    fn update_pos_recursive<C: MC<3>, M: VolumeQureyPosValue<C, 3>>(
+    fn update_pos_recursive<V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3>>(
         &mut self, 
         model: &M, 
-        aabb: AABB<C, 3>, 
+        aabb: AABB<V, T, 3>, 
         node_level: u8, 
         offset: IVec3, 
         index: u32
@@ -53,7 +53,7 @@ impl VoxelDAG64 {
             .rev() {
             let min = offset + pos * new_scale;
             let max = min + new_scale;
-            let node_aabb = AABB::new(C::Vector::from_ivec3(min), C::Vector::from_ivec3(max));
+            let node_aabb = AABB::new(V::from_ivec3(min), V::from_ivec3(max));
 
             if aabb.collides_aabb(node_aabb) {
 

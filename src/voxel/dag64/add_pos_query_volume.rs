@@ -2,12 +2,12 @@ use octa_force::{glam::{IVec3, UVec3, Vec3A}, log::debug, OctaResult};
 use smallvec::SmallVec;
 
 
-use crate::{multi_data_buffer::{buddy_buffer_allocator::BuddyBufferAllocator, cached_vec::CachedVec}, util::{math::get_dag_node_children_xzy_i, math_config::MC}, volume::VolumeQureyPosValue};
+use crate::{multi_data_buffer::{buddy_buffer_allocator::BuddyBufferAllocator, cached_vec::CachedVec}, util::{math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::VolumeQureyPosValue};
 
 use super::{node::VoxelDAG64Node, util::get_dag_offset_levels, DAG64Entry, DAG64EntryKey, VoxelDAG64};
 
 impl VoxelDAG64 {
-    pub fn add_pos_query_volume<C: MC<3>, M: VolumeQureyPosValue<C, 3>>(&mut self, model: &M) -> OctaResult<DAG64EntryKey> {
+    pub fn add_pos_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3>>(&mut self, model: &M) -> OctaResult<DAG64EntryKey> {
         let (offset, levels) = get_dag_offset_levels(model);
 
         let root = self.add_pos_query_recursive(model, offset, levels)?;
@@ -21,7 +21,7 @@ impl VoxelDAG64 {
         Ok(key)
     }
 
-    pub fn add_pos_query_recursive<C: MC<3>, M: VolumeQureyPosValue<C, 3>>(
+    pub fn add_pos_query_recursive<V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3>>(
         &mut self,
         model: &M,
         offset: IVec3,
@@ -36,7 +36,7 @@ impl VoxelDAG64 {
             // engine
             for (i, pos) in get_dag_node_children_xzy_i().into_iter().enumerate() {
                 let pos = offset + pos;
-                let value = model.get_value(pos);
+                let value = model.get_value(V::from_ivec3(pos));
 
                 if value != 0 {
                     vec.push(value);

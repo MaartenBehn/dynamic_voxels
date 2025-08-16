@@ -1,7 +1,7 @@
 use octa_force::{anyhow::anyhow, glam::{IVec3, Mat3, UVec3, Vec3, Vec3A}, OctaResult};
 use dot_vox::*;
 
-use crate::{util::{aabb::AABB, aabb3d::AABB3, math::to_1d, math_config::{Int3D, MC}}, voxel::{grid::{offset::OffsetVoxelGrid, VoxelGrid}, palette::Palette}};
+use crate::{util::{aabb::{AABB, IAABB3}, math::to_1d, math_config::{Int3D, MC}}, voxel::{grid::{offset::OffsetVoxelGrid, VoxelGrid}, palette::Palette}};
 
 use super::{VolumeBounds, VolumeQureyPosValue};
 
@@ -94,11 +94,11 @@ impl MagicaVoxelModel {
     }
 }
 
-impl VolumeBounds<Int3D, 3> for MagicaVoxelModel {
+impl VolumeBounds<IVec3, i32, 3> for MagicaVoxelModel {
     fn calculate_bounds(&mut self) {}
 
-    fn get_bounds(&self) -> AABB<Int3D, 3> {
-        AABB::new(self.min, (self.max + 1))
+    fn get_bounds(&self) -> IAABB3 {
+        IAABB3::new(self.min, (self.max + 1))
     }
 }
 

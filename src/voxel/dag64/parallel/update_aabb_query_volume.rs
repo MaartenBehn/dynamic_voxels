@@ -2,13 +2,13 @@ use octa_force::{anyhow, glam::{vec3a, IVec3, UVec3, Vec3A, Vec4Swizzles}, log::
 use rayon::prelude::*;
 use smallvec::{SmallVec, ToSmallVec};
 
-use crate::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, new_logic_state, util::{aabb::AABB, aabb3d::AABB3, iaabb3d::AABBI, math::get_dag_node_children_xzy_i, math_config::MC, vector::Ve}, volume::VolumeQureyAABB, voxel::dag64::node::VoxelDAG64Node};
+use crate::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, new_logic_state, util::{aabb::AABB, math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::VolumeQureyAABB, voxel::dag64::node::VoxelDAG64Node};
 
 use super::{DAG64Entry, DAG64EntryKey, ParallelVoxelDAG64, VoxelDAG64};
 
 
 impl ParallelVoxelDAG64 {
-    pub fn update_aabb_query_volume<C: MC<3>, M: VolumeQureyAABB<C, 3> + Send + Sync>(
+    pub fn update_aabb_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3> + Send + Sync>(
         &mut self, 
         model: &M,
         based_on_entry: DAG64EntryKey,
@@ -24,10 +24,10 @@ impl ParallelVoxelDAG64 {
         Ok(key)
     }
 
-    fn update_aabb_recursive_par<C: MC<3>, M: VolumeQureyAABB<C, 3> + Send + Sync>(
+    fn update_aabb_recursive_par<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3> + Send + Sync>(
         &self, 
         model: &M, 
-        aabb: AABB<C, 3>, 
+        aabb: AABB<V, T, 3>, 
         node_level: u8, 
         offset: IVec3, 
         index: u32
@@ -53,9 +53,9 @@ impl ParallelVoxelDAG64 {
             .map(|(i, pos)| {
                 let min = offset + pos * new_scale;
                 let max = min + new_scale;
-                (i, AABB::new(C::Vector::from_ivec3(min), C::Vector::from_ivec3(max)))
+                (i, AABB::new(V::from_ivec3(min), V::from_ivec3(max)))
             })
-            .filter(|(_, node_aabb)| aabb.collides_aabb(node_aabb))
+            .filter(|(_, node_aabb)| aabb.collides_aabb(*node_aabb))
             .map(|(i, node_aabb)| {
                 let index_in_children = node.get_index_in_children_unchecked(i as u32);
                 let new_node = if !node.is_occupied(i as u32) {
@@ -135,10 +135,10 @@ impl ParallelVoxelDAG64 {
         }
     }
 
-    fn update_aabb_recursive<C: MC<3>, M: VolumeQureyAABB<C, 3>>(
+    fn update_aabb_recursive<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>>(
         &self, 
         model: &M, 
-        aabb: AABB<C, 3>, 
+        aabb: AABB<V, T, 3>, 
         node_level: u8, 
         offset: IVec3, 
         index: u32
@@ -165,9 +165,9 @@ impl ParallelVoxelDAG64 {
             .rev() {
             let min = offset + pos * new_scale;
             let max = min + new_scale;
-            let node_aabb = AABB::new(C::Vector::from_ivec3(min), C::Vector::from_ivec3(max));
+            let node_aabb = AABB::new(V::from_ivec3(min), V::from_ivec3(max));
 
-            if aabb.collides_aabb(&node_aabb) {
+            if aabb.collides_aabb(node_aabb) {
 
                 let index_in_children = node.get_index_in_children_unchecked(i as u32);
                 if !node.is_occupied(i as u32) {
@@ -192,7 +192,7 @@ impl ParallelVoxelDAG64 {
                     continue;
                 } 
 
-                let new_child_node = if aabb.contains_aabb(&node_aabb) {
+                let new_child_node = if aabb.contains_aabb(node_aabb) {
                     self.add_aabb_query_recursive(
                         model, 
                         min,

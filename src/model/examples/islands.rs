@@ -5,7 +5,7 @@ use octa_force::{anyhow::bail, camera::Camera, glam::{vec3, vec3a, EulerRot, Mat
 use parking_lot::Mutex;
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{csg::{sphere::CSGSphere, union::tree::CSGUnion}, model::{generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder}, collapse::{CollapseOperation, Collapser}, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree, traits::{Model, ModelGenerationTypes, BU, IT}}, worker::ModelChangeSender}, scene::{dag64::{SceneAddDAGObject, SceneDAGObject}, dag_store::SceneDAGKey, renderer::SceneRenderer, worker::SceneWorkerSend, Scene, SceneObjectData, SceneObjectKey}, util::{aabb3d::AABB3, math_config::{Float2D, Float3D, Int3D}}, volume::{magica_voxel::MagicaVoxelModel, VolumeBounds, VolumeQureyPosValid}, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, grid::{shared::SharedVoxelGrid, VoxelGrid}, palette::shared::SharedPalette}, METERS_PER_SHADER_UNIT};
+use crate::{csg::{sphere::CSGSphere, union::tree::CSGUnion}, model::{generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder}, collapse::{CollapseOperation, Collapser}, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree, traits::{Model, ModelGenerationTypes, BU, IT}}, worker::ModelChangeSender}, scene::{dag64::{SceneAddDAGObject, SceneDAGObject}, dag_store::SceneDAGKey, renderer::SceneRenderer, worker::SceneWorkerSend, Scene, SceneObjectData, SceneObjectKey}, util::{math_config::{Float2D, Float3D, Int3D}}, volume::{magica_voxel::MagicaVoxelModel, VolumeBounds, VolumeQureyPosValid}, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, grid::{shared::SharedVoxelGrid, VoxelGrid}, palette::shared::SharedPalette}, METERS_PER_SHADER_UNIT};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Identifier {
@@ -79,7 +79,7 @@ impl Model for Islands {
         let tree_model = MagicaVoxelModel::new("./assets/Tree1small.vox")?;
         let tree_grid: SharedVoxelGrid = tree_model.into_grid(palette)?.into();
          
-        let island_volume = CSGUnion::default();
+    let island_volume = CSGSphere::default();
 
         let mut wfc_builder = ModelSynthesisBuilder::new()
             .position_set(Identifier::IslandPositions, |b| {b
@@ -212,7 +212,7 @@ impl Model for Islands {
                             info!("Island Pos: {pos}");
 
                             let mut u = CSGUnion::new();
-                            u.add_disk(Vec3::ZERO, 300.0, 10.0);
+                            u.add_disk(Vec3A::ZERO, 300.0, 10.0);
 
                             collapser.set_undo_data(index, UndoData::Island(Island {
                                 union: u,
@@ -234,7 +234,7 @@ impl Model for Islands {
                             let UndoData::Island(island) = collapser.get_dependend_undo_data_mut(index, Identifier::Island)?
                             else { unreachable!() };
 
-                            island.union.add_sphere(Vec3::from(pos), 10.0);
+                            island.union.add_sphere(pos, 10.0);
 
                             info!("River Pos: {pos}");
                         }

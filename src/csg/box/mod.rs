@@ -1,6 +1,6 @@
 use octa_force::glam::{vec3, IVec3, Mat4, Quat, UVec3, Vec3, Vec3A, Vec4};
 
-use crate::{util::{aabb::AABB, aabb3d::AABB3, iaabb3d::AABBI, math_config::{Float, MC}, matrix::Ma, vector::Ve, number::Nu}, volume::{VolumeBounds, VolumeQureyAABB, VolumeQureyAABBResult, VolumeQureyPosValid, VolumeQureyPosValue}, voxel::palette::palette::MATERIAL_ID_NONE};
+use crate::{util::{aabb::{AABB}, math_config::{Float, MC}, matrix::Ma, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyAABB, VolumeQureyAABBResult, VolumeQureyPosValid, VolumeQureyPosValue}, voxel::palette::palette::MATERIAL_ID_NONE};
 
 use super::Base;
 
@@ -19,25 +19,25 @@ impl<V: Base, C: MC<D>, const D: usize> CSGBox<V, C, D> {
     }
 }
 
-impl<V, C: MC<D>, const D: usize> VolumeBounds<C, D> for CSGBox<V, C, D> {
+impl<V, C: MC<D>, const D: usize> VolumeBounds<C::Vector, C::Number, D> for CSGBox<V, C, D> {
     fn calculate_bounds(&mut self) {}
 
-    fn get_bounds(&self) -> AABB<C, D> {
+    fn get_bounds(&self) -> AABB<C::Vector, C::Number, D> {
         let mat = self.mat.inverse();
         AABB::from_box(&mat)
     }
 }
 
-impl<V, C: MC<D>, const D: usize> VolumeQureyPosValid<C, D> for CSGBox<V, C, D> {
+impl<V, C: MC<D>, const D: usize> VolumeQureyPosValid<C::Vector, C::Number, D> for CSGBox<V, C, D> {
     fn is_position_valid(&self, pos: C::Vector) -> bool {
-        let pos = C::to_vector(self.mat.mul_vector(C::to_vector_f(pos)));
-        let aabb = AABB::<Float<D>, D>::new(Float<D>::new([-0.5; D]), Float<D>::VectorF::new([0.5; D]));
+        let pos = self.mat.mul_vector(C::to_vector_f(pos));
+        let aabb = AABB::<C::VectorF, f32, D>::new(C::VectorF::new([-0.5; D]), C::VectorF::new([0.5; D]));
 
         aabb.pos_in_aabb(pos)
     }
 }
 
-impl<C: MC<D>, const D: usize> VolumeQureyPosValue<C, D> for CSGBox<u8, C, D> {
+impl<C: MC<D>, const D: usize> VolumeQureyPosValue<C::Vector, C::Number, D> for CSGBox<u8, C, D> {
     fn get_value(&self, pos: C::Vector) -> u8 {
         if self.is_position_valid(pos) {
             self.v
@@ -47,11 +47,12 @@ impl<C: MC<D>, const D: usize> VolumeQureyPosValue<C, D> for CSGBox<u8, C, D> {
     }
 }
 
-impl<C: MC<D>, const D: usize> VolumeQureyAABB<C, D> for CSGBox<u8, C, D> {
-    fn get_aabb_value(&self, aabb: AABB<C, D>) -> VolumeQureyAABBResult {
+impl<C: MC<D>, const D: usize> VolumeQureyAABB<C::Vector, C::Number, D> for CSGBox<u8, C, D> {
+    fn get_aabb_value(&self, aabb: AABB<C::Vector, C::Number, D>) -> VolumeQureyAABBResult {
         let aabb = aabb.mul_mat(&self.mat);
 
-        let b = AABB::<Float<D>>::new(C::Vector::new([-0.5; D]), C::Vector::new([0.5; D]));
+        let b = AABB::<C::VectorF, f32, D>::new(C::VectorF::new([-0.5; D]), C::VectorF::new([0.5; D]));
+
 
         if aabb.contains_aabb(b) {
             VolumeQureyAABBResult::Full(self.v)

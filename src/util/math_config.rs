@@ -1,12 +1,12 @@
 use std::usize;
 
-use octa_force::glam::{IVec3, Mat3, Mat4, Vec2, Vec3, Vec3A};
+use octa_force::glam::{IVec2, IVec3, Mat3, Mat4, Vec2, Vec3, Vec3A};
 
 use crate::model::generation::traits;
 
-use super::{aabb::AABB, aabb3d::AABB3, matrix::Ma, number::Nu, vector::Ve};
+use super::{aabb::AABB, matrix::Ma, number::Nu, vector::Ve};
 
-pub trait MC<const D: usize> {
+pub trait MC<const D: usize>: Copy {
     type Matrix: Ma<D>;
     type Vector: Ve<Self::Number, D>;
     type VectorF: Ve<f32, D>;
@@ -16,7 +16,7 @@ pub trait MC<const D: usize> {
     fn to_vector_f(v: Self::Vector) -> Self::VectorF;
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Float<const D: usize> {}
 pub type Float3D = Float<3>;
 impl MC<3> for Float<3> {
@@ -40,7 +40,7 @@ impl MC<2> for Float<2> {
     fn to_vector_f(v: Self::Vector) -> Self::VectorF { v }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Int<const D: usize>{}
 pub type Int3D = Int<3>;
 impl MC<3> for Int<3> {
@@ -49,6 +49,17 @@ impl MC<3> for Int<3> {
     type VectorF = Vec3A;
     type Number = i32;
 
-    fn to_vector(v: Self::VectorF) -> Self::Vector { IVec3::from(v) }
-    fn to_vector_f(v: Self::Vector) -> Self::VectorF { Vec3A::from(v) }
+    fn to_vector(v: Self::VectorF) -> Self::Vector { v.as_ivec3() }
+    fn to_vector_f(v: Self::Vector) -> Self::VectorF { v.as_vec3a() }
+}
+
+pub type Int2D = Int<2>;
+impl MC<2> for Int<2> {
+    type Matrix = Mat3;
+    type Vector = IVec2;
+    type VectorF = Vec2;
+    type Number = i32;
+
+    fn to_vector(v: Self::VectorF) -> Self::Vector { v.as_ivec2() }
+    fn to_vector_f(v: Self::Vector) -> Self::VectorF { v.as_vec2() }
 }

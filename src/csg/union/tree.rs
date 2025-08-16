@@ -1,7 +1,7 @@
 use bvh::{bvh::Bvh, flat_bvh::FlatNode};
 use octa_force::glam::Mat4;
 
-use crate::{csg::{r#box::CSGBox, sphere::CSGSphere}, util::{aabb::AABB, aabb3d::AABB3, math_config::MC}, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid}};
+use crate::{csg::{r#box::CSGBox, sphere::CSGSphere}, util::{aabb::AABB, math_config::MC}, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid}};
 
 #[derive(Debug, Clone)]
 pub enum CSGUnionNodeData<V, C: MC<D>, const D: usize> {
@@ -19,7 +19,7 @@ pub struct CSGUnionNode<V, C: MC<D>, const D: usize> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct BVHNode<C: MC<D>, const D: usize> {
-    pub aabb: AABB<C, D>,
+    pub aabb: AABB<C::Vector, C::Number, D>,
     pub exit: usize,
     pub leaf: Option<usize>,
 }

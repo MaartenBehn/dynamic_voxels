@@ -1,14 +1,14 @@
 use itertools::Either;
 use octa_force::{anyhow::{self, anyhow}, glam::{IVec3, Vec3Swizzles}, OctaResult};
 use smallvec::SmallVec;
-use crate::{util::{math::{get_dag_node_children, get_dag_node_children_xzy_i}, math_config::MC, vector::Ve}, volume::VolumeQureyPosValue, voxel::dag64::{node::VoxelDAG64Node, util::get_dag_offset_levels, DAG64Entry, DAG64EntryKey}};
+use crate::{util::{math::{get_dag_node_children, get_dag_node_children_xzy_i}, math_config::MC, number::Nu, vector::Ve}, volume::VolumeQureyPosValue, voxel::dag64::{node::VoxelDAG64Node, util::get_dag_offset_levels, DAG64Entry, DAG64EntryKey}};
 use super::ParallelVoxelDAG64;
 use rayon::iter::{walk_tree_postfix};
 use rayon::prelude::*;
 
 
 impl ParallelVoxelDAG64 {
-    pub fn add_pos_query_volume<C: MC<3>, M: VolumeQureyPosValue<C, 3> + Sync + Send>(&mut self, model: &M) -> OctaResult<DAG64EntryKey> {
+    pub fn add_pos_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3> + Sync + Send>(&mut self, model: &M) -> OctaResult<DAG64EntryKey> {
         let (offset, levels) = get_dag_offset_levels(model);
 
         let root = self.add_pos_query_recursive_par(model, offset, levels)?;
@@ -23,7 +23,7 @@ impl ParallelVoxelDAG64 {
         Ok(key)
     }
 
-    pub fn add_pos_query_recursive_par<C: MC<3>, M: VolumeQureyPosValue<C, 3> + Sync + Send>(
+    pub fn add_pos_query_recursive_par<V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3> + Sync + Send>(
         &self,
         model: &M,
         offset: IVec3,
@@ -73,7 +73,7 @@ impl ParallelVoxelDAG64 {
         }
     }
 
-    pub fn add_pos_query_recursive<C: MC<3>, M: VolumeQureyPosValue<C, 3>>(
+    pub fn add_pos_query_recursive<V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3>>(
         &self,
         model: &M,
         offset: IVec3,
@@ -103,7 +103,7 @@ impl ParallelVoxelDAG64 {
         }
     }
 
-    pub fn add_pos_query_leaf<C: MC<3>, M: VolumeQureyPosValue<C, 3>>(
+    pub fn add_pos_query_leaf<V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3>>(
         &self,
         model: &M,
         offset: IVec3,
@@ -116,7 +116,7 @@ impl ParallelVoxelDAG64 {
         // engine
         for (i, pos) in get_dag_node_children_xzy_i().into_iter().enumerate() {
             let pos = offset + pos;
-            let value = model.get_value(C::Vector::from_ivec3(pos));
+            let value = model.get_value(V::from_ivec3(pos));
 
             if value != 0 {
                 vec.push(value);

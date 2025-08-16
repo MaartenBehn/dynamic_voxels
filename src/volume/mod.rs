@@ -5,15 +5,15 @@ use std::fmt::Debug;
 
 use octa_force::glam::{vec4, IVec3, UVec3, Vec2, Vec3, Vec3A, Vec4, Vec4Swizzles};
 
-use crate::util::{aabb::AABB, aabb2d::AABB2, aabb3d::AABB3, iaabb3d::AABBI, math_config::MC};
+use crate::util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve};
 
-pub trait VolumeBounds<C: MC<D>, const D: usize> {
+pub trait VolumeBounds<V: Ve<T, D>, T: Nu, const D: usize> {
     fn calculate_bounds(&mut self);
-    fn get_bounds(&self) -> AABB<C, D>;
-    fn get_offset(&self) -> C::Vector {
+    fn get_bounds(&self) -> AABB<V, T, D>;
+    fn get_offset(&self) -> V {
         self.get_bounds().min()
     }
-    fn get_size(&self) -> C::Vector {
+    fn get_size(&self) -> V {
         self.get_bounds().size()
     }
 }
@@ -26,18 +26,18 @@ pub trait VolumeGradient {
     fn get_gradient_at_position(&self, pos: Vec3) -> Vec3;
 }
 
-pub trait VolumeQureyPosValid<C: MC<D>, const D: usize>: VolumeBounds<C, D> {
-    fn is_position_valid(&self, pos: C::Vector) -> bool;
+pub trait VolumeQureyPosValid<V: Ve<T, D>, T: Nu, const D: usize>: VolumeBounds<V, T, D> {
+    fn is_position_valid(&self, pos: V) -> bool;
      
-    fn get_grid_positions(&self, step: C::Number) -> impl Iterator<Item = C::Vector> {
+    fn get_grid_positions(&self, step: T) -> impl Iterator<Item = V> {
         let aabb = self.get_bounds();
         aabb.get_sampled_positions(step).into_iter()
             .filter(|p| self.is_position_valid(*p))
     }
 }
 
-pub trait VolumeQureyPosValue<C: MC<D>, const D: usize>: VolumeBounds<C, D> {
-    fn get_value(&self, pos: C::Vector) -> u8;
+pub trait VolumeQureyPosValue<V: Ve<T, D>, T: Nu, const D: usize>: VolumeBounds<V, T, D> {
+    fn get_value(&self, pos: V) -> u8;
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -46,8 +46,8 @@ pub enum VolumeQureyAABBResult {
     Mixed,
 }
 
-pub trait VolumeQureyAABB<C: MC<D>, const D: usize>: VolumeQureyPosValue<C, D> {
-    fn get_aabb_value(&self, aabb: AABB<C, D>) -> VolumeQureyAABBResult;
+pub trait VolumeQureyAABB<V: Ve<T, D>, T: Nu, const D: usize>: VolumeQureyPosValue<V, T, D> {
+    fn get_aabb_value(&self, aabb: AABB<V, T, D>) -> VolumeQureyAABBResult;
 }
 
 impl VolumeQureyAABBResult {

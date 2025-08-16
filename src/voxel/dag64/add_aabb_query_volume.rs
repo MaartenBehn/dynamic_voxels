@@ -2,12 +2,12 @@ use octa_force::{glam::{vec3, vec3a, IVec3, UVec3, Vec3, Vec3A}, log::debug, Oct
 use smallvec::SmallVec;
 
 
-use crate::{multi_data_buffer::{buddy_buffer_allocator::BuddyBufferAllocator, cached_vec::CachedVec}, util::{aabb3d::AABB3, iaabb3d::AABBI, math::get_dag_node_children_xzy_i, math_config::MC}, volume::{VolumeQureyAABB, VolumeQureyAABBResult}};
+use crate::{multi_data_buffer::{buddy_buffer_allocator::BuddyBufferAllocator, cached_vec::CachedVec}, util::{aabb::AABB, math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeQureyAABB, VolumeQureyAABBResult}};
 
 use super::{node::VoxelDAG64Node, util::get_dag_offset_levels, DAG64Entry, DAG64EntryKey, VoxelDAG64};
 
 impl VoxelDAG64 {
-    pub fn add_aabb_query_volume<C: MC<3>, M: VolumeQureyAABB<C, 3>>(&mut self, model: &M) -> OctaResult<DAG64EntryKey> { 
+    pub fn add_aabb_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>>(&mut self, model: &M) -> OctaResult<DAG64EntryKey> { 
         let (offset, levels) = get_dag_offset_levels(model);
         
         let root = self.add_aabb_query_recursive(model, offset, levels)?;
@@ -21,7 +21,7 @@ impl VoxelDAG64 {
         Ok(key)
     }
 
-    pub fn add_aabb_query_recursive<C: MC<3>, M: VolumeQureyAABB<C, 3>>(
+    pub fn add_aabb_query_recursive<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>>(
         &mut self,
         model: &M,
         offset: IVec3,
@@ -31,9 +31,9 @@ impl VoxelDAG64 {
 
         if node_level == 1 {
             let scale = 4_i32.pow(node_level as u32);
-            let aabb = AABBI::new(
-                offset, 
-                offset + scale);
+            let aabb = AABB::new(
+                V::from_ivec3(offset), 
+                V::from_ivec3(offset + scale));
 
             let res = model.get_aabb_value(aabb);
 
@@ -52,7 +52,7 @@ impl VoxelDAG64 {
                     // engine
                     for (i, pos) in get_dag_node_children_xzy_i().into_iter().enumerate() {
                         let pos = offset + pos;
-                        let value = model.get_value_i(pos);
+                        let value = model.get_value(V::from_ivec3(pos));
 
                         if value != 0 {
                             vec.push(value);
@@ -66,9 +66,10 @@ impl VoxelDAG64 {
             }
         } else {
             let scale = 4_i32.pow(node_level as u32);
-            let aabb = AABBI::new(
-                offset, 
-                offset + scale);
+            let aabb = AABB::new(
+                V::from_ivec3(offset), 
+                V::from_ivec3(offset + scale));
+
 
             let res = model.get_aabb_value(aabb); 
 

@@ -4,7 +4,7 @@ use crate::{util::math_config::MC, volume::VolumeQureyPosValid};
 
 use super::tree::{CSGUnion, CSGUnionNodeData};
 
-impl<V: Send + Sync, C: MC<D>, const D: usize> VolumeQureyPosValid<C, D> for CSGUnion<V, C, D> {
+impl<V: Send + Sync, C: MC<D>, const D: usize> VolumeQureyPosValid<C::Vector, C::Number, D> for CSGUnion<V, C, D> {
     fn is_position_valid(&self, pos: C::Vector) -> bool {
         let mut i = 0;
         while i < self.bvh.len() {

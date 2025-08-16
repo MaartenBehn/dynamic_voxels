@@ -1,17 +1,17 @@
 use octa_force::{glam::{UVec3, Vec3A}, OctaResult};
 
-use crate::util::{iaabb3d::AABBI};
+use crate::util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve};
 
 use super::{node::VoxelDAG64Node, DAG64Entry, DAG64EntryKey, VoxelDAG64};
 
 
 impl VoxelDAG64 {
-    pub fn expand_to_include_aabb(&mut self, based_on_entry: DAG64EntryKey, aabb: AABBI) -> OctaResult<DAG64Entry> {
+    pub fn expand_to_include_aabb<V: Ve<T, 3>, T: Nu>(&mut self, based_on_entry: DAG64EntryKey, aabb: AABB<V, T, 3>) -> OctaResult<DAG64Entry> {
         let mut entry_data = self.entry_points[based_on_entry].to_owned(); 
 
         let mut size = 4_i32.pow(entry_data.levels as u32);
-        let mut tree_aabb = AABBI::new(entry_data.offset, entry_data.offset + size);
-
+        let mut tree_aabb = AABB::new(V::from_ivec3(entry_data.offset), V::from_ivec3(entry_data.offset + size));
+        
         let model_center = aabb.center();
 
         // Increase the Tree if the model does not fit.
@@ -22,7 +22,7 @@ impl VoxelDAG64 {
 
             // The + 2 says that the 3rd cell is the center so the old tree will placed in the
             // middle of the new level.
-            let child_pos = ((model_center - tree_aabb.min) / size) + 2;
+            let child_pos = ((model_center - tree_aabb.min()).to_ivec3() / size) + 2;
             let child_index = child_pos.as_uvec3().dot(UVec3::new(1, 4, 16));
 
             let new_root = VoxelDAG64Node::new(false, entry_data.root_index, 1 << child_index as u64);
@@ -31,7 +31,7 @@ impl VoxelDAG64 {
             entry_data.offset = entry_data.offset - child_pos * size; 
             entry_data.levels += 1;
             size = 4_i32.pow(entry_data.levels as u32);
-            tree_aabb = AABBI::new(entry_data.offset, entry_data.offset + size);
+            tree_aabb = AABB::new(V::from_ivec3(entry_data.offset), V::from_ivec3(entry_data.offset + size));
         }
         
         Ok(entry_data)

@@ -1,14 +1,14 @@
 use octa_force::{glam::UVec3, OctaResult};
 
-use crate::{util::{aabb::AABB, iaabb3d::AABBI, math_config::MC, vector::Ve}, voxel::dag64::{node::VoxelDAG64Node, DAG64Entry, DAG64EntryKey}};
+use crate::{util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, voxel::dag64::{node::VoxelDAG64Node, DAG64Entry, DAG64EntryKey}};
 use super::ParallelVoxelDAG64;
 
 impl ParallelVoxelDAG64 {
-    pub fn expand_to_include_aabb<C: MC<3>>(&mut self, based_on_entry: DAG64EntryKey, aabb: AABB<C, 3>) -> OctaResult<DAG64Entry> {
+    pub fn expand_to_include_aabb<V: Ve<T, 3>, T: Nu>(&mut self, based_on_entry: DAG64EntryKey, aabb: AABB<V, T, 3>) -> OctaResult<DAG64Entry> {
         let mut entry_data = self.entry_points.lock()[based_on_entry].to_owned(); 
 
         let mut size = 4_i32.pow(entry_data.levels as u32);
-        let mut tree_aabb = AABB::new(C::Vector::from_ivec3(entry_data.offset), C::Vector::from_ivec3(entry_data.offset + size));
+        let mut tree_aabb = AABB::new(V::from_ivec3(entry_data.offset), V::from_ivec3(entry_data.offset + size));
 
         let model_center = aabb.center();
 
@@ -29,7 +29,7 @@ impl ParallelVoxelDAG64 {
             entry_data.offset = entry_data.offset - child_pos * size; 
             entry_data.levels += 1;
             size = 4_i32.pow(entry_data.levels as u32);
-            tree_aabb = AABB::new(C::Vector::from_ivec3(entry_data.offset), C::Vector::from_ivec3(entry_data.offset + size));
+            tree_aabb = AABB::new(V::from_ivec3(entry_data.offset), V::from_ivec3(entry_data.offset + size));
         }
         
         Ok(entry_data)

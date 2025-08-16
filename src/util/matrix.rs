@@ -19,6 +19,9 @@ pub trait Ma<const D: usize>:
 
     fn inverse(&self) -> Self;
     fn mul_vector<V: Ve<f32, D>>(&self, v: V) -> V;
+
+    fn to_mat3(self) -> Mat3;
+    fn to_mat4(self) -> Mat4;
 }
 
 impl Ma<3> for Mat4 {
@@ -37,6 +40,9 @@ impl Ma<3> for Mat4 {
     fn inverse(&self) -> Self { Mat4::inverse(&self) }
 
     fn mul_vector<V: Ve<f32, 3>>(&self, v: V) -> V { V::from_vec4h(self.mul_vec4(Vec4::from((v.to_vec3a(), 1.0)))) }
+
+    fn to_mat3(self) -> Mat3 { unreachable!() }
+    fn to_mat4(self) -> Mat4 { self }
 }
 
 
@@ -56,5 +62,8 @@ impl Ma<2> for Mat3 {
     fn inverse(&self) -> Self { Mat3::inverse(&self) }
 
     fn mul_vector<V: Ve<f32, 2>>(&self, v: V) -> V { V::from_vec3a(self.mul_vec3a(Vec3A::from((v.to_vec2(), 1.0)))) }
+
+    fn to_mat3(self) -> Mat3 { self }
+    fn to_mat4(self) -> Mat4 { unreachable!() }
 }
 

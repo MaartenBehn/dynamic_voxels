@@ -1,14 +1,14 @@
 use itertools::Either;
 use octa_force::{anyhow::{self, anyhow}, glam::{IVec3, Vec3Swizzles}, OctaResult};
 use smallvec::SmallVec;
-use crate::{util::{aabb::AABB, iaabb3d::AABBI, math::{get_dag_node_children, get_dag_node_children_xzy_i}, math_config::MC, vector::Ve}, volume::{VolumeQureyAABB, VolumeQureyAABBResult}, voxel::dag64::{node::VoxelDAG64Node, util::get_dag_offset_levels, DAG64Entry, DAG64EntryKey}};
+use crate::{util::{aabb::AABB, math::{get_dag_node_children, get_dag_node_children_xzy_i}, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeQureyAABB, VolumeQureyAABBResult}, voxel::dag64::{node::VoxelDAG64Node, util::get_dag_offset_levels, DAG64Entry, DAG64EntryKey}};
 use super::ParallelVoxelDAG64;
 use rayon::iter::{walk_tree_postfix};
 use rayon::prelude::*;
 
 
 impl ParallelVoxelDAG64 {
-    pub fn add_aabb_query_volume<C: MC<3>, M: VolumeQureyAABB<C, 3> + Send + Sync>(&mut self, model: &M) -> OctaResult<DAG64EntryKey> {
+    pub fn add_aabb_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T,3> + Send + Sync>(&mut self, model: &M) -> OctaResult<DAG64EntryKey> {
         let (offset, levels) = get_dag_offset_levels(model);
 
         let root = self.add_aabb_query_recursive_par(model, offset, levels)?;
@@ -23,7 +23,7 @@ impl ParallelVoxelDAG64 {
         Ok(key)
     }
 
-    pub fn add_aabb_query_recursive_par<C: MC<3>, M: VolumeQureyAABB<C, 3> + Send + Sync>(
+    pub fn add_aabb_query_recursive_par<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3> + Send + Sync>(
         &self,
         model: &M,
         offset: IVec3,
@@ -34,8 +34,8 @@ impl ParallelVoxelDAG64 {
         } else {
             let scale = 4_i32.pow(node_level as u32);
             let aabb = AABB::new(
-                C::Vector::from_ivec3(offset), 
-                C::Vector::from_ivec3(offset + scale));
+                V::from_ivec3(offset), 
+                V::from_ivec3(offset + scale));
 
             let res = model.get_aabb_value(aabb); 
 
@@ -91,7 +91,7 @@ impl ParallelVoxelDAG64 {
         }
     }
 
-    pub fn add_aabb_query_recursive<C: MC<3>, M: VolumeQureyAABB<C, 3>>(
+    pub fn add_aabb_query_recursive<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>>(
         &self,
         model: &M,
         offset: IVec3,
@@ -102,8 +102,8 @@ impl ParallelVoxelDAG64 {
         } else {
             let scale = 4_i32.pow(node_level as u32);
             let aabb = AABB::new(
-                C::Vector::from_ivec3(offset), 
-                C::Vector::from_ivec3(offset + scale));
+                V::from_ivec3(offset), 
+                V::from_ivec3(offset + scale));
 
             let res = model.get_aabb_value(aabb); 
 
@@ -139,7 +139,7 @@ impl ParallelVoxelDAG64 {
         }
     }
 
-    pub fn add_aabb_query_leaf<C: MC<3>, M: VolumeQureyAABB<C, 3>>(
+    pub fn add_aabb_query_leaf<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>>(
         &self,
         model: &M,
         offset: IVec3,
@@ -147,8 +147,8 @@ impl ParallelVoxelDAG64 {
     ) -> OctaResult<VoxelDAG64Node> {
         let scale = 4_i32.pow(node_level as u32);
         let aabb = AABB::new(
-                C::Vector::from_ivec3(offset), 
-                C::Vector::from_ivec3(offset + scale));
+                V::from_ivec3(offset), 
+                V::from_ivec3(offset + scale));
 
         let res = model.get_aabb_value(aabb);
 
