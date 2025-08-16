@@ -1,66 +1,103 @@
+use core::fmt;
 use std::{collections::VecDeque, iter};
 
 use octa_force::log::debug;
 
-use super::collapse::{CollapseNodeKey};
+use super::collapse::{CollapseNodeKey, CreateDefinesOperation};
 
 
 #[derive(Debug, Clone)]
-pub struct PendingOperations<T: Eq> {
-    pending_per_level: Vec<VecDeque<T>>,
-    min_with_value: usize,
+pub struct PendingOperations {
+    pub pending_per_level: Vec<(VecDeque<CollapseNodeKey>, VecDeque<CreateDefinesOperation>)>,
+    pub min_with_value: usize,
 }
 
+pub enum PendingOperationsRes {
+    Collapse(CollapseNodeKey),
+    CreateDefined(CreateDefinesOperation),
+    Empty
+}
 
-impl<T: Eq> PendingOperations<T> {
+impl PendingOperations {
     pub fn new(max_level: usize) -> Self {
         Self {
-            pending_per_level: iter::repeat_with(|| {VecDeque::new()}).take(max_level).collect(),
+            pending_per_level: iter::repeat_with(|| {(VecDeque::new(), VecDeque::new())}).take(max_level).collect(),
             min_with_value: max_level -1,
         }
     }
 
-    pub fn push(&mut self, level: usize, value: T) {
-        self.pending_per_level[level - 1].push_back(value);
+    pub fn push_collpase(&mut self, level: usize, value: CollapseNodeKey) {
+        self.pending_per_level[level - 1].0.push_back(value);
         self.min_with_value = self.min_with_value.min(level - 1);
     }
 
-    pub fn pop(&mut self) -> Option<T> {
-        let res = self.pending_per_level[self.min_with_value].pop_front();
-        if res.is_none() {
-            return None;
-        }
-
-        self.find_next_higher_filled_level();
-
-        res
+    pub fn push_create_defined(&mut self, level: usize, value: CreateDefinesOperation) {
+        self.pending_per_level[level - 1].1.push_back(value);
+        self.min_with_value = self.min_with_value.min(level - 1);
     }
 
-    pub fn delete(&mut self, level: usize, value: T) {
-        let to_delete: Vec<_> = self.pending_per_level[level - 1].iter()
-            .enumerate()
-            .filter(|(_, key)| **key == value)
-            .map(|(i, _)| i)
-            .collect();
+    pub fn pop(&mut self) -> PendingOperationsRes {
 
-        if to_delete.is_empty() {
-            return;
+        loop {
+            let res = self.pending_per_level[self.min_with_value].1.pop_front();
+            if let Some(value) = res {
+                return PendingOperationsRes::CreateDefined(value);
+            }
+
+            let res = self.pending_per_level[self.min_with_value].0.pop_front();
+            if let Some(value) = res {
+                return PendingOperationsRes::Collapse(value);
+            }
+
+            if self.min_with_value >= self.pending_per_level.len() -1 {
+                break;
+            }
+
+            self.find_next_higher_filled_level();
         }
+        
+        PendingOperationsRes::Empty
+    }
 
-        for i in to_delete {
-            self.pending_per_level[level - 1].swap_remove_back(i);
+    pub fn delete_collapse(&mut self, level: usize, value: CollapseNodeKey) {
+        let level = &mut self.pending_per_level[level -1].0;
+
+        for i in (0..level.len()).rev() {
+            if level[i] == value {
+                level.swap_remove_back(i);
+            }
         }
+    }
 
-        self.find_next_higher_filled_level();
+    pub fn delete_create_defined(&mut self, parent_index: CollapseNodeKey) {
+        for level in self.pending_per_level.iter_mut()
+            .map(|(_, v)| v) {
+
+            for i in (0..level.len()).rev() {
+                if level[i].get_parent_index() == parent_index {
+                    level.swap_remove_back(i);
+                }
+            }
+        }
     } 
 
     fn find_next_higher_filled_level(&mut self) {
-        for i in self.min_with_value..self.pending_per_level.len() {
-            if !self.pending_per_level[i].is_empty() {
+       self.find_next_filled_level(self.min_with_value); 
+    }
+
+    fn find_next_filled_level(&mut self, start: usize) {
+        for i in 0..self.pending_per_level.len() {
+            if !self.pending_per_level[i].0.is_empty() || !self.pending_per_level[i].1.is_empty() {
                 self.min_with_value = i;
                 return;
             }
         }
         self.min_with_value = self.pending_per_level.len() -1;
+    }
+}
+
+impl Default for PendingOperations {
+    fn default() -> Self {
+        Self { pending_per_level: vec![], min_with_value: 0 }
     }
 }

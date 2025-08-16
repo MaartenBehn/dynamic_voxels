@@ -32,7 +32,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
 
         let node = &self.nodes[node_index]; 
         
-        self.pending_collapses.push(node_template.level, node_index);
+        self.pending.push_collpase(node_template.level, node_index);
     }
 
     pub fn delete_node(&mut self, node_index: CollapseNodeKey, template: &TemplateTree<T>) {
@@ -47,7 +47,8 @@ impl<T: ModelGenerationTypes> Collapser<T> {
 
         let template_node = self.get_template_from_node_ref(&node, template);
 
-        self.pending_collapses.delete(template_node.level, node_index);
+        self.pending.delete_collapse(template_node.level, node_index);
+        self.pending.delete_create_defined(node_index);
 
         for (_, depends) in node.depends.iter() {
             for depend in depends {

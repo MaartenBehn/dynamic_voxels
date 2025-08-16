@@ -32,7 +32,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         for (i, ammount) in template_node.defines_n.iter().enumerate() {
             let new_template_node = &template.nodes[ammount.template_index];
             
-            self.pending_create_defines.push(new_template_node.level, CreateDefinesOperation::CreateN { 
+            self.pending.push_create_defined(new_template_node.level, CreateDefinesOperation::CreateN { 
                 parent_index: node_index,
                 ammount_index: i,
             });
@@ -79,7 +79,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
             if present_children_len < n {
                 let new_template_node = &template.nodes[by_value.template_index];
 
-                self.pending_create_defines.push(new_template_node.level, CreateDefinesOperation::CreateByNumberRange { 
+                self.pending.push_create_defined(new_template_node.level, CreateDefinesOperation::CreateByNumberRange { 
                     parent_index: node_index, 
                     by_value_index: i, 
                     ammount: n - present_children_len, 
@@ -144,7 +144,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
             if !to_create_children.is_empty() {
                 let new_template_node = &template.nodes[by_value.template_index];
 
-                self.pending_create_defines.push(new_template_node.level, CreateDefinesOperation::CreateByPosSet { 
+                self.pending.push_create_defined(new_template_node.level, CreateDefinesOperation::CreateByPosSet { 
                     parent_index: node_index, 
                     by_value_index: i, 
                     to_create_children: to_create_children.clone() 
@@ -338,6 +338,6 @@ impl<T: ModelGenerationTypes> Collapser<T> {
             }
         }
                 
-        self.pending_collapses.push(new_node_template.level, index);
+        self.pending.push_collpase(new_node_template.level, index);
     }
 }

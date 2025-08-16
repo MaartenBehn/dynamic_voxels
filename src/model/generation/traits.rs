@@ -23,7 +23,7 @@ pub trait Model: Sized + Sync + Send {
     fn update(&mut self, update_data: Self::UpdateData, change: &ModelChangeSender<Self::GenerationTypes>) 
         -> impl std::future::Future<Output = OctaResult<()>> + std::marker::Send;
 
-    fn tick(&mut self, scene: &SceneWorkerSend, ticks: usize, change: &ModelChangeSender<Self::GenerationTypes>) 
+    fn tick(&mut self, scene: &SceneWorkerSend, change: &ModelChangeSender<Self::GenerationTypes>) 
         -> impl std::future::Future<Output = OctaResult<bool>> + std::marker::Send;
 
 }

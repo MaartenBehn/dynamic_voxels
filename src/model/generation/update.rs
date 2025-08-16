@@ -30,7 +30,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         for (key, node) in self.nodes.iter()
             .filter(|(_, n)| n.identifier == identifier) {
 
-            self.pending_collapses.push(node.level, key);
+            self.pending.push_collpase(node.level, key);
         }
     }
 }

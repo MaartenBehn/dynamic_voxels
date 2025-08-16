@@ -151,7 +151,7 @@ impl Model for Islands {
         }
         self.last_pos = new_pos;
 
-        let island_volume = CSGSphere::new_sphere(new_pos.into(), 200.0); 
+        let island_volume = CSGSphere::new_sphere(new_pos.into(), 400.0); 
 
         self.template.get_node_position_set(Identifier::IslandPositions)?.set_volume(island_volume.clone())?;
 
@@ -166,13 +166,14 @@ impl Model for Islands {
         Ok(())
     }
 
-    async fn tick(&mut self, scene: &SceneWorkerSend, ticks: usize, change: &ModelChangeSender<IslandGenerationTypes>) -> OctaResult<bool> {
+    async fn tick(&mut self, scene: &SceneWorkerSend, change: &ModelChangeSender<IslandGenerationTypes>) -> OctaResult<bool> {
         let mut ticked = false;
-        let mut i = 0;
 
         while let Some((hook, collapser)) 
             = self.collapser.next(&self.template) {
             ticked = true;
+
+            change.send_collapser(collapser.clone());
 
             match hook {
                 CollapseOperation::NumberRangeHook { index, identifier } => {
@@ -272,7 +273,7 @@ impl Model for Islands {
                     match identifier {
                         Identifier::IslandDone => {
                             let UndoData::IslandDone(island_done) = undo_data
-                            else { unreachable!() };
+                            else { continue; };
 
                             scene.remove_object(island_done.scene_key);
                         },
@@ -281,11 +282,6 @@ impl Model for Islands {
                 },
                 CollapseOperation::None => {},
             } 
-
-            i += 1;
-            if i > ticks {
-                break;
-            }
         }
 
         Ok(ticked)

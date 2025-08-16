@@ -7,16 +7,15 @@ use crate::volume::VolumeQureyPosValid;
 
 use crate::{model::generation::pos_set::PositionSetRule};
 
-use super::{builder::{BuilderNode, ModelSynthesisBuilder}, number_range::NumberRange, pending_operations::PendingOperations, pos_set::PositionSet, relative_path::{LeafType, RelativePathTree}, template::{NodeTemplateValue, TemplateIndex, TemplateNode, TemplateTree}, traits::ModelGenerationTypes};
+use super::{builder::{BuilderNode, ModelSynthesisBuilder}, number_range::NumberRange, pending_operations::{PendingOperations, PendingOperationsRes}, pos_set::PositionSet, relative_path::{LeafType, RelativePathTree}, template::{NodeTemplateValue, TemplateIndex, TemplateNode, TemplateTree}, traits::ModelGenerationTypes};
 
 new_key_type! { pub struct CollapseNodeKey; }
 new_key_type! { pub struct CollapseChildKey; }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Collapser<T: ModelGenerationTypes> {
     pub nodes: SlotMap<CollapseNodeKey, CollapseNode<T>>,
-    pub pending_collapses: PendingOperations<CollapseNodeKey>,
-    pub pending_create_defines: PendingOperations<CreateDefinesOperation>,
+    pub pending: PendingOperations,
     pub pending_user_opperations: VecDeque<CollapseOperation<T>>,
 }
 
@@ -98,12 +97,10 @@ impl<T: ModelGenerationTypes> Collapser<T> {
             return Some((opperation, self));
         }
 
-        if let Some(opperation) = self.pending_create_defines.pop() {
-            self.create_defined(opperation, template);
-        }
-
-        if let Some(key) = self.pending_collapses.pop() {
-            self.collapse_node(key, template);
+        match self.pending.pop() {
+            PendingOperationsRes::Collapse(key) => self.collapse_node(key, template),
+            PendingOperationsRes::CreateDefined(operation) => self.create_defined(operation, template),
+            PendingOperationsRes::Empty => {},
         }
  
         if let Some(opperation) = self.pending_user_opperations.pop_front() {
@@ -143,7 +140,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
                     },
                 }
 
-                self.pending_collapses.push(template_node.level, node_index);
+                self.pending.push_collpase(template_node.level, node_index);
                 return;
             }
 
@@ -154,7 +151,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
                     let next_reset = node.next_reset;
                     self.reset_node(next_reset, template);
 
-                    self.pending_collapses.push(template_node.level, node_index);
+                    self.pending.push_collpase(template_node.level, node_index);
 
                     return;
                 }
@@ -221,7 +218,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
 
         let level = template.nodes[node.template_index].level;
 
-        self.pending_collapses.push(level, index);
+        self.pending.push_collpase(level, index);
 
         let mut last = CollapseNodeKey::null();
         for (_, is) in node.depends.to_owned().into_iter().rev() {
@@ -244,12 +241,21 @@ impl<T: ModelGenerationTypes> TemplateTree<T> {
 
         let mut collapser = Collapser{
             nodes: SlotMap::with_capacity_and_key(inital_capacity),
-            pending_collapses: PendingOperations::new(self.max_level),
-            pending_create_defines: PendingOperations::new(self.max_level),
+            pending: PendingOperations::new(self.max_level),
             pending_user_opperations: VecDeque::with_capacity(inital_capacity),
         };
 
         collapser.add_node(0, vec![], vec![], vec![], CollapseNodeKey::null(), CollapseChildKey::null(), self);
         collapser
+    }
+}
+
+impl CreateDefinesOperation {
+    pub fn get_parent_index(&self) -> CollapseNodeKey {
+        match self {
+            CreateDefinesOperation::CreateN { parent_index, .. }
+            | CreateDefinesOperation::CreateByNumberRange { parent_index, .. }
+            | CreateDefinesOperation::CreateByPosSet { parent_index, .. } => *parent_index,
+        }
     }
 }

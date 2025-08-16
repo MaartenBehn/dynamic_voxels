@@ -10,6 +10,7 @@ pub mod util;
 pub mod volume;
 pub mod voxel;
 
+use model::debug_gui::collapser::CollapserDebugGui;
 use model::debug_gui::template::TemplateDebugGui;
 use model::examples::islands::{self, IslandGenerationTypes, IslandUpdateData, Islands};
 use model::worker::ModelWorker;
@@ -116,6 +117,9 @@ pub struct RenderState {
 
     #[cfg(any(feature="islands"))]
     pub template_debug: TemplateDebugGui<IslandGenerationTypes>,
+
+    #[cfg(any(feature="islands"))]
+    pub collapser_debug: CollapserDebugGui<IslandGenerationTypes>,
 }
 
 #[unsafe(no_mangle)]
@@ -190,6 +194,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         let mut palette = SharedPalette::new();
         let islands = ModelWorker::new(palette.clone(), scene.send.clone());
         let template_debug = TemplateDebugGui::new(islands.get_template());
+        let collapser_debug = CollapserDebugGui::new(islands.get_collapser());
 
         let mut renderer = SceneRenderer::new(
             &engine.context, 
@@ -205,6 +210,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
             renderer,
             islands,
             template_debug,
+            collapser_debug,
         })
     }
 
@@ -280,6 +286,9 @@ pub fn record_render_commands(
 
             #[cfg(any(feature="islands"))]
             render_state.template_debug.render(ctx);
+
+            #[cfg(any(feature="islands"))]
+            render_state.collapser_debug.render(ctx);
         },
     )?;
 
