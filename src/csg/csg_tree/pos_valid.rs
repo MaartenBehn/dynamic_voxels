@@ -1,40 +1,53 @@
-use core::fmt;
+use crate::{util::math_config::MC, volume::VolumeQureyPosValid};
 
-use octa_force::glam::{vec3, Vec3A, Vec4};
+use super::{remove::CSGTreeRemove, tree::{CSGTreeNodeData, CSGTree, CSGTreeIndex}, union::CSGTreeUnion};
 
-use crate::{util::aabb3d::AABB3, volume::VolumeQureyPosValid};
 
-use super::tree::{CSGNodeData, CSGTree, CSGTreeKey};
-
-impl<T: Default + Clone + fmt::Debug> VolumeQureyPosValid for CSGTree<T> {
-    fn is_position_valid_vec3(&self, pos: Vec3A) -> bool {
-        self.is_pos_valid_internal(pos, self.root_node)
+impl<V: Send + Sync, C: MC<D>, const D: usize> VolumeQureyPosValid<C::Vector, C::Number, D> for CSGTree<V, C, D> {
+    fn is_position_valid(&self, pos: C::Vector) -> bool {
+        self.is_position_valid_index(self.root, pos)
     }
 }
 
-impl<T: Default + Clone + fmt::Debug> CSGTree<T> {
-    fn is_pos_valid_internal(&self, pos: Vec3A, index: CSGTreeKey) -> bool {
+impl<V: Send + Sync, C: MC<D>, const D: usize> CSGTree<V, C, D> {
+    fn is_position_valid_index(&self, index: CSGTreeIndex, pos: C::Vector) -> bool {
         let node = &self.nodes[index];
-
-        if !node.aabb.pos_in_aabb(Vec4::from((pos, 1.0))) {
-            return false;
-        }
-
         match &node.data {
-            CSGNodeData::Union(c1, c2) => {
-                self.is_pos_valid_internal(pos, *c1) || self.is_pos_valid_internal(pos, *c2)
-            }
-            CSGNodeData::Remove(c1, c2) => {
-                self.is_pos_valid_internal(pos, *c1) && !self.is_pos_valid_internal(pos, *c2)
-            }
-            CSGNodeData::Intersect(c1, c2) => {
-                self.is_pos_valid_internal(pos, *c1) && self.is_pos_valid_internal(pos, *c2)
-            }
-            CSGNodeData::Box(d) => d.is_position_valid_vec3(pos),
-            CSGNodeData::Sphere(d) => d.is_position_valid_vec3(pos),
-            CSGNodeData::All(d) => d.is_position_valid_vec3(pos),
-            CSGNodeData::OffsetVoxelGrid(voxel_grid) => todo!(),
-            CSGNodeData::SharedVoxelGrid(shared_voxel_grid) => todo!(),
+            CSGTreeNodeData::Union(d) => self.is_position_valid_union(d, pos),
+            CSGTreeNodeData::Remove(d) => self.is_position_valid_remove(d, pos),
+            
+            CSGTreeNodeData::Box(d) => d.is_position_valid(pos),
+            CSGTreeNodeData::Sphere(d) => d.is_position_valid(pos),
+            CSGTreeNodeData::OffsetVoxelGrid(d) => todo!(),
+            CSGTreeNodeData::SharedVoxelGrid(d) => todo!(),
         }
     }
-} 
+
+    fn is_position_valid_union(&self, union: &CSGTreeUnion<C, D>, pos: C::Vector) -> bool {
+        let mut i = 0;
+        while i < union.flat_bvh.len() {
+            let b = &union.flat_bvh[i];
+            if b.aabb.pos_in_aabb(pos) {
+                if let Some(leaf) = b.leaf {
+                    let v = self.is_position_valid_index(leaf, pos); 
+                    if v {
+                        return true;
+                    }
+                }
+
+                i += 1;
+            } else {
+                i = b.exit;
+            }
+        }
+
+        false
+    }
+
+    fn is_position_valid_remove(&self, remove: &CSGTreeRemove, pos: C::Vector) -> bool {
+        let base = self.is_position_valid_index(remove.base, pos);
+        let remove = self.is_position_valid_index(remove.remove, pos);
+
+        base && !remove
+    }
+}

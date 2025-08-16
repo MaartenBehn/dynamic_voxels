@@ -1,33 +1,38 @@
 use octa_force::glam::{vec3, Mat4, Quat, Vec3};
-use slotmap::Key;
 
-use crate::{csg::{sphere::CSGSphere, Base}, util::aabb3d::AABB3, voxel::grid::shared::SharedVoxelGrid};
+use crate::{csg::{sphere::CSGSphere, Base}, util::math_config::MC, voxel::grid::shared::SharedVoxelGrid};
 
-use super::tree::{CSGNode, CSGNodeData, CSGTree, CSGTreeKey};
+use super::tree::{CSGTreeNode, CSGTreeNodeData, CSGTree};
 
 
-impl<T: Base + Clone> CSGTree<T> {
-    pub fn new_sphere(center: Vec3, radius: f32) -> Self {
-        CSGTree::from_node(CSGNode::new_sphere(center, radius))
+impl<V: Base, C: MC<D>, const D: usize> CSGTree<V, C, D> {
+    pub fn add_sphere(&mut self, center: C::VectorF, radius: f32) {
+        self.add_node(CSGTreeNode::new_sphere(center, radius));
     }
-
-    pub fn new_disk(center: Vec3, radius: f32, height: f32) -> Self {
-        CSGTree::from_node(CSGNode::new_disk(center, radius, height))
-    } 
 }
 
-impl <T: Base + Clone> CSGNode<T> {
-    pub fn new_sphere(center: Vec3, radius: f32) -> Self {
-        CSGNode::new(CSGNodeData::Sphere(CSGSphere::new_sphere(center, radius)))
+impl<V: Base, C: MC<3>> CSGTree<V, C, 3> {
+    pub fn add_disk(&mut self, center: C::VectorF, radius: f32, height: f32) {
+        self.add_node(CSGTreeNode::new_disk(center, radius, height));
     }
 
-    pub fn new_disk(center: Vec3, radius: f32, height: f32) -> Self {
-        CSGNode::new(CSGNodeData::Sphere(CSGSphere::new_disk(center, radius, height)))
+    pub fn add_shared_grid(&mut self, grid: SharedVoxelGrid) {
+        self.add_node(CSGTreeNode::new_shared_grid(grid));
+    }
+}
+
+impl <V: Base, C: MC<D>, const D: usize> CSGTreeNode<V, C, D> {
+    pub fn new_sphere(center: C::VectorF, radius: f32) -> Self {
+        CSGTreeNode::new(CSGTreeNodeData::Sphere(CSGSphere::new_sphere(center, radius)))
+    }
+}
+
+impl <V: Base, C: MC<3>> CSGTreeNode<V, C, 3> {
+    pub fn new_disk(center:  C::VectorF, radius: f32, height: f32) -> Self {
+        CSGTreeNode::new(CSGTreeNodeData::Sphere(CSGSphere::new_disk(center, radius, height)))
     }
 
     pub fn new_shared_grid(grid: SharedVoxelGrid) -> Self {
-        CSGNode::new(CSGNodeData::SharedVoxelGrid(grid))
+        CSGTreeNode::new(CSGTreeNodeData::SharedVoxelGrid(grid))
     }
 } 
-
-

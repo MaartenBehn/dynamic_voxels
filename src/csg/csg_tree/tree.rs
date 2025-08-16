@@ -1,70 +1,54 @@
-use octa_force::glam::{IVec3, Mat4};
-use slotmap::{new_key_type, Key, SlotMap};
-use smallvec::SmallVec;
+use bvh::{bvh::Bvh, flat_bvh::FlatNode};
+use octa_force::glam::Mat4;
 
-use crate::{csg::{all::CSGAll, r#box::CSGBox, sphere::CSGSphere}, model::generation::traits::BU, util::{aabb3d::AABB3, iaabb3d::AABBI}, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid, VoxelGrid}};
+use crate::{csg::{r#box::CSGBox, sphere::CSGSphere}, util::{aabb::AABB, math_config::MC}, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid}};
 
-new_key_type! { pub struct CSGTreeKey; }
+use super::{remove::CSGTreeRemove, union::CSGTreeUnion};
 
-impl BU for CSGTreeKey {}
+pub type CSGTreeIndex = usize; 
 
-#[derive(Clone, Debug, Default)]
-pub struct CSGTree<T> {
-    pub nodes: SlotMap<CSGTreeKey, CSGNode<T>>,
-    pub root_node: CSGTreeKey,
-}
-
-#[derive(Clone, Debug)]
-pub struct CSGNode<T> {
-    pub data: CSGNodeData<T>,
-    pub aabb: AABB3,
-    pub aabbi: AABBI,
-    pub parent: CSGTreeKey,
-}
-
-#[derive(Clone, Debug)]
-pub enum CSGNodeData<T> {
-    Union(CSGTreeKey, CSGTreeKey),
-    Remove(CSGTreeKey, CSGTreeKey),
-    Intersect(CSGTreeKey, CSGTreeKey),
-    Box(CSGBox<T>), // Inverse Mat
-    Sphere(CSGSphere<T>), // Inverse Mat
-    All(CSGAll<T>),
+#[derive(Debug, Clone)]
+pub enum CSGTreeNodeData<V, C: MC<D>, const D: usize> {
+    Union(CSGTreeUnion<C, D>),
+    Remove(CSGTreeRemove),
+    
+    Box(CSGBox<V, C, D>),
+    Sphere(CSGSphere<V, C, D>),
     OffsetVoxelGrid(OffsetVoxelGrid),
     SharedVoxelGrid(SharedVoxelGrid),
 }
 
-impl<T> CSGNode<T> {
-    pub fn new(data: CSGNodeData<T>) -> Self {
-        CSGNode {
-            data,
-            aabb: Default::default(),
-            aabbi: Default::default(),
-            parent: CSGTreeKey::null(),
+#[derive(Debug, Clone)]
+pub struct CSGTreeNode<V, C: MC<D>, const D: usize> {
+    pub data: CSGTreeNodeData<V, C, D>
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct CSGTree<V, C: MC<D>, const D: usize> {
+    pub nodes: Vec<CSGTreeNode<V, C, D>>,
+    pub changed: bool,
+    pub root: CSGTreeIndex,
+}
+
+impl<V, C: MC<D>, const D: usize> CSGTree<V, C, D> {
+    pub fn new() -> Self {
+        Self {
+            nodes: vec![],
+            changed: false,
+            root: 0,
         }
     }
 
-    pub fn set_aabb(&mut self, aabb: AABB3) {
-        self.aabb = aabb;
-        self.aabbi = aabb.into();
+    pub fn add_node(&mut self, node: CSGTreeNode<V, C, D>) {
+        self.nodes.push(node);
+        self.changed = true;
     }
 }
 
-impl<T: Clone> CSGTree<T> {
-    pub fn is_empty(&self) -> bool {
-        self.root_node == CSGTreeKey::null()
-    }
-
-    pub fn from_node(node: CSGNode<T>) -> Self {
-        let mut tree = Self {
-            nodes: SlotMap::with_capacity_and_key(1),
-            root_node: CSGTreeKey::null(),
-        };
-        let index = tree.nodes.insert(node);
-        tree.root_node = index;
-
-        tree.set_all_aabbs();
-
-        tree
+impl<V, C: MC<D>, const D: usize> CSGTreeNode<V, C, D> {
+    pub fn new(data: CSGTreeNodeData<V, C, D>) -> Self {
+        Self {
+            data,
+        }
     }
 }

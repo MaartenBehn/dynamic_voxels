@@ -1,9 +1,9 @@
 use std::hint::black_box;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use octa_force::glam::{UVec3, Vec3};
-use reload::{csg::{csg_tree::tree::CSGTree}, multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, volume::{magica_voxel::MagicaVoxelModel, VolumeQureyAABB, VolumeQureyAABBI, VolumeQureyPosValueI}, voxel::{dag64::VoxelDAG64, grid::{shared::SharedVoxelGrid, VoxelGrid}, palette::palette::LocalPalette}};
+use octa_force::glam::{IVec3, UVec3, Vec3};
+use reload::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, util::vector::Ve, volume::{magica_voxel::MagicaVoxelModel, VolumeQureyAABB, VolumeQureyPosValue}, voxel::{dag64::VoxelDAG64, grid::{shared::SharedVoxelGrid, VoxelGrid}, palette::palette::LocalPalette}};
 
-fn build_from_pos_query<M: VolumeQureyPosValueI>(model: &M) -> VoxelDAG64 {
+fn build_from_pos_query<V: Ve<i32, 3>, M: VolumeQureyPosValue<V, i32, 3>>(model: &M) -> VoxelDAG64 {
     let mut dag = VoxelDAG64::new(1000000, 1000000);
     dag.add_pos_query_volume(model).unwrap();
     dag
@@ -21,7 +21,7 @@ fn pos_query(c: &mut Criterion) {
         BenchmarkId::new("build dag 64 from grid pos query", "Fall_Tree"), 
         &tree_grid, 
         |b, tree_grid | 
-        b.iter(|| build_from_pos_query(tree_grid))); 
+        b.iter(|| build_from_pos_query::<IVec3, _>(tree_grid))); 
 }
 
 criterion_group!(benches, pos_query);

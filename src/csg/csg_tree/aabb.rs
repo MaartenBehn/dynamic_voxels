@@ -1,114 +1,123 @@
-use octa_force::{glam::Mat4, puffin_egui::puffin};
-use slotmap::Key;
+use std::mem;
 
-use crate::{util::{aabb3d::AABB3, iaabb3d::AABBI}, volume::{VolumeBoundsI, VolumeBounds}};
+use bvh::{aabb::Bounded, bounding_hierarchy::{BHShape, BoundingHierarchy}, bvh::Bvh, flat_bvh::FlatBvh};
+use octa_force::egui::emath::Numeric;
+use smallvec::ToSmallVec;
 
-use super::tree::{CSGNode, CSGNodeData, CSGTree, CSGTreeKey};
+use crate::{util::{aabb::AABB, math_config::MC}, volume::VolumeBounds, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid}};
 
-impl<T: Clone> VolumeBounds for CSGTree<T> {
+use super::{tree::{CSGTreeNode, CSGTreeNodeData, CSGTree, CSGTreeIndex}, union::{BVHNodeV2, CSGTreeUnion, CSGUnionNode}};
+
+impl<V: Send + Sync, C: MC<D>, const D: usize> VolumeBounds<C::Vector, C::Number, D> for CSGTree<V, C, D> {
     fn calculate_bounds(&mut self) {
-        self.set_all_aabbs()
+        self.calculate_bounds_index(self.root);
     }
 
-    fn get_bounds(&self) -> AABB3 {
-        let node = &self.nodes[self.root_node];
-
-        node.aabb
+    fn get_bounds(&self) -> AABB<C::Vector, C::Number, D> {
+        self.get_bounds_index(self.root)
     }
 }
 
-impl<T: Clone> VolumeBoundsI for CSGTree<T> {
-    fn calculate_bounds_i(&mut self) {
-        self.set_all_aabbs()
-    }
+impl<V: Send + Sync, C: MC<D>, const D: usize> CSGTree<V, C, D> {
+    fn calculate_bounds_index(&mut self, index: CSGTreeIndex) {
+        let node = &mut self.nodes[index];
 
-    fn get_bounds_i(&self) -> AABBI {
-        let node = &self.nodes[self.root_node];
-        node.aabbi
-    }
-}
+        match &mut node.data {
+            CSGTreeNodeData::Union(d) => {
+                        let mut union = mem::take(d);
+                        self.calculate_bounds_union(&mut union);
+                        self.nodes[index].data = CSGTreeNodeData::Union(union);
+                    },
+            CSGTreeNodeData::Remove(csgtree_remove) => {
+                let base = csgtree_remove.base;
+                self.calculate_bounds_index(base);
+            },
 
-impl<T: Clone> CSGTree<T> {
-    
-    pub fn set_all_aabbs(&mut self) {
-        #[cfg(debug_assertions)]
-        puffin::profile_function!();
-
-        let mut propergate_ids = vec![];
-        self.set_primitive_aabbs(self.root_node, &Mat4::IDENTITY, &mut propergate_ids);
-        
-        propergate_ids = self.get_id_parents(&propergate_ids);
-        while !propergate_ids.is_empty() {
-            let mut new_ids = vec![];
-            for id in propergate_ids.iter() {
-                let parent = self.propergate_aabb_change(*id);
-                if !parent.is_null() {
-                    new_ids.push(parent);
-                }
-            }
-
-            propergate_ids = new_ids;
+            CSGTreeNodeData::Box(d) => d.calculate_bounds(),
+            CSGTreeNodeData::Sphere(d) => d.calculate_bounds(),
+            CSGTreeNodeData::OffsetVoxelGrid(d) => 
+                        <OffsetVoxelGrid as VolumeBounds<C::Vector, C::Number, D>>::calculate_bounds(d),
+            CSGTreeNodeData::SharedVoxelGrid(d) => 
+                        <SharedVoxelGrid as VolumeBounds<C::Vector, C::Number, D>>::calculate_bounds(d),
         }
     }
 
-    pub fn set_primitive_aabbs(&mut self, i: CSGTreeKey, base_mat: &Mat4, changed_nodes: &mut Vec<CSGTreeKey>) {
-        let node = &self.nodes[i];
+    fn get_bounds_index(&self, index: CSGTreeIndex) -> AABB<C::Vector, C::Number, D> {
+        let node = &self.nodes[index];
+
         match &node.data {
-            CSGNodeData::Union(c1, c2)
-            | CSGNodeData::Remove(c1, c2) 
-            | CSGNodeData::Intersect(c1, c2) => {
-                let (c1, c2) = (*c1, *c2); // To please borrow checker
-                self.set_primitive_aabbs(c1, base_mat, changed_nodes);
-                self.set_primitive_aabbs(c2, base_mat, changed_nodes);
+            CSGTreeNodeData::Union(d) => d.get_bounds(),
+            CSGTreeNodeData::Remove(csgtree_remove) => {
+                let base = csgtree_remove.base;
+                self.get_bounds_index(base)
             },
-            CSGNodeData::Box(d) => {
-                let aabb = d.get_bounds();
-                self.nodes[i].set_aabb(aabb);
-                changed_nodes.push(i);
-            },
-            CSGNodeData::Sphere(d) => {
-                let aabb = d.get_bounds();
-                self.nodes[i].set_aabb(aabb);
-                changed_nodes.push(i);
-            },
-            CSGNodeData::All(d) => {
-                let aabb = d.get_bounds();
-                self.nodes[i].set_aabb(aabb);
-                changed_nodes.push(i);
-            },
-            CSGNodeData::OffsetVoxelGrid(grid) => {
-                let aabb = grid.get_bounds(); 
-                self.nodes[i].set_aabb(aabb);
-                changed_nodes.push(i);
-            },
-            CSGNodeData::SharedVoxelGrid(grid) => {
-                let aabb = grid.get_bounds();
-                self.nodes[i].set_aabb(aabb);
-                changed_nodes.push(i);
-            },
+
+            CSGTreeNodeData::Box(d) => d.get_bounds(),
+            CSGTreeNodeData::Sphere(d) => d.get_bounds(),
+            CSGTreeNodeData::OffsetVoxelGrid(d) => d.get_bounds(),
+            CSGTreeNodeData::SharedVoxelGrid(d) => d.get_bounds(),
         }
     }
 
-    pub fn propergate_aabb_change(&mut self, i: CSGTreeKey) -> CSGTreeKey {
-        let node = self.nodes[i].to_owned();
-        match node.data {
-            CSGNodeData::Union(c1, c2) => {
-                let aabb = self.nodes[c1].aabb.union(self.nodes[c2].aabb);
-                self.nodes[i].set_aabb(aabb);
-            }
-            CSGNodeData::Remove(c1, c2) => {
-                let aabb = self.nodes[c1].aabb;
-                self.nodes[i].set_aabb(aabb);
-            }
-            CSGNodeData::Intersect(c1, c2) => {
-                let aabb = self.nodes[c1].aabb.intersect(self.nodes[c2].aabb);
-                self.nodes[i].set_aabb(aabb);
-            }
-            _ => {
-                panic!("propergate_aabb_change can only be called for Union, Remove or Intersect")
-            }
+    fn calculate_bounds_union(&mut self, union: &mut CSGTreeUnion<C, D>) {
+
+        for node in union.nodes.iter_mut() {
+            self.calculate_bounds_index(node.index);
+            node.aabb = self.get_bounds_index(node.index);
         }
 
-        node.parent
+        let bvh = Bvh::build_par(&mut union.nodes);
+        let flat_bvh = bvh.flatten_custom(&|aabb, index, exit, shape| {
+            let leaf = shape != u32::MAX;
+
+            if leaf {
+                let aabb = union.nodes[shape as usize].aabb;
+
+                BVHNodeV2 {
+                    aabb: aabb,
+                    exit: exit as _,
+                    leaf: Some(shape as _),
+                }
+            } else {
+                let aabb: AABB<C::VectorF, f32, D> = aabb.into();
+                let aabb = AABB::<C::Vector, C::Number, D>::from_f(aabb);
+
+                BVHNodeV2 {
+                    aabb: aabb,
+                    exit: exit as _,
+                    leaf: None,
+                }
+            } 
+        });
+
+        union.flat_bvh = flat_bvh;
+    }
+}
+
+
+
+impl<C: MC<D>, const D: usize> CSGTreeUnion<C, D> {
+    fn get_bounds(&self) -> AABB<C::Vector, C::Number, D> {
+        if self.flat_bvh.is_empty() {
+            return AABB::default();
+        }
+
+        self.flat_bvh[0].aabb
+    }
+}
+
+impl<C: MC<D>, const D: usize> Bounded<f32, D> for CSGUnionNode<C, D> {
+    fn aabb(&self) -> bvh::aabb::Aabb<f32, D> {
+        self.aabb.to_f::<C::VectorF>().into()
+    }
+}
+
+impl<C: MC<D>, const D: usize> BHShape<f32, D> for CSGUnionNode<C, D> {
+    fn set_bh_node_index(&mut self, i: usize) {
+        self.bh_index = i;
+    }
+
+    fn bh_node_index(&self) -> usize {
+        self.bh_index
     }
 }

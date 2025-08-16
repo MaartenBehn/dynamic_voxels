@@ -6,7 +6,7 @@ use crate::model::generation::traits;
 
 use super::{aabb::AABB, matrix::Ma, number::Nu, vector::Ve};
 
-pub trait MC<const D: usize>: Copy {
+pub trait MC<const D: usize>: Copy + Default {
     type Matrix: Ma<D>;
     type Vector: Ve<Self::Number, D>;
     type VectorF: Ve<f32, D>;
