@@ -6,14 +6,14 @@ use super::tree::{Union, UnionNode, UnionNodeData};
 
 
 impl<V: Base, C: MC<D>, const D: usize> Union<V, C, D> {
-    pub fn add_sphere(&mut self, center: C::VectorF, radius: f32) {
-        self.add_node(UnionNode::new_sphere(center, radius));
+    pub fn add_sphere(&mut self, center: C::VectorF, radius: f32, mat: V) {
+        self.add_node(UnionNode::new_sphere(center, radius, mat));
     }
 }
 
 impl<V: Base, C: MC<3>> Union<V, C, 3> {
-    pub fn add_disk(&mut self, center: C::VectorF, radius: f32, height: f32) {
-        self.add_node(UnionNode::new_disk(center, radius, height));
+    pub fn add_disk(&mut self, center: C::VectorF, radius: f32, height: f32, mat: V) {
+        self.add_node(UnionNode::new_disk(center, radius, height, mat));
     }
 
     pub fn add_shared_grid(&mut self, grid: SharedVoxelGrid) {
@@ -22,14 +22,14 @@ impl<V: Base, C: MC<3>> Union<V, C, 3> {
 }
 
 impl <V: Base, C: MC<D>, const D: usize> UnionNode<V, C, D> {
-    pub fn new_sphere(center: C::VectorF, radius: f32) -> Self {
-        UnionNode::new(UnionNodeData::Sphere(CSGSphere::new_sphere(center, radius)))
+    pub fn new_sphere(center: C::VectorF, radius: f32, mat: V) -> Self {
+        UnionNode::new(UnionNodeData::Sphere(CSGSphere::new_sphere(center, radius, mat)))
     }
 }
 
 impl <V: Base, C: MC<3>> UnionNode<V, C, 3> {
-    pub fn new_disk(center:  C::VectorF, radius: f32, height: f32) -> Self {
-        UnionNode::new(UnionNodeData::Sphere(CSGSphere::new_disk(center, radius, height)))
+    pub fn new_disk(center:  C::VectorF, radius: f32, height: f32, mat: V) -> Self {
+        UnionNode::new(UnionNodeData::Sphere(CSGSphere::new_disk(center, radius, height, mat)))
     }
 
     pub fn new_shared_grid(grid: SharedVoxelGrid) -> Self {

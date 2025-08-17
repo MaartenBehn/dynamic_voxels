@@ -40,20 +40,19 @@ impl<N: BHNode<V, T, D>, V: Ve<T, D>, T: Nu, const D: usize> Bvh<N, V, T, D> {
             return Bvh { nodes: Vec::new(), ..Default::default() };
         }
 
-        let expected_node_count = shapes.len() * 2 - 1;
-        let mut nodes = Vec::with_capacity(expected_node_count);
+        let tree_len = indices.len() * 2 - 1;
+        let mut nodes = Vec::with_capacity(tree_len);
 
         let uninit_slice = unsafe {
             std::slice::from_raw_parts_mut(
                 nodes.as_mut_ptr() as *mut MaybeUninit<N>,
-                expected_node_count,
+                tree_len,
             )
         };
         let shapes = Shapes::from_slice(shapes);
         let (aabb, centroid) = joint_aabb_of_shapes(&indices, &shapes);
 
-        let tree_len = indices.len() * 2 - 1;
-
+        
         N::build_with_executor(
             BvhNodeBuildArgs {
                 shapes: &shapes,
@@ -71,7 +70,7 @@ impl<N: BHNode<V, T, D>, V: Ve<T, D>, T: Nu, const D: usize> Bvh<N, V, T, D> {
         // The vec is allocated with this capacity above and is only mutated through slice methods so
         // it is guaranteed that the allocated size has not changed.
         unsafe {
-            nodes.set_len(expected_node_count);
+            nodes.set_len(tree_len);
         }
         Bvh { nodes, ..Default::default() }
     }

@@ -67,6 +67,14 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         }
     }
 
+    pub fn get_pos_iter(&self, index: CollapseNodeKey) -> OctaResult<impl Iterator<Item = Vec3A>> {
+        let node = self.nodes.get(index).expect("Pos Set by index not found");
+        
+        match &node.data {
+            NodeDataType::PosSet(d) => Ok(d.get_positions_iter()),
+            _ => bail!("{:?} is not a Pos Set", node.identifier)
+        }
+    }
 
     // -- Undo Data -- 
     
@@ -110,6 +118,11 @@ impl<T: ModelGenerationTypes> Collapser<T> {
 
         ensure!(child_key != CollapseChildKey::null(), "{:?} is not a child of a pos set", pos_set_child_idetifier);
         self.get_pos(i, child_key)
+    }
+
+    pub fn get_dependend_pos_iter(&self, index: CollapseNodeKey, identifier: T::Identifier) -> OctaResult<impl Iterator<Item = Vec3A>> {
+        let i = self.get_dependend_index(index, identifier)?[0];
+        self.get_pos_iter(i)
     }
 
     pub fn get_dependend_undo_data(&self, index: CollapseNodeKey, identifier: T::Identifier) -> OctaResult<&T::UndoData> {

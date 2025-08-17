@@ -11,25 +11,25 @@ pub struct CSGSphere<V, C: MC<D>, const D: usize> {
 }
 
 impl<V: Base, C: MC<D>, const D: usize> CSGSphere<V, C, D> {
-    pub fn new_sphere(center: C::VectorF, radius: f32) -> Self {
+    pub fn new_sphere(center: C::VectorF, radius: f32, mat: V) -> Self {
         CSGSphere {
             mat: C::Matrix::from_scale_translation(
                 C::VectorF::ONE * radius,
                 center,
             ).inverse(),
-            v: V::base(),
+            v: mat,
         }
     }
 }
 
 impl<V: Base, C: MC<3>> CSGSphere<V, C, 3> {
-    pub fn new_disk(center: C::VectorF, radius: f32, height: f32) -> Self {
+    pub fn new_disk(center: C::VectorF, radius: f32, height: f32, mat: V) -> Self {
         CSGSphere {
             mat: C::Matrix::from_scale_translation(
                 C::VectorF::new([radius, radius, height]),
                 center,
             ).inverse(),
-            v: V::base(),
+            v: mat,
         }
     }
 }

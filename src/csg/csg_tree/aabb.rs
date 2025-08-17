@@ -40,7 +40,9 @@ impl<V: Send + Sync, C: MC<D>, const D: usize> CSGTree<V, C, D> {
             },
             CSGTreeNodeData::Remove(csgtree_remove) => {
                 let base = csgtree_remove.base;
+                let remove = csgtree_remove.remove;
                 self.calculate_bounds_index(base);
+                self.calculate_bounds_index(remove);
             },
 
             CSGTreeNodeData::Box(d) => d.calculate_bounds(),

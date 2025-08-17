@@ -85,6 +85,10 @@ impl<T: ModelGenerationTypes> PositionSet<T> {
         self.positions[pos_key]
     }
 
+    pub fn get_positions_iter(&self) -> impl Iterator<Item = Vec3A> {
+        self.positions.values().copied()
+    }
+
     pub fn get_volume_mut(&mut self) -> OctaResult<&mut T::Volume> {
         match &mut self.rule {
             PositionSetRule::GridInVolume(d) => Ok(&mut d.volume),

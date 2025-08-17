@@ -5,7 +5,7 @@ use octa_force::{anyhow::bail, camera::Camera, glam::{vec3, vec3a, EulerRot, Mat
 use parking_lot::Mutex;
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{csg::{sphere::CSGSphere, union::tree::Union}, model::{generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder}, collapse::{CollapseOperation, Collapser}, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree, traits::{Model, ModelGenerationTypes, BU, IT}}, worker::ModelChangeSender}, scene::{dag64::{SceneAddDAGObject, SceneDAGObject}, dag_store::SceneDAGKey, renderer::SceneRenderer, worker::SceneWorkerSend, Scene, SceneObjectData, SceneObjectKey}, util::{math_config::{Float2D, Float3D, Int3D}}, volume::{magica_voxel::MagicaVoxelModel, VolumeBounds, VolumeQureyPosValid}, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, grid::{shared::SharedVoxelGrid, VoxelGrid}, palette::shared::SharedPalette}, METERS_PER_SHADER_UNIT};
+use crate::{csg::{csg_tree::tree::{CSGTree, CSGTreeIndex}, sphere::CSGSphere, union::tree::Union}, model::{generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder}, collapse::{CollapseOperation, Collapser}, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree, traits::{Model, ModelGenerationTypes, BU, IT}}, worker::ModelChangeSender}, scene::{dag64::{SceneAddDAGObject, SceneDAGObject}, dag_store::SceneDAGKey, renderer::SceneRenderer, worker::SceneWorkerSend, Scene, SceneObjectData, SceneObjectKey}, util::math_config::{Float2D, Float3D, Int3D}, volume::{magica_voxel::MagicaVoxelModel, VolumeBounds, VolumeQureyPosValid}, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, grid::{shared::SharedVoxelGrid, VoxelGrid}, palette::{palette::MATERIAL_ID_BASE, shared::SharedPalette, Palette}}, METERS_PER_SHADER_UNIT};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Identifier {
@@ -15,7 +15,7 @@ pub enum Identifier {
     Island,
     TreePositions,
     Tree,
-    Rivers,
+    RiverPoitions,
     RiverNode,
     IslandDone
 }
@@ -35,8 +35,8 @@ impl BU for UndoData {}
 impl ModelGenerationTypes for IslandGenerationTypes {
     type Identifier = Identifier;
     type UndoData = UndoData;
-    type Volume = CSGSphere<(), Float3D, 3>;
-    type Volume2D = CSGSphere<(), Float2D, 2>;
+    type Volume = CSGTree<(), Float3D, 3>;
+    type Volume2D = CSGTree<(), Float2D, 2>;
 }
 
 #[derive(Clone, Debug)]
@@ -48,11 +48,15 @@ pub struct Islands {
     pub scene_dag_key: SceneDAGKey,
     pub last_pos: Vec3,
     pub tree_grid: SharedVoxelGrid,
+
+    pub blue_mat: u8,
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct Island {
-    pub union: Union<u8, Int3D, 3>,
+    pub tree_union_index: CSGTreeIndex,
+    pub river_cut_index: CSGTreeIndex,
+    pub csg: CSGTree<u8, Int3D, 3>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -72,6 +76,8 @@ impl Model for Islands {
 
     async fn new(palette: &mut SharedPalette, scene: &SceneWorkerSend, change: &ModelChangeSender<IslandGenerationTypes>) -> OctaResult<Self> {
 
+        let blue_mat = palette.get_index_simple_color([0, 0, 120])?;
+
         let mut dag = VoxelDAG64::new(1000000, 1000000).parallel();
         dag.print_memory_info();
         let scene_dag_key = scene.add_dag(dag.clone()).result_async().await;
@@ -79,24 +85,43 @@ impl Model for Islands {
         let tree_model = MagicaVoxelModel::new("./assets/Tree1small.vox")?;
         let tree_grid: SharedVoxelGrid = tree_model.into_grid(palette)?.into();
          
-    let island_volume = CSGSphere::default();
+    let island_volume = CSGTree::default();
 
         let mut wfc_builder = ModelSynthesisBuilder::new()
             .position_set(Identifier::IslandPositions, |b| {b
                 .ammount(BuilderAmmount::OneGlobal)
                 .value(BuilderValue::Const(PositionSet::new_grid_in_volume(
                     island_volume,
-                    200.0 )
+                    2000.0 )
                 ))
             })
             .build(Identifier::Island, |b| {b
                 .ammount(BuilderAmmount::DefinedBy(Identifier::IslandPositions))
                 .depends(Identifier::IslandPositions)
             })
+
+            .position_set(Identifier::RiverPoitions, |b|{b
+                .ammount(BuilderAmmount::OnePer(Identifier::Island))
+                .value(BuilderValue::Const(PositionSet::new_path(
+                8.0,
+                    vec3a(0.8, 0.8, 0.0),
+                    vec3a(-200.0, -200.0, 8.0),
+                    vec3a(200.0, 200.0, 8.0),
+                )))
+            })
+
+            .build(Identifier::RiverNode, |b| {b
+                .ammount(BuilderAmmount::DefinedBy(Identifier::RiverPoitions))
+                .depends(Identifier::RiverPoitions)
+                .depends(Identifier::Island)
+            })
+
+
             .position_set(Identifier::TreePositions, |b| {b
                 .ammount(BuilderAmmount::OnePer(Identifier::Island))
                 .value(BuilderValue::Hook)
                 .depends(Identifier::IslandPositions)
+                .depends(Identifier::RiverPoitions)
             })
             
             .build(Identifier::Tree, |b|{b
@@ -105,25 +130,10 @@ impl Model for Islands {
                 .depends(Identifier::Island)
             })
 
-            .position_set(Identifier::Rivers, |b|{b
-                .ammount(BuilderAmmount::OnePer(Identifier::Island))
-                .value(BuilderValue::Const(PositionSet::new_path(
-                5.0,
-                    vec3a(0.5, 0.5, 0.0),
-                    vec3a(-100.0, -100.0, 8.0),
-                    vec3a(100.0, 100.0, 8.0),
-                )))
-            })
-
-            .build(Identifier::RiverNode, |b| {b
-                .ammount(BuilderAmmount::DefinedBy(Identifier::Rivers))
-                .depends(Identifier::Rivers)
-                .depends(Identifier::Island)
-            })
-
+            
             .build(Identifier::IslandDone, |b| {b
                 .ammount(BuilderAmmount::OnePer(Identifier::Island))
-                .depends(Identifier::RiverNode)
+                .depends(Identifier::Tree)
                 .depends(Identifier::IslandPositions)
             });
 
@@ -139,6 +149,7 @@ impl Model for Islands {
             scene_dag_key,
             last_pos: Vec3::ZERO,
             tree_grid,
+            blue_mat,
         })
     }
 
@@ -151,7 +162,7 @@ impl Model for Islands {
         }
         self.last_pos = new_pos;
 
-        let island_volume = CSGSphere::new_sphere(new_pos.into(), 400.0); 
+        let island_volume = CSGTree::new_sphere(new_pos.into(), 400.0, ()); 
 
         self.template.get_node_position_set(Identifier::IslandPositions)?.set_volume(island_volume.clone())?;
 
@@ -185,8 +196,11 @@ impl Model for Islands {
                     match identifier {
                         Identifier::TreePositions => {
 
-                            //let mut pos = collapser.get_dependend_pos(index, Identifier::IslandPositions, Identifier::IslandBuild);
-                            let tree_volume = CSGSphere::new_sphere(Vec2::ZERO, 300.0); 
+                            let mut tree_volume = CSGTree::new_sphere(Vec2::ZERO, 300.0, ()); 
+                            for pos in collapser.get_dependend_pos_iter(index, Identifier::RiverPoitions)? {
+                                tree_volume.cut_with_sphere(pos.xy(), 40.0, ());
+                            }
+                            tree_volume.calculate_bounds();
 
                             collapser.set_position_set_value(index, PositionSet::new_grid_on_plane(
                                 tree_volume,
@@ -212,11 +226,14 @@ impl Model for Islands {
                             let pos = collapser.get_parent_pos(index)?;
                             info!("Island Pos: {pos}");
 
-                            let mut u = Union::new();
-                            u.add_disk(Vec3A::ZERO, 300.0, 10.0);
+                            let mut csg = CSGTree::new_disk(Vec3A::ZERO, 300.0, 10.0, MATERIAL_ID_BASE);
+                            let union_index = csg.root;
+                            let res = csg.union_disk(Vec3A::ZERO, 290.0, 8.0, self.blue_mat);
 
                             collapser.set_undo_data(index, UndoData::Island(Island {
-                                union: u,
+                                tree_union_index: union_index,
+                                river_cut_index: union_index,
+                                csg: csg,
                             }));
                         },
                         Identifier::Tree => {
@@ -226,7 +243,8 @@ impl Model for Islands {
                             
                             let mut tree_grid = self.tree_grid.clone();
                             tree_grid.offset += pos.as_ivec3();
-                            island.union.add_shared_grid(tree_grid);
+                            let res = island.csg.union_shared_grid_at_index(tree_grid, island.tree_union_index);
+                            island.tree_union_index = res.union_node_index;
 
                             info!("Tree Pos: {pos}");
                         },
@@ -235,7 +253,8 @@ impl Model for Islands {
                             let UndoData::Island(island) = collapser.get_dependend_undo_data_mut(index, Identifier::Island)?
                             else { unreachable!() };
 
-                            island.union.add_sphere(pos, 10.0);
+                            let res = island.csg.cut_with_sphere_at_index(pos, 10.0, MATERIAL_ID_BASE, island.river_cut_index);
+                            island.river_cut_index = res.cut_node_index;
 
                             info!("River Pos: {pos}");
                         }
@@ -245,9 +264,9 @@ impl Model for Islands {
                             let UndoData::Island(island) = collapser.get_dependend_undo_data_mut(index, Identifier::Island)?
                             else { unreachable!() };
 
-                            island.union.calculate_bounds();
+                            island.csg.calculate_bounds();
 
-                            let active_key = self.dag.add_pos_query_volume(&island.union)?;
+                            let active_key = self.dag.add_pos_query_volume(&island.csg)?;
                             let scene_object_key = scene.add_dag_object(
                                 Mat4::from_scale_rotation_translation(
                                     Vec3::ONE,

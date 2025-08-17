@@ -6,24 +6,24 @@ use super::{remove::CSGTreeRemove, tree::{CSGTree, CSGTreeIndex, CSGTreeNode, CS
 
 
 impl<V: Base, C: MC<D>, const D: usize> CSGTree<V, C, D> {
-    pub fn new_sphere(center: C::VectorF, radius: f32) -> Self {
-        Self::from_node(CSGTreeNode::new_sphere(center, radius))
+    pub fn new_sphere(center: C::VectorF, radius: f32, mat: V) -> Self {
+        Self::from_node(CSGTreeNode::new_sphere(center, radius, mat))
     }
 }
 
 impl<V: Base, C: MC<3>> CSGTree<V, C, 3> {
-    pub fn new_disk(&mut self, center: C::VectorF, radius: f32, height: f32) -> Self {
-        Self::from_node(CSGTreeNode::new_disk(center, radius, height))
+    pub fn new_disk(center: C::VectorF, radius: f32, height: f32, mat: V) -> Self {
+        Self::from_node(CSGTreeNode::new_disk(center, radius, height, mat))
     }
 
-    pub fn new_shared_grid(&mut self, grid: SharedVoxelGrid) -> Self {
+    pub fn new_shared_grid(grid: SharedVoxelGrid) -> Self {
         Self::from_node(CSGTreeNode::new_shared_grid(grid))
     }
 }
 
 impl <V: Base, C: MC<D>, const D: usize> CSGTreeNode<V, C, D> {
-    pub fn new_sphere(center: C::VectorF, radius: f32) -> Self {
-        CSGTreeNode::new(CSGTreeNodeData::Sphere(CSGSphere::new_sphere(center, radius)), CSG_TREE_INDEX_INVALID)
+    pub fn new_sphere(center: C::VectorF, radius: f32, mat: V) -> Self {
+        CSGTreeNode::new(CSGTreeNodeData::Sphere(CSGSphere::new_sphere(center, radius, mat)), CSG_TREE_INDEX_INVALID)
     }
 
     pub fn new_union(nodes: Vec<CSGTreeIndex>) -> Self {
@@ -36,8 +36,8 @@ impl <V: Base, C: MC<D>, const D: usize> CSGTreeNode<V, C, D> {
 }
 
 impl <V: Base, C: MC<3>> CSGTreeNode<V, C, 3> {
-    pub fn new_disk(center:  C::VectorF, radius: f32, height: f32) -> Self {
-        CSGTreeNode::new(CSGTreeNodeData::Sphere(CSGSphere::new_disk(center, radius, height)), CSG_TREE_INDEX_INVALID)
+    pub fn new_disk(center:  C::VectorF, radius: f32, height: f32, mat: V) -> Self {
+        CSGTreeNode::new(CSGTreeNodeData::Sphere(CSGSphere::new_disk(center, radius, height, mat)), CSG_TREE_INDEX_INVALID)
     }
 
     pub fn new_shared_grid(grid: SharedVoxelGrid) -> Self {
