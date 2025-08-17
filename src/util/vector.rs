@@ -68,6 +68,24 @@ pub trait Ve<T: Nu, const D: usize>:
     fn from_uvec3(v: UVec3) -> Self;
 
     fn to_array(&self) -> [T; D];
+
+
+    fn max_index(self) -> usize {
+
+        let mut e_max = T::ZERO;
+        let mut i_max = 0;
+        for i in 0..D {
+            let e = self.index(i);
+            if *e > e_max {
+                e_max = *e;
+                i_max = i;
+            }
+        }
+
+        i_max
+    }
+
+    fn dot(self, other: Self) -> T;
 }
 
 impl Ve<f32, 2> for Vec2 {
@@ -122,6 +140,8 @@ impl Ve<f32, 2> for Vec2 {
     fn from_uvec3(v: UVec3) -> Self { unreachable!() }
 
     fn to_array(&self) -> [f32; 2] { Self::to_array(self) }
+
+    fn dot(self, other: Self) -> f32 { Vec2::dot(self, other) }
 }
 
 impl Ve<f32, 3> for Vec3 { 
@@ -177,6 +197,8 @@ impl Ve<f32, 3> for Vec3 {
     fn from_uvec3(v: UVec3) -> Self { v.as_vec3() }
 
     fn to_array(&self) -> [f32; 3] { Self::to_array(self) }
+
+    fn dot(self, other: Self) -> f32 { Vec3::dot(self, other) }
 }
 
 impl Ve<f32, 3> for Vec3A { 
@@ -232,6 +254,8 @@ impl Ve<f32, 3> for Vec3A {
     fn from_uvec3(v: UVec3) -> Self { v.as_vec3a() }
 
     fn to_array(&self) -> [f32; 3] { Self::to_array(self) }
+
+    fn dot(self, other: Self) -> f32 { Vec3A::dot(self, other) }
 }
 
 impl Ve<i32, 3> for IVec3 { 
@@ -288,6 +312,8 @@ impl Ve<i32, 3> for IVec3 {
     fn from_uvec3(v: UVec3) -> Self { v.as_ivec3() }
 
     fn to_array(&self) -> [i32; 3] { Self::to_array(self) }
+
+    fn dot(self, other: Self) -> i32 { IVec3::dot(self, other) }
 }
 
 impl Ve<i32, 2> for IVec2 { 
@@ -343,6 +369,8 @@ impl Ve<i32, 2> for IVec2 {
     fn from_uvec3(v: UVec3) -> Self { unreachable!() }
 
     fn to_array(&self) -> [i32; 2] { Self::to_array(self) }
+
+    fn dot(self, other: Self) -> i32 { IVec2::dot(self, other) }
 }
 
 pub fn vector_to_nalgebra<V: Ve<f32, D>, const D: usize>(v: V) -> nalgebra::OPoint<f32, nalgebra::Const<D>> {

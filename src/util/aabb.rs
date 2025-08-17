@@ -41,11 +41,47 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
     pub fn infinte() -> Self {
         Self::new(V::MIN, V::MAX)
     }
+
+    pub fn union(self, other: Self) -> Self {
+        Self::new(self.min.min(other.min), self.max.max(other.max))
+    }
+
+    pub fn union_mut(&mut self, other: Self) {
+        self.min = self.min.min(other.min);
+        self.max = self.max.max(other.max);
+    }
+
+    pub fn intersect(self, other: Self) -> Self {
+        Self::new(self.min.max(other.min), self.max.min(other.max))
+    }
+
+    pub fn intersect_mut(&mut self, other: Self) {
+        self.min = self.min.max(other.min);
+        self.max = self.max.min(other.max);
+    }
+
+    pub fn union_point(self, point: V) -> Self {
+        Self::new(self.min.min(point), self.max.max(point))
+    }
+
+    pub fn union_point_mut(&mut self, point: V) {
+        self.min = self.min.min(point);
+        self.max = self.max.max(point);
+    }
+
+    pub fn largest_axis(self) -> usize {
+        self.size().max_index()
+    }
     
-    pub fn pos_in_aabb(&self, pos: V) -> bool {
+    pub fn pos_in_aabb(self, pos: V) -> bool {
         (0..D).all(|i| {
             self.min[i] <= pos[i] && pos[i] <= self.max[i]
         })
+    }
+
+    pub fn surface_area(self) -> T {
+        let size = self.size();
+        T::TWO * size.dot(size)
     }
 
     pub fn collides_aabb(&self, other: Self) -> bool {

@@ -4,9 +4,9 @@ use smallvec::ToSmallVec;
 
 use crate::{util::{aabb::AABB, math_config::MC}, volume::VolumeBounds, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid}};
 
-use super::tree::{BVHNode, CSGUnion, CSGUnionNode, CSGUnionNodeData};
+use super::tree::{BVHNode, Union, UnionNode, UnionNodeData};
 
-impl<V: Send + Sync, C: MC<D>, const D: usize> VolumeBounds<C::Vector, C::Number, D> for CSGUnion<V, C, D> {
+impl<V: Send + Sync, C: MC<D>, const D: usize> VolumeBounds<C::Vector, C::Number, D> for Union<V, C, D> {
     fn calculate_bounds(&mut self) {
         self.update_bounds();
     }
@@ -20,29 +20,29 @@ impl<V: Send + Sync, C: MC<D>, const D: usize> VolumeBounds<C::Vector, C::Number
     }
 }
 
-impl<V: Send + Sync, C: MC<D>, const D: usize> VolumeBounds<C::Vector, C::Number, D> for CSGUnionNode<V, C, D> {
+impl<V: Send + Sync, C: MC<D>, const D: usize> VolumeBounds<C::Vector, C::Number, D> for UnionNode<V, C, D> {
     fn calculate_bounds(&mut self) {
         match &mut self.data {
-            CSGUnionNodeData::Box(d) => d.calculate_bounds(),
-            CSGUnionNodeData::Sphere(d) => d.calculate_bounds(),
-            CSGUnionNodeData::OffsetVoxelGrid(d) => 
+            UnionNodeData::Box(d) => d.calculate_bounds(),
+            UnionNodeData::Sphere(d) => d.calculate_bounds(),
+            UnionNodeData::OffsetVoxelGrid(d) => 
                 <OffsetVoxelGrid as VolumeBounds<C::Vector, C::Number, D>>::calculate_bounds(d),
-            CSGUnionNodeData::SharedVoxelGrid(d) => 
+            UnionNodeData::SharedVoxelGrid(d) => 
                 <SharedVoxelGrid as VolumeBounds<C::Vector, C::Number, D>>::calculate_bounds(d),
         }
     }
 
     fn get_bounds(&self) -> AABB<C::Vector, C::Number, D> {
         match &self.data {
-            CSGUnionNodeData::Box(d) => d.get_bounds(),
-            CSGUnionNodeData::Sphere(d) => d.get_bounds(),
-            CSGUnionNodeData::OffsetVoxelGrid(d) => d.get_bounds(),
-            CSGUnionNodeData::SharedVoxelGrid(d) => d.get_bounds(),
+            UnionNodeData::Box(d) => d.get_bounds(),
+            UnionNodeData::Sphere(d) => d.get_bounds(),
+            UnionNodeData::OffsetVoxelGrid(d) => d.get_bounds(),
+            UnionNodeData::SharedVoxelGrid(d) => d.get_bounds(),
         }
     }
 }
 
-impl<V: Send + Sync, C: MC<D>, const D: usize> CSGUnion<V, C, D> {
+impl<V: Send + Sync, C: MC<D>, const D: usize> Union<V, C, D> {
     pub fn update_bounds(&mut self) {
         if !self.changed {
             return;
@@ -77,13 +77,13 @@ impl<V: Send + Sync, C: MC<D>, const D: usize> CSGUnion<V, C, D> {
     }
 }
 
-impl<V: Send + Sync, C: MC<D>, const D: usize> Bounded<f32, D> for CSGUnionNode<V, C, D> {
+impl<V: Send + Sync, C: MC<D>, const D: usize> Bounded<f32, D> for UnionNode<V, C, D> {
     fn aabb(&self) -> bvh::aabb::Aabb<f32, D> {
         self.get_bounds().to_f::<C::VectorF>().into()
     }
 }
 
-impl<V: Send + Sync, C: MC<D>, const D: usize> BHShape<f32, D> for CSGUnionNode<V, C, D> {
+impl<V: Send + Sync, C: MC<D>, const D: usize> BHShape<f32, D> for UnionNode<V, C, D> {
     fn set_bh_node_index(&mut self, i: usize) {
         self.bh_index = i;
     }

@@ -1,8 +1,8 @@
 use crate::{util::{aabb::AABB, math_config::MC}, volume::{VolumeQureyAABB, VolumeQureyAABBResult}, voxel::palette::palette::MATERIAL_ID_NONE};
 
-use super::tree::{CSGUnion, CSGUnionNodeData};
+use super::tree::{Union, UnionNodeData};
 
-impl<C: MC<3>> VolumeQureyAABB<C::Vector, C::Number, 3> for CSGUnion<u8, C, 3> {
+impl<C: MC<3>> VolumeQureyAABB<C::Vector, C::Number, 3> for Union<u8, C, 3> {
     fn get_aabb_value(&self, aabb: AABB<C::Vector, C::Number, 3>) -> VolumeQureyAABBResult {
         let mut i = 0;
         while i < self.bvh.len() {
@@ -11,10 +11,10 @@ impl<C: MC<3>> VolumeQureyAABB<C::Vector, C::Number, 3> for CSGUnion<u8, C, 3> {
                 if let Some(leaf) = b.leaf {
                     let node = &self.nodes[leaf];
                     let v = match &node.data {
-                        CSGUnionNodeData::Box(d) => d.get_aabb_value(aabb),
-                        CSGUnionNodeData::Sphere(d) => d.get_aabb_value(aabb),
-                        CSGUnionNodeData::OffsetVoxelGrid(d) => todo!(),
-                        CSGUnionNodeData::SharedVoxelGrid(d) => todo!(),
+                        UnionNodeData::Box(d) => d.get_aabb_value(aabb),
+                        UnionNodeData::Sphere(d) => d.get_aabb_value(aabb),
+                        UnionNodeData::OffsetVoxelGrid(d) => todo!(),
+                        UnionNodeData::SharedVoxelGrid(d) => todo!(),
                     };
 
                     if !matches!(v, VolumeQureyAABBResult::Full(MATERIAL_ID_NONE)) {

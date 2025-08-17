@@ -5,7 +5,7 @@ use octa_force::{anyhow::bail, camera::Camera, glam::{vec3, vec3a, EulerRot, Mat
 use parking_lot::Mutex;
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{csg::{sphere::CSGSphere, union::tree::CSGUnion}, model::{generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder}, collapse::{CollapseOperation, Collapser}, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree, traits::{Model, ModelGenerationTypes, BU, IT}}, worker::ModelChangeSender}, scene::{dag64::{SceneAddDAGObject, SceneDAGObject}, dag_store::SceneDAGKey, renderer::SceneRenderer, worker::SceneWorkerSend, Scene, SceneObjectData, SceneObjectKey}, util::{math_config::{Float2D, Float3D, Int3D}}, volume::{magica_voxel::MagicaVoxelModel, VolumeBounds, VolumeQureyPosValid}, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, grid::{shared::SharedVoxelGrid, VoxelGrid}, palette::shared::SharedPalette}, METERS_PER_SHADER_UNIT};
+use crate::{csg::{sphere::CSGSphere, union::tree::Union}, model::{generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder}, collapse::{CollapseOperation, Collapser}, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree, traits::{Model, ModelGenerationTypes, BU, IT}}, worker::ModelChangeSender}, scene::{dag64::{SceneAddDAGObject, SceneDAGObject}, dag_store::SceneDAGKey, renderer::SceneRenderer, worker::SceneWorkerSend, Scene, SceneObjectData, SceneObjectKey}, util::{math_config::{Float2D, Float3D, Int3D}}, volume::{magica_voxel::MagicaVoxelModel, VolumeBounds, VolumeQureyPosValid}, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, grid::{shared::SharedVoxelGrid, VoxelGrid}, palette::shared::SharedPalette}, METERS_PER_SHADER_UNIT};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Identifier {
@@ -52,7 +52,7 @@ pub struct Islands {
 
 #[derive(Clone, Debug, Default)]
 pub struct Island {
-    pub union: CSGUnion<u8, Int3D, 3>,
+    pub union: Union<u8, Int3D, 3>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -212,7 +212,7 @@ impl Model for Islands {
                             let pos = collapser.get_parent_pos(index)?;
                             info!("Island Pos: {pos}");
 
-                            let mut u = CSGUnion::new();
+                            let mut u = Union::new();
                             u.add_disk(Vec3A::ZERO, 300.0, 10.0);
 
                             collapser.set_undo_data(index, UndoData::Island(Island {

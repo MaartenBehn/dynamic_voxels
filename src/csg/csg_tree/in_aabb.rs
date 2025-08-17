@@ -10,6 +10,7 @@ impl<C: MC<D>, const D: usize> VolumeQureyAABB<C::Vector, C::Number, D> for CSGT
 
 impl<C: MC<D>, const D: usize> CSGTree<u8, C, D> {
     fn get_aabb_value_index(&self, index: CSGTreeIndex, aabb: AABB<C::Vector, C::Number, D>) -> VolumeQureyAABBResult {
+
         let node = &self.nodes[index];
         match &node.data {
             CSGTreeNodeData::Union(d) => self.get_aabb_value_union(d, aabb),

@@ -41,7 +41,7 @@ impl<V: Base, C: MC<D>, const D: usize> CSGTree<V, C, D> {
         }
     }
 
-    pub fn add_node_at_root(&mut self, node: CSGTreeNode<V, C, D>) -> CSGTreeIndex {   
+    pub fn union_node_at_root(&mut self, node: CSGTreeNode<V, C, D>) -> CSGTreeIndex {   
         let new_index = self.nodes.len();
         self.nodes.push(node);
         self.changed = true;
@@ -63,7 +63,7 @@ impl<V: Base, C: MC<D>, const D: usize> CSGTree<V, C, D> {
         new_index
     }
 
-    pub fn add_node_at_index(&mut self, node: CSGTreeNode<V, C, D>, index: CSGTreeIndex) -> CSGTreeIndex {
+    pub fn union_node_at_index(&mut self, node: CSGTreeNode<V, C, D>, index: CSGTreeIndex) -> CSGTreeIndex {
         let new_index = self.nodes.len();
         self.nodes.push(node);
         self.changed = true;
@@ -83,11 +83,11 @@ impl<V: Base, C: MC<D>, const D: usize> CSGTree<V, C, D> {
         new_index
     }
 
-    pub fn remove_node_at_root(&mut self, node: CSGTreeNode<V, C, D>) -> CSGTreeIndex {
+    pub fn cut_node_at_root(&mut self, node: CSGTreeNode<V, C, D>) -> CSGTreeIndex {
         let root_node = &self.nodes[self.root];
         if let CSGTreeNodeData::Remove(remove) = &root_node.data {
             let remove_index = remove.remove;
-            return self.add_node_at_index(node, remove_index);
+            return self.union_node_at_index(node, remove_index);
         }
 
         assert!(!self.nodes.is_empty(), "You can not remove from an empty CSGTree");
@@ -101,11 +101,11 @@ impl<V: Base, C: MC<D>, const D: usize> CSGTree<V, C, D> {
         new_index
     }
 
-    pub fn remove_node_at_index(&mut self, node: CSGTreeNode<V, C, D>, index: CSGTreeIndex) -> CSGTreeIndex {
+    pub fn cut_node_at_index(&mut self, node: CSGTreeNode<V, C, D>, index: CSGTreeIndex) -> CSGTreeIndex {
         let current_node = &self.nodes[index];
         if let CSGTreeNodeData::Remove(remove) = &current_node.data {
             let remove_index = remove.remove;
-            return self.add_node_at_index(node, remove_index);
+            return self.union_node_at_index(node, remove_index);
         }
 
         assert!(!self.nodes.is_empty(), "You can not remove from an empty CSGTree");

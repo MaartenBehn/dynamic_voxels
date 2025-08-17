@@ -9,8 +9,11 @@ pub mod scene;
 pub mod util;
 pub mod volume;
 pub mod voxel;
+pub mod bvh;
 
-use csg::union::tree::CSGUnion;
+use csg::csg_tree::tree::CSGTree;
+use csg::csg_tree::union::CSGUnionNode;
+use csg::union::tree::{Union, UnionNode};
 use model::debug_gui::collapser::CollapserDebugGui;
 use model::debug_gui::template::TemplateDebugGui;
 use model::examples::islands::{self, IslandGenerationTypes, IslandUpdateData, Islands};
@@ -24,7 +27,7 @@ use scene::{Scene, SceneObjectData, SceneObjectKey, SceneObjectType};
 use slotmap::Key;
 use octa_force::camera::Camera;
 use octa_force::egui_winit::winit::event::WindowEvent;
-use octa_force::glam::{vec3, DVec3, EulerRot, Mat4, Quat, UVec3, Vec3, Vec3A};
+use octa_force::glam::{vec3, vec3a, DVec3, EulerRot, Mat4, Quat, UVec3, Vec3, Vec3A};
 use octa_force::gui::Gui;
 use octa_force::log::{debug, error, info, trace, Log};
 use octa_force::logger::setup_logger;
@@ -150,15 +153,23 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
             palette.clone(),
         )?;
 
-        let mut u = CSGUnion::<u8, Int3D, 3>::new();
-        u.add_sphere(Vec3A::ZERO, 100.0);
-        u.calculate_bounds();
+        let mut csg = CSGTree::<u8, Int3D, 3>::new_sphere(Vec3A::ZERO, 10.0);
+        let mut union = Union::<u8, Int3D, 3>::new();
+        union.add_node(UnionNode::new_sphere(Vec3A::ZERO, 10.0));
 
+        for _ in 0..4 {
+            let pos = vec3a(fastrand::f32(), fastrand::f32(), fastrand::f32()) * 100.0;
+            csg.union_sphere(pos, 10.0);
+            union.add_node(UnionNode::new_sphere(pos, 10.0));
+        }
+        csg.calculate_bounds();
+        union.calculate_bounds();
+        
         let now = Instant::now();
 
         let mut dag = VoxelDAG64::new(1000000, 64);
         let mut dag = dag.parallel();
-        let key = dag.add_aabb_query_volume(&u)?;
+        let key = dag.add_aabb_query_volume(&csg)?;
 
        /* 
         let index = csg.append_node_with_remove(

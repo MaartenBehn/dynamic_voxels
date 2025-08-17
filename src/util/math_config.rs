@@ -1,4 +1,4 @@
-use std::usize;
+use std::{fmt::Debug, usize};
 
 use octa_force::glam::{IVec2, IVec3, Mat3, Mat4, Vec2, Vec3, Vec3A};
 
@@ -6,7 +6,7 @@ use crate::model::generation::traits;
 
 use super::{aabb::AABB, matrix::Ma, number::Nu, vector::Ve};
 
-pub trait MC<const D: usize>: Copy + Default {
+pub trait MC<const D: usize>: Copy + Default + Debug {
     type Matrix: Ma<D>;
     type Vector: Ve<Self::Number, D>;
     type VectorF: Ve<f32, D>;
