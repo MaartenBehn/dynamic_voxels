@@ -2,68 +2,35 @@ use std::cell::RefCell;
 
 use crate::util::{aabb::AABB, number::Nu, vector::Ve};
 
-use super::{bucket::{Bucket, BUCKETS, NUM_BUCKETS}, helper::{joint_aabb_of_shapes, BvhNodeBuildArgs}, shape::{ShapeIndex, Shapes}, traits::BHShape};
+use super::{bucket::{Bucket, BUCKETS, NUM_BUCKETS}, helper::{joint_aabb_of_shapes, BvhNodeBuildArgs}, shape::{BHShape, Shapes}};
 
 
-/// The [`BvhNode`] enum that describes a node in a [`Bvh`].
-/// It's either a leaf node and references a shape (by holding its index)
-/// or a regular node that has two child nodes.
-/// The non-leaf node stores the [`Aabb`]s of its children.
-///
-/// [`Aabb`]: ../aabb/struct.Aabb.html
-/// [`Bvh`]: struct.Bvh.html
-/// [`Bvh`]: struct.BvhNode.html
-///
-#[derive(Debug, Copy, Clone)]
-//#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct  BvhNode<V: Ve<T, D>, T: Nu, const D: usize> {
-    aabb: AABB<V, T, D>,
-    exit: u32,
-    shape: u32,
-}
+pub trait BHNode<V: Ve<T, D>, T: Nu, const D: usize>: Default + Send {
+    fn new(aabb: AABB<V, T, D>, exit_index: usize, shape_index: Option<usize>) -> Self;
 
-
-impl<V: Ve<T, D>, T: Nu, const D: usize> BvhNode<V, T, D> {
-    /// Builds a [`BvhNode`] recursively using SAH partitioning.
-    ///
-    /// [`BvhNode`]: enum.BvhNode.html
-    ///
-    pub fn build<S: BHShape<V, T, D>>(args: BvhNodeBuildArgs<S, V, T, D>) {
+    fn build<S: BHShape<V, T, D>>(args: BvhNodeBuildArgs<S, Self, V, T, D>) {
         if let Some((left, right)) = Self::prep_build(args) {
             Self::build(left);
             Self::build(right);
         }
     }
 
-    /// Builds a [`BvhNode`] with a custom executor function using SAH partitioning.
-    ///
-    /// [`BvhNode`]: enum.BvhNode.html
-    ///
-    pub fn build_with_executor<S: BHShape<V, T, D>>(
-        args: BvhNodeBuildArgs<S, V, T, D>,
-        mut executor: impl FnMut(BvhNodeBuildArgs<S, V, T, D>, BvhNodeBuildArgs<S, V, T, D>),
+    fn build_with_executor<S: BHShape<V, T, D>>(
+        args: BvhNodeBuildArgs<S, Self, V, T, D>,
+        mut executor: impl FnMut(BvhNodeBuildArgs<S, Self, V, T, D>, BvhNodeBuildArgs<S, Self,  V, T, D>),
     ) {
         if let Some((left, right)) = Self::prep_build(args) {
             executor(left, right);
         }
     }
 
-    /// Builds a single [`BvhNode`] in the [`Bvh`] heirarchy.
-    /// Returns the arguments needed to call this function and build the future
-    /// children of this node. If you do not call this function using the arguments
-    /// returned then the Bvh will not be completely built.
-    ///
-    /// [`BvhNode`]: enum.BvhNode.html
-    ///
     fn prep_build<S: BHShape<V, T, D>>(
-        args: BvhNodeBuildArgs<S, V, T, D>,
-    ) -> Option<(BvhNodeBuildArgs<S, V, T, D>, BvhNodeBuildArgs<S, V, T, D>)> {
+        args: BvhNodeBuildArgs<S, Self, V, T, D>,
+    ) -> Option<(BvhNodeBuildArgs<S, Self, V, T, D>, BvhNodeBuildArgs<S, Self, V, T, D>)> {
         let BvhNodeBuildArgs {
             shapes,
             indices,
             nodes,
-            parent_index,
-            depth,
             node_index,
             exit_index,
             aabb_bounds,
@@ -72,13 +39,9 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> BvhNode<V, T, D> {
         // If there is only one element left, don't split anymore
         if indices.len() == 1 {
             let shape_index = indices[0];
-            nodes[0].write(BvhNode {
-                aabb: aabb_bounds,
-                exit: exit_index as _,
-                shape: shape_index.0 as _,
-            });
+            nodes[0].write(Self::new(aabb_bounds, exit_index, Some(shape_index)));
             // Let the shape know the index of the node that represents it.
-            shapes.set_node_index(shape_index, node_index);
+            //shapes.set_node_index(shape_index, node_index);
             return None;
         }
 
@@ -102,7 +65,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> BvhNode<V, T, D> {
                 (child_r_aabb, child_r_centroid, child_r_indices),
             )
         } else {
-            BvhNode::build_buckets(
+            Self::build_buckets(
                 shapes,
                 indices,
                 split_axis,
@@ -125,11 +88,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> BvhNode<V, T, D> {
         let after_subtree_index = child_r_index + rigth_len;
       
         // Construct the actual data structure and replace the dummy node.
-        nodes[0].write(BvhNode {
-            aabb: aabb_bounds,
-            exit: exit_index as _,
-            shape: u32::MAX,
-        });
+        nodes[0].write(Self::new(aabb_bounds, exit_index, None));
 
         // Remove the current node from the future build steps.
         let next_nodes = &mut nodes[1..];
@@ -141,8 +100,6 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> BvhNode<V, T, D> {
                 shapes,
                 indices: child_l_indices,
                 nodes: l_nodes,
-                parent_index: node_index,
-                depth: depth + 1,
                 node_index: child_l_index,
                 exit_index: child_r_index,
                 aabb_bounds: child_l_aabb,
@@ -152,8 +109,6 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> BvhNode<V, T, D> {
                 shapes,
                 indices: child_r_indices,
                 nodes: r_nodes,
-                parent_index: node_index,
-                depth: depth + 1,
                 node_index: child_r_index,
                 exit_index: after_subtree_index,
                 aabb_bounds: child_r_aabb,
@@ -164,15 +119,15 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> BvhNode<V, T, D> {
 
     #[allow(clippy::type_complexity)]
     fn build_buckets<'a, S: BHShape<V, T, D>>(
-        shapes: &Shapes<S>,
-        indices: &'a mut [ShapeIndex],
+        shapes: &Shapes<S, V, T, D>,
+        indices: &'a mut [usize],
         split_axis: usize,
         split_axis_size: T,
         centroid_bounds: &AABB<V, T, D>,
         aabb_bounds: &AABB<V, T, D>,
     ) -> (
-        (AABB<V, T, D>, AABB<V, T, D>, &'a mut [ShapeIndex]),
-        (AABB<V, T, D>, AABB<V, T, D>, &'a mut [ShapeIndex]),
+        (AABB<V, T, D>, AABB<V, T, D>, &'a mut [usize]),
+        (AABB<V, T, D>, AABB<V, T, D>, &'a mut [usize]),
     ) {
         // Use fixed size arrays of `Bucket`s, and thread local index assignment vectors.
         BUCKETS.with(move |buckets_ref| {
@@ -186,8 +141,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> BvhNode<V, T, D> {
             // In this branch the `split_axis_size` is large enough to perform meaningful splits.
             // We start by assigning the shapes to `Bucket`s.
             for idx in indices.iter() {
-                let shape = shapes.get(*idx);
-                let shape_aabb = shape.aabb();
+                let shape_aabb = shapes.aabb(*idx);
                 let shape_center = shape_aabb.center();
 
                 // Get the relative position of the shape centroid `[0.0..1.0]`.
@@ -260,103 +214,4 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> BvhNode<V, T, D> {
             )
         })
     }
- 
-    /* 
-    /// Traverses the [`Bvh`] recursively and returns all shapes whose [`Aabb`] is
-    /// intersected by the given [`Ray`].
-    ///
-    /// [`Aabb`]: ../aabb/struct.Aabb.html
-    /// [`Bvh`]: struct.Bvh.html
-    /// [`Ray`]: ../ray/struct.Ray.html
-    ///
-    pub(crate) fn traverse_recursive<Query: IntersectsAabb<T, D>, Shape: Bounded<T, D>>(
-        nodes: &[BvhNode<V, T, D>],
-        node_index: usize,
-        shapes: &[Shape],
-        query: &Query,
-        indices: &mut Vec<usize>,
-    ) {
-        match nodes[node_index] {
-            BvhNode::Node {
-                ref child_l_aabb,
-                child_l_index,
-                ref child_r_aabb,
-                child_r_index,
-                ..
-            } => {
-                if query.intersects_aabb(child_l_aabb) {
-                    BvhNode::traverse_recursive(nodes, child_l_index, shapes, query, indices);
-                }
-                if query.intersects_aabb(child_r_aabb) {
-                    BvhNode::traverse_recursive(nodes, child_r_index, shapes, query, indices);
-                }
-            }
-            BvhNode::Leaf { shape_index, .. } => {
-                // Either we got to a non-root node recursively, in which case the caller
-                // checked our AABB, or we are processing the root node, in which case we
-                // need to check the AABB.
-                if node_index != 0 || query.intersects_aabb(&shapes[shape_index].aabb()) {
-                    indices.push(shape_index);
-                }
-            }
-        }
-    }
-    */
-
-    /*
-    /// Traverses the [`Bvh`] recursively and updates the given `best_candidate` with
-    /// the nearest shape found so far.
-    ///
-    /// [`Aabb`]: ../aabb/struct.Aabb.html
-    /// [`Bvh`]: struct.Bvh.html
-    ///
-    pub(crate) fn nearest_to_recursive<'a, Shape: Bounded<T, D> + PointDistance<T, D>>(
-        nodes: &[BvhNode<V, T, D>],
-        node_index: usize,
-        query: nalgebra::Point<T, D>,
-        shapes: &'a [Shape],
-        best_candidate: &mut Option<(&'a Shape, T)>,
-    ) {
-        match nodes[node_index] {
-            BvhNode::Node {
-                ref child_l_aabb,
-                child_l_index,
-                ref child_r_aabb,
-                child_r_index,
-                ..
-            } => {
-                // Compute the min dist for both children
-                let mut children = [
-                    (child_l_index, child_l_aabb.min_distance_squared(query)),
-                    (child_r_index, child_r_aabb.min_distance_squared(query)),
-                ];
-
-                // Sort children to go to the best candidate first and have a better chance of pruning
-                if children[0].1 > children[1].1 {
-                    children.swap(0, 1);
-                }
-
-                // Traverse children
-                for (index, child_dist) in children {
-                    // Node might contain a better shape: check it.
-                    // TODO: to be replaced by `Option::is_none_or` after 2025-10 for 1 year MSRV.
-                    #[allow(clippy::unnecessary_map_or)]
-                    if best_candidate.map_or(true, |(_, best_dist)| child_dist < best_dist) {
-                        Self::nearest_to_recursive(nodes, index, query, shapes, best_candidate);
-                    }
-                }
-            }
-            BvhNode::Leaf { shape_index, .. } => {
-                // This leaf might contain a better shape: check it directly with its exact distance (squared).
-                let dist = shapes[shape_index].distance_squared(query);
-
-                // TODO: to be replaced by `Option::is_none_or` after 2025-10 for 1 year MSRV.
-                #[allow(clippy::unnecessary_map_or)]
-                if best_candidate.map_or(true, |(_, best_dist)| dist < best_dist) {
-                    *best_candidate = Some((&shapes[shape_index], dist));
-                }
-            }
-        }
-    }
-    */
 }

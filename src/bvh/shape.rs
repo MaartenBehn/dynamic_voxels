@@ -1,64 +1,31 @@
 use std::marker::PhantomData;
 
-use crate::util::{number::Nu, vector::Ve};
+use crate::util::{aabb::AABB, number::Nu, vector::Ve};
 
-use super::traits::BHShape;
-
-/// Shapes holds a mutable ptr to the slice of Shapes passed in to build. It is accessed only through a ShapeIndex.
-/// These are a set of unique indices into Shapes that are generated at the start of the build process. Because they
-/// are all unique they guarantee that access into Shapes is safe to do in parallel.
-pub struct Shapes<'a, S> {
-    ptr: *mut S,
-    len: usize,
-    marker: PhantomData<&'a S>,
+pub struct Shapes<'a, S: BHShape<V, T, D>, V: Ve<T, D>, T: Nu, const D: usize> {
+    shapes: &'a [S],
+    p1: PhantomData<V>,
+    p2: PhantomData<T>,
 }
 
-#[repr(transparent)]
-#[derive(Copy, Clone, Debug)]
-/// ShapeIndex represents an entry into the Shapes struct. It is used to help ensure that we are only accessing Shapes
-/// with unique indices.
-pub(crate) struct ShapeIndex(pub usize);
+pub trait BHShape<V: Ve<T, D>, T: Nu, const D: usize>: Send + Sync + Sized {
+    fn aabb(&self, shapes: &Shapes<Self, V, T, D>) -> AABB<V, T, D>;
+}
 
-impl<S> Shapes<'_, S> {
-    /// Calls set_bh_node_index on the Shape found at shape_index.
-    pub(crate) fn set_node_index<V: Ve<T, D>,  T: Nu, const D: usize>(
-        &self,
-        shape_index: ShapeIndex,
-        node_index: usize,
-    ) where
-        S: BHShape<V, T, D>,
-    {
-        assert!(shape_index.0 < self.len);
-        unsafe {
-            self.ptr
-                .add(shape_index.0)
-                .as_mut()
-                .unwrap()
-                .set_bh_node_index(node_index);
-        }
+impl<S: BHShape<V, T, D>, V: Ve<T, D>, T: Nu, const D: usize> Shapes<'_, S, V, T, D> {
+    /// Returns a reference to the Shape found at shape_index.
+    pub fn get(&self, shape_index: usize) -> &S {
+        &self.shapes[shape_index]
     }
 
-    /// Returns a reference to the Shape found at shape_index.
-    pub(crate) fn get<V: Ve<T, D>,  T: Nu, const D: usize>(&self, shape_index: ShapeIndex) -> &S
-    where
-        S: BHShape<V, T, D>,
-    {
-        assert!(shape_index.0 < self.len);
-        unsafe { self.ptr.add(shape_index.0).as_ref().unwrap() }
+    pub fn aabb(&self, shape_index: usize) -> AABB<V, T, D> {
+        self.shapes[shape_index].aabb(self)
     }
 
     /// Creates a [`Shapes`] that inherits its lifetime from the slice.
-    pub(crate) fn from_slice<V: Ve<T, D>,  T: Nu, const D: usize>(slice: &mut [S]) -> Shapes<S>
-    where
-        S: BHShape<V, T, D>,
+    pub(crate) fn from_slice(slice: &[S]) -> Shapes<S, V, T, D>
     {
-        Shapes {
-            ptr: slice.as_mut_ptr(),
-            len: slice.len(),
-            marker: PhantomData,
-        }
+        Shapes { shapes: &slice, p1: Default::default(), p2: Default::default() }
     }
 }
 
-unsafe impl<S: Send> Send for Shapes<'_, S> {}
-unsafe impl<S> Sync for Shapes<'_, S> {}

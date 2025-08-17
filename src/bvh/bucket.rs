@@ -2,14 +2,11 @@ use std::cell::RefCell;
 
 use crate::util::{aabb::AABB, number::Nu, vector::Ve};
 
-use super::shape::ShapeIndex;
-
-
 pub const NUM_BUCKETS: usize = 6;
 
 thread_local! {
     /// Thread local for the buckets used while building to reduce allocations during build
-    pub static BUCKETS: RefCell<[Vec<ShapeIndex>; NUM_BUCKETS]> = RefCell::new(Default::default());
+    pub static BUCKETS: RefCell<[Vec<usize>; NUM_BUCKETS]> = RefCell::new(Default::default());
 }
 
 #[derive(Clone, Copy)]

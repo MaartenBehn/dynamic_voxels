@@ -9,20 +9,21 @@ pub mod bucket;
 use std::{marker::PhantomData, mem::MaybeUninit};
 
 use helper::{joint_aabb_of_shapes, BvhNodeBuildArgs};
-use node::BvhNode;
-use shape::{ShapeIndex, Shapes};
-use traits::BHShape;
+use node::{BHNode};
+use shape::{BHShape, Shapes};
 
 use crate::util::{aabb::AABB, number::Nu, vector::Ve};
 
-#[derive(Debug)]
-pub struct Bvh<V: Ve<T, D>, T: Nu, const D: usize> {
-    nodes: Vec<BvhNode<V, T, D>>,
+#[derive(Debug, Default, Clone)]
+pub struct Bvh<N: BHNode<V, T, D>, V: Ve<T, D>, T: Nu, const D: usize> {
+    pub nodes: Vec<N>,
+    p1: PhantomData<V>,
+    p2: PhantomData<T>,
 }
 
-impl<V: Ve<T, D>, T: Nu, const D: usize> Bvh<V, T, D> { 
+impl<N: BHNode<V, T, D>, V: Ve<T, D>, T: Nu, const D: usize> Bvh<N, V, T, D> { 
 
-    pub fn build_par<Shape: BHShape<V, T, D> + Send>(shapes: &mut [Shape], leafs: &[usize]) -> Self
+    pub fn build_par<Shape: BHShape<V, T, D> + Send>(shapes: &[Shape], leafs: &mut [usize]) -> Self
     where
         T: Send,
         Self: Sized,
@@ -31,23 +32,20 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> Bvh<V, T, D> {
     }
 
     fn build_with_executor<S: BHShape<V, T, D>>(
-        shapes: &mut [S], 
-        leafs: &[usize], 
-        executor: impl FnMut(BvhNodeBuildArgs<S, V, T, D>, BvhNodeBuildArgs<S, V, T, D>),
-    ) -> Bvh<V, T, D> {
+        shapes: &[S], 
+        indices: &mut [usize], 
+        executor: impl FnMut(BvhNodeBuildArgs<S, N, V, T, D>, BvhNodeBuildArgs<S, N, V, T, D>),
+    ) -> Bvh<N, V, T, D> {
         if shapes.is_empty() {
-            return Bvh { nodes: Vec::new() };
+            return Bvh { nodes: Vec::new(), ..Default::default() };
         }
 
-        let mut indices = leafs.into_iter()
-            .map(|i| ShapeIndex(*i))
-            .collect::<Vec<ShapeIndex>>();
         let expected_node_count = shapes.len() * 2 - 1;
         let mut nodes = Vec::with_capacity(expected_node_count);
 
         let uninit_slice = unsafe {
             std::slice::from_raw_parts_mut(
-                nodes.as_mut_ptr() as *mut MaybeUninit<BvhNode<V, T, D>>,
+                nodes.as_mut_ptr() as *mut MaybeUninit<N>,
                 expected_node_count,
             )
         };
@@ -56,13 +54,11 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> Bvh<V, T, D> {
 
         let tree_len = indices.len() * 2 - 1;
 
-        BvhNode::build_with_executor(
+        N::build_with_executor(
             BvhNodeBuildArgs {
                 shapes: &shapes,
-                indices: &mut indices,
+                indices: indices,
                 nodes: uninit_slice,
-                parent_index: 0,
-                depth: 0,
                 node_index: 0,
                 exit_index: tree_len,
                 aabb_bounds: aabb,
@@ -77,14 +73,14 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> Bvh<V, T, D> {
         unsafe {
             nodes.set_len(expected_node_count);
         }
-        Bvh { nodes }
+        Bvh { nodes, ..Default::default() }
     }
 }
 
 
-pub fn rayon_executor<S, V: Ve<T, D>, T: Send + Nu, const D: usize>(
-    left: BvhNodeBuildArgs<S, V, T, D>,
-    right: BvhNodeBuildArgs<S, V, T, D>,
+pub fn rayon_executor<S, N: BHNode<V, T, D>, V: Ve<T, D>, T: Send + Nu, const D: usize>(
+    left: BvhNodeBuildArgs<S, N, V, T, D>,
+    right: BvhNodeBuildArgs<S, N, V, T, D>,
 ) where
     S: BHShape<V, T, D> + Send,
 {

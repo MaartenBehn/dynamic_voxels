@@ -32,6 +32,10 @@ harness = false
 name = "query_large_union"
 harness = false
 
+[[bench]]
+name = "bvh_build"
+harness = false
+
 [features]
 islands = []
 profile_islands = []

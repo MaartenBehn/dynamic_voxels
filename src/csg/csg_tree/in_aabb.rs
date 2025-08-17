@@ -25,8 +25,8 @@ impl<C: MC<D>, const D: usize> CSGTree<u8, C, D> {
 
     fn get_aabb_value_union(&self, union: &CSGTreeUnion<C, D>, aabb: AABB<C::Vector, C::Number, D>) -> VolumeQureyAABBResult {
         let mut i = 0;
-        while i < union.flat_bvh.len() {
-            let b = &union.flat_bvh[i];
+        while i < union.bvh.nodes.len() {
+            let b = &union.bvh.nodes[i];
             if b.aabb.collides_aabb(aabb) {
                 if let Some(leaf) = b.leaf {
                     let v = self.get_aabb_value_index(leaf, aabb); 

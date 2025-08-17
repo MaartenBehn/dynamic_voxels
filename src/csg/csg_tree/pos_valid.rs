@@ -25,8 +25,8 @@ impl<V: Send + Sync, C: MC<D>, const D: usize> CSGTree<V, C, D> {
 
     fn is_position_valid_union(&self, union: &CSGTreeUnion<C, D>, pos: C::Vector) -> bool {
         let mut i = 0;
-        while i < union.flat_bvh.len() {
-            let b = &union.flat_bvh[i];
+        while i < union.bvh.nodes.len() {
+            let b = &union.bvh.nodes[i];
             if b.aabb.pos_in_aabb(pos) {
                 if let Some(leaf) = b.leaf {
                     let v = self.is_position_valid_index(leaf, pos); 

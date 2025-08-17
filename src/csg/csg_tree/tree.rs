@@ -128,10 +128,10 @@ impl<V: Base, C: MC<D>, const D: usize> CSGTree<V, C, D> {
 
         match &mut node.data {
             CSGTreeNodeData::Union(union) => {
-                let node = union.nodes.iter_mut()
-                    .find(|node| node.index == old)
+                let i = union.indecies.iter()
+                    .position(|index| *index == old)
                     .expect("Union Parent had no child");
-                node.index = new;
+                union.indecies[i] = new;
             },
             CSGTreeNodeData::Remove(remove) => {
                 if remove.base == old {

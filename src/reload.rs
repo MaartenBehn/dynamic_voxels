@@ -12,7 +12,6 @@ pub mod voxel;
 pub mod bvh;
 
 use csg::csg_tree::tree::CSGTree;
-use csg::csg_tree::union::CSGUnionNode;
 use csg::union::tree::{Union, UnionNode};
 use model::debug_gui::collapser::CollapserDebugGui;
 use model::debug_gui::template::TemplateDebugGui;
@@ -153,17 +152,8 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
             palette.clone(),
         )?;
 
-        let mut csg = CSGTree::<u8, Int3D, 3>::new_sphere(Vec3A::ZERO, 10.0);
-        let mut union = Union::<u8, Int3D, 3>::new();
-        union.add_node(UnionNode::new_sphere(Vec3A::ZERO, 10.0));
-
-        for _ in 0..4 {
-            let pos = vec3a(fastrand::f32(), fastrand::f32(), fastrand::f32()) * 100.0;
-            csg.union_sphere(pos, 10.0);
-            union.add_node(UnionNode::new_sphere(pos, 10.0));
-        }
-        csg.calculate_bounds();
-        union.calculate_bounds();
+        let mut csg = CSGTree::<u8, Int3D, 3>::new_sphere(Vec3A::ZERO, 100.0);
+        csg.cut_with_sphere(vec3a(70.0, 0.0, 0.0), 70.0);
         
         let now = Instant::now();
 

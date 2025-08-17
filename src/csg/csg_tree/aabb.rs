@@ -4,9 +4,9 @@ use itertools::Itertools;
 use octa_force::{egui::emath::Numeric, glam::Vec3A};
 use smallvec::ToSmallVec;
 
-use crate::{bvh::{traits::BHShape, Bvh}, util::{aabb::AABB, math_config::MC}, volume::VolumeBounds, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid}};
+use crate::{bvh::{Bvh}, util::{aabb::AABB, math_config::MC}, volume::VolumeBounds, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid}};
 
-use super::{tree::{CSGTreeNode, CSGTreeNodeData, CSGTree, CSGTreeIndex}, union::{BVHNodeV2, CSGTreeUnion, CSGUnionNode}};
+use super::{tree::{CSGTreeNode, CSGTreeNodeData, CSGTree, CSGTreeIndex}, union::{BVHNodeV2, CSGTreeUnion}};
 
 impl<V: Send + Sync, C: MC<D>, const D: usize> VolumeBounds<C::Vector, C::Number, D> for CSGTree<V, C, D> {
     fn calculate_bounds(&mut self) {
@@ -71,64 +71,26 @@ impl<V: Send + Sync, C: MC<D>, const D: usize> CSGTree<V, C, D> {
 
     fn calculate_bounds_union(&mut self, union: &mut CSGTreeUnion<C, D>) {
 
-        for node in union.nodes.iter_mut() {
-            self.calculate_bounds_index(node.index);
-            node.aabb = self.get_bounds_index(node.index);
+        for index in union.indecies.iter() {
+            self.calculate_bounds_index(*index);
         }
-
-        let leafs = (0..union.nodes.len()).into_iter().collect_vec();
-        let bvh = Bvh::<C::VectorF, f32, D>::build_par(&mut union.nodes, &leafs);
-        dbg!(&bvh);
-        
-        /* 
-        let flat_bvh = bvh.flatten_custom(&|aabb, exit, shape| {
-            if let Some(shape) = shape {
-                let union_node = &union.nodes[shape as usize];
-
-                BVHNodeV2::<C, D> {
-                    aabb: union_node.aabb,
-                    exit: exit as _,
-                    leaf: Some(union_node.index),
-                }
-            } else {
-                let aabb = AABB::<C::Vector, C::Number, D>::from_f(aabb);
-
-                BVHNodeV2 {
-                    aabb: aabb,
-                    exit: exit as _,
-                    leaf: None,
-                }
-            } 
-        });
-
-        dbg!(&flat_bvh);
-        union.flat_bvh = flat_bvh;
-        */
+ 
+        union.bvh = Bvh::<BVHNodeV2<C, D>, C::VectorF, f32, D>::build_par(
+            &self.nodes, 
+            &mut union.indecies);
     }
 }
 
 
 
 impl<C: MC<D>, const D: usize> CSGTreeUnion<C, D> {
-    fn get_bounds(&self) -> AABB<C::Vector, C::Number, D> {
-        if self.flat_bvh.is_empty() {
+    pub fn get_bounds(&self) -> AABB<C::Vector, C::Number, D> {
+        if self.bvh.nodes.is_empty() {
             return AABB::default();
         }
 
-        self.flat_bvh[0].aabb
+        self.bvh.nodes[0].aabb
     }
 }
 
-impl<C: MC<D>, const D: usize> BHShape<C::VectorF, f32, D> for CSGUnionNode<C, D> {
-    fn set_bh_node_index(&mut self, i: usize) {
-        self.bh_index = i;
-    }
 
-    fn bh_node_index(&self) -> usize {
-        self.bh_index
-    }
-
-    fn aabb(&self) -> AABB<C::VectorF, f32, D> {
-        self.aabb.to_f()
-    }
-}

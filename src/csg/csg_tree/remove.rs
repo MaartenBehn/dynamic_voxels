@@ -1,4 +1,4 @@
-use crate::util::math_config::MC;
+use crate::util::{aabb::AABB, math_config::MC};
 
 use super::tree::CSGTreeIndex;
 
