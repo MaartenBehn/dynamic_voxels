@@ -1,13 +1,15 @@
 import g_buffer;
 import texture_heap;
 import helper_color;
+import helper_math;
 
 enum DebugChannel { None, Albedo, Irradiance, Normals, Depth, HeatMap, Variance, All };
 
 struct DispatchParams {
   GBuffer* GBuffer;
+  float2 debug_depth_range;
+  float2 debug_heat_map_range;
   DebugChannel Channel;
-  float2 HeatmapRange;
 };
 [vk::push_constant] DispatchParams pc;
 
@@ -20,7 +22,6 @@ struct DispatchParams {
 [shader("compute")]
 [numthreads(8, 8)]
 void compute_main(uint2 pos: SV_DispatchThreadID) {
- 
   float4 output;
   switch (pc.Channel) {
     case DebugChannel.None: { output = get_default(pos); break; }
@@ -88,12 +89,13 @@ float4 get_normal(uint2 pos) {
 }
 
 float4 get_depth(uint2 pos) {
-  return float4(float3(pc.GBuffer.DepthTex.Instance[pos]), 1.0);
+  float depth = pc.GBuffer.DepthTex.Instance[pos];
+  return float4(viridis_plasma(norm_in_range(depth, pc.debug_depth_range)), 1.0);
 }
 
 float4 get_heat(uint2 pos) {
   int iters = pc.GBuffer.iter_tex.Instance[pos];
-  return float4(viridis_inferno(float(iters), pc.HeatmapRange), 1.0);
+  return float4(viridis_inferno(norm_in_range(float(iters), pc.debug_heat_map_range)), 1.0);
 }
 
 float4 get_variance(uint2 pos) {

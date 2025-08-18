@@ -104,6 +104,10 @@ public uint tzcnt64(uint64_t mask) {
     return a != 0 ? c : c + 32;
 }
 
+public float norm_in_range( float x, float2 range ) {
+  return (x - range.x) / (range.y - range.x); 
+}
+
 public void InterlockedSetBit(__ref uint64_t dest, uint index, bool value) {
     // Workaround for 64-bit atomics which are slightly fucked on slang's spirv target atm
     uint mask = 1 << (index & 31);

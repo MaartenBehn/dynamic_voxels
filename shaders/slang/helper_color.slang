@@ -8,11 +8,26 @@ public float3 aces_approx(float3 v) {
     return clamp((v*(a*v+b))/(v*(c*v+d)+e), 0.0f, 1.0f);
 }
 
+public float get_luminance(float3 color) {
+    return dot(color, float3(0.299, 0.587, 0.114));
+}
+
 // Viridis approximation, Jerome Liard, August 2016
 // https://www.shadertoy.com/view/XtGGzG
-public float3 viridis_inferno( float x, float2 range )
+public float3 viridis( float x )
 {
-	x = saturate((x - range.x) / (range.y - range.x));
+	x = saturate(x);
+	float4 x1 = float4( 1.0, x, x * x, x * x * x ); // 1 x x2 x3
+	float4 x2 = x1 * x1.w * x; // x4 x5 x6 x7
+	return float3(
+		dot( x1.xyzw, float4( +0.280268003, -0.143510503, +2.225793877, -14.815088879 ) ) + dot( x2.xy, float2( +25.212752309, -11.772589584 ) ),
+		dot( x1.xyzw, float4( -0.002117546, +1.617109353, -1.909305070, +2.701152864 ) ) + dot( x2.xy, float2( -1.685288385, +0.178738871 ) ),
+		dot( x1.xyzw, float4( +0.300805501, +2.614650302, -12.019139090, +28.933559110 ) ) + dot( x2.xy, float2( -33.491294770, +13.762053843 ) ) );
+}
+
+public float3 viridis_inferno( float x )
+{
+	x = saturate(x);
 	float4 x1 = float4( 1.0, x, x * x, x * x * x ); // 1 x x2 x3
 	float4 x2 = x1 * x1.w * x; // x4 x5 x6 x7
 	return float3(
@@ -21,6 +36,26 @@ public float3 viridis_inferno( float x, float2 range )
 		dot( x1.xyzw, float4( -0.019628385, +3.122510347, -5.893222355, +2.798380308 ) ) + dot( x2.xy, float2( -3.608884658, +4.324996022 ) ) );
 }
 
-public float GetLuminance(float3 color) {
-    return dot(color, float3(0.299, 0.587, 0.114));
+public float3 viridis_magma( float x )
+{
+	x = saturate(x);
+	float4 x1 = float4( 1.0, x, x * x, x * x * x ); // 1 x x2 x3
+	float4 x2 = x1 * x1.w * x; // x4 x5 x6 x7
+	return float3(
+		dot( x1.xyzw, float4( -0.023226960, +1.087154378, -0.109964741, +6.333665763 ) ) + dot( x2.xy, float2( -11.640596589, +5.337625354 ) ),
+		dot( x1.xyzw, float4( +0.010680993, +0.176613780, +1.638227448, -6.743522237 ) ) + dot( x2.xy, float2( +11.426396979, -5.523236379 ) ),
+		dot( x1.xyzw, float4( -0.008260782, +2.244286052, +3.005587601, -24.279769818 ) ) + dot( x2.xy, float2( +32.484310068, -12.688259703 ) ) );
 }
+
+public float3 viridis_plasma( float x )
+{
+	x = saturate(x);
+	float4 x1 = float4( 1.0, x, x * x, x * x * x ); // 1 x x2 x3
+	float4 x2 = x1 * x1.w * x; // x4 x5 x6 x7
+	return float3(
+		dot( x1.xyzw, float4( +0.063861086, +1.992659096, -1.023901152, -0.490832805 ) ) + dot( x2.xy, float2( +1.308442123, -0.914547012 ) ),
+		dot( x1.xyzw, float4( +0.049718590, -0.791144343, +2.892305078, +0.811726816 ) ) + dot( x2.xy, float2( -4.686502417, +2.717794514 ) ),
+		dot( x1.xyzw, float4( +0.513275779, +1.580255060, -5.164414457, +4.559573646 ) ) + dot( x2.xy, float2( -1.916810682, +0.570638854 ) ) );
+}
+
+

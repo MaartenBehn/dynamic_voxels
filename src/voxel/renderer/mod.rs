@@ -5,12 +5,13 @@ pub mod shader_stage;
 use std::mem;
 use std::time::Duration;
 
+use egui_double_slider::DoubleSlider;
 use g_buffer::{GBuffer, ImageAndViewAndHandle};
 use octa_force::anyhow::Result;
 use octa_force::camera::Camera;
 use octa_force::egui::{Align, Frame, Layout};
 use octa_force::engine::Engine;
-use octa_force::glam::{uvec3, UVec2, Vec2, Vec3};
+use octa_force::glam::{uvec3, vec2, UVec2, Vec2, Vec3};
 use octa_force::image::{GenericImageView, ImageReader};
 use octa_force::log::{debug, info};
 use octa_force::puffin_egui::puffin;
@@ -24,6 +25,7 @@ use octa_force::vulkan::{
 use octa_force::{egui, in_flight_frames, OctaResult};
 use render_data::RenderData;
 use shader_stage::ShaderStage;
+use spirv_struct_layout::{CheckSpirvStruct, SpirvLayout};
 use super::palette::buffer::PaletteBuffer;
 use super::palette::shared::SharedPalette;
 
@@ -50,7 +52,8 @@ pub struct VoxelRenderer {
 
     pub debug_channel: DebugChannel,
     pub max_bounces: usize,
-    heat_map_max: f32,
+    debug_depth_range: Vec2,
+    debug_heat_map_range: Vec2,
     pub temporal_denoise: bool,
     pub denoise_counters: bool,
     static_accum_number: u32,
@@ -84,7 +87,7 @@ pub struct AToursFilterDispatchParams {
     pass_index: u32,
 }
 
-#[repr(u32)]
+#[repr(C)]
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub enum DebugChannel {
     None, 
@@ -98,11 +101,13 @@ pub enum DebugChannel {
 }
 
 #[repr(C)]
+#[derive(SpirvLayout)]
 #[derive(Debug)]
 pub struct ComposeDispatchParams {
     g_buffer_ptr: u64,
+    debug_depth_range: Vec2,
+    debug_heat_map_range: Vec2,
     debug_channel: DebugChannel,
-    heat_map_range: Vec2,
 }
 
 impl VoxelRenderer {
@@ -191,12 +196,14 @@ impl VoxelRenderer {
 
             debug_channel: DebugChannel::None,
             max_bounces: 1,
-            heat_map_max: 256.0,
             temporal_denoise: true,
             denoise_counters: true,
             filter_passes: 2,
             temp_irradiance_tex,
             static_accum_number: 20,
+
+            debug_depth_range: vec2(0.5, 1.1),
+            debug_heat_map_range: vec2(0.0, 100.0),
         })
     }
 
@@ -268,7 +275,8 @@ impl VoxelRenderer {
         self.blit_stage.render(buffer, ComposeDispatchParams {
             g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
             debug_channel: self.debug_channel,
-            heat_map_range: Vec2 { x: 0.0, y: self.heat_map_max }
+            debug_depth_range: self.debug_depth_range,
+            debug_heat_map_range: self.debug_heat_map_range,
         }, dispatch_size);
  
         match &self.g_buffer.output_tex {
@@ -287,24 +295,8 @@ impl VoxelRenderer {
     }
 
     pub fn render_ui(&mut self, ctx: &egui::Context) { 
-        egui::Window::new("Debug")
+        egui::Window::new("Renderer")
             .show(ctx, |ui| {
-                egui::ComboBox::from_label("Channel")
-                    .selected_text(format!("{:?}", self.debug_channel))
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut self.debug_channel, DebugChannel::None, "None");
-                        ui.selectable_value(&mut self.debug_channel, DebugChannel::Albedo, "Albedo");
-                        ui.selectable_value(&mut self.debug_channel, DebugChannel::Irradiance, "Irradiance");
-                        ui.selectable_value(&mut self.debug_channel, DebugChannel::Depth, "Depth");
-                        ui.selectable_value(&mut self.debug_channel, DebugChannel::Normals, "Normals");
-                        ui.selectable_value(&mut self.debug_channel, DebugChannel::HeatMap, "HeatMap");
-                        ui.selectable_value(&mut self.debug_channel, DebugChannel::Variance, "Variance");
-                        ui.selectable_value(&mut self.debug_channel, DebugChannel::All, "All");
-                    }
-                    );
-                ui.add(egui::Slider::new(&mut self.heat_map_max, 0.0..=256.0)
-                    .text("Heat Map")
-                );
                 ui.add(egui::Slider::new(&mut self.max_bounces, 0..=10)
                     .text("Max Bounces")
                 );
@@ -332,8 +324,49 @@ impl VoxelRenderer {
                 if self.filter_passes % 2 == 1 {
                     self.filter_passes += 1;
                 } 
-
             });
+
+        egui::Window::new("Debug")
+            .show(ctx, |ui| {
+                egui::ComboBox::from_label("Channel")
+                    .selected_text(format!("{:?}", self.debug_channel))
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut self.debug_channel, DebugChannel::None, "None");
+                        ui.selectable_value(&mut self.debug_channel, DebugChannel::Albedo, "Albedo");
+                        ui.selectable_value(&mut self.debug_channel, DebugChannel::Irradiance, "Irradiance");
+                        ui.selectable_value(&mut self.debug_channel, DebugChannel::Depth, "Depth");
+                        ui.selectable_value(&mut self.debug_channel, DebugChannel::Normals, "Normals");
+                        ui.selectable_value(&mut self.debug_channel, DebugChannel::HeatMap, "HeatMap");
+                        ui.selectable_value(&mut self.debug_channel, DebugChannel::Variance, "Variance");
+                        ui.selectable_value(&mut self.debug_channel, DebugChannel::All, "All");
+                    }
+                    );
+
+                if matches!(self.debug_channel, DebugChannel::Depth) || matches!(self.debug_channel, DebugChannel::All) {  
+                    ui.label(format!("Depth Range: {:.02} - {:.02}", self.debug_depth_range.x, self.debug_depth_range.y));
+                    ui.add(DoubleSlider::new(
+                        &mut self.debug_depth_range.x,
+                        &mut self.debug_depth_range.y,
+                        0.0..=10.0,
+                    )
+                        .width(300.0)
+                        .separation_distance(0.1)
+                    );
+                }
+
+                if matches!(self.debug_channel, DebugChannel::HeatMap) || matches!(self.debug_channel, DebugChannel::All) {  
+                    ui.label(format!("Heat Map Range: {:.02} - {:.02}", self.debug_heat_map_range.x, self.debug_heat_map_range.y));
+                    ui.add(DoubleSlider::new(
+                        &mut self.debug_heat_map_range.x,
+                        &mut self.debug_heat_map_range.y,
+                        0.0..=255.0,
+                    )
+                        .width(300.0)
+                        .separation_distance(0.0)
+                    );
+                }
+            });
+
     }
 
     pub fn on_recreate_swapchain(

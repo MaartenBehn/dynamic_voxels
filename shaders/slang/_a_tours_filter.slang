@@ -28,7 +28,7 @@ void compute_main(int2 pos: SV_DispatchThreadID) {
   float centerVariance = getFilteredVariance(pos);
   // TODO Unpack normal func
   float3 centerNormal = UnpackAlbedo(pc.GBuffer.AlbedoTex.Instance[pos]).Normal;
-  float centerLuma = GetLuminance(centerIrradiance.rgb);
+  float centerLuma = get_luminance(centerIrradiance.rgb);
 
   float lumaPhi = sqrt(max(0.0001, centerVariance)) * 4.0;
   float depthPhi = 0.001;
@@ -47,7 +47,7 @@ void compute_main(int2 pos: SV_DispatchThreadID) {
       if (!pc.GBuffer.CheckBounds(samplePos)) continue;
 
       float4 irradiance = pc.InIrradianceTex.Instance[samplePos];
-      float w_luma = abs(GetLuminance(irradiance.rgb) - centerLuma) / lumaPhi;
+      float w_luma = abs(get_luminance(irradiance.rgb) - centerLuma) / lumaPhi;
 
       float3 normal = UnpackAlbedo(pc.GBuffer.AlbedoTex.Instance[samplePos]).Normal;
       float w_normal = pow(clamp(dot(normal, centerNormal), 0.001, 1.0), 128);

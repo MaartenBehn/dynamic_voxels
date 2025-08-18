@@ -86,7 +86,7 @@ bool Reproject(int2 pos) {
   float4 currIrradiance = pc.GBuffer.IrradianceTex.Instance[pos];
   float3 newIrradiance = lerp(prevIrradiance, currIrradiance.rgb, blendFactor);
 
-  float luma = GetLuminance(newIrradiance);
+  float luma = get_luminance(newIrradiance);
   float2 currMoments = float2(luma, luma * luma);
   float2 newMoments = lerp(prevMoments, currMoments, max(0.5, blendFactor));
   pc.GBuffer.MomentsTex.Instance[pos] = newMoments;
