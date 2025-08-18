@@ -5,7 +5,6 @@ use nodes::ComposeNode;
 use octa_force::{anyhow::anyhow, egui::{self, CornerRadius, Id}, OctaResult};
 use viewer::ComposeViewer;
 
-pub mod example;
 pub mod nodes;
 pub mod viewer;
 pub mod data_type;

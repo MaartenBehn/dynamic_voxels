@@ -1,5 +1,5 @@
 use egui_snarl::{ui::{AnyPins, PinInfo, SnarlViewer}, InPin, InPinId, NodeId, OutPin, OutPinId, Snarl};
-use octa_force::egui::{self, Color32, Ui};
+use octa_force::{egui::{self, Color32, DragValue, Ui}, glam::{Vec2, Vec3A}};
 
 use super::{data_type::ComposeDataType, nodes::{get_node_templates, ComposeNode, ComposeNodeInput, ComposeNodeOutput}};
 
@@ -31,8 +31,49 @@ impl SnarlViewer<ComposeNode> for ComposeViewer {
         ui: &mut octa_force::egui::Ui,
         snarl: &mut egui_snarl::Snarl<ComposeNode>,
     ) -> impl egui_snarl::ui::SnarlPin + 'static {
-        let input = to_input(snarl, pin);
-        ui.label(input.get_name());
+        let input = &mut snarl[pin.id.node].inputs[pin.id.input];
+        
+        ui.label(input.name.to_string());
+        match &mut input.data_type {
+            ComposeDataType::Number(d) => { 
+                let mut v = d.unwrap_or(0.0);
+                if ui.add(DragValue::new(&mut v)).changed() {
+                    (*d) = Some(v);
+                }
+            },
+            ComposeDataType::Position2D(d) => { 
+                let mut v = d.unwrap_or(Vec2::ZERO);
+
+                ui.label("x:");
+                if ui.add(DragValue::new(&mut v.x)).changed() {
+                    (*d) = Some(v);
+                }
+                ui.label("y:");
+                if ui.add(DragValue::new(&mut v.y)).changed() {
+                    (*d) = Some(v);
+                }
+            },
+            ComposeDataType::Position3D(d) => {
+                let mut v = d.unwrap_or(Vec3A::ZERO);
+                
+                ui.label("x:");
+                if ui.add(DragValue::new(&mut v.x)).changed() {
+                    (*d) = Some(v);
+                }
+
+                ui.label("y:");
+                if ui.add(DragValue::new(&mut v.y)).changed() {
+                    (*d) = Some(v);
+                }
+
+                ui.label("z:");
+                if ui.add(DragValue::new(&mut v.z)).changed() {
+                    (*d) = Some(v);
+                }
+            },
+            _ => {},
+        }
+
         input.data_type.get_pin()
     }
 
@@ -46,8 +87,50 @@ impl SnarlViewer<ComposeNode> for ComposeViewer {
         ui: &mut octa_force::egui::Ui,
         snarl: &mut egui_snarl::Snarl<ComposeNode>,
     ) -> impl egui_snarl::ui::SnarlPin + 'static {
-        let output = to_output(snarl, pin);
-        ui.label(output.get_name());
+        let output = &mut snarl[pin.id.node].outputs[pin.id.output];
+       
+        ui.add_space(8.0);
+
+        match &mut output.data_type {
+            ComposeDataType::Number(d) => { 
+                let mut v = d.unwrap_or(0.0);
+                if ui.add(DragValue::new(&mut v)).changed() {
+                    (*d) = Some(v);
+                }
+            },
+            ComposeDataType::Position2D(d) => { 
+                ui.horizontal(|ui| {
+                    let mut v = d.unwrap_or(Vec2::ZERO);
+                    
+                    if ui.add(DragValue::new(&mut v.y)).changed() {
+                        (*d) = Some(v);
+                    }
+                    ui.label("y:");
+                    if ui.add(DragValue::new(&mut v.x)).changed() {
+                        (*d) = Some(v);
+                    }
+                    ui.label("x:");
+                });
+            },
+            ComposeDataType::Position3D(d) => {
+                let mut v = d.unwrap_or(Vec3A::ZERO);
+
+                if ui.add(DragValue::new(&mut v.z)).changed() {
+                    (*d) = Some(v);
+                }
+                ui.label("z:");
+                if ui.add(DragValue::new(&mut v.y)).changed() {
+                    (*d) = Some(v);
+                }
+                ui.label("y:");
+                if ui.add(DragValue::new(&mut v.x)).changed() {
+                    (*d) = Some(v);
+                }
+                ui.label("x:");
+            },
+            _ => { ui.label(output.name.to_string()); },
+        }
+
         output.data_type.get_pin()
     }
 

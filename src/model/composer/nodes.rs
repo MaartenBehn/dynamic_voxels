@@ -36,6 +36,7 @@ pub struct ComposeNode {
 pub struct ComposeNodeInput {
     pub name: String,
     pub data_type: ComposeDataType,
+
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -72,7 +73,7 @@ pub fn get_node_templates() -> Vec<ComposeNode> {
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "out".to_string(), 
-                    data_type: ComposeDataType::Number, 
+                    data_type: ComposeDataType::Number(None), 
                 }
             ], 
         },
@@ -84,7 +85,7 @@ pub fn get_node_templates() -> Vec<ComposeNode> {
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "out".to_string(), 
-                    data_type: ComposeDataType::Position2D, 
+                    data_type: ComposeDataType::Position2D(None), 
                 }
             ], 
         },
@@ -96,7 +97,7 @@ pub fn get_node_templates() -> Vec<ComposeNode> {
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "out".to_string(), 
-                    data_type: ComposeDataType::Position3D, 
+                    data_type: ComposeDataType::Position3D(None), 
                 }
             ], 
         },
@@ -107,11 +108,11 @@ pub fn get_node_templates() -> Vec<ComposeNode> {
             inputs: vec![
                 ComposeNodeInput { 
                     name: "min".to_string(), 
-                    data_type: ComposeDataType::Number, 
+                    data_type: ComposeDataType::Number(None), 
                 },
                 ComposeNodeInput { 
                     name: "max".to_string(), 
-                    data_type: ComposeDataType::Number, 
+                    data_type: ComposeDataType::Number(None), 
                 },
             ], 
             outputs: vec![
@@ -132,7 +133,7 @@ pub fn get_node_templates() -> Vec<ComposeNode> {
                 },
                 ComposeNodeInput { 
                     name: "spacing".to_string(), 
-                    data_type: ComposeDataType::Number, 
+                    data_type: ComposeDataType::Number(None), 
                 },
             ], 
             outputs: vec![
@@ -153,7 +154,7 @@ pub fn get_node_templates() -> Vec<ComposeNode> {
                 },
                 ComposeNodeInput { 
                     name: "spacing".to_string(), 
-                    data_type: ComposeDataType::Number, 
+                    data_type: ComposeDataType::Number(None), 
                 },
             ], 
             outputs: vec![
@@ -174,15 +175,15 @@ pub fn get_node_templates() -> Vec<ComposeNode> {
                 },
                 ComposeNodeInput { 
                     name: "start".to_string(), 
-                    data_type: ComposeDataType::Position2D, 
+                    data_type: ComposeDataType::Position2D(None), 
                 },
                 ComposeNodeInput { 
                     name: "end".to_string(), 
-                    data_type: ComposeDataType::Position2D, 
+                    data_type: ComposeDataType::Position2D(None), 
                 },
                 ComposeNodeInput { 
                     name: "side_variance".to_string(), 
-                    data_type: ComposeDataType::Number, 
+                    data_type: ComposeDataType::Number(None), 
                 },
                             ], 
             outputs: vec![
