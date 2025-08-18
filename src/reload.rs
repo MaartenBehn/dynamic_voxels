@@ -129,7 +129,6 @@ pub struct RenderState {
     pub collapser_debug: CollapserDebugGui<IslandGenerationTypes>,
 
 
-
     #[cfg(feature="graph_builder")]
     pub composer: ModelComposer,
 }
@@ -265,6 +264,9 @@ pub fn update(
         engine.get_resolution(), 
         engine.get_current_in_flight_frame_index(), 
         engine.get_current_frame_index())?;
+
+    #[cfg(feature="graph_builder")]
+    render_state.composer.update()?;
 
     Ok(())
 }

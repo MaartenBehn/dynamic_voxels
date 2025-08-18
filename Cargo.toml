@@ -86,8 +86,10 @@ smallvec = {version = "1.15", features = [ "union", "const_new", "const_generics
 egui_double_slider = "0.9"
 
 # Graph editor
-egui-snarl = "0.8.0"
+egui-snarl = { version = "0.8.0", features = [ "serde" ] }
 egui-probe = "0.9.0"
+serde = "*"
+serde_json = "*"
 
 [dev-dependencies]
 proptest = "0.9.6"

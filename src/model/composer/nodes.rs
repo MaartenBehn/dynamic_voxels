@@ -2,7 +2,7 @@ use octa_force::egui::Ui;
 
 use super::data_type::ComposeDataType;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ComposeNodeGroupe {
     Const,
 
@@ -11,7 +11,7 @@ pub enum ComposeNodeGroupe {
     PositionSet,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ComposeNodeType {
     Number,
     Position2D,
@@ -24,7 +24,7 @@ pub enum ComposeNodeType {
     Path,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ComposeNode {
     pub t: ComposeNodeType,
     pub group: ComposeNodeGroupe,
@@ -32,13 +32,13 @@ pub struct ComposeNode {
     pub outputs: Vec<ComposeNodeOutput>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ComposeNodeInput {
     pub name: String,
     pub data_type: ComposeDataType,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ComposeNodeOutput {
     pub name: String,
     pub data_type: ComposeDataType,

@@ -1,7 +1,7 @@
 use egui_snarl::ui::PinInfo;
 use octa_force::egui::Color32;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ComposeDataType {
     Number, 
     NumberSet, 
