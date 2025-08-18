@@ -7,7 +7,7 @@ use crate::volume::VolumeQureyPosValid;
 
 use crate::{model::generation::pos_set::PositionSetRule};
 
-use super::{builder::{BuilderNode, ModelSynthesisBuilder}, number_range::NumberRange, pending_operations::{PendingOperations, PendingOperationsRes}, pos_set::PositionSet, relative_path::{LeafType, RelativePathTree}, template::{NodeTemplateValue, TemplateIndex, TemplateNode, TemplateTree}, traits::ModelGenerationTypes};
+use super::{builder::{BuilderNode, ModelSynthesisBuilder}, number_range::NumberSet, pending_operations::{PendingOperations, PendingOperationsRes}, pos_set::PositionSet, relative_path::{LeafType, RelativePathTree}, template::{NodeTemplateValue, TemplateIndex, TemplateNode, TemplateTree}, traits::ModelGenerationTypes};
 
 new_key_type! { pub struct CollapseNodeKey; }
 new_key_type! { pub struct CollapseChildKey; }
@@ -37,8 +37,8 @@ pub struct CollapseNode<T: ModelGenerationTypes> {
 
 #[derive(Debug, Clone)]
 pub enum NodeDataType<T: ModelGenerationTypes> {
-    NumberRange(NumberRange),
-    PosSet(PositionSet<T>),
+    NumberSet(NumberSet),
+    PositionSet(PositionSet<T>),
     Build,
     None,
     NotValid
@@ -120,14 +120,14 @@ impl<T: ModelGenerationTypes> Collapser<T> {
                 match &template_node.value {
                     NodeTemplateValue::Groupe
                     | NodeTemplateValue::BuildHook => unreachable!(),
-                    NodeTemplateValue::NumberRangeHook => {
+                    NodeTemplateValue::NumberSetHook => {
                         self.pending_user_opperations.push_back(CollapseOperation::NumberRangeHook { 
                             index: node_index,
                             identifier: node.identifier,
                         });
                     },
-                    NodeTemplateValue::NumberRange(number_range) => {
-                        node.data = NodeDataType::NumberRange(number_range.to_owned());
+                    NodeTemplateValue::NumberSet(number_range) => {
+                        node.data = NodeDataType::NumberSet(number_range.to_owned());
                     },
                     NodeTemplateValue::PosSetHook => {
                         self.pending_user_opperations.push_back(CollapseOperation::PosSetHook { 
@@ -136,7 +136,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
                         });
                     },
                     NodeTemplateValue::PosSet(position_set) => {
-                        node.data = NodeDataType::PosSet(position_set.to_owned());
+                        node.data = NodeDataType::PositionSet(position_set.to_owned());
                     },
                 }
 
@@ -144,7 +144,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
                 return;
             }
 
-            NodeDataType::NumberRange(number_data) => {
+            NodeDataType::NumberSet(number_data) => {
                 if number_data.next_value().is_err() {
                     info!("{:?} Resetting Number faild", node_index);
 
@@ -161,7 +161,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
                 self.update_defined_by_number_range(node_index, template, value as usize);
                 self.push_restricts_collapse_opperations(node_index, template);
             },
-            NodeDataType::PosSet(pos_set) => {
+            NodeDataType::PositionSet(pos_set) => {
 
                 let mut new_positions = match &pos_set.rule {
                     PositionSetRule::GridInVolume(grid_data) => {

@@ -2,7 +2,7 @@ use std::{iter, ops::RangeBounds};
 
 use octa_force::glam::Vec3;
 
-use super::{builder::{BuilderAmmount, BuilderNode, ModelSynthesisBuilder}, number_range::NumberRange, pos_set::PositionSet, relative_path::RelativePathTree, traits::ModelGenerationTypes};
+use super::{builder::{BuilderAmmount, BuilderNode, ModelSynthesisBuilder}, number_range::NumberSet, pos_set::PositionSet, relative_path::RelativePathTree, traits::ModelGenerationTypes};
 
 pub type TemplateIndex = usize;
 pub const TEMPLATE_INDEX_ROOT: TemplateIndex = 0;
@@ -17,8 +17,8 @@ pub struct TemplateTree<T: ModelGenerationTypes> {
 #[derive(Debug, Clone)]
 pub enum NodeTemplateValue<T: ModelGenerationTypes> {
     Groupe,
-    NumberRangeHook,
-    NumberRange(NumberRange),
+    NumberSetHook,
+    NumberSet(NumberSet),
     PosSetHook,
     PosSet(PositionSet<T>),
     BuildHook
@@ -233,7 +233,7 @@ impl<T: ModelGenerationTypes> NodeTemplateValue<T> {
             std::ops::Bound::Unbounded => i32::MAX,
         };
 
-        NodeTemplateValue::NumberRange(NumberRange::new(min, max))
+        NodeTemplateValue::NumberSet(NumberSet::new(min, max))
     }
 
     pub fn new_position_set(set: PositionSet<T>) -> NodeTemplateValue<T> { 

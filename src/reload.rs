@@ -13,6 +13,7 @@ pub mod bvh;
 
 use csg::csg_tree::tree::CSGTree;
 use csg::union::tree::{Union, UnionNode};
+use model::composer::ModelComposer;
 use model::debug_gui::collapser::CollapserDebugGui;
 use model::debug_gui::template::TemplateDebugGui;
 use model::examples::islands::{self, IslandGenerationTypes, IslandUpdateData, Islands};
@@ -32,7 +33,7 @@ use octa_force::log::{debug, error, info, trace, Log};
 use octa_force::logger::setup_logger;
 use octa_force::puffin_egui::puffin;
 use octa_force::vulkan::ash::vk::AttachmentLoadOp;
-use octa_force::vulkan::{Context, Fence};
+use octa_force::vulkan::{Context, Fence, ImageBarrier};
 use octa_force::{log, OctaResult};
 use util::math_config::Int3D;
 use util::profiler::ShaderProfiler;
@@ -116,6 +117,8 @@ pub struct RenderState {
     #[cfg(any(feature="scene", feature="islands"))]
     pub renderer: SceneRenderer,
     
+
+
     #[cfg(any(feature="islands"))]
     pub islands: ModelWorker<Islands>,
 
@@ -124,6 +127,11 @@ pub struct RenderState {
 
     #[cfg(any(feature="islands"))]
     pub collapser_debug: CollapserDebugGui<IslandGenerationTypes>,
+
+
+
+    #[cfg(feature="graph_builder")]
+    pub composer: ModelComposer,
 }
 
 #[unsafe(no_mangle)]
@@ -217,7 +225,14 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         })
     }
 
-    #[cfg(not(any(feature="islands",feature="scene")))]
+    #[cfg(feature="graph_builder")]
+    {
+        let composer = ModelComposer::new();
+        return Ok(RenderState { gui, composer })
+    }
+
+
+    #[cfg(not(any(feature="islands",feature="scene", feature="graph_builder")))]
     {
         Ok(RenderState { gui })
     }
@@ -268,6 +283,9 @@ pub fn record_render_commands(
     #[cfg(any(feature="scene", feature="islands"))]
     render_state.renderer.render(command_buffer, &engine)?;
 
+    #[cfg(not(any(feature="scene", feature="islands")))]
+    command_buffer.swapchain_image_render_barrier(&engine.get_current_swapchain_image_and_view().image)?;
+
     command_buffer.begin_rendering(
         &engine.get_current_swapchain_image_and_view().view,
         &engine.get_current_depth_image_and_view().view,
@@ -288,10 +306,13 @@ pub fn record_render_commands(
             render_state.renderer.render_ui(ctx);
 
             #[cfg(any(feature="islands"))]
-            render_state.template_debug.render(ctx);
+            {
+                render_state.template_debug.render(ctx);
+                render_state.collapser_debug.render(ctx);
+            }
 
-            #[cfg(any(feature="islands"))]
-            render_state.collapser_debug.render(ctx);
+            #[cfg(any(feature="graph_builder"))]
+            render_state.composer.render(ctx);
         },
     )?;
 

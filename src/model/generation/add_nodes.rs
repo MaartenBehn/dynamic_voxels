@@ -129,7 +129,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
 
         for (i, by_value) in template_node.defines_by_value.iter().enumerate() {
             let node = &self.nodes[node_index];
-            let NodeDataType::PosSet(pos_set) = &node.data else { unreachable!() };
+            let NodeDataType::PositionSet(pos_set) = &node.data else { unreachable!() };
 
             let to_remove_children = node.children.iter()
                 .find(|(template_index, _)| *template_index == by_value.template_index)
@@ -290,10 +290,10 @@ impl<T: ModelGenerationTypes> Collapser<T> {
             NodeTemplateValue::Groupe => NodeDataType::None,
             NodeTemplateValue::BuildHook => NodeDataType::Build,
 
-            NodeTemplateValue::NumberRangeHook 
+            NodeTemplateValue::NumberSetHook 
             |NodeTemplateValue::PosSetHook => NodeDataType::NotValid, 
-            NodeTemplateValue::NumberRange(number_range) => NodeDataType::NumberRange(number_range.to_owned()),
-            NodeTemplateValue::PosSet(pos_set) => NodeDataType::PosSet(pos_set.to_owned()),
+            NodeTemplateValue::NumberSet(number_range) => NodeDataType::NumberSet(number_range.to_owned()),
+            NodeTemplateValue::PosSet(pos_set) => NodeDataType::PositionSet(pos_set.to_owned()),
         };
 
         self.push_new_node(new_node_template, restricts, depends, knows, defined_by, child_key, data)

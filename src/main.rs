@@ -30,26 +30,6 @@ fn main() {
         env::set_var("SMOL_THREADS", "4");
     }
 
-    #[cfg(feature = "profile_islands")]
-    {
-        /*
-        SimpleLogger::init(log::LevelFilter::Debug, simplelog::Config::default());
-        let mut state = Islands::new(true);
-        state.run();
-
-        let collapser = state.collapser.unwrap(); 
-        info!("Node capacity: {}", collapser.nodes.capacity());
-        info!("Pending collapse operations capacity: {}", collapser.pending_collapse_opperations.capacity());
-
-        */
-        return;
-    }
-
-    #[cfg(feature = "profile_dag")]
-    { 
-        return;
-    }
-
     octa_force::run::<App>(EngineConfig {
         name: APP_NAME.to_string(),
         start_size: uvec2(WIDTH, HEIGHT),

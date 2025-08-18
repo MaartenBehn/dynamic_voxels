@@ -101,7 +101,7 @@ impl<T: ModelGenerationTypes> ModelSynthesisBuilder<T> {
         let node = BuilderNode {
             value: match builder.value {
                 BuilderValue::Const(r) => NodeTemplateValue::new_number_range(r),
-                BuilderValue::Hook => NodeTemplateValue::NumberRangeHook,
+                BuilderValue::Hook => NodeTemplateValue::NumberSetHook,
             },
             identifier,
             restricts: builder.restricts,

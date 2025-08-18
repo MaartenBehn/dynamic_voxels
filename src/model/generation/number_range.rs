@@ -5,12 +5,12 @@ use crate::volume::VolumeQureyPosValid;
 use super::{collapse::{CollapseNodeKey, CollapseOperation, Collapser}, template::TemplateTree};
 
 #[derive(Debug, Clone)]
-pub struct NumberRange {
+pub struct NumberSet {
     pub values: Vec<i32>,
     pub value: i32,
 }
 
-impl NumberRange {
+impl NumberSet {
     pub fn new(min: i32, max: i32) -> Self {
         Self {
             values: (min..=max).collect(),

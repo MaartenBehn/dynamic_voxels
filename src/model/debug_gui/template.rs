@@ -35,8 +35,8 @@ impl<T: ModelGenerationTypes> TemplateDebugGui<T> {
         ui.collapsing(format!("Node: {:?}", node.identifier), |ui| {
             ui.label(format!("Value: {}", match &node.value {
                 NodeTemplateValue::Groupe => "Groupe".to_string(),
-                NodeTemplateValue::NumberRangeHook => "Number Range Hook".to_string(),
-                NodeTemplateValue::NumberRange(number_range) => format!("Number Range: {:?}", number_range.values),
+                NodeTemplateValue::NumberSetHook => "Number Range Hook".to_string(),
+                NodeTemplateValue::NumberSet(number_range) => format!("Number Range: {:?}", number_range.values),
                 NodeTemplateValue::PosSetHook => "Pos Set Hook".to_string(),
                 NodeTemplateValue::PosSet(position_set) => format!("Pos Set"),
                 NodeTemplateValue::BuildHook => "Build".to_string(),

@@ -171,7 +171,7 @@ impl ShaderProfiler {
             let egui_descriptor_set = descriptor_pool
                 .allocate_set(&egui_descriptor_layout)
                 .unwrap();
-            let texture_id = egui_renderer.add_user_texture(egui_descriptor_set.inner, false);
+            let texture_id = egui_renderer.add_user_texture(egui_descriptor_set.inner);
             let texture = SizedTexture::new(texture_id, sample_res.as_vec2().as_ref());
 
             let sampler = context.create_sampler(&sampler_info)?;

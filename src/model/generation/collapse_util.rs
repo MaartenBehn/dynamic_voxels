@@ -2,7 +2,7 @@ use octa_force::{anyhow::{anyhow, bail, ensure, Context}, glam::{Vec3, Vec3A}, O
 use slotmap::{Key, SlotMap};
 use octa_force::log::info;
 
-use super::{collapse::{CollapseChildKey, CollapseNode, CollapseNodeKey, Collapser, NodeDataType}, number_range::NumberRange, pos_set::PositionSet, template::{TemplateNode, TemplateTree}, traits::ModelGenerationTypes};
+use super::{collapse::{CollapseChildKey, CollapseNode, CollapseNodeKey, Collapser, NodeDataType}, number_range::NumberSet, pos_set::PositionSet, template::{TemplateNode, TemplateTree}, traits::ModelGenerationTypes};
 
 
 impl<T: ModelGenerationTypes> Collapser<T> { 
@@ -14,7 +14,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
 
     pub(super) fn get_number_values_mut(&mut self, index: CollapseNodeKey) -> &mut Vec<i32> {
         match &mut self.nodes.get_mut(index).expect("Number by index not found").data {
-            NodeDataType::NumberRange(d) => &mut d.values,
+            NodeDataType::NumberSet(d) => &mut d.values,
             _ => panic!("Number by index is not of Type Number")
         }
     }
@@ -23,7 +23,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         let node = self.nodes.get(index).expect("Number Set by index not found");
         
         match &node.data {
-            NodeDataType::NumberRange(d) => Ok(d.value),
+            NodeDataType::NumberSet(d) => Ok(d.value),
             _ => bail!("{:?} is not of Type Number Set", node.identifier)
         }
     }
@@ -33,10 +33,10 @@ impl<T: ModelGenerationTypes> Collapser<T> {
     pub fn set_position_set_value(&mut self, index: CollapseNodeKey, pos_set: PositionSet<T>) -> OctaResult<()> {
         let node = &mut self.nodes[index];
 
-        ensure!(matches!(node.data, NodeDataType::PosSet(..)) || matches!(node.data, NodeDataType::NotValid), 
+        ensure!(matches!(node.data, NodeDataType::PositionSet(..)) || matches!(node.data, NodeDataType::NotValid), 
             "Trying to set position set value: {:?} is not a Pos Set", node.identifier);
 
-        node.data = NodeDataType::PosSet(pos_set); 
+        node.data = NodeDataType::PositionSet(pos_set); 
         Ok(())
     }
 
@@ -44,7 +44,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         let node = self.nodes.get_mut(index).expect("Pos Set by index not found");
 
         match &mut node.data {
-            NodeDataType::PosSet(d) => d.get_volume_mut(),
+            NodeDataType::PositionSet(d) => d.get_volume_mut(),
             _ => bail!("{:?} is not of type Pos Set", node.identifier)
         }
     }
@@ -53,7 +53,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         let node = self.nodes.get_mut(index).expect("Pos Set by index not found");
         
         match &mut node.data {
-            NodeDataType::PosSet(d) => d.get_volume2d_mut(),
+            NodeDataType::PositionSet(d) => d.get_volume2d_mut(),
             _ => bail!("{:?} is not a Pos Set", node.identifier)
         }
     }
@@ -62,7 +62,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         let node = self.nodes.get(index).expect("Pos Set by index not found");
         
         match &node.data {
-            NodeDataType::PosSet(d) => Ok(d.get_pos(pos_key)),
+            NodeDataType::PositionSet(d) => Ok(d.get_pos(pos_key)),
             _ => bail!("{:?} is not a Pos Set", node.identifier)
         }
     }
@@ -71,7 +71,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
         let node = self.nodes.get(index).expect("Pos Set by index not found");
         
         match &node.data {
-            NodeDataType::PosSet(d) => Ok(d.get_positions_iter()),
+            NodeDataType::PositionSet(d) => Ok(d.get_positions_iter()),
             _ => bail!("{:?} is not a Pos Set", node.identifier)
         }
     }
@@ -171,7 +171,7 @@ impl<T: ModelGenerationTypes> Collapser<T> {
             .context("Trying to get collapser position set node by identifier")?;
 
         let node = &mut self.nodes[index];
-        let NodeDataType::PosSet(pos_set) = &mut node.data else { bail!("{:?} is not pos set", identifier) };
+        let NodeDataType::PositionSet(pos_set) = &mut node.data else { bail!("{:?} is not pos set", identifier) };
         Ok(pos_set)
     }
 }
