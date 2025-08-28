@@ -1,143 +1,111 @@
-use std::{iter};
+use std::{iter, ops::RangeBounds};
 
-use egui_snarl::{InPinId, NodeId};
+use egui_snarl::{InPinId, NodeId, OutPinId};
 use itertools::Itertools;
-use octa_force::{anyhow::{anyhow, bail}, OctaResult};
+use octa_force::glam::Vec3;
+use crate::util::number::Nu;
 
-use crate::{csg::csg_tree::tree::CSGTree, model::{composer::nodes::ComposeNodeType, generation::{builder::{BuilderAmmount, BuilderNode, ModelSynthesisBuilder}, template::{NodeTemplateValue, TemplateAmmountN, TemplateTree}, traits::{ModelGenerationTypes, BU, IT}}}, util::math_config::{Float2D, Float3D}};
+use crate::model::generation::{relative_path::RelativePathTree};
 
-use super::{data_type::ComposeDataType, nodes::ComposeNode, ModelComposer};
+use super::pos_space::{GridVolumeData, PositionSpaceRule};
+use super::{data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, number_space::NumberSpace, pos_space::PositionSpace, primitive::Number, ModelComposer};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ComposerIdentifier {
-    node_id: NodeId,
+pub type TemplateIndex = usize;
+pub const TEMPLATE_INDEX_ROOT: TemplateIndex = 0;
+pub const AMMOUNT_PATH_INDEX: usize = 0;
+
+#[derive(Debug, Clone, Default)]
+pub struct ComposeTemplate {
+    pub nodes: Vec<TemplateNode>,
+    pub max_level: usize,
 }
 
-#[derive(Clone, Debug, Default)]
-pub enum ComposerUndoData {
-    #[default]
+#[derive(Debug, Clone)]
+pub enum ComposeTemplateValue {
     None,
+    NumberSpace(NumberSpace),
+    PositionSpace(PositionSpace),
+    Object()
 }
 
-#[derive(Clone, Copy, Debug, Default)]
-pub struct ComposerGenerationTypes {}
-impl IT for ComposerIdentifier {}
-impl BU for ComposerUndoData {}
-impl ModelGenerationTypes for ComposerGenerationTypes {
-    type Identifier = ComposerIdentifier;
-    type UndoData = ComposerUndoData;
-    type Volume = CSGTree<(), Float3D, 3>;
-    type Volume2D = CSGTree<(), Float2D, 2>;
+#[derive(Debug, Clone)]
+pub struct TemplateNode {
+    pub identifier: NodeId,
+    pub index: TemplateIndex,
+    pub value: ComposeTemplateValue,
+    pub restricts: Vec<TemplateIndex>,
+    pub depends: Vec<TemplateIndex>,
+    pub dependend: Vec<TemplateIndex>,
+    pub level: usize,
+    pub defines_n: Vec<TemplateAmmountN>,
+    pub defines_by_value: Vec<TemplateAmmountValue>,
+}
+
+#[derive(Debug, Clone)]
+pub struct TemplateAmmountN {
+    pub ammount: usize,
+    pub template_index: TemplateIndex,
+    pub dependecy_tree: RelativePathTree,
+}
+
+#[derive(Debug, Clone)]
+pub struct TemplateAmmountValue {
+    pub template_index: TemplateIndex,
+    pub dependecy_tree: RelativePathTree,
+}
+
+impl ComposeTemplate {
+    pub fn new(composer: &ModelComposer) -> ComposeTemplate {
+        let nodes = composer.snarl.nodes()
+            .map(|node| {
+                match &node.t {
+                    ComposeNodeType::TemplateNumberSet => {
+                        let space = composer.make_number_space(
+                            composer.get_input_node_by_type(node, ComposeDataType::NumberSpace));
+
+                        Some((node, ComposeTemplateValue::NumberSpace(space)))
+                    },
+                    ComposeNodeType::TemplatePositionSet => {
+                        let space = composer.make_pos_space(
+                            composer.get_input_node_by_type(node, ComposeDataType::PositionSpace));
+
+                        Some((node, ComposeTemplateValue::PositionSpace(space)))
+                    },
+
+                    _ => {None}
+                }
+            })
+            .flatten()
+            .enumerate()
+            .map(|(i, (node, value))| {
+
+            })
+            .collect_vec();
+        
+    }
 }
 
 impl ModelComposer {
-    pub fn to_template(&self) -> TemplateTree<ComposerGenerationTypes> {
-
-        let mut builder = ModelSynthesisBuilder::new();
-
-        for node in self.snarl.nodes() {
-            if node.t == ComposeNodeType::TemplateNumberSet {
-
-                let depends = self.get_depends_of_input(node);
-                let ammount_node = self.get_input_node_by_type(node, ComposeDataType::Ammount);
-                let ammount = match ammount_node.t {
-                    ComposeNodeType::OnePer => BuilderAmmount::OnePer(ComposerIdentifier::new(self.get_input_node_by_type(node, ComposeDataType::Identifier).id)),
-                    ComposeNodeType::OneGlobal => BuilderAmmount::OneGlobal,
-                    //ComposeNodeType::NPer => BuilderAmmount::OnePer(ComposerIdentifier::new(self.get_input_node_by_type(node, ComposeDataType::Identifier).id)),
-                    ComposeNodeType::DefinedBy => todo!(),
-                    _ => unreachable!(),
-                };
-
-
-                builder.nodes.push(BuilderNode {
-                    identifier: ComposerIdentifier{node_id: node.id},
-                    value: NodeTemplateValue::NumberSetHook,
-                    restricts: vec![],
-                    depends,
-                    knows: vec![],
-                    ammount,
-                });
-            }
-        }
-
-        TemplateTree::new_from_builder(&builder)
-    }
-
-    fn get_depends_of_input(&self, node: &ComposeNode) -> Vec<ComposerIdentifier>  {
+    pub fn get_input_index_by_type(&self, node: &ComposeNode, t: ComposeDataType) -> usize {
         node.inputs.iter()
-            .enumerate()
-            .map(|(i, input)| {
-                self.snarl.in_pin(InPinId{ node: node.id, input: i }).remotes.into_iter()
-                    .map(|out_pin_id| {
-                        let input_node = self.snarl.get_node(out_pin_id.node).expect("Node of remote not found");
-
-                        match input_node.t {
-                            ComposeNodeType::Number
-                            | ComposeNodeType::Position2D
-                            | ComposeNodeType::Position3D
-                            | ComposeNodeType::NumberRange
-                            | ComposeNodeType::GridInVolume
-                            | ComposeNodeType::GridOnPlane
-                            | ComposeNodeType::Path
-                            | ComposeNodeType::EmpytVolume2D
-                            | ComposeNodeType::EmpytVolume3D
-                            | ComposeNodeType::Sphere
-                            | ComposeNodeType::Circle
-                            | ComposeNodeType::Box
-                            | ComposeNodeType::VoxelObject
-                            | ComposeNodeType::UnionVolume2D
-                            | ComposeNodeType::UnionVolume3D
-                            | ComposeNodeType::CutVolume2D
-                            | ComposeNodeType::CutVolume3D
-                            | ComposeNodeType::SphereUnion
-                            | ComposeNodeType::CircleUnion
-                            | ComposeNodeType::VoxelObjectUnion
-                            | ComposeNodeType::OnePer
-                            | ComposeNodeType::OneGlobal
-                            | ComposeNodeType::NPer
-                            | ComposeNodeType::DefinedBy
-                            | ComposeNodeType::PlayerPosition => self.get_depends_of_input(node),
-
-                            // Template Nodes
-                            ComposeNodeType::TemplatePositionSet 
-                            | ComposeNodeType::TemplateNumberSet
-                            | ComposeNodeType::BuildObject => vec![ComposerIdentifier { node_id: node.id }],
-
-                        }
-                    })
-                    .flatten()
-            })
-            .flatten()
-            .collect_vec()
+            .position(|i|  i.data_type == t)
+            .expect(&format!("Node {:?} input of type {:?}", node.t, t))
     }
 
-    fn get_input_node_by_type(&self, node: &ComposeNode, t: ComposeDataType) -> &ComposeNode {
-        let index = node.inputs.iter()
-            .position(|i|  i.data_type == t)
-            .expect(&format!("Node {:?} input of type {:?}", node.t, t));
+    pub fn get_input_node_by_type(&self, node: &ComposeNode, t: ComposeDataType) -> OutPinId {
+        self.get_input_node_by_index(node, self.get_input_index_by_type(node, t))
+    }
 
+    pub fn get_input_node_by_index(&self, node: &ComposeNode, index: usize) -> OutPinId {
         let remotes = self.snarl.in_pin(InPinId{ node: node.id, input: index }).remotes;
         if remotes.is_empty() {
-            panic!("No {:?} node connected to {:?}", t, node.t);
+            panic!("No node connected to {:?}", node.t);
         }
 
         if remotes.len() >= 2 {
-            panic!("More than one {:?} node connected to {:?}", t, node.t);
+            panic!("More than one node connected to {:?}", node.t);
         }
 
-        let remote_node = self.snarl.get_node(remotes[0].node).expect("Node of remote not found");
-        remote_node
-    }
-}
-
-impl ComposerIdentifier {
-    pub fn new(node_id: NodeId) -> Self {
-        ComposerIdentifier { node_id: node_id }
-    }
-} 
-
-impl Default for ComposerIdentifier {
-    fn default() -> Self {
-        Self { node_id: NodeId(usize::MAX) }
+        remotes[0]
     }
 }

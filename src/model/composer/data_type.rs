@@ -1,15 +1,15 @@
 use egui_snarl::ui::PinInfo;
-use octa_force::{egui::Color32, glam::{Vec2, Vec3A}};
+use octa_force::{egui::Color32, glam::{IVec2, IVec3, Vec2, Vec3A}};
 
 use crate::model::generation::number_range::NumberSet;
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum ComposeDataType {
-    Number(Option<f32>), 
+    Number(Option<i32>), 
     NumberSpace,
     
-    Position2D(Option<Vec2>), 
-    Position3D(Option<Vec3A>), 
+    Position2D(Option<IVec2>), 
+    Position3D(Option<IVec3>), 
     PositionSpace,
     PositionSet,
 

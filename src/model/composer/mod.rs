@@ -1,14 +1,21 @@
+pub mod nodes;
+pub mod viewer;
+pub mod data_type;
+pub mod collapse;
+pub mod template;
+pub mod number_space;
+pub mod primitive;
+pub mod identifier;
+pub mod pos_space;
+pub mod volume_3d;
+pub mod volume_2d;
+
 use std::{fs::{self, File}, io::Write};
 
 use egui_snarl::{ui::{NodeLayout, PinPlacement, SnarlStyle, SnarlWidget}, Snarl};
 use nodes::ComposeNode;
 use octa_force::{anyhow::anyhow, egui::{self, CornerRadius, Id}, OctaResult};
 use viewer::ComposeViewer;
-
-pub mod nodes;
-pub mod viewer;
-pub mod data_type;
-pub mod template;
 
 const TEMP_SAVE_FILE: &str = "./composer_temp_save.json";
 

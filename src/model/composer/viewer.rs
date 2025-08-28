@@ -1,6 +1,6 @@
 use egui_snarl::{ui::{AnyPins, PinInfo, SnarlViewer}, InPin, InPinId, NodeId, OutPin, OutPinId, Snarl};
 use itertools::Itertools;
-use octa_force::{egui::{self, Color32, DragValue, Ui}, glam::{Vec2, Vec3A}};
+use octa_force::{egui::{self, Color32, DragValue, Ui}, glam::{IVec2, IVec3, Vec2, Vec3A}};
 
 use super::{data_type::ComposeDataType, nodes::{get_node_templates, ComposeNode, ComposeNodeInput, ComposeNodeOutput, ComposeNodeType}};
 
@@ -40,13 +40,13 @@ impl SnarlViewer<ComposeNode> for ComposeViewer {
         if pin.remotes.is_empty() {
             match &mut input.data_type {
                 ComposeDataType::Number(d) => { 
-                    let mut v = d.unwrap_or(0.0);
+                    let mut v = d.unwrap_or(0);
                     if ui.add(DragValue::new(&mut v)).changed() {
                         (*d) = Some(v);
                     }
                 },
                 ComposeDataType::Position2D(d) => { 
-                    let mut v = d.unwrap_or(Vec2::ZERO);
+                    let mut v = d.unwrap_or(IVec2::ZERO);
 
                     ui.label("x:");
                     if ui.add(DragValue::new(&mut v.x)).changed() {
@@ -58,7 +58,7 @@ impl SnarlViewer<ComposeNode> for ComposeViewer {
                     }
                 },
                 ComposeDataType::Position3D(d) => {
-                    let mut v = d.unwrap_or(Vec3A::ZERO);
+                    let mut v = d.unwrap_or(IVec3::ZERO);
 
                     ui.label("x:");
                     if ui.add(DragValue::new(&mut v.x)).changed() {
@@ -95,56 +95,8 @@ impl SnarlViewer<ComposeNode> for ComposeViewer {
         let node = &mut snarl[pin.id.node]; 
         let output = &mut node.outputs[pin.id.output];
 
-        ui.add_space(8.0);
-        
-        match node.t {
-            ComposeNodeType::Number => match &mut output.data_type {
-                ComposeDataType::Number(d) => { 
-                    let mut v = d.unwrap_or(0.0);
-                    if ui.add(DragValue::new(&mut v)).changed() {
-                        (*d) = Some(v);
-                    }
-                },
-                _ => unreachable!(),
-            },
-            ComposeNodeType::Position2D => match &mut output.data_type {
-                ComposeDataType::Position2D(d) => { 
-                    ui.horizontal(|ui| {
-                        let mut v = d.unwrap_or(Vec2::ZERO);
-
-                        if ui.add(DragValue::new(&mut v.y)).changed() {
-                            (*d) = Some(v);
-                        }
-                        ui.label("y:");
-                        if ui.add(DragValue::new(&mut v.x)).changed() {
-                            (*d) = Some(v);
-                        }
-                        ui.label("x:");
-                    });
-                },
-                _ => unreachable!(),
-            },
-            ComposeNodeType::Position3D => match &mut output.data_type {
-                ComposeDataType::Position3D(d) => {
-                    let mut v = d.unwrap_or(Vec3A::ZERO);
-
-                    if ui.add(DragValue::new(&mut v.z)).changed() {
-                        (*d) = Some(v);
-                    }
-                    ui.label("z:");
-                    if ui.add(DragValue::new(&mut v.y)).changed() {
-                        (*d) = Some(v);
-                    }
-                    ui.label("y:");
-                    if ui.add(DragValue::new(&mut v.x)).changed() {
-                        (*d) = Some(v);
-                    }
-                    ui.label("x:");
-                },
-                _ => unreachable!(),
-            },
-            _ => { ui.label(output.name.to_string()); }
-        }
+        ui.label(output.name.to_string());
+        ui.add_space(8.0); 
 
         output.data_type.get_pin()
     }

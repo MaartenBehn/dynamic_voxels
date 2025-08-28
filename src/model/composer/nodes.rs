@@ -21,7 +21,6 @@ pub enum ComposeNodeGroupe {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ComposeNodeType {
-    Number,
     Position2D,
     Position3D,
 
@@ -43,8 +42,8 @@ pub enum ComposeNodeType {
     CutVolume2D,
     CutVolume3D,
 
-    SphereUnion,
     CircleUnion,
+    SphereUnion,
     VoxelObjectUnion,
 
     // Ammount 
@@ -104,25 +103,21 @@ impl ComposeNodeOutput {
 
 
 pub fn get_node_templates() -> Vec<ComposeNode> {
-    vec![
-        ComposeNode { 
-            t: ComposeNodeType::Number,
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::Const, 
-            inputs: vec![], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "out".to_string(), 
-                    data_type: ComposeDataType::Number(None), 
-                }
-            ], 
-        },
-
+    vec![ 
         ComposeNode { 
             t: ComposeNodeType::Position2D, 
             id: NodeId(usize::MAX),
             group: ComposeNodeGroupe::Const, 
-            inputs: vec![], 
+            inputs: vec![
+                ComposeNodeInput { 
+                    name: "x".to_string(), 
+                    data_type: ComposeDataType::Number(None), 
+                },
+                ComposeNodeInput { 
+                    name: "y".to_string(), 
+                    data_type: ComposeDataType::Number(None), 
+                },
+            ], 
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "out".to_string(), 
@@ -135,7 +130,20 @@ pub fn get_node_templates() -> Vec<ComposeNode> {
             t: ComposeNodeType::Position3D, 
             id: NodeId(usize::MAX),
             group: ComposeNodeGroupe::Const, 
-            inputs: vec![], 
+            inputs: vec![
+                ComposeNodeInput { 
+                    name: "x".to_string(), 
+                    data_type: ComposeDataType::Number(None), 
+                },
+                ComposeNodeInput { 
+                    name: "y".to_string(), 
+                    data_type: ComposeDataType::Number(None), 
+                },
+                ComposeNodeInput { 
+                    name: "z".to_string(), 
+                    data_type: ComposeDataType::Number(None), 
+                },
+            ], 
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "out".to_string(), 
@@ -201,6 +209,10 @@ pub fn get_node_templates() -> Vec<ComposeNode> {
                     name: "spacing".to_string(), 
                     data_type: ComposeDataType::Number(None), 
                 },
+                ComposeNodeInput { 
+                    name: "height".to_string(), 
+                    data_type: ComposeDataType::Number(None), 
+                },
             ], 
             outputs: vec![
                 ComposeNodeOutput { 
@@ -228,10 +240,14 @@ pub fn get_node_templates() -> Vec<ComposeNode> {
                     data_type: ComposeDataType::Position2D(None), 
                 },
                 ComposeNodeInput { 
-                    name: "side_variance".to_string(), 
+                    name: "spacing".to_string(), 
                     data_type: ComposeDataType::Number(None), 
                 },
-                            ], 
+                ComposeNodeInput { 
+                    name: "side_variance".to_string(), 
+                    data_type: ComposeDataType::Position2D(None), 
+                },
+            ], 
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "set".to_string(), 
