@@ -8,6 +8,7 @@ use viewer::ComposeViewer;
 pub mod nodes;
 pub mod viewer;
 pub mod data_type;
+pub mod template;
 
 const TEMP_SAVE_FILE: &str = "./composer_temp_save.json";
 

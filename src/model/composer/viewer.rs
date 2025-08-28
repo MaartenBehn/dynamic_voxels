@@ -1,7 +1,8 @@
 use egui_snarl::{ui::{AnyPins, PinInfo, SnarlViewer}, InPin, InPinId, NodeId, OutPin, OutPinId, Snarl};
+use itertools::Itertools;
 use octa_force::{egui::{self, Color32, DragValue, Ui}, glam::{Vec2, Vec3A}};
 
-use super::{data_type::ComposeDataType, nodes::{get_node_templates, ComposeNode, ComposeNodeInput, ComposeNodeOutput}};
+use super::{data_type::ComposeDataType, nodes::{get_node_templates, ComposeNode, ComposeNodeInput, ComposeNodeOutput, ComposeNodeType}};
 
 
 #[derive(Debug)]
@@ -34,46 +35,50 @@ impl SnarlViewer<ComposeNode> for ComposeViewer {
         let input = &mut snarl[pin.id.node].inputs[pin.id.input];
         
         ui.label(input.name.to_string());
-        match &mut input.data_type {
-            ComposeDataType::Number(d) => { 
-                let mut v = d.unwrap_or(0.0);
-                if ui.add(DragValue::new(&mut v)).changed() {
-                    (*d) = Some(v);
-                }
-            },
-            ComposeDataType::Position2D(d) => { 
-                let mut v = d.unwrap_or(Vec2::ZERO);
 
-                ui.label("x:");
-                if ui.add(DragValue::new(&mut v.x)).changed() {
-                    (*d) = Some(v);
-                }
-                ui.label("y:");
-                if ui.add(DragValue::new(&mut v.y)).changed() {
-                    (*d) = Some(v);
-                }
-            },
-            ComposeDataType::Position3D(d) => {
-                let mut v = d.unwrap_or(Vec3A::ZERO);
-                
-                ui.label("x:");
-                if ui.add(DragValue::new(&mut v.x)).changed() {
-                    (*d) = Some(v);
-                }
+        // Show input fields for number if nothing is connected.
+        if pin.remotes.is_empty() {
+            match &mut input.data_type {
+                ComposeDataType::Number(d) => { 
+                    let mut v = d.unwrap_or(0.0);
+                    if ui.add(DragValue::new(&mut v)).changed() {
+                        (*d) = Some(v);
+                    }
+                },
+                ComposeDataType::Position2D(d) => { 
+                    let mut v = d.unwrap_or(Vec2::ZERO);
 
-                ui.label("y:");
-                if ui.add(DragValue::new(&mut v.y)).changed() {
-                    (*d) = Some(v);
-                }
+                    ui.label("x:");
+                    if ui.add(DragValue::new(&mut v.x)).changed() {
+                        (*d) = Some(v);
+                    }
+                    ui.label("y:");
+                    if ui.add(DragValue::new(&mut v.y)).changed() {
+                        (*d) = Some(v);
+                    }
+                },
+                ComposeDataType::Position3D(d) => {
+                    let mut v = d.unwrap_or(Vec3A::ZERO);
 
-                ui.label("z:");
-                if ui.add(DragValue::new(&mut v.z)).changed() {
-                    (*d) = Some(v);
-                }
-            },
-            _ => {},
+                    ui.label("x:");
+                    if ui.add(DragValue::new(&mut v.x)).changed() {
+                        (*d) = Some(v);
+                    }
+
+                    ui.label("y:");
+                    if ui.add(DragValue::new(&mut v.y)).changed() {
+                        (*d) = Some(v);
+                    }
+
+                    ui.label("z:");
+                    if ui.add(DragValue::new(&mut v.z)).changed() {
+                        (*d) = Some(v);
+                    }
+                },
+                _ => {},
+            }
         }
-
+        
         input.data_type.get_pin()
     }
 
@@ -87,21 +92,46 @@ impl SnarlViewer<ComposeNode> for ComposeViewer {
         ui: &mut octa_force::egui::Ui,
         snarl: &mut egui_snarl::Snarl<ComposeNode>,
     ) -> impl egui_snarl::ui::SnarlPin + 'static {
-        let output = &mut snarl[pin.id.node].outputs[pin.id.output];
-       
-        ui.add_space(8.0);
+        let node = &mut snarl[pin.id.node]; 
+        let output = &mut node.outputs[pin.id.output];
 
-        match &mut output.data_type {
-            ComposeDataType::Number(d) => { 
-                let mut v = d.unwrap_or(0.0);
-                if ui.add(DragValue::new(&mut v)).changed() {
-                    (*d) = Some(v);
-                }
+        ui.add_space(8.0);
+        
+        match node.t {
+            ComposeNodeType::Number => match &mut output.data_type {
+                ComposeDataType::Number(d) => { 
+                    let mut v = d.unwrap_or(0.0);
+                    if ui.add(DragValue::new(&mut v)).changed() {
+                        (*d) = Some(v);
+                    }
+                },
+                _ => unreachable!(),
             },
-            ComposeDataType::Position2D(d) => { 
-                ui.horizontal(|ui| {
-                    let mut v = d.unwrap_or(Vec2::ZERO);
-                    
+            ComposeNodeType::Position2D => match &mut output.data_type {
+                ComposeDataType::Position2D(d) => { 
+                    ui.horizontal(|ui| {
+                        let mut v = d.unwrap_or(Vec2::ZERO);
+
+                        if ui.add(DragValue::new(&mut v.y)).changed() {
+                            (*d) = Some(v);
+                        }
+                        ui.label("y:");
+                        if ui.add(DragValue::new(&mut v.x)).changed() {
+                            (*d) = Some(v);
+                        }
+                        ui.label("x:");
+                    });
+                },
+                _ => unreachable!(),
+            },
+            ComposeNodeType::Position3D => match &mut output.data_type {
+                ComposeDataType::Position3D(d) => {
+                    let mut v = d.unwrap_or(Vec3A::ZERO);
+
+                    if ui.add(DragValue::new(&mut v.z)).changed() {
+                        (*d) = Some(v);
+                    }
+                    ui.label("z:");
                     if ui.add(DragValue::new(&mut v.y)).changed() {
                         (*d) = Some(v);
                     }
@@ -110,25 +140,10 @@ impl SnarlViewer<ComposeNode> for ComposeViewer {
                         (*d) = Some(v);
                     }
                     ui.label("x:");
-                });
+                },
+                _ => unreachable!(),
             },
-            ComposeDataType::Position3D(d) => {
-                let mut v = d.unwrap_or(Vec3A::ZERO);
-
-                if ui.add(DragValue::new(&mut v.z)).changed() {
-                    (*d) = Some(v);
-                }
-                ui.label("z:");
-                if ui.add(DragValue::new(&mut v.y)).changed() {
-                    (*d) = Some(v);
-                }
-                ui.label("y:");
-                if ui.add(DragValue::new(&mut v.x)).changed() {
-                    (*d) = Some(v);
-                }
-                ui.label("x:");
-            },
-            _ => { ui.label(output.name.to_string()); },
+            _ => { ui.label(output.name.to_string()); }
         }
 
         output.data_type.get_pin()
@@ -137,6 +152,10 @@ impl SnarlViewer<ComposeNode> for ComposeViewer {
     #[inline]
     fn connect(&mut self, from: &OutPin, to: &InPin, snarl: &mut Snarl<ComposeNode>) {
         if to_input(snarl, to).data_type == to_output(snarl, from).data_type {
+            for &remote in &to.remotes {
+                snarl.disconnect(remote, to.id);
+            }
+
             snarl.connect(from.id, to.id);
         }
     }
@@ -149,7 +168,8 @@ impl SnarlViewer<ComposeNode> for ComposeViewer {
         ui.label("Add node");
         for node in self.node_templates.iter() {
             if ui.button(node.title()).clicked() {
-                snarl.insert_node(pos, node.to_owned());
+                let new_node = snarl.insert_node(pos, node.to_owned());
+                snarl.get_node_mut(new_node).unwrap().id = new_node;
                 ui.close();
             }
         }    
@@ -172,26 +192,32 @@ impl SnarlViewer<ComposeNode> for ComposeViewer {
         match src_pins {
             AnyPins::Out(src_pins) => {
                 for src_pin in src_pins {
-                    let src_output = snarl[src_pin.node].outputs[src_pin.output].to_owned();
-                   
-                    let mut src_label = false;
+                    let src_data = snarl[src_pin.node].outputs[src_pin.output].to_owned();
+
+                    let mut src_label = src_pins.len() >= 2;
                     for node in self.node_templates.iter() {
-                        
-                        let mut to_label = false;
-                        for (i, input) in node.inputs.iter().enumerate() {
-                            if input.data_type == src_output.data_type {
-                                if !src_label {
-                                    ui.label(format!("> {}",  src_output.name));
-                                    src_label = true;
-                                } 
 
-                                if !to_label {
-                                    ui.label(format!("{:?}",  node.t));
-                                    to_label = true;
-                                }
+                        let to_pins = node.inputs.iter()
+                            .enumerate()
+                            .filter(|(_, i)| i.data_type == src_data.data_type)
+                            .collect_vec();
 
-                                if ui.button(input.get_name()).clicked() {
+                        if to_pins.is_empty() {
+                            continue;
+                        }
+
+                        if src_label {
+                            ui.label(format!("> {}",  src_data.name));
+                            src_label = false;
+                        } 
+
+                        if to_pins.len() >= 2 {
+                            ui.label(format!("{:?}",  node.t));
+
+                            for (i, to_data) in to_pins {
+                                if ui.button(to_data.get_name()).clicked() {
                                     let new_node = snarl.insert_node(pos, node.to_owned());
+                                    snarl.get_node_mut(new_node).unwrap().id = new_node;
                                     let dst_pin = InPinId {
                                         node: new_node,
                                         input: i,
@@ -199,45 +225,83 @@ impl SnarlViewer<ComposeNode> for ComposeViewer {
 
                                     snarl.connect(*src_pin, dst_pin);
                                 }
+
+                            } 
+                        } else if !to_pins.is_empty() {
+                            if ui.button(format!("{:?}",  node.t)).clicked() {
+                                let new_node = snarl.insert_node(pos, node.to_owned());
+                                snarl.get_node_mut(new_node).unwrap().id = new_node;
+                                let dst_pin = InPinId {
+                                    node: new_node,
+                                    input: to_pins[0].0,
+                                };
+
+                                snarl.connect(*src_pin, dst_pin);
                             }
+
                         }
+
                     }
                 }
 
             }
             AnyPins::In(src_pins) => {
                 for src_pin in src_pins {
-                    let src_input = snarl[src_pin.node].inputs[src_pin.input].to_owned();
-                   
-                    let mut src_label = false;
+                    let src_data = snarl[src_pin.node].inputs[src_pin.input].to_owned();
+                    
+
+                    let mut src_label = src_pins.len() >= 2;
                     for node in self.node_templates.iter() {
-                        
-                        let mut to_label = false;
-                        for (i, output) in node.outputs.iter().enumerate() {
-                            if output.data_type == src_input.data_type {
-                                if !src_label {
-                                    ui.label(format!("> {}",  src_input.name));
-                                    src_label = true;
-                                } 
 
-                                if !to_label {
-                                    ui.label(format!("{:?}",  node.t));
-                                    to_label = true;
-                                }
+                        let to_pins = node.outputs.iter()
+                            .enumerate()
+                            .filter(|(_, i)| i.data_type == src_data.data_type)
+                            .collect_vec();
 
-                                if ui.button(output.get_name()).clicked() {
+                        if to_pins.is_empty() {
+                            continue;
+                        }
+
+                        if src_label {
+                            ui.label(format!("> {}",  src_data.name));
+                            src_label = false;
+                        } 
+
+                        if to_pins.len() >= 2 {
+                            ui.label(format!("{:?}",  node.t));
+
+                            for (i, to_data) in to_pins {
+                                if ui.button(to_data.get_name()).clicked() {
                                     let new_node = snarl.insert_node(pos, node.to_owned());
+                                    snarl.get_node_mut(new_node).unwrap().id = new_node;
                                     let dst_pin = OutPinId {
                                         node: new_node,
                                         output: i,
                                     };
 
+                                    snarl.drop_inputs(*src_pin);
                                     snarl.connect(dst_pin, *src_pin);
                                 }
+
+                            } 
+                        } else if !to_pins.is_empty() {
+                            if ui.button(format!("{:?}",  node.t)).clicked() {
+                                let new_node = snarl.insert_node(pos, node.to_owned());
+                                snarl.get_node_mut(new_node).unwrap().id = new_node;
+                                let dst_pin = OutPinId {
+                                    node: new_node,
+                                    output: to_pins[0].0,
+                                };
+
+                                snarl.drop_inputs(*src_pin);
+                                snarl.connect(dst_pin, *src_pin);
                             }
+
                         }
+
                     }
                 }
+
             }
         };
     }

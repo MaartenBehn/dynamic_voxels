@@ -84,10 +84,10 @@ impl Model for Islands {
         
         let tree_model = MagicaVoxelModel::new("./assets/Tree1small.vox")?;
         let tree_grid: SharedVoxelGrid = tree_model.into_grid(palette)?.into();
-         
-    let island_volume = CSGTree::default();
 
-        let mut wfc_builder = ModelSynthesisBuilder::new()
+        let island_volume = CSGTree::default();
+
+        let mut builder = ModelSynthesisBuilder::new()
             .position_set(Identifier::IslandPositions, |b| {b
                 .ammount(BuilderAmmount::OneGlobal)
                 .value(BuilderValue::Const(PositionSet::new_grid_in_volume(
@@ -137,7 +137,7 @@ impl Model for Islands {
                 .depends(Identifier::IslandPositions)
             });
 
-        let template = wfc_builder.build_template();
+        let template = builder.build_template();
         change.send_template(template.clone());
 
         let collapser = template.get_collaper();
