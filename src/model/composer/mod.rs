@@ -9,12 +9,17 @@ pub mod identifier;
 pub mod pos_space;
 pub mod volume_3d;
 pub mod volume_2d;
+pub mod ammount;
+pub mod dependency_tree;
+pub mod debug_gui;
 
 use std::{fs::{self, File}, io::Write};
 
+use debug_gui::template::TemplateDebugGui;
 use egui_snarl::{ui::{NodeLayout, PinPlacement, SnarlStyle, SnarlWidget}, Snarl};
 use nodes::ComposeNode;
 use octa_force::{anyhow::anyhow, egui::{self, CornerRadius, Id}, OctaResult};
+use template::ComposeTemplate;
 use viewer::ComposeViewer;
 
 const TEMP_SAVE_FILE: &str = "./composer_temp_save.json";
@@ -24,6 +29,7 @@ pub struct ModelComposer {
     snarl: Snarl<ComposeNode>,
     style: SnarlStyle,
     viewer: ComposeViewer,
+    template_debug: TemplateDebugGui,
 }
 
 const fn default_style() -> SnarlStyle {
@@ -62,10 +68,28 @@ impl ModelComposer {
         let style = SnarlStyle::new();
         let viewer = ComposeViewer::new();
 
-        ModelComposer { snarl, style, viewer }
+        let template_debug = TemplateDebugGui::new();
+
+        ModelComposer {
+            snarl,
+            style, 
+            viewer,
+            template_debug,
+        }
     }
 
     pub fn render(&mut self, ctx: &egui::Context) { 
+        egui::SidePanel::right("Right Side")
+            .default_width(300.0)
+            .show(ctx, |ui| {
+                if ui.button("Build Template").clicked() {
+                    let template = ComposeTemplate::new(self);
+                    self.template_debug.template = template;
+                }
+
+                self.template_debug.render(ui);
+            });
+
         egui::CentralPanel::default().show(ctx, |ui| {
             SnarlWidget::new()
                 .id(Id::new("snarl-demo"))

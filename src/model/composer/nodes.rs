@@ -50,7 +50,6 @@ pub enum ComposeNodeType {
     OnePer,
     OneGlobal,
     NPer,
-    DefinedBy,
 
     // Template
     TemplatePositionSet,
@@ -555,25 +554,7 @@ pub fn get_node_templates() -> Vec<ComposeNode> {
                     data_type: ComposeDataType::Ammount, 
                 }
             ], 
-        },
-        ComposeNode { 
-            t: ComposeNodeType::DefinedBy, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::Template, 
-            inputs: vec![
-                ComposeNodeInput { 
-                    name: "identifier".to_string(), 
-                    data_type: ComposeDataType::Identifier, 
-                },
-            ], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "out".to_string(), 
-                    data_type: ComposeDataType::Ammount, 
-                }
-            ], 
         }, 
-
 
         // Template
         ComposeNode { 
