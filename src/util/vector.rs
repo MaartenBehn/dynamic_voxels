@@ -1,8 +1,8 @@
 use std::{fmt::Debug, ops::{Add, Div, Index, Mul, Neg, Sub}, process::Output};
 
-use octa_force::glam::{vec2, IVec2, IVec3, UVec3, Vec2, Vec3, Vec3A, Vec3Swizzles, Vec4, Vec4Swizzles};
+use octa_force::glam::{vec2, IVec2, IVec3, Mat3, Mat4, UVec3, Vec2, Vec3, Vec3A, Vec3Swizzles, Vec4, Vec4Swizzles};
 
-use super::number::Nu;
+use super::{math_config::{MC}, number::Nu};
 
 pub trait Ve<T: Nu, const D: usize>: 
     Sized    
@@ -21,6 +21,7 @@ pub trait Ve<T: Nu, const D: usize>:
     + Div<T, Output = Self>
     + Neg<Output = Self>
     + Index<usize, Output = T>
+    + MC<Self, T, D>
 {
     const ZERO: Self;
     const ONE: Self;
@@ -28,6 +29,7 @@ pub trait Ve<T: Nu, const D: usize>:
     const MAX: Self;
 
     fn new(v: [T; D]) -> Self;
+    fn from_slice(v: &[T]) -> Self;
     fn from_iter<I: Iterator<Item = T>>(iter: I) -> Self;
     fn length_squared(self) -> T;
     fn element_sum(self) -> T;
@@ -144,7 +146,15 @@ impl Ve<f32, 2> for Vec2 {
     fn dot(self, other: Self) -> f32 { Vec2::dot(self, other) }
 }
 
-impl Ve<f32, 3> for Vec3 { 
+impl MC<Vec2, f32, 2> for Vec2 {
+    type Matrix = Mat3;
+    type VectorF = Vec2;
+
+    fn to_vector(v: Self::VectorF) -> Self { v }
+    fn to_vector_f(v: Self) -> Self::VectorF { v }
+}
+
+impl Ve<f32, 3> for Vec3 {
     const ZERO: Self = Vec3::ZERO;
     const ONE: Self = Vec3::ONE;
     const MIN: Self = Vec3::MIN;
@@ -201,7 +211,15 @@ impl Ve<f32, 3> for Vec3 {
     fn dot(self, other: Self) -> f32 { Vec3::dot(self, other) }
 }
 
-impl Ve<f32, 3> for Vec3A { 
+impl MC<Vec3, f32, 3> for Vec3 {
+    type Matrix = Mat4;
+    type VectorF = Vec3;
+
+    fn to_vector(v: Self::VectorF) -> Self { v }
+    fn to_vector_f(v: Self) -> Self::VectorF { v }
+}
+
+impl Ve<f32, 3> for Vec3A {
     const ZERO: Self = Vec3A::ZERO;
     const ONE: Self = Vec3A::ONE;
     const MIN: Self = Vec3A::MIN;
@@ -258,7 +276,15 @@ impl Ve<f32, 3> for Vec3A {
     fn dot(self, other: Self) -> f32 { Vec3A::dot(self, other) }
 }
 
-impl Ve<i32, 3> for IVec3 { 
+impl MC<Vec3A, f32, 3> for Vec3A {
+    type Matrix = Mat4;
+    type VectorF = Vec3A;
+
+    fn to_vector(v: Self::VectorF) -> Self { v }
+    fn to_vector_f(v: Self) -> Self::VectorF { v }
+}
+
+impl Ve<i32, 3> for IVec3 {
     const ZERO: Self = IVec3::ZERO;
     const ONE: Self = IVec3::ONE;
     const MIN: Self = IVec3::MIN;
@@ -316,7 +342,15 @@ impl Ve<i32, 3> for IVec3 {
     fn dot(self, other: Self) -> i32 { IVec3::dot(self, other) }
 }
 
-impl Ve<i32, 2> for IVec2 { 
+impl MC<IVec3, i32, 3> for IVec3 {
+    type Matrix = Mat4;
+    type VectorF = Vec3A;
+
+    fn to_vector(v: Self::VectorF) -> Self { v.as_ivec3() }
+    fn to_vector_f(v: Self) -> Self::VectorF { v.as_vec3a() }
+}
+
+impl Ve<i32, 2> for IVec2 {
     const ZERO: Self = IVec2::ZERO;
     const ONE: Self = IVec2::ONE;
     const MIN: Self = IVec2::MIN;
@@ -371,6 +405,14 @@ impl Ve<i32, 2> for IVec2 {
     fn to_array(&self) -> [i32; 2] { Self::to_array(self) }
 
     fn dot(self, other: Self) -> i32 { IVec2::dot(self, other) }
+}
+
+impl MC<IVec2, i32, 2> for IVec2 {
+    type Matrix = Mat3;
+    type VectorF = Vec2;
+
+    fn to_vector(v: Self::VectorF) -> Self { v.as_ivec2() }
+    fn to_vector_f(v: Self) -> Self::VectorF { v.as_vec2() }
 }
 
 pub fn vector_to_nalgebra<V: Ve<f32, D>, const D: usize>(v: V) -> nalgebra::OPoint<f32, nalgebra::Const<D>> {

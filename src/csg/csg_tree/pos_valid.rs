@@ -1,16 +1,16 @@
-use crate::{util::math_config::MC, volume::VolumeQureyPosValid};
+use crate::{util::{number::Nu, vector::Ve}, volume::VolumeQureyPosValid};
 
 use super::{remove::CSGTreeRemove, tree::{CSGTreeNodeData, CSGTree, CSGTreeIndex}, union::CSGTreeUnion};
 
 
-impl<V: Send + Sync, C: MC<D>, const D: usize> VolumeQureyPosValid<C::Vector, C::Number, D> for CSGTree<V, C, D> {
-    fn is_position_valid(&self, pos: C::Vector) -> bool {
+impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> VolumeQureyPosValid<V, T, D> for CSGTree<M, V, T, D> {
+    fn is_position_valid(&self, pos: V) -> bool {
         self.is_position_valid_index(self.root, pos)
     }
 }
 
-impl<V: Send + Sync, C: MC<D>, const D: usize> CSGTree<V, C, D> {
-    fn is_position_valid_index(&self, index: CSGTreeIndex, pos: C::Vector) -> bool {
+impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
+    fn is_position_valid_index(&self, index: CSGTreeIndex, pos: V) -> bool {
         let node = &self.nodes[index];
         match &node.data {
             CSGTreeNodeData::Union(d) => self.is_position_valid_union(d, pos),
@@ -23,7 +23,7 @@ impl<V: Send + Sync, C: MC<D>, const D: usize> CSGTree<V, C, D> {
         }
     }
 
-    fn is_position_valid_union(&self, union: &CSGTreeUnion<C, D>, pos: C::Vector) -> bool {
+    fn is_position_valid_union(&self, union: &CSGTreeUnion<V, T, D>, pos: V) -> bool {
         let mut i = 0;
         while i < union.bvh.nodes.len() {
             let b = &union.bvh.nodes[i];
@@ -44,7 +44,7 @@ impl<V: Send + Sync, C: MC<D>, const D: usize> CSGTree<V, C, D> {
         false
     }
 
-    fn is_position_valid_remove(&self, remove: &CSGTreeRemove, pos: C::Vector) -> bool {
+    fn is_position_valid_remove(&self, remove: &CSGTreeRemove, pos: V) -> bool {
         let base = self.is_position_valid_index(remove.base, pos);
         let remove = self.is_position_valid_index(remove.remove, pos);
 

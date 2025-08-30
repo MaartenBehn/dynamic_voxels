@@ -35,7 +35,6 @@ use octa_force::puffin_egui::puffin;
 use octa_force::vulkan::ash::vk::AttachmentLoadOp;
 use octa_force::vulkan::{Context, Fence, ImageBarrier};
 use octa_force::{log, OctaResult};
-use util::math_config::Int3D;
 use util::profiler::ShaderProfiler;
 use util::state_saver::StateSaver;
 use volume::{VolumeBounds};

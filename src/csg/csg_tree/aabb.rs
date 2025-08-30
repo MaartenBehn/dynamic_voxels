@@ -4,11 +4,11 @@ use itertools::Itertools;
 use octa_force::{egui::emath::Numeric, glam::Vec3A};
 use smallvec::ToSmallVec;
 
-use crate::{bvh::{Bvh}, util::{aabb::AABB, math_config::MC}, volume::VolumeBounds, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid}};
+use crate::{bvh::Bvh, util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, volume::VolumeBounds, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid}};
 
 use super::{tree::{CSGTreeNode, CSGTreeNodeData, CSGTree, CSGTreeIndex}, union::{BVHNodeV2, CSGTreeUnion}};
 
-impl<V: Send + Sync, C: MC<D>, const D: usize> VolumeBounds<C::Vector, C::Number, D> for CSGTree<V, C, D> {
+impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> VolumeBounds<V, T, D> for CSGTree<M, V, T, D> {
     fn calculate_bounds(&mut self) {
         if !self.changed {
             return;
@@ -18,12 +18,12 @@ impl<V: Send + Sync, C: MC<D>, const D: usize> VolumeBounds<C::Vector, C::Number
         self.calculate_bounds_index(self.root);
     }
 
-    fn get_bounds(&self) -> AABB<C::Vector, C::Number, D> {
+    fn get_bounds(&self) -> AABB<V, T, D> {
         self.get_bounds_index(self.root)
     }
 }
 
-impl<V: Send + Sync, C: MC<D>, const D: usize> CSGTree<V, C, D> {
+impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
     fn calculate_bounds_index(&mut self, index: CSGTreeIndex) {
         let node = &mut self.nodes[index];
 
@@ -48,13 +48,13 @@ impl<V: Send + Sync, C: MC<D>, const D: usize> CSGTree<V, C, D> {
             CSGTreeNodeData::Box(d) => d.calculate_bounds(),
             CSGTreeNodeData::Sphere(d) => d.calculate_bounds(),
             CSGTreeNodeData::OffsetVoxelGrid(d) => 
-            <OffsetVoxelGrid as VolumeBounds<C::Vector, C::Number, D>>::calculate_bounds(d),
+            <OffsetVoxelGrid as VolumeBounds<V, T, D>>::calculate_bounds(d),
             CSGTreeNodeData::SharedVoxelGrid(d) => 
-            <SharedVoxelGrid as VolumeBounds<C::Vector, C::Number, D>>::calculate_bounds(d),
+            <SharedVoxelGrid as VolumeBounds<V, T, D>>::calculate_bounds(d),
         }
     }
 
-    fn get_bounds_index(&self, index: CSGTreeIndex) -> AABB<C::Vector, C::Number, D> {
+    fn get_bounds_index(&self, index: CSGTreeIndex) -> AABB<V, T, D> {
         let node = &self.nodes[index];
 
         match &node.data {
@@ -71,13 +71,13 @@ impl<V: Send + Sync, C: MC<D>, const D: usize> CSGTree<V, C, D> {
         }
     }
 
-    fn calculate_bounds_union(&mut self, union: &mut CSGTreeUnion<C, D>) {
+    fn calculate_bounds_union(&mut self, union: &mut CSGTreeUnion<V, T, D>) {
 
         for index in union.indecies.iter() {
             self.calculate_bounds_index(*index);
         }
  
-        union.bvh = Bvh::<BVHNodeV2<C, D>, C::VectorF, f32, D>::build_par(
+        union.bvh = Bvh::<BVHNodeV2<V, T, D>, V::VectorF, f32, D>::build_par(
             &self.nodes, 
             &mut union.indecies);
     }
@@ -85,8 +85,8 @@ impl<V: Send + Sync, C: MC<D>, const D: usize> CSGTree<V, C, D> {
 
 
 
-impl<C: MC<D>, const D: usize> CSGTreeUnion<C, D> {
-    pub fn get_bounds(&self) -> AABB<C::Vector, C::Number, D> {
+impl<V: Ve<T, D>, T: Nu, const D: usize> CSGTreeUnion<V, T, D> {
+    pub fn get_bounds(&self) -> AABB<V, T, D> {
         if self.bvh.nodes.is_empty() {
             return AABB::default();
         }

@@ -1,12 +1,12 @@
 use nalgebra::Point;
 use octa_force::glam::{vec3, IVec3, UVec3, Vec3A, Vec4};
 
-use crate::{csg::union::tree::UnionNodeData, util::{math::vec3a_to_nalgebra_point, math_config::MC}, volume::{VolumeQureyPosValue}, voxel::palette::palette::MATERIAL_ID_NONE};
+use crate::{csg::union::tree::UnionNodeData, util::{math::vec3a_to_nalgebra_point, math_config::MC, number::Nu, vector::Ve}, volume::VolumeQureyPosValue, voxel::palette::palette::MATERIAL_ID_NONE};
 
 use super::{new, tree::Union};
 
-impl<C: MC<3>> VolumeQureyPosValue<C::Vector, C::Number, 3> for Union<u8, C, 3> {
-    fn get_value(&self, pos: C::Vector) -> u8 {
+impl<V: Ve<T, 3>, T: Nu> VolumeQureyPosValue<V, T, 3> for Union<u8, V, T, 3> {
+    fn get_value(&self, pos: V) -> u8 {
 
         let mut i = 0;
         while i < self.bvh.len() {

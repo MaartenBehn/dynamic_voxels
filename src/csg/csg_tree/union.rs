@@ -1,24 +1,24 @@
-use crate::{bvh::{node::BHNode, shape::{BHShape, Shapes}, Bvh}, util::{aabb::AABB, math_config::MC}, volume::{VolumeBounds, VolumeQureyPosValid}};
+use crate::{bvh::{node::BHNode, shape::{BHShape, Shapes}, Bvh}, util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
 
 use super::tree::{CSGTreeNode, CSGTreeNodeData, CSGTree, CSGTreeIndex};
 
 
 
 #[derive(Debug, Clone, Copy, Default)]
-pub struct BVHNodeV2<C: MC<D>, const D: usize> {
-    pub aabb: AABB<C::Vector, C::Number, D>,
+pub struct BVHNodeV2<V: Ve<T, D>, T: Nu, const D: usize> {
+    pub aabb: AABB<V, T, D>,
     pub exit: usize,
     pub leaf: Option<usize>,
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct CSGTreeUnion<C: MC<D>, const D: usize> {
+pub struct CSGTreeUnion<V: Ve<T, D>, T: Nu, const D: usize> {
     pub indecies: Vec<CSGTreeIndex>,
-    pub bvh: Bvh<BVHNodeV2<C, D>, C::VectorF, f32, D>,
+    pub bvh: Bvh<BVHNodeV2<V, T, D>, V::VectorF, f32, D>,
     pub changed: bool,
 }
 
-impl<C: MC<D>, const D: usize> CSGTreeUnion<C, D> {
+impl<V: Ve<T, D>, T: Nu, const D: usize> CSGTreeUnion<V, T, D> {
     pub fn new(indecies: Vec<CSGTreeIndex>) -> Self { 
         Self {
             indecies,
@@ -33,8 +33,8 @@ impl<C: MC<D>, const D: usize> CSGTreeUnion<C, D> {
     }
 } 
 
-impl<C: MC<D>, const D: usize> BHNode<C::VectorF, f32, D> for BVHNodeV2<C, D> {
-    fn new(aabb: AABB<C::VectorF, f32, D>, exit_index: usize, shape_index: Option<usize>) -> Self {
+impl<V: Ve<T, D>, T: Nu, const D: usize> BHNode<V::VectorF, f32, D> for BVHNodeV2<V, T, D> {
+    fn new(aabb: AABB<V::VectorF, f32, D>, exit_index: usize, shape_index: Option<usize>) -> Self {
         Self {
             aabb: AABB::from_f(aabb),
             exit: exit_index,
@@ -43,8 +43,8 @@ impl<C: MC<D>, const D: usize> BHNode<C::VectorF, f32, D> for BVHNodeV2<C, D> {
     }
 }
 
-impl<V: Send + Sync, C: MC<D>, const D: usize> BHShape<C::VectorF, f32, D> for CSGTreeNode<V, C, D> {
-    fn aabb(&self, shapes: &Shapes<Self, C::VectorF, f32, D>) -> AABB<C::VectorF, f32, D> {
+impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> BHShape<V::VectorF, f32, D> for CSGTreeNode<M, V, T, D> {
+    fn aabb(&self, shapes: &Shapes<Self, V::VectorF, f32, D>) -> AABB<V::VectorF, f32, D> {
         match &self.data {
             CSGTreeNodeData::Union(d) => d.get_bounds().to_f(),
             CSGTreeNodeData::Remove(csgtree_remove) => {

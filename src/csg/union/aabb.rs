@@ -2,16 +2,16 @@ use bvh::{aabb::Bounded, bounding_hierarchy::{BHShape, BoundingHierarchy}, bvh::
 use octa_force::egui::emath::Numeric;
 use smallvec::ToSmallVec;
 
-use crate::{util::{aabb::AABB, math_config::MC}, volume::VolumeBounds, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid}};
+use crate::{util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, volume::VolumeBounds, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid}};
 
 use super::tree::{BVHNode, Union, UnionNode, UnionNodeData};
 
-impl<V: Send + Sync, C: MC<D>, const D: usize> VolumeBounds<C::Vector, C::Number, D> for Union<V, C, D> {
+impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> VolumeBounds<V, T, D> for Union<M, V, T, D> {
     fn calculate_bounds(&mut self) {
         self.update_bounds();
     }
 
-    fn get_bounds(&self) -> AABB<C::Vector, C::Number, D> {
+    fn get_bounds(&self) -> AABB<V, T, D> {
         if self.bvh.is_empty() {
             return AABB::default()
         }
@@ -20,19 +20,19 @@ impl<V: Send + Sync, C: MC<D>, const D: usize> VolumeBounds<C::Vector, C::Number
     }
 }
 
-impl<V: Send + Sync, C: MC<D>, const D: usize> VolumeBounds<C::Vector, C::Number, D> for UnionNode<V, C, D> {
+impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> VolumeBounds<V, T, D> for UnionNode<M, V, T, D> {
     fn calculate_bounds(&mut self) {
         match &mut self.data {
             UnionNodeData::Box(d) => d.calculate_bounds(),
             UnionNodeData::Sphere(d) => d.calculate_bounds(),
             UnionNodeData::OffsetVoxelGrid(d) => 
-                <OffsetVoxelGrid as VolumeBounds<C::Vector, C::Number, D>>::calculate_bounds(d),
+                <OffsetVoxelGrid as VolumeBounds<V, T, D>>::calculate_bounds(d),
             UnionNodeData::SharedVoxelGrid(d) => 
-                <SharedVoxelGrid as VolumeBounds<C::Vector, C::Number, D>>::calculate_bounds(d),
+                <SharedVoxelGrid as VolumeBounds<V, T, D>>::calculate_bounds(d),
         }
     }
 
-    fn get_bounds(&self) -> AABB<C::Vector, C::Number, D> {
+    fn get_bounds(&self) -> AABB<V, T, D> {
         match &self.data {
             UnionNodeData::Box(d) => d.get_bounds(),
             UnionNodeData::Sphere(d) => d.get_bounds(),
@@ -42,7 +42,7 @@ impl<V: Send + Sync, C: MC<D>, const D: usize> VolumeBounds<C::Vector, C::Number
     }
 }
 
-impl<V: Send + Sync, C: MC<D>, const D: usize> Union<V, C, D> {
+impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> Union<M, V, T, D> {
     pub fn update_bounds(&mut self) {
         if !self.changed {
             return;
@@ -62,8 +62,8 @@ impl<V: Send + Sync, C: MC<D>, const D: usize> Union<V, C, D> {
                     leaf: Some(shape as _),
                 }
             } else {
-                let aabb: AABB<C::VectorF, f32, D> = aabb.into();
-                let aabb = AABB::<C::Vector, C::Number, D>::from_f(aabb);
+                let aabb: AABB<V::VectorF, f32, D> = aabb.into();
+                let aabb = AABB::<V, T, D>::from_f(aabb);
 
                 BVHNode {
                     aabb: aabb,
@@ -77,13 +77,13 @@ impl<V: Send + Sync, C: MC<D>, const D: usize> Union<V, C, D> {
     }
 }
 
-impl<V: Send + Sync, C: MC<D>, const D: usize> Bounded<f32, D> for UnionNode<V, C, D> {
+impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> Bounded<f32, D> for UnionNode<M, V, T, D> {
     fn aabb(&self) -> bvh::aabb::Aabb<f32, D> {
-        self.get_bounds().to_f::<C::VectorF>().into()
+        self.get_bounds().to_f::<V::VectorF>().into()
     }
 }
 
-impl<V: Send + Sync, C: MC<D>, const D: usize> BHShape<f32, D> for UnionNode<V, C, D> {
+impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> BHShape<f32, D> for UnionNode<M, V, T, D> {
     fn set_bh_node_index(&mut self, i: usize) {
         self.bh_index = i;
     }

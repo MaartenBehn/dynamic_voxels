@@ -1,16 +1,16 @@
-use crate::{util::math_config::MC, volume::VolumeQureyPosValue, voxel::palette::palette::MATERIAL_ID_NONE};
+use crate::{util::{number::Nu, vector::Ve}, volume::VolumeQureyPosValue, voxel::palette::palette::MATERIAL_ID_NONE};
 
 use super::{remove::CSGTreeRemove, tree::{CSGTreeNodeData, CSGTree, CSGTreeIndex}, union::CSGTreeUnion};
 
 
-impl<C: MC<D>, const D: usize> VolumeQureyPosValue<C::Vector, C::Number, D> for CSGTree<u8, C, D> { 
-    fn get_value(&self, pos: C::Vector) -> u8 {
+impl<V: Ve<T, D>, T: Nu, const D: usize> VolumeQureyPosValue<V, T, D> for CSGTree<u8, V, T, D> { 
+    fn get_value(&self, pos: V) -> u8 {
         self.get_value_index(self.root, pos)
     }
 }
 
-impl<C: MC<D>, const D: usize> CSGTree<u8, C, D> {
-    fn get_value_index(&self, index: CSGTreeIndex, pos: C::Vector) -> u8 {
+impl<V: Ve<T, D>, T: Nu, const D: usize> CSGTree<u8, V, T, D> {
+    fn get_value_index(&self, index: CSGTreeIndex, pos: V) -> u8 {
         let node = &self.nodes[index];
         match &node.data {
             CSGTreeNodeData::Union(d) => self.get_value_union(d, pos),
@@ -23,7 +23,7 @@ impl<C: MC<D>, const D: usize> CSGTree<u8, C, D> {
         }
     }
 
-    fn get_value_union(&self, union: &CSGTreeUnion<C, D>, pos: C::Vector) -> u8 {
+    fn get_value_union(&self, union: &CSGTreeUnion<V, T, D>, pos: V) -> u8 {
         let mut i = 0;
         while i < union.bvh.nodes.len() {
             let b = &union.bvh.nodes[i];
@@ -44,7 +44,7 @@ impl<C: MC<D>, const D: usize> CSGTree<u8, C, D> {
         MATERIAL_ID_NONE
     }
 
-    fn get_value_remove(&self, remove: &CSGTreeRemove, pos: C::Vector) -> u8 {
+    fn get_value_remove(&self, remove: &CSGTreeRemove, pos: V) -> u8 {
         let base = self.get_value_index(remove.base, pos);
         let remove = self.get_value_index(remove.remove, pos);
 

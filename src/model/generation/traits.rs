@@ -1,6 +1,6 @@
 use octa_force::{glam::{Vec2, Vec3A}, OctaResult};
 
-use crate::{model::worker::ModelChangeSender, scene::worker::SceneWorkerSend, util::{math_config::{Float2D, Float3D}, number::Nu, vector::Ve}, volume::{remove_trait::VolumeRemove, VolumeQureyPosValid}, voxel::palette::shared::SharedPalette};
+use crate::{model::worker::ModelChangeSender, scene::worker::SceneWorkerSend, util::{number::Nu, vector::Ve}, volume::{remove_trait::VolumeRemove, VolumeQureyPosValid}, voxel::palette::shared::SharedPalette};
 use std::fmt::Debug;
 
 pub trait IT: Debug + Copy + Eq + Default + Sync + Send {}

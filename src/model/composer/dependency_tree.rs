@@ -3,6 +3,8 @@ use std::{collections::VecDeque, usize};
 
 use smallvec::SmallVec;
 
+use crate::util::{number::Nu, vector::Ve};
+
 use super::template::{ComposeTemplate, TemplateIndex, TemplateNode};
 
 
@@ -20,15 +22,15 @@ pub struct DependencyPathStep {
 }
 
 impl DependencyTree {
-    pub fn new(
-        template: &ComposeTemplate, 
+    pub fn new<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu>(
+        template: &ComposeTemplate<V2, V3, T>, 
         parent_index: TemplateIndex, 
         depends: &[TemplateIndex], 
     ) -> DependencyTree {
         let mut depends = depends.iter().copied().enumerate().collect::<Vec<_>>();
 
-        let mut open_child_paths: VecDeque<(&TemplateNode, Vec<DependencyPathStep>)> = VecDeque::new();
-        let mut open_parent_paths: VecDeque<(&TemplateNode, Vec<DependencyPathStep>)> = VecDeque::new();
+        let mut open_child_paths: VecDeque<(&TemplateNode<V2, V3, T>, Vec<DependencyPathStep>)> = VecDeque::new();
+        let mut open_parent_paths: VecDeque<(&TemplateNode<V2, V3, T>, Vec<DependencyPathStep>)> = VecDeque::new();
 
         open_parent_paths.push_back((
             &template.nodes[parent_index], 
@@ -44,7 +46,7 @@ impl DependencyTree {
             steps: vec![],
         };
 
-        let mut check_hit = |node: &TemplateNode, path: &Vec<DependencyPathStep>| {
+        let mut check_hit = |node: &TemplateNode<V2, V3, T>, path: &Vec<DependencyPathStep>| {
             let depends_res = depends.iter()
                 .enumerate()
                 .find(|(_, (_, i))| *i == node.index)
@@ -113,9 +115,9 @@ impl DependencyTree {
         path_tree
     }
 
-    fn copy_path(
+    fn copy_path<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu>(
         &mut self, 
-        node: &TemplateNode, 
+        node: &TemplateNode<V2, V3, T>, 
         path: &Vec<DependencyPathStep>, 
     ) -> usize {
         if self.steps.is_empty() {

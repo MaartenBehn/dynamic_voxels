@@ -1,14 +1,14 @@
 use itertools::Itertools;
 use octa_force::egui;
 
-use crate::model::composer::{dependency_tree::{DependencyTree}, template::{ComposeTemplate, ComposeTemplateValue, TemplateIndex, TemplateNode}};
+use crate::{model::composer::{dependency_tree::DependencyTree, template::{ComposeTemplate, ComposeTemplateValue, TemplateIndex, TemplateNode}}, util::{number::Nu, vector::Ve}};
 
 #[derive(Debug)]
-pub struct TemplateDebugGui {
-    pub template: ComposeTemplate,
+pub struct TemplateDebugGui<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
+    pub template: ComposeTemplate<V2, V3, T>,
 }
 
-impl TemplateDebugGui {
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> TemplateDebugGui<V2, V3, T> {
     pub fn new() -> Self {
         Self {
             template: Default::default(),
@@ -24,7 +24,7 @@ impl TemplateDebugGui {
         Self::node(&self.template, ui, 0, &DependencyTree::default());
     }
 
-    fn node(template: &ComposeTemplate, ui: &mut egui::Ui, index: TemplateIndex, dependency_tree: &DependencyTree) {
+    fn node(template: &ComposeTemplate<V2, V3, T>, ui: &mut egui::Ui, index: TemplateIndex, dependency_tree: &DependencyTree) {
         let node = &template.nodes[index];
 
         ui.collapsing(format!("Node: {:?}", node.node_id), |ui| {
@@ -69,9 +69,9 @@ impl TemplateDebugGui {
     }
 
     fn relative_path(
-        template: &ComposeTemplate, 
+        template: &ComposeTemplate<V2, V3, T>, 
         tree: &DependencyTree, 
-        inital_node: &TemplateNode, 
+        inital_node: &TemplateNode<V2, V3, T>, 
         ui: &mut egui::Ui, 
         index: usize
     ) {

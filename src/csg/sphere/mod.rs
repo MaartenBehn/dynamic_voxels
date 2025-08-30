@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use octa_force::glam::{vec3, IVec3, Mat4, Quat, UVec3, Vec3, Vec3A, Vec4};
 
 use crate::{util::{aabb::{AABB}, math_config::MC, matrix::Ma, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyAABB, VolumeQureyAABBResult, VolumeQureyPosValid, VolumeQureyPosValue}, voxel::palette::palette::MATERIAL_ID_NONE};
@@ -5,69 +7,72 @@ use crate::{util::{aabb::{AABB}, math_config::MC, matrix::Ma, number::Nu, vector
 use super::{Base};
 
 #[derive(Clone, Copy, Debug, Default)]
-pub struct CSGSphere<V, C: MC<D>, const D: usize> {
-    mat: C::Matrix,
-    v: V
+pub struct CSGSphere<M, V: Ve<T, D>, T: Nu, const D: usize> {
+    mat: V::Matrix,
+    m: M,
+    p: PhantomData<T>
 }
 
-impl<V: Base, C: MC<D>, const D: usize> CSGSphere<V, C, D> {
-    pub fn new_sphere(center: C::VectorF, radius: f32, mat: V) -> Self {
+impl<M, V: Ve<T, D>, T: Nu, const D: usize> CSGSphere<M, V, T, D> {
+    pub fn new_sphere(center: V::VectorF, radius: f32, mat: M) -> Self {
         CSGSphere {
-            mat: C::Matrix::from_scale_translation(
-                C::VectorF::ONE * radius,
+            mat: V::Matrix::from_scale_translation(
+                V::VectorF::ONE * radius,
                 center,
             ).inverse(),
-            v: mat,
+            m: mat,
+            p: Default::default(),
         }
     }
 }
 
-impl<V: Base, C: MC<3>> CSGSphere<V, C, 3> {
-    pub fn new_disk(center: C::VectorF, radius: f32, height: f32, mat: V) -> Self {
+impl<M: Base, V: Ve<T, 3>, T: Nu> CSGSphere<M, V, T, 3> {
+    pub fn new_disk(center: V::VectorF, radius: f32, height: f32, mat: M) -> Self {
         CSGSphere {
-            mat: C::Matrix::from_scale_translation(
-                C::VectorF::new([radius, radius, height]),
+            mat: V::Matrix::from_scale_translation(
+                V::VectorF::new([radius, radius, height]),
                 center,
             ).inverse(),
-            v: mat,
+            m: mat,
+            p: Default::default(),
         }
     }
 }
 
-impl<V, C: MC<D>, const D: usize> VolumeBounds<C::Vector, C::Number, D> for CSGSphere<V, C, D> {
+impl<M, V: Ve<T, D>, T: Nu, const D: usize> VolumeBounds<V, T, D> for CSGSphere<M, V, T, D> {
     fn calculate_bounds(&mut self) {}
 
-    fn get_bounds(&self) -> AABB<C::Vector, C::Number, D> {
+    fn get_bounds(&self) -> AABB<V, T, D> {
         let mat = self.mat.inverse();
         AABB::from_sphere(&mat)
     }
 }
 
-impl<V, C: MC<D>, const D: usize> VolumeQureyPosValid<C::Vector, C::Number, D> for CSGSphere<V, C, D> {
-    fn is_position_valid(&self, pos: C::Vector) -> bool {
-        let pos = self.mat.mul_vector(C::to_vector_f(pos));
+impl<M, V: Ve<T, D>, T: Nu, const D: usize> VolumeQureyPosValid<V, T, D> for CSGSphere<M, V, T, D> {
+    fn is_position_valid(&self, pos: V) -> bool {
+        let pos = self.mat.mul_vector(V::to_vector_f(pos));
         pos.length_squared() < 1.0
     }
 }
 
-impl<C: MC<D>, const D: usize> VolumeQureyPosValue<C::Vector, C::Number, D> for CSGSphere<u8, C, D> {
-    fn get_value(&self, pos: C::Vector) -> u8 {
+impl<V: Ve<T, D>, T: Nu, const D: usize> VolumeQureyPosValue<V, T, D> for CSGSphere<u8, V, T, D> {
+    fn get_value(&self, pos: V) -> u8 {
         if self.is_position_valid(pos) {
-            self.v
+            self.m
         } else {
             MATERIAL_ID_NONE
         }
     }
 }
 
-impl<C: MC<D>, const D: usize> VolumeQureyAABB<C::Vector, C::Number, D> for CSGSphere<u8, C, D> {
-    fn get_aabb_value(&self, aabb: AABB<C::Vector, C::Number, D>) -> VolumeQureyAABBResult {
-        let aabb: AABB<C::VectorF, f32, D> = aabb.mul_mat(&self.mat);
+impl<V: Ve<T, D>, T: Nu, const D: usize> VolumeQureyAABB<V, T, D> for CSGSphere<u8, V, T, D> {
+    fn get_aabb_value(&self, aabb: AABB<V, T, D>) -> VolumeQureyAABBResult {
+        let aabb: AABB<V::VectorF, f32, D> = aabb.mul_mat(&self.mat);
 
         let (min, max) = aabb.collides_unit_sphere();
 
         if max {
-            VolumeQureyAABBResult::Full(self.v)
+            VolumeQureyAABBResult::Full(self.m)
         } else if min {
             VolumeQureyAABBResult::Mixed
         } else {

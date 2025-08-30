@@ -4,12 +4,12 @@ use octa_force::{anyhow::{anyhow, bail}, glam::Vec3, log::{debug, info}, OctaRes
 use slotmap::Key;
 use tree64::Node;
 
-use crate::model::composer::{collapse::collapser::CollapseNode, dependency_tree::DependencyTree, template::{ComposeTemplate, ComposeTemplateValue, TemplateIndex, TemplateNode}};
+use crate::{model::composer::{collapse::collapser::CollapseNode, dependency_tree::DependencyTree, template::{ComposeTemplate, ComposeTemplateValue, TemplateIndex, TemplateNode}}, util::{number::Nu, vector::Ve}};
 
-use super::{collapser::{CollapseChildKey, CollapseNodeKey, Collapser, CreateDefinesOperation, NodeDataType}, number_space::NumberSet, position_space::PositionSet};
+use super::{collapser::{CollapseChildKey, CollapseNodeKey, Collapser, CreateDefinesOperation, NodeDataType}, number_space::NumberSpace, position_space::PositionSpace};
 
 
-impl Collapser {
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> Collapser<V2, V3, T> {
 
     /*
     pub fn create_defined(&mut self, opperation: CreateDefinesOperation, template: &ComposeTemplate) {
@@ -186,8 +186,8 @@ impl Collapser {
         &self, 
         parent_index: CollapseNodeKey,
         new_template_node_index: usize, 
-        template: &'a ComposeTemplate,
-        template_node: &'a TemplateNode,
+        template: &'a ComposeTemplate<V2, V3, T>,
+        template_node: &'a TemplateNode<V2, V3, T>,
         tree: &'a DependencyTree,
     ) -> Vec<(TemplateIndex, Vec<CollapseNodeKey>)> {
         let new_node_template = &template.nodes[new_template_node_index];
@@ -250,17 +250,17 @@ impl Collapser {
         depends: Vec<(TemplateIndex, Vec<CollapseNodeKey>)>, 
         defined_by: CollapseNodeKey,
         child_key: CollapseChildKey,
-        template: &ComposeTemplate,
+        template: &ComposeTemplate<V2, V3, T>,
     ) {
         let new_node_template = &template.nodes[new_node_template_index];
 
         let data = match &(&template.nodes[new_node_template_index]).value {
             ComposeTemplateValue::None => NodeDataType::None,
             ComposeTemplateValue::NumberSpace(space) 
-                => NodeDataType::NumberSet(NumberSet::from_space(space, &depends, &self)),
+                => NodeDataType::NumberSet(NumberSpace::from_template(space, &depends, &self)),
 
             ComposeTemplateValue::PositionSpace(space) 
-                => NodeDataType::PositionSpace(PositionSet::from_space(space, &depends, &self)),
+                => NodeDataType::PositionSpace(PositionSpace::from_template(space, &depends, &self)),
 
             ComposeTemplateValue::Object() => todo!(),
         };
@@ -269,11 +269,11 @@ impl Collapser {
     }
  
     pub fn push_new_node(&mut self, 
-        new_node_template: &TemplateNode, 
+        new_node_template: &TemplateNode<V2, V3, T>, 
         depends: Vec<(TemplateIndex, Vec<CollapseNodeKey>)>, 
         defined_by: CollapseNodeKey, 
         child_key: CollapseChildKey, 
-        data: NodeDataType
+        data: NodeDataType<V2, V3, T>
     ) {        
         let index = self.nodes.insert(CollapseNode {
             template_index: new_node_template.index,

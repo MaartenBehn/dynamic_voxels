@@ -1,7 +1,7 @@
 use bvh::{bvh::Bvh, flat_bvh::FlatNode};
 use octa_force::glam::Mat4;
 
-use crate::{csg::{r#box::CSGBox, sphere::CSGSphere, Base}, util::{aabb::AABB, math_config::MC}, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid}};
+use crate::{csg::{r#box::CSGBox, sphere::CSGSphere, Base}, util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid}};
 
 use super::{remove::CSGTreeRemove, union::CSGTreeUnion};
 
@@ -9,25 +9,25 @@ pub type CSGTreeIndex = usize;
 pub const CSG_TREE_INDEX_INVALID: CSGTreeIndex = CSGTreeIndex::MAX;
 
 #[derive(Debug, Clone)]
-pub enum CSGTreeNodeData<V, C: MC<D>, const D: usize> {
-    Union(CSGTreeUnion<C, D>),
+pub enum CSGTreeNodeData<M, V: Ve<T, D>, T: Nu, const D: usize> {
+    Union(CSGTreeUnion<V, T, D>),
     Remove(CSGTreeRemove),
     
-    Box(CSGBox<V, C, D>),
-    Sphere(CSGSphere<V, C, D>),
+    Box(CSGBox<M, V, T, D>),
+    Sphere(CSGSphere<M, V, T, D>),
     OffsetVoxelGrid(OffsetVoxelGrid),
     SharedVoxelGrid(SharedVoxelGrid),
 }
 
 #[derive(Debug, Clone)]
-pub struct CSGTreeNode<V, C: MC<D>, const D: usize> {
-    pub data: CSGTreeNodeData<V, C, D>,
+pub struct CSGTreeNode<M, V: Ve<T, D>, T: Nu, const D: usize> {
+    pub data: CSGTreeNodeData<M, V, T, D>,
     pub parent: CSGTreeIndex,
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct CSGTree<V, C: MC<D>, const D: usize> {
-    pub nodes: Vec<CSGTreeNode<V, C, D>>,
+pub struct CSGTree<M, V: Ve<T, D>, T: Nu, const D: usize> {
+    pub nodes: Vec<CSGTreeNode<M, V, T, D>>,
     pub changed: bool,
     pub root: CSGTreeIndex,
 }
@@ -43,8 +43,8 @@ pub struct CutResult {
     pub new_object_index: CSGTreeIndex,
 }
 
-impl<V: Base, C: MC<D>, const D: usize> CSGTree<V, C, D> { 
-    pub fn from_node(node: CSGTreeNode<V, C, D>) -> Self {
+impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> { 
+    pub fn from_node(node: CSGTreeNode<M, V, T, D>) -> Self {
         Self {
             nodes: vec![node],
             changed: true,
@@ -52,9 +52,9 @@ impl<V: Base, C: MC<D>, const D: usize> CSGTree<V, C, D> {
         }
     }
 
-    pub fn union_node_at_root(&mut self, node: CSGTreeNode<V, C, D>) -> UnionResult {   
-        let new_index = self.nodes.len();
-        self.nodes.push(node);
+    pub fn union_at_root(&mut self, other: &[CSGTreeNode<M, V, T, D>], other_root: usize) -> UnionResult {   
+        let new_index = self.nodes.len() + other_root;
+        self.nodes.extend_from_slice(other);
         self.changed = true;
 
         if self.nodes.len() == 1 {
@@ -90,9 +90,9 @@ impl<V: Base, C: MC<D>, const D: usize> CSGTree<V, C, D> {
         }
     }
 
-    pub fn union_node_at_index(&mut self, node: CSGTreeNode<V, C, D>, index: CSGTreeIndex) -> UnionResult {
-        let new_index = self.nodes.len();
-        self.nodes.push(node);
+    pub fn union_at_index(&mut self, index: CSGTreeIndex, other: &[CSGTreeNode<M, V, T, D>], other_root: usize) -> UnionResult {
+        let new_index = self.nodes.len() + other_root;
+        self.nodes.extend_from_slice(other);
         self.changed = true;
 
         let current_node = &mut self.nodes[index];
@@ -122,12 +122,12 @@ impl<V: Base, C: MC<D>, const D: usize> CSGTree<V, C, D> {
         }
     }
 
-    pub fn cut_node_at_root(&mut self, node: CSGTreeNode<V, C, D>) -> CutResult {
+    pub fn cut_at_root(&mut self, other: &[CSGTreeNode<M, V, T, D>], other_root: usize) -> CutResult {
         let root_node = &self.nodes[self.root];
         if let CSGTreeNodeData::Remove(cut) = &root_node.data {
             let remove_index = cut.remove;
             let base_index = cut.base;
-            let res = self.union_node_at_index(node, remove_index);
+            let res = self.union_at_index(remove_index, other, other_root);
             self.nodes[res.union_node_index].parent = self.root;
 
             return CutResult {
@@ -139,8 +139,8 @@ impl<V: Base, C: MC<D>, const D: usize> CSGTree<V, C, D> {
 
         assert!(!self.nodes.is_empty(), "You can not remove from an empty CSGTree");
 
-        let new_index = self.nodes.len();
-        self.nodes.push(node);
+        let new_index = self.nodes.len() + other_root;
+        self.nodes.extend_from_slice(other);
 
         let cut_index = self.nodes.len();
         let base_index = self.root;
@@ -158,12 +158,12 @@ impl<V: Base, C: MC<D>, const D: usize> CSGTree<V, C, D> {
         }
     }
 
-    pub fn cut_node_at_index(&mut self, node: CSGTreeNode<V, C, D>, index: CSGTreeIndex) -> CutResult {
+    pub fn cut_at_index(&mut self, index: CSGTreeIndex, other: &[CSGTreeNode<M, V, T, D>], other_root: usize) -> CutResult {
         let current_node = &self.nodes[index];
         if let CSGTreeNodeData::Remove(cut) = &current_node.data {
             let remove_index = cut.remove;
             let base_index = cut.base;
-            let res = self.union_node_at_index(node, remove_index);
+            let res = self.union_at_index(remove_index, other, other_root);
             self.nodes[res.union_node_index].parent = index;
 
             return CutResult {
@@ -177,8 +177,8 @@ impl<V: Base, C: MC<D>, const D: usize> CSGTree<V, C, D> {
 
         let parent = current_node.parent;
 
-        let new_index = self.nodes.len();
-        self.nodes.push(node);
+        let new_index = self.nodes.len() + other_root;
+        self.nodes.extend_from_slice(other);
 
         let cut_index = self.nodes.len();
         self.nodes.push(CSGTreeNode::new_remove(index, new_index));
@@ -220,8 +220,8 @@ impl<V: Base, C: MC<D>, const D: usize> CSGTree<V, C, D> {
     }
 }
 
-impl<V, C: MC<D>, const D: usize> CSGTreeNode<V, C, D> {
-    pub fn new(data: CSGTreeNodeData<V, C, D>, parent: CSGTreeIndex) -> Self {
+impl<M, V: Ve<T, D>, T: Nu, const D: usize> CSGTreeNode<M, V, T, D> {
+    pub fn new(data: CSGTreeNodeData<M, V, T, D>, parent: CSGTreeIndex) -> Self {
         Self {
             data,
             parent,

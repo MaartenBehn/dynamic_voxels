@@ -1,18 +1,18 @@
 use octa_force::glam::{vec3, Mat4, Quat, Vec3};
 
-use crate::{csg::{sphere::CSGSphere, Base}, util::math_config::MC, voxel::grid::shared::SharedVoxelGrid};
+use crate::{csg::{sphere::CSGSphere, Base}, util::{number::Nu, vector::Ve}, voxel::grid::shared::SharedVoxelGrid};
 
 use super::tree::{Union, UnionNode, UnionNodeData};
 
 
-impl<V: Base, C: MC<D>, const D: usize> Union<V, C, D> {
-    pub fn add_sphere(&mut self, center: C::VectorF, radius: f32, mat: V) {
+impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> Union<M, V, T, D> {
+    pub fn add_sphere(&mut self, center: V::VectorF, radius: f32, mat: M) {
         self.add_node(UnionNode::new_sphere(center, radius, mat));
     }
 }
 
-impl<V: Base, C: MC<3>> Union<V, C, 3> {
-    pub fn add_disk(&mut self, center: C::VectorF, radius: f32, height: f32, mat: V) {
+impl<M: Base, V: Ve<T, 3>, T: Nu> Union<M, V, T, 3> {
+    pub fn add_disk(&mut self, center: V::VectorF, radius: f32, height: f32, mat: M) {
         self.add_node(UnionNode::new_disk(center, radius, height, mat));
     }
 
@@ -21,14 +21,14 @@ impl<V: Base, C: MC<3>> Union<V, C, 3> {
     }
 }
 
-impl <V: Base, C: MC<D>, const D: usize> UnionNode<V, C, D> {
-    pub fn new_sphere(center: C::VectorF, radius: f32, mat: V) -> Self {
+impl <M: Base, V: Ve<T, D>, T: Nu, const D: usize> UnionNode<M, V, T, D> {
+    pub fn new_sphere(center: V::VectorF, radius: f32, mat: M) -> Self {
         UnionNode::new(UnionNodeData::Sphere(CSGSphere::new_sphere(center, radius, mat)))
     }
 }
 
-impl <V: Base, C: MC<3>> UnionNode<V, C, 3> {
-    pub fn new_disk(center:  C::VectorF, radius: f32, height: f32, mat: V) -> Self {
+impl <M: Base, V: Ve<T, 3>, T: Nu> UnionNode<M, V, T, 3> {
+    pub fn new_disk(center:  V::VectorF, radius: f32, height: f32, mat: M) -> Self {
         UnionNode::new(UnionNodeData::Sphere(CSGSphere::new_disk(center, radius, height, mat)))
     }
 

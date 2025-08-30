@@ -1,7 +1,7 @@
 use octa_force::{anyhow::anyhow, glam::{IVec3, Mat3, UVec3, Vec3, Vec3A}, OctaResult};
 use dot_vox::*;
 
-use crate::{util::{aabb::{AABB, IAABB3}, math::to_1d, math_config::{Int3D, MC}}, voxel::{grid::{offset::OffsetVoxelGrid, VoxelGrid}, palette::Palette}};
+use crate::{util::{aabb::{AABB, IAABB3}, math::to_1d, math_config::{MC}}, voxel::{grid::{offset::OffsetVoxelGrid, VoxelGrid}, palette::Palette}};
 
 use super::{VolumeBounds, VolumeQureyPosValue};
 

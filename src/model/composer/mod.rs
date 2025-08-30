@@ -7,8 +7,7 @@ pub mod number_space;
 pub mod position_space;
 pub mod primitive;
 pub mod identifier;
-pub mod volume_3d;
-pub mod volume_2d;
+pub mod volume;
 pub mod ammount;
 pub mod dependency_tree;
 pub mod debug_gui;
@@ -22,14 +21,16 @@ use octa_force::{anyhow::anyhow, egui::{self, CornerRadius, Id}, OctaResult};
 use template::ComposeTemplate;
 use viewer::ComposeViewer;
 
+use crate::util::{number::Nu, vector::Ve};
+
 const TEMP_SAVE_FILE: &str = "./composer_temp_save.json";
 
 #[derive(Debug)]
-pub struct ModelComposer {
+pub struct ModelComposer<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
     snarl: Snarl<ComposeNode>,
     style: SnarlStyle,
     viewer: ComposeViewer,
-    template_debug: TemplateDebugGui,
+    template_debug: TemplateDebugGui<V2, V3, T>,
 }
 
 const fn default_style() -> SnarlStyle {
@@ -62,7 +63,7 @@ const fn default_style() -> SnarlStyle {
     }
 }
 
-impl ModelComposer {
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> ModelComposer<V2, V3, T> {
      pub fn new() -> Self {
         let snarl = load_snarl().unwrap_or(Snarl::new());       
         let style = SnarlStyle::new();

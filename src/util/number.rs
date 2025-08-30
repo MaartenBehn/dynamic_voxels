@@ -1,5 +1,5 @@
 use core::fmt;
-use std::ops::{Add, AddAssign, Deref, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
+use std::{iter::Step, ops::{Add, AddAssign, Deref, Div, DivAssign, Mul, MulAssign, Sub, SubAssign}};
 
 use bvh::bounding_hierarchy::BHValue;
 
@@ -29,7 +29,9 @@ pub trait Nu:
 
     fn from_usize(v: usize) -> Self;
     fn from_f32(v: f32) -> Self;
+    fn from_i32(v: i32) -> Self;
     fn to_usize(self) -> usize;
+    fn to_f32(self) -> f32;
 }
 
 impl Nu for f32 {
@@ -42,8 +44,11 @@ impl Nu for f32 {
 
     fn from_usize(v: usize) -> Self { v as f32 }
     fn from_f32(v: f32) -> Self { v }
+    fn from_i32(v: i32) -> Self { v as f32 }
     fn to_usize(self) -> usize { self as usize } 
+    fn to_f32(self) -> f32 { self } 
 }
+
 impl Nu for i32 {
     const ZERO: Self = 0;
     const ONE: Self = 1;
@@ -54,7 +59,9 @@ impl Nu for i32 {
 
     fn from_usize(v: usize) -> Self { v as i32 }
     fn from_f32(v: f32) -> Self { v as i32 }
+    fn from_i32(v: i32) -> Self { v }
     fn to_usize(self) -> usize { self as usize } 
+    fn to_f32(self) -> f32 { self as f32 } 
 }
 impl Nu for u32 {
     const ZERO: Self = 0;
@@ -66,5 +73,7 @@ impl Nu for u32 {
 
     fn from_usize(v: usize) -> Self { v as u32 }
     fn from_f32(v: f32) -> Self { v as u32 }
+    fn from_i32(v: i32) -> Self { v as u32 }
     fn to_usize(self) -> usize { self as usize } 
+    fn to_f32(self) -> f32 { self as f32 } 
 }

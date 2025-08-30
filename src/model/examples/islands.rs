@@ -1,11 +1,11 @@
 
 use std::sync::Arc;
 
-use octa_force::{anyhow::bail, camera::Camera, glam::{vec3, vec3a, EulerRot, Mat4, Quat, Vec2, Vec3, Vec3A, Vec3Swizzles}, log::{debug, error, info}, vulkan::{AllocContext, Context, Swapchain}, OctaResult};
+use octa_force::{anyhow::bail, camera::Camera, glam::{vec3, vec3a, EulerRot, IVec3, Mat4, Quat, Vec2, Vec3, Vec3A, Vec3Swizzles}, log::{debug, error, info}, vulkan::{AllocContext, Context, Swapchain}, OctaResult};
 use parking_lot::Mutex;
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{csg::{csg_tree::tree::{CSGTree, CSGTreeIndex}, sphere::CSGSphere, union::tree::Union}, model::{generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder}, collapse::{CollapseOperation, Collapser}, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree, traits::{Model, ModelGenerationTypes, BU, IT}}, worker::ModelChangeSender}, scene::{dag64::{SceneAddDAGObject, SceneDAGObject}, dag_store::SceneDAGKey, renderer::SceneRenderer, worker::SceneWorkerSend, Scene, SceneObjectData, SceneObjectKey}, util::math_config::{Float2D, Float3D, Int3D}, volume::{magica_voxel::MagicaVoxelModel, VolumeBounds, VolumeQureyPosValid}, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, grid::{shared::SharedVoxelGrid, VoxelGrid}, palette::{palette::MATERIAL_ID_BASE, shared::SharedPalette, Palette}}, METERS_PER_SHADER_UNIT};
+use crate::{csg::{csg_tree::tree::{CSGTree, CSGTreeIndex}, sphere::CSGSphere, union::tree::Union}, model::{generation::{builder::{BuilderAmmount, BuilderValue, ModelSynthesisBuilder}, collapse::{CollapseOperation, Collapser}, pos_set::{PositionSet, PositionSetRule}, template::TemplateTree, traits::{Model, ModelGenerationTypes, BU, IT}}, worker::ModelChangeSender}, scene::{dag64::{SceneAddDAGObject, SceneDAGObject}, dag_store::SceneDAGKey, renderer::SceneRenderer, worker::SceneWorkerSend, Scene, SceneObjectData, SceneObjectKey}, volume::{magica_voxel::MagicaVoxelModel, VolumeBounds, VolumeQureyPosValid}, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, grid::{shared::SharedVoxelGrid, VoxelGrid}, palette::{palette::MATERIAL_ID_BASE, shared::SharedPalette, Palette}}, METERS_PER_SHADER_UNIT};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Identifier {
@@ -35,8 +35,8 @@ impl BU for UndoData {}
 impl ModelGenerationTypes for IslandGenerationTypes {
     type Identifier = Identifier;
     type UndoData = UndoData;
-    type Volume = CSGTree<(), Float3D, 3>;
-    type Volume2D = CSGTree<(), Float2D, 2>;
+    type Volume = CSGTree<(), Vec3A, f32, 3>;
+    type Volume2D = CSGTree<(), Vec2, f32, 2>;
 }
 
 #[derive(Clone, Debug)]
@@ -56,7 +56,7 @@ pub struct Islands {
 pub struct Island {
     pub tree_union_index: CSGTreeIndex,
     pub river_cut_index: CSGTreeIndex,
-    pub csg: CSGTree<u8, Int3D, 3>,
+    pub csg: CSGTree<u8, IVec3, i32, 3>,
 }
 
 #[derive(Clone, Debug, Default)]

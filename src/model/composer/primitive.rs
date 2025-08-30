@@ -1,35 +1,32 @@
 use egui_snarl::{InPinId, NodeId, OutPinId};
 use octa_force::glam::{ivec2, IVec2, IVec3, Vec2, Vec3A};
 
-use crate::{csg::csg_tree::tree::CSGTree, model::generation::traits::ModelGenerationTypes, util::math_config::{Int2D, Int3D}};
+use crate::{csg::csg_tree::tree::CSGTree, model::generation::traits::ModelGenerationTypes, util::{math_config::{MC}, number::Nu, vector::Ve}};
 
 use super::{collapse::collapser::{CollapseNode, CollapseNodeKey, Collapser}, data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, template::{ComposeTemplate, TemplateIndex, TemplateNode}, ModelComposer};
+use crate::util::vector;
+use crate::util::math_config;
 
 #[derive(Debug, Clone, Copy)]
-pub enum Number {
-    Const(i32),
+pub enum NumberTemplate<N: Nu> {
+    Const(N),
     Hook(TemplateIndex),
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum Position2D {
-    Const(IVec2),
+pub enum PositionTemplate<V: Ve<T, D>, T: Nu, const D: usize> {
+    Const(V),
     Hook(TemplateIndex),
+    Phantom(T),
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum Position3D {
-    Const(IVec3),
+pub enum PositionSetTemplate {
     Hook(TemplateIndex),
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum PositionSet {
-    Hook(TemplateIndex),
-}
-
-impl ModelComposer { 
-    pub fn make_number(&self, original_node: &ComposeNode, in_index: usize, template: &ComposeTemplate) -> Number {
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> ModelComposer<V2, V3, T> { 
+    pub fn make_number(&self, original_node: &ComposeNode, in_index: usize, template: &ComposeTemplate<V2, V3, T>) -> NumberTemplate<T> {
         let remotes = self.snarl.in_pin(InPinId{ node: original_node.id, input: in_index }).remotes;
         if remotes.len() >= 2 {
             panic!("More than one node connected to {:?}", original_node.t);
@@ -39,9 +36,9 @@ impl ModelComposer {
             match &original_node.inputs[in_index].data_type {
                 ComposeDataType::Number(v) => {
                     if let Some(v) = v {
-                        Number::Const(*v)
+                        NumberTemplate::Const(T::from_i32(*v))
                     } else {
-                        Number::Const(0)
+                        NumberTemplate::Const(T::ZERO)
                     }
                 },
                 _ => unreachable!()
@@ -50,11 +47,17 @@ impl ModelComposer {
             let pin = remotes[0];
             let remote_node = self.snarl.get_node(pin.node).expect("Node of remote not found");
             assert!(matches!(remote_node.outputs[pin.output].data_type, ComposeDataType::Number(..)));
-            Number::Hook(template.get_index_by_out_pin(pin))
+            NumberTemplate::Hook(template.get_index_by_out_pin(pin))
         }
     }
 
-    pub fn make_position2d(&self, original_node: &ComposeNode, in_index: usize, template: &ComposeTemplate) -> Position2D {
+    pub fn make_position<V: Ve<T, D>, const D: usize>(
+        &self, 
+        original_node: &ComposeNode, 
+        in_index: usize, 
+        template: &ComposeTemplate<V2, V3, T>,
+    ) -> PositionTemplate<V, T, D> {
+
         let remotes = self.snarl.in_pin(InPinId{ node: original_node.id, input: in_index }).remotes;
         if remotes.len() >= 2 {
             panic!("More than one node connected to {:?}", original_node.t);
@@ -63,35 +66,21 @@ impl ModelComposer {
         if remotes.is_empty() {
             match &original_node.inputs[in_index].data_type {
                 ComposeDataType::Position2D(v) => {
+                    assert_eq!(D, 2);
+
                     if let Some(v) = v {
-                        Position2D::Const(*v)
+                        PositionTemplate::Const(V::from_ivec2(*v) )
                     } else {
-                        Position2D::Const(IVec2::ZERO)
+                        PositionTemplate::Const(V::ZERO)
                     }
                 },
-                _ => unreachable!()
-            }
-        } else {
-            let pin = remotes[0];
-            let remote_node = self.snarl.get_node(pin.node).expect("Node of remote not found");
-            assert!(matches!(remote_node.outputs[pin.output].data_type, ComposeDataType::Position2D(..)));
-            Position2D::Hook(template.get_index_by_out_pin(pin))
-        }
-    }
-
-    pub fn make_position3d(&self, original_node: &ComposeNode, in_index: usize, template: &ComposeTemplate) -> Position3D {
-        let remotes = self.snarl.in_pin(InPinId{ node: original_node.id, input: in_index }).remotes;
-        if remotes.len() >= 2 {
-            panic!("More than one node connected to {:?}", original_node.t);
-        }
-
-        if remotes.is_empty() {
-            match &original_node.inputs[in_index].data_type {
                 ComposeDataType::Position3D(v) => {
+                    assert_eq!(D, 3);
+                    
                     if let Some(v) = v {
-                        Position3D::Const(*v)
+                        PositionTemplate::Const(V::from_ivec3(*v) )
                     } else {
-                        Position3D::Const(IVec3::ZERO)
+                        PositionTemplate::Const(V::ZERO)
                     }
                 },
                 _ => unreachable!()
@@ -99,55 +88,73 @@ impl ModelComposer {
         } else {
             let pin = remotes[0];
             let remote_node = self.snarl.get_node(pin.node).expect("Node of remote not found");
-            assert!(matches!(remote_node.outputs[pin.output].data_type, ComposeDataType::Position3D(..)));
-            Position3D::Hook(template.get_index_by_out_pin(pin))
+            
+            let data_type = remote_node.outputs[pin.output].data_type; 
+            match D {
+                2 => assert!(matches!(data_type, ComposeDataType::Position2D(..))),
+                3 => assert!(matches!(data_type, ComposeDataType::Position3D(..))),
+                _ => unreachable!()
+            }
+                        
+            PositionTemplate::Hook(template.get_index_by_out_pin(pin))
         }
     }
-    pub fn make_position_set(&self, pin: OutPinId, template: &ComposeTemplate) -> PositionSet {
-        PositionSet::Hook(template.get_index_by_out_pin(pin))
+
+    pub fn make_position_set(&self, pin: OutPinId, template: &ComposeTemplate<V2, V3, T>) -> PositionSetTemplate {
+        PositionSetTemplate::Hook(template.get_index_by_out_pin(pin))
     }
 
 } 
 
 
-impl Number {
+impl<T: Nu> NumberTemplate<T> {
     pub fn get_dependend_template_nodes(&self) -> impl Iterator<Item = TemplateIndex> {
         match self {
-            Number::Const(_) => None,
-            Number::Hook(index) => Some(*index),
+            NumberTemplate::Const(_) => None,
+            NumberTemplate::Hook(index) => Some(*index),
         }.into_iter()
     }
 
-    pub fn get_value(&self, depends: &[(TemplateIndex, Vec<CollapseNodeKey>)], collapser: &Collapser) -> i32 {
+    pub fn get_value<V2: Ve<T, 2>, V3: Ve<T, 3>>(
+        &self, 
+        depends: &[(TemplateIndex, Vec<CollapseNodeKey>)], 
+        collapser: &Collapser<V2, V3, T>
+    ) -> T {
+
         match self {
-            Number::Const(v) => *v,
-            Number::Hook(i) => collapser.get_dependend_number(*i, depends, collapser),
+            NumberTemplate::Const(v) => *v,
+            NumberTemplate::Hook(i) => collapser.get_dependend_number(*i, depends, collapser),
         }
     }
 }
 
-impl Position2D {
+impl<V: Ve<T, D>, T: Nu, const D: usize> PositionTemplate<V, T, D> {
     pub fn get_dependend_template_nodes(&self) -> impl Iterator<Item = TemplateIndex> {
         match self {
-            Position2D::Const(_) => None,
-            Position2D::Hook(index) => Some(*index),
+            PositionTemplate::Const(_) => None,
+            PositionTemplate::Hook(index) => Some(*index),
+            PositionTemplate::Phantom(..) => unreachable!(),
         }.into_iter()
+    }
+
+    pub fn get_value<V2: Ve<T, 2>, V3: Ve<T, 3>>(
+        &self, 
+        depends: &[(TemplateIndex, Vec<CollapseNodeKey>)], 
+        collapser: &Collapser<V2, V3, T>
+    ) -> V {
+
+        match self {
+            PositionTemplate::Const(v) => *v,
+            PositionTemplate::Hook(i) => collapser.get_dependend_position(*i, depends, collapser),
+            PositionTemplate::Phantom(..) => unreachable!(),
+        }
     }
 }
 
-impl Position3D {
+impl PositionSetTemplate {
     pub fn get_dependend_template_nodes(&self) -> impl Iterator<Item = TemplateIndex> {
         match self {
-            Position3D::Const(_) => None,
-            Position3D::Hook(index) => Some(*index),
-        }.into_iter()
-    }
-}
-
-impl PositionSet {
-    pub fn get_dependend_template_nodes(&self) -> impl Iterator<Item = TemplateIndex> {
-        match self {
-            PositionSet::Hook(index) => Some(*index),
+            PositionSetTemplate::Hook(index) => Some(*index),
         }.into_iter()
     }
 }

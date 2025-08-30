@@ -1,11 +1,11 @@
 use octa_force::glam::{Vec3A, Vec4};
 
-use crate::{util::math_config::MC, volume::VolumeQureyPosValid};
+use crate::{util::{number::Nu, vector::Ve}, volume::VolumeQureyPosValid};
 
 use super::tree::{Union, UnionNodeData};
 
-impl<V: Send + Sync, C: MC<D>, const D: usize> VolumeQureyPosValid<C::Vector, C::Number, D> for Union<V, C, D> {
-    fn is_position_valid(&self, pos: C::Vector) -> bool {
+impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> VolumeQureyPosValid<V, T, D> for Union<M, V, T, D> {
+    fn is_position_valid(&self, pos: V) -> bool {
         let mut i = 0;
         while i < self.bvh.len() {
             let b = &self.bvh[i];

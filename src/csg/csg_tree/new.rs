@@ -1,18 +1,31 @@
 use octa_force::glam::{vec3, Mat4, Quat, Vec3};
 
-use crate::{csg::{sphere::CSGSphere, Base}, util::math_config::MC, voxel::grid::shared::SharedVoxelGrid};
+use crate::{csg::{r#box::CSGBox, sphere::CSGSphere, Base}, util::{number::Nu, vector::Ve}, voxel::grid::shared::SharedVoxelGrid};
 
 use super::{remove::CSGTreeRemove, tree::{CSGTree, CSGTreeIndex, CSGTreeNode, CSGTreeNodeData, CSG_TREE_INDEX_INVALID}, union::CSGTreeUnion};
 
 
-impl<V: Base, C: MC<D>, const D: usize> CSGTree<V, C, D> {
-    pub fn new_sphere(center: C::VectorF, radius: f32, mat: V) -> Self {
+impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
+    pub fn new_sphere(center: V, radius: T, mat: M) -> Self {
+        Self::from_node(CSGTreeNode::new_sphere(center.to_vecf(), radius.to_f32(), mat))
+    }
+
+    pub fn new_box(center: V, size: V, mat: M) -> Self {
+        Self::from_node(CSGTreeNode::new_box(center.to_vecf(), size.to_vecf(), mat))
+    }
+
+    pub fn new_sphere_float(center: V::VectorF, radius: f32, mat: M) -> Self {
         Self::from_node(CSGTreeNode::new_sphere(center, radius, mat))
     }
+
+    pub fn new_box_float(center: V::VectorF, size: V::VectorF, mat: M) -> Self {
+        Self::from_node(CSGTreeNode::new_box(center, size, mat))
+    }
+
 }
 
-impl<V: Base, C: MC<3>> CSGTree<V, C, 3> {
-    pub fn new_disk(center: C::VectorF, radius: f32, height: f32, mat: V) -> Self {
+impl<M: Base, V: Ve<T, 3>, T: Nu> CSGTree<M, V, T, 3> {
+    pub fn new_disk(center: V::VectorF, radius: f32, height: f32, mat: M) -> Self {
         Self::from_node(CSGTreeNode::new_disk(center, radius, height, mat))
     }
 
@@ -21,9 +34,13 @@ impl<V: Base, C: MC<3>> CSGTree<V, C, 3> {
     }
 }
 
-impl <V: Base, C: MC<D>, const D: usize> CSGTreeNode<V, C, D> {
-    pub fn new_sphere(center: C::VectorF, radius: f32, mat: V) -> Self {
+impl <M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTreeNode<M, V, T, D> {
+    pub fn new_sphere(center: V::VectorF, radius: f32, mat: M) -> Self {
         CSGTreeNode::new(CSGTreeNodeData::Sphere(CSGSphere::new_sphere(center, radius, mat)), CSG_TREE_INDEX_INVALID)
+    }
+
+    pub fn new_box(center: V::VectorF, size: V::VectorF, mat: M) -> Self {
+        CSGTreeNode::new(CSGTreeNodeData::Box(CSGBox::new(center, size, mat)), CSG_TREE_INDEX_INVALID)
     }
 
     pub fn new_union(nodes: Vec<CSGTreeIndex>) -> Self {
@@ -35,8 +52,8 @@ impl <V: Base, C: MC<D>, const D: usize> CSGTreeNode<V, C, D> {
     }
 }
 
-impl <V: Base, C: MC<3>> CSGTreeNode<V, C, 3> {
-    pub fn new_disk(center:  C::VectorF, radius: f32, height: f32, mat: V) -> Self {
+impl <M: Base, V: Ve<T, 3>, T: Nu> CSGTreeNode<M, V, T, 3> {
+    pub fn new_disk(center:  V::VectorF, radius: f32, height: f32, mat: M) -> Self {
         CSGTreeNode::new(CSGTreeNodeData::Sphere(CSGSphere::new_disk(center, radius, height, mat)), CSG_TREE_INDEX_INVALID)
     }
 

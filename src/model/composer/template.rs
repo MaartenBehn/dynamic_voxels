@@ -8,42 +8,43 @@ use crate::model::composer::dependency_tree::DependencyTree;
 use crate::util::number::Nu;
 
 use crate::model::generation::{relative_path::RelativePathTree};
+use crate::util::vector::Ve;
 
 use super::ammount::Ammount;
-use super::position_space::PositionSpace;
-use super::{data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, number_space::NumberSpace, primitive::Number, ModelComposer};
+use super::position_space::PositionSpaceTemplate;
+use super::{data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, number_space::NumberSpaceTemplate, primitive::NumberTemplate, ModelComposer};
 
 pub type TemplateIndex = usize;
 pub const TEMPLATE_INDEX_ROOT: TemplateIndex = 0;
 pub const AMMOUNT_PATH_INDEX: usize = 0;
 
 #[derive(Debug, Clone, Default)]
-pub struct ComposeTemplate {
-    pub nodes: Vec<TemplateNode>,
+pub struct ComposeTemplate<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
+    pub nodes: Vec<TemplateNode<V2, V3, T>>,
     pub max_level: usize,
 }
 
 #[derive(Debug, Clone)]
-pub enum ComposeTemplateValue {
+pub enum ComposeTemplateValue<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
     None,
-    NumberSpace(NumberSpace),
-    PositionSpace(PositionSpace),
+    NumberSpace(NumberSpaceTemplate<T>),
+    PositionSpace(PositionSpaceTemplate<V2, V3, T>),
     Object()
 }
 
 #[derive(Debug, Clone)]
-pub struct TemplateNode {
+pub struct TemplateNode<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
     pub node_id: NodeId,
     pub index: TemplateIndex,
-    pub value: ComposeTemplateValue,
+    pub value: ComposeTemplateValue<V2, V3, T>,
     pub depends: SmallVec<[TemplateIndex; 4]>,
     pub dependend: SmallVec<[TemplateIndex; 4]>,
     pub level: usize,
-    pub defines: SmallVec<[Ammount; 4]>,
+    pub defines: SmallVec<[Ammount<T>; 4]>,
 }
 
-impl ComposeTemplate {
-    pub fn new(composer: &ModelComposer) -> ComposeTemplate {
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> ComposeTemplate<V2, V3, T> {
+    pub fn new(composer: &ModelComposer<V2, V3, T>) -> ComposeTemplate<V2, V3, T> {
         let mut nodes = vec![
             TemplateNode {
                 node_id: NodeId(usize::MAX),
@@ -92,7 +93,7 @@ impl ComposeTemplate {
                 composer.get_input_node_by_type(composer_node,
                 ComposeDataType::Ammount), i, &template);
 
-            let (mut depends , value): (SmallVec<[TemplateIndex; 4]>, ComposeTemplateValue) = match &composer_node.t { 
+            let (mut depends , value): (SmallVec<[TemplateIndex; 4]>, ComposeTemplateValue<V2, V3, T>) = match &composer_node.t { 
                 ComposeNodeType::TemplatePositionSet => {
                     let space = composer.make_pos_space(
                         composer.get_input_node_by_type(composer_node, ComposeDataType::PositionSpace),
@@ -182,7 +183,7 @@ impl ComposeTemplate {
     }
 }
 
-impl ModelComposer {
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> ModelComposer<V2, V3, T> {
     pub fn get_input_index_by_type(&self, node: &ComposeNode, t: ComposeDataType) -> usize {
         node.inputs.iter()
             .position(|i|  i.data_type == t)

@@ -1,15 +1,15 @@
-use crate::{util::{aabb::AABB, math_config::MC}, volume::{VolumeQureyAABB, VolumeQureyAABBResult}, voxel::palette::palette::MATERIAL_ID_NONE};
+use crate::{util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeQureyAABB, VolumeQureyAABBResult}, voxel::palette::palette::MATERIAL_ID_NONE};
 
 use super::{remove::CSGTreeRemove, tree::{CSGTreeNodeData, CSGTree, CSGTreeIndex}, union::CSGTreeUnion};
 
-impl<C: MC<D>, const D: usize> VolumeQureyAABB<C::Vector, C::Number, D> for CSGTree<u8, C, D> {
-    fn get_aabb_value(&self, aabb: AABB<C::Vector, C::Number, D>) -> VolumeQureyAABBResult {
+impl<V: Ve<T, D>, T: Nu, const D: usize> VolumeQureyAABB<V, T, D> for CSGTree<u8, V, T, D> {
+    fn get_aabb_value(&self, aabb: AABB<V, T, D>) -> VolumeQureyAABBResult {
         self.get_aabb_value_index(self.root, aabb)
     }
 }
 
-impl<C: MC<D>, const D: usize> CSGTree<u8, C, D> {
-    fn get_aabb_value_index(&self, index: CSGTreeIndex, aabb: AABB<C::Vector, C::Number, D>) -> VolumeQureyAABBResult {
+impl<V: Ve<T, D>, T: Nu, const D: usize> CSGTree<u8, V, T, D> {
+    fn get_aabb_value_index(&self, index: CSGTreeIndex, aabb: AABB<V, T, D>) -> VolumeQureyAABBResult {
 
         let node = &self.nodes[index];
         match &node.data {
@@ -23,7 +23,7 @@ impl<C: MC<D>, const D: usize> CSGTree<u8, C, D> {
         }
     }
 
-    fn get_aabb_value_union(&self, union: &CSGTreeUnion<C, D>, aabb: AABB<C::Vector, C::Number, D>) -> VolumeQureyAABBResult {
+    fn get_aabb_value_union(&self, union: &CSGTreeUnion<V, T, D>, aabb: AABB<V, T, D>) -> VolumeQureyAABBResult {
         let mut i = 0;
         while i < union.bvh.nodes.len() {
             let b = &union.bvh.nodes[i];
@@ -44,7 +44,7 @@ impl<C: MC<D>, const D: usize> CSGTree<u8, C, D> {
         VolumeQureyAABBResult::Full(MATERIAL_ID_NONE)
     }
 
-    fn get_aabb_value_remove(&self, remove: &CSGTreeRemove, aabb: AABB<C::Vector, C::Number, D>) -> VolumeQureyAABBResult {
+    fn get_aabb_value_remove(&self, remove: &CSGTreeRemove, aabb: AABB<V, T, D>) -> VolumeQureyAABBResult {
         let base = self.get_aabb_value_index(remove.base, aabb);
         let remove = self.get_aabb_value_index(remove.remove, aabb);
 
