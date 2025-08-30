@@ -2,7 +2,7 @@ use std::{fmt::Debug, ops::{Add, Div, Index, Mul, Neg, Sub}, process::Output};
 
 use octa_force::glam::{vec2, IVec2, IVec3, Mat3, Mat4, UVec3, Vec2, Vec3, Vec3A, Vec3Swizzles, Vec4, Vec4Swizzles};
 
-use super::{math_config::{MC}, number::Nu};
+use super::{math, math_config::MC, number::Nu};
 
 pub trait Ve<T: Nu, const D: usize>: 
     Sized    
@@ -21,6 +21,7 @@ pub trait Ve<T: Nu, const D: usize>:
     + Div<T, Output = Self>
     + Neg<Output = Self>
     + Index<usize, Output = T>
+    + PartialEq
     + MC<Self, T, D>
 {
     const ZERO: Self;
@@ -29,10 +30,14 @@ pub trait Ve<T: Nu, const D: usize>:
     const MAX: Self;
 
     fn new(v: [T; D]) -> Self;
-    fn from_slice(v: &[T]) -> Self;
     fn from_iter<I: Iterator<Item = T>>(iter: I) -> Self;
+    
+    fn dot(self, other: Self) -> T;
     fn length_squared(self) -> T;
+    fn length(self) -> T;
+    fn normalize(self) -> Self;
     fn element_sum(self) -> T;
+
     fn min(self, other: Self) -> Self;
     fn max(self, other: Self) -> Self;
     fn lt(self, other: Self) -> Self;
@@ -87,7 +92,6 @@ pub trait Ve<T: Nu, const D: usize>:
         i_max
     }
 
-    fn dot(self, other: Self) -> T;
 }
 
 impl Ve<f32, 2> for Vec2 {
@@ -103,8 +107,13 @@ impl Ve<f32, 2> for Vec2 {
         v.y = iter.next().unwrap();
         v
     }
+
+    fn dot(self, other: Self) -> f32 { Vec2::dot(self, other) }
     fn length_squared(self) -> f32 { Vec2::length_squared(self) }
+    fn length(self) -> f32 { Vec2::length(self) }
+    fn normalize(self) -> Vec2 { Vec2::normalize(self) }
     fn element_sum(self) -> f32 { Vec2::element_sum(self) }
+
     fn min(self, other: Self) -> Self { Vec2::min(self, other) }
     fn max(self, other: Self) -> Self { Vec2::max(self, other) }
     fn lt(self, other: Self) -> Self { Vec2::from(Vec2::cmplt(self, other)) }
@@ -143,7 +152,6 @@ impl Ve<f32, 2> for Vec2 {
 
     fn to_array(&self) -> [f32; 2] { Self::to_array(self) }
 
-    fn dot(self, other: Self) -> f32 { Vec2::dot(self, other) }
 }
 
 impl MC<Vec2, f32, 2> for Vec2 {
@@ -168,8 +176,13 @@ impl Ve<f32, 3> for Vec3 {
         v.z = iter.next().unwrap();
         v
     }
+    
+    fn dot(self, other: Self) -> f32 { Vec3::dot(self, other) }
     fn length_squared(self) -> f32 { Vec3::length_squared(self) }
+    fn length(self) -> f32 { Vec3::length(self) }
+    fn normalize(self) -> Vec3 { Vec3::normalize(self) }
     fn element_sum(self) -> f32 { Vec3::element_sum(self) }
+
     fn min(self, other: Self) -> Self { Vec3::min(self, other) }
     fn max(self, other: Self) -> Self { Vec3::max(self, other) }
     fn lt(self, other: Self) -> Self { Vec3::from(Vec3::cmplt(self, other)) }
@@ -208,7 +221,6 @@ impl Ve<f32, 3> for Vec3 {
 
     fn to_array(&self) -> [f32; 3] { Self::to_array(self) }
 
-    fn dot(self, other: Self) -> f32 { Vec3::dot(self, other) }
 }
 
 impl MC<Vec3, f32, 3> for Vec3 {
@@ -233,8 +245,13 @@ impl Ve<f32, 3> for Vec3A {
         v.z = iter.next().unwrap();
         v
     }
+    
+    fn dot(self, other: Self) -> f32 { Vec3A::dot(self, other) }
     fn length_squared(self) -> f32 { Vec3A::length_squared(self) }
+    fn length(self) -> f32 { Vec3A::length(self) }
+    fn normalize(self) -> Vec3A { Vec3A::normalize(self) }
     fn element_sum(self) -> f32 { Vec3A::element_sum(self) }
+
     fn min(self, other: Self) -> Self { Vec3A::min(self, other) }
     fn max(self, other: Self) -> Self { Vec3A::max(self, other) }
     fn lt(self, other: Self) -> Self { Vec3A::from(Vec3A::cmplt(self, other)) }
@@ -272,8 +289,6 @@ impl Ve<f32, 3> for Vec3A {
     fn from_uvec3(v: UVec3) -> Self { v.as_vec3a() }
 
     fn to_array(&self) -> [f32; 3] { Self::to_array(self) }
-
-    fn dot(self, other: Self) -> f32 { Vec3A::dot(self, other) }
 }
 
 impl MC<Vec3A, f32, 3> for Vec3A {
@@ -298,8 +313,13 @@ impl Ve<i32, 3> for IVec3 {
         v.z = iter.next().unwrap();
         v
     }
+
+    fn dot(self, other: Self) -> i32 { IVec3::dot(self, other) }
     fn length_squared(self) -> i32 { IVec3::length_squared(self) }
+    fn length(self) -> i32 { self.as_vec3a().length() as i32 }
+    fn normalize(self) -> IVec3 { self.as_vec3a().normalize().as_ivec3() }
     fn element_sum(self) -> i32 { IVec3::element_sum(self) }
+
     fn min(self, other: Self) -> Self { IVec3::min(self, other) }
     fn max(self, other: Self) -> Self { IVec3::max(self, other) }
 
@@ -338,8 +358,6 @@ impl Ve<i32, 3> for IVec3 {
     fn from_uvec3(v: UVec3) -> Self { v.as_ivec3() }
 
     fn to_array(&self) -> [i32; 3] { Self::to_array(self) }
-
-    fn dot(self, other: Self) -> i32 { IVec3::dot(self, other) }
 }
 
 impl MC<IVec3, i32, 3> for IVec3 {
@@ -363,8 +381,13 @@ impl Ve<i32, 2> for IVec2 {
         v.y = iter.next().unwrap();
         v
     }
+
+    fn dot(self, other: Self) -> i32 { IVec2::dot(self, other) }
     fn length_squared(self) -> i32 { IVec2::length_squared(self) }
+    fn length(self) -> i32 { self.as_vec2().length() as i32 }
+    fn normalize(self) -> IVec2 { self.as_vec2().normalize().as_ivec2() }
     fn element_sum(self) -> i32 { IVec2::element_sum(self) }
+
     fn min(self, other: Self) -> Self { IVec2::min(self, other) }
     fn max(self, other: Self) -> Self { IVec2::max(self, other) }
 
@@ -403,8 +426,6 @@ impl Ve<i32, 2> for IVec2 {
     fn from_uvec3(v: UVec3) -> Self { unreachable!() }
 
     fn to_array(&self) -> [i32; 2] { Self::to_array(self) }
-
-    fn dot(self, other: Self) -> i32 { IVec2::dot(self, other) }
 }
 
 impl MC<IVec2, i32, 2> for IVec2 {

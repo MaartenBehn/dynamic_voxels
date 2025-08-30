@@ -39,7 +39,7 @@ impl<T: Nu> NumberSpace<T> {
 
     }
 
-    pub fn next_value(&mut self) -> OctaResult<()> {
+    pub fn update(&mut self) -> OctaResult<()> {
         if self.values.is_empty() {
             bail!("Number Range empty");
         }

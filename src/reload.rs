@@ -27,7 +27,7 @@ use scene::{Scene, SceneObjectData, SceneObjectKey, SceneObjectType};
 use slotmap::Key;
 use octa_force::camera::Camera;
 use octa_force::egui_winit::winit::event::WindowEvent;
-use octa_force::glam::{vec3, vec3a, DVec3, EulerRot, Mat4, Quat, UVec3, Vec3, Vec3A};
+use octa_force::glam::{vec3, vec3a, DVec3, EulerRot, IVec2, IVec3, Mat4, Quat, UVec3, Vec3, Vec3A};
 use octa_force::gui::Gui;
 use octa_force::log::{debug, error, info, trace, Log};
 use octa_force::logger::setup_logger;
@@ -129,7 +129,7 @@ pub struct RenderState {
 
 
     #[cfg(feature="graph_builder")]
-    pub composer: ModelComposer,
+    pub composer: ModelComposer<IVec2, IVec3, i32>
 }
 
 #[unsafe(no_mangle)]

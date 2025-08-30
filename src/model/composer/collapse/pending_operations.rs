@@ -3,17 +3,17 @@ use std::{collections::VecDeque, iter};
 
 use octa_force::log::debug;
 
-use super::collapser::{CollapseNodeKey, CreateDefinesOperation};
+use super::collapser::{CollapseNodeKey, UpdateDefinesOperation};
 
 #[derive(Debug, Clone)]
 pub struct PendingOperations {
-    pub pending_per_level: Vec<(VecDeque<CollapseNodeKey>, VecDeque<CreateDefinesOperation>)>,
+    pub pending_per_level: Vec<(VecDeque<CollapseNodeKey>, VecDeque<UpdateDefinesOperation>)>,
     pub min_with_value: usize,
 }
 
 pub enum PendingOperationsRes {
     Collapse(CollapseNodeKey),
-    CreateDefined(CreateDefinesOperation),
+    CreateDefined(UpdateDefinesOperation),
     Empty
 }
 
@@ -30,7 +30,7 @@ impl PendingOperations {
         self.min_with_value = self.min_with_value.min(level - 1);
     }
 
-    pub fn push_create_defined(&mut self, level: usize, value: CreateDefinesOperation) {
+    pub fn push_create_defined(&mut self, level: usize, value: UpdateDefinesOperation) {
         self.pending_per_level[level - 1].1.push_back(value);
         self.min_with_value = self.min_with_value.min(level - 1);
     }

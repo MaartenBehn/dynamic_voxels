@@ -36,20 +36,14 @@ pub enum NodeDataType<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CreateDefinesOperation {
-    CreateN{
+pub enum UpdateDefinesOperation {
+    N{
         parent_index: CollapseNodeKey,
-        ammount_index: usize,
+        defines_index: usize,
     },
-    CreateByNumberRange{
+    ByNode{
         parent_index: CollapseNodeKey,
-        by_value_index: usize,
-        ammount: usize,
-    },
-    CreateByPosSet{
-        parent_index: CollapseNodeKey,
-        by_value_index: usize,
-        to_create_children: Vec<CollapseChildKey>,
+        defines_index: usize,
     }
 }
 
@@ -59,7 +53,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> Collapser<V2, V3, T> {
         loop {
             match self.pending.pop() {
                 PendingOperationsRes::Collapse(key) => self.collapse_node(key, template),
-                PendingOperationsRes::CreateDefined(operation) => self.create_defined(operation, template),
+                PendingOperationsRes::CreateDefined(operation) => self.upadte_defined(operation, template),
                 PendingOperationsRes::Empty => break,
             }
         }
@@ -72,46 +66,15 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> Collapser<V2, V3, T> {
 
         match &mut node.data { 
             NodeDataType::NumberSet(space) => {
-                if space.next_value().is_err() {
+                if space.update().is_err() {
                     panic!("{:?} Collapse Number faild", node_index);
                 }
-
-                let value = space.value;
-                info!("{:?} NumberSpace: {:?}: {:?}", node_index, node.template_index, value);
-                //self.update_defined_by_number_range(node_index, template, value as usize);
             },
-            NodeDataType::PositionSpace(space) => {
-
-                let mut new_positions = match &space.rule {
-                    PositionSetRule::GridInVolume(grid_data) => {
-                        grid_data.volume.get_grid_positions(grid_data.spacing).collect::<Vec<_>>()
-                    },
-                    PositionSetRule::GridOnPlane(grid_data) => {
-                        grid_data.volume.get_grid_positions(grid_data.spacing)
-                            .map(|p| vec3a(p.x, p.y, grid_data.height))
-                            .collect::<Vec<_>>()
-                    },
-                    PositionSetRule::Path(path) => path.get_positions(),
-                };
-
-                space.positions.retain(|key, p| {
-                    if let Some(i) = new_positions.iter().position(|t| *t == *p) {
-                        new_positions.swap_remove(i);
-                        true
-                    } else {
-                        false
-                    }
-                });
-                let to_create_children = new_positions.iter()
-                    .map(|p| space.positions.insert(*p))
-                    .collect::<Vec<_>>();
-
-                //self.update_defined_by_pos_set(node_index, to_create_children, template, template_node);
-            },
+            NodeDataType::PositionSpace(space) => space.update(),
             NodeDataType::None => {},
         }
 
-        //self.update_defines_n(node_index, template);
+        self.push_defined(node_index, template);
     }
 
     pub fn get_number(&self, index: CollapseNodeKey) -> T {
@@ -119,7 +82,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> Collapser<V2, V3, T> {
         
         match &node.data {
             NodeDataType::NumberSet(d) => d.value,
-            _ => panic!("Template Node {:?} is not of Type Number Set", node.template_index)
+            _ => panic!("Template Node {:?} is not of Type Number Space", node.template_index)
         }
     }
 
@@ -129,7 +92,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> Collapser<V2, V3, T> {
         
         match &parent.data {
             NodeDataType::PositionSpace(d) => d.get_position(node.child_key),
-            _ => panic!("Template Node {:?} is not of Type PositionSpace Set", node.template_index)
+            _ => panic!("Template Node {:?} is not of Type Position Space Set", node.template_index)
         }
     }
  
@@ -177,12 +140,11 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> ComposeTemplate<V2, V3, T> {
     }
 }
 
-impl CreateDefinesOperation {
+impl UpdateDefinesOperation {
     pub fn get_parent_index(&self) -> CollapseNodeKey {
         match self {
-            CreateDefinesOperation::CreateN { parent_index, .. }
-            | CreateDefinesOperation::CreateByNumberRange { parent_index, .. }
-            | CreateDefinesOperation::CreateByPosSet { parent_index, .. } => *parent_index,
+            UpdateDefinesOperation::N { parent_index, .. }
+            | UpdateDefinesOperation::ByNode { parent_index, .. } => *parent_index,
         }
     }
 }

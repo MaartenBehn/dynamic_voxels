@@ -1,4 +1,7 @@
+use std::iter;
+
 use egui_snarl::{NodeId, OutPinId};
+use itertools::Itertools;
 
 use crate::util::{number::Nu, vector::Ve};
 
@@ -8,8 +11,14 @@ use super::{data_type::ComposeDataType, dependency_tree::DependencyTree, nodes::
 #[derive(Debug, Clone)]
 pub struct Ammount<T: Nu> {
     pub template_index: TemplateIndex,
-    pub n: NumberTemplate<T>,
+    pub t: AmmountType<T>,
     pub dependecy_tree: DependencyTree,
+}
+
+#[derive(Debug, Clone)]
+pub enum AmmountType<T: Nu> {
+    NPer (NumberTemplate<T>),
+    ByPosSpace,
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> ModelComposer<V2, V3, T> {
@@ -18,19 +27,19 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> ModelComposer<V2, V3, T> {
         match &node.t {
             ComposeNodeType::OneGlobal => (Ammount { 
                 template_index, 
-                n: NumberTemplate::Const(T::ONE),
+                t: AmmountType::NPer(NumberTemplate::Const(T::ONE)),
                 dependecy_tree: DependencyTree::default(),
             }, 0),
 
             ComposeNodeType::OnePer => (Ammount { 
                 template_index, 
-                n: NumberTemplate::Const(T::ONE), 
+                t: AmmountType::NPer(NumberTemplate::Const(T::ONE)), 
                 dependecy_tree: DependencyTree::default(),
             }, template.get_index_by_out_pin(self.get_input_node_by_type(node, ComposeDataType::Identifier))),
 
             ComposeNodeType::NPer => (Ammount { 
                 template_index, 
-                n: self.make_number(node, 1, template),
+                t: AmmountType::NPer(self.make_number(node, 1, template)),
                 dependecy_tree: DependencyTree::default(),
             }, template.get_index_by_out_pin(self.get_input_node_by_type(node, ComposeDataType::Identifier))),
 
@@ -41,6 +50,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> ModelComposer<V2, V3, T> {
 
 impl<T: Nu> Ammount<T> {
     pub fn get_dependend_template_nodes(&self) -> impl Iterator<Item = TemplateIndex> {
-        self.n.get_dependend_template_nodes()
+        match self.t {
+            AmmountType::NPer(n) => n.get_dependend_template_nodes().collect_vec(),
+            AmmountType::ByPosSpace => vec![],
+        }.into_iter()
     }
 }

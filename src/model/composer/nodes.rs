@@ -164,6 +164,10 @@ pub fn get_node_templates() -> Vec<ComposeNode> {
                     name: "max".to_string(), 
                     data_type: ComposeDataType::Number(None), 
                 },
+                ComposeNodeInput { 
+                    name: "step".to_string(), 
+                    data_type: ComposeDataType::Number(None), 
+                },
             ], 
             outputs: vec![
                 ComposeNodeOutput { 

@@ -4,183 +4,143 @@ use octa_force::{anyhow::{anyhow, bail}, glam::Vec3, log::{debug, info}, OctaRes
 use slotmap::Key;
 use tree64::Node;
 
-use crate::{model::composer::{collapse::collapser::CollapseNode, dependency_tree::DependencyTree, template::{ComposeTemplate, ComposeTemplateValue, TemplateIndex, TemplateNode}}, util::{number::Nu, vector::Ve}};
+use crate::{model::composer::{ammount::{Ammount, AmmountType}, collapse::collapser::CollapseNode, dependency_tree::DependencyTree, template::{ComposeTemplate, ComposeTemplateValue, TemplateIndex, TemplateNode}}, util::{number::Nu, vector::Ve}};
 
-use super::{collapser::{CollapseChildKey, CollapseNodeKey, Collapser, CreateDefinesOperation, NodeDataType}, number_space::NumberSpace, position_space::PositionSpace};
+use super::{collapser::{CollapseChildKey, CollapseNodeKey, Collapser, UpdateDefinesOperation, NodeDataType}, number_space::NumberSpace, position_space::PositionSpace};
 
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> Collapser<V2, V3, T> {
-
-    /*
-    pub fn create_defined(&mut self, opperation: CreateDefinesOperation, template: &ComposeTemplate) {
-        match opperation {
-            CreateDefinesOperation::CreateN { parent_index, ammount_index } => {
-                self.create_defined_n(parent_index, ammount_index, template);
-            },
-            CreateDefinesOperation::CreateByNumberRange { parent_index, by_value_index, ammount } => {
-                self.create_defined_by_number_range(parent_index, by_value_index, ammount, template);
-            },
-            CreateDefinesOperation::CreateByPosSet { parent_index, by_value_index, to_create_children } => {
-                self.create_defined_by_pos_set(parent_index, by_value_index, to_create_children, template);
-            },
-        }
-    }
-
-    pub fn update_defines_n(&mut self, node_index: CollapseNodeKey, template: &ComposeTemplate) {
+    pub fn push_defined(&mut self, node_index: CollapseNodeKey, template: &ComposeTemplate<V2, V3, T>) {
         let node = &self.nodes[node_index];
         let template_node = &template.nodes[node.template_index];
 
         for (i, ammount) in template_node.defines.iter().enumerate() {
             let new_template_node = &template.nodes[ammount.template_index];
-            
-            self.pending.push_create_defined(new_template_node.level, CreateDefinesOperation::CreateN { 
-                parent_index: node_index,
-                ammount_index: i,
-            });
-        }
-    }
-
-    pub fn create_defined_n(&mut self, parent_index: CollapseNodeKey, ammount_index: usize, template: &ComposeTemplate) {
-        let node = &self.nodes[parent_index];
-        let template_node = &template.nodes[node.template_index];
-        let ammount = &template_node.defines[ammount_index];
-
-        let depends = self.get_restricts_depends_and_knows_for_template(
-            parent_index, 
-            ammount.template_index,   
-            template,
-            template_node,
-            &ammount.dependecy_tree);
-
-        for _ in 0..ammount.ammount {
-            self.add_node(
-                ammount.template_index, 
-                depends.clone(), 
-                parent_index, 
-                CollapseChildKey::null(), 
-                template); 
-        }
-
-    }
-
-    pub fn update_defined_by_number_range(&mut self, node_index: CollapseNodeKey, template: &ComposeTemplate, n: usize) {
-        let node = &self.nodes[node_index];
-        let template_node = &template.nodes[node.template_index];
-
-        for (i, by_value) in template_node.defines_by_value.iter().enumerate() {
-            let node = &self.nodes[node_index];
-            let present_children = node.children.iter()
-                .find(|(template_index, _)| *template_index == by_value.template_index)
-                .map(|(_, children)| children.as_slice())
-                .unwrap_or(&[]);
-
-            let present_children_len = present_children.len(); 
-            if present_children_len < n {
-                let new_template_node = &template.nodes[by_value.template_index];
-
-                self.pending.push_create_defined(new_template_node.level, CreateDefinesOperation::CreateByNumberRange { 
+           
+            let operation = match ammount.t {
+                AmmountType::NPer(n) => UpdateDefinesOperation::N { 
                     parent_index: node_index, 
-                    by_value_index: i, 
-                    ammount: n - present_children_len, 
-                }); 
-
-            } else if present_children_len > n {
-
-                for child in present_children.to_owned().into_iter().take(n) {
-                    self.delete_node(child, template);
-                }
-            } 
-        }
-    }
-
-    pub fn create_defined_by_number_range(&mut self, parent_index: CollapseNodeKey, by_value_index: usize, ammount: usize, template: &ComposeTemplate) {
-        let node = &self.nodes[parent_index];
-        let template_node = &template.nodes[node.template_index];
-        let by_value = &template_node.defines_by_value[by_value_index];
-
-        let depends = self.get_restricts_depends_and_knows_for_template(
-            parent_index, 
-            by_value.template_index,   
-            template,
-            template_node,
-            &by_value.dependecy_tree);
-
-        for _ in 0..ammount {
-            self.add_node(
-                by_value.template_index, 
-                depends.clone(), 
-                parent_index, 
-                CollapseChildKey::null(), 
-                template); 
-        }
-    }
-
-    pub fn update_defined_by_pos_set<'a>(
-        &mut self, 
-        node_index: CollapseNodeKey, 
-        to_create_children: Vec<CollapseChildKey>, 
-        template: &'a ComposeTemplate, 
-        template_node: &'a TemplateNode
-    ) {
-
-        for (i, by_value) in template_node.defines_by_value.iter().enumerate() {
-            let node = &self.nodes[node_index];
-            let NodeDataType::PositionSet(pos_set) = &node.data else { unreachable!() };
-
-            let to_remove_children = node.children.iter()
-                .find(|(template_index, _)| *template_index == by_value.template_index)
-                .map(|(_, children)| children)
-                .unwrap_or(&vec![])
-                .iter()
-                .map(|key| (*key, &self.nodes[*key]) )
-                .filter(|(_, child)| !pos_set.is_valid_child(child.child_key))
-                .map(|(key, _)| key )
-                .collect::<Vec<_>>();
-
-            if !to_create_children.is_empty() {
-                let new_template_node = &template.nodes[by_value.template_index];
-
-                self.pending.push_create_defined(new_template_node.level, CreateDefinesOperation::CreateByPosSet { 
+                    defines_index: i, 
+                },
+                AmmountType::ByPosSpace => UpdateDefinesOperation::ByNode { 
                     parent_index: node_index, 
-                    by_value_index: i, 
-                    to_create_children: to_create_children.clone() 
-                });
-            } 
-            
-            for child_index in to_remove_children {
-                self.delete_node(child_index, template);
-            }
+                    defines_index: i, 
+                },
+            };
+
+            self.pending.push_create_defined(new_template_node.level, operation);
         }
     }
 
-    pub fn create_defined_by_pos_set(
+    pub fn upadte_defined(&mut self, opperation: UpdateDefinesOperation, template: &ComposeTemplate<V2, V3, T>) {
+        match opperation {
+            UpdateDefinesOperation::N { parent_index, defines_index } => {
+                self.update_defined_n(parent_index, defines_index, template);
+            },
+            UpdateDefinesOperation::ByNode { parent_index, defines_index } => {
+                self.update_defined_by_node(parent_index, defines_index, template);
+            },
+        }
+    }
+ 
+    pub fn update_defined_n(
         &mut self, 
         parent_index: CollapseNodeKey, 
-        by_value_index: usize,         
-        to_create_children: Vec<CollapseChildKey>, 
-        template: &ComposeTemplate
+        defines_index: usize, 
+        template: &ComposeTemplate<V2, V3, T>
+    ) {
+
+        let parent = &self.nodes[parent_index];
+        let parent_template_node = &template.nodes[parent.template_index];
+        let ammount = &parent_template_node.defines[defines_index];
+
+        let n = match ammount.t {
+            AmmountType::NPer(n) => n.get_value(&parent.depends, &self).to_usize(),
+            _ => unreachable!()
+        };
+
+        let present_children = parent.children.iter()
+            .find(|(template_index, _)| *template_index == ammount.template_index)
+            .map(|(_, children)| children.as_slice())
+            .unwrap_or(&[]);
+
+        let present_children_len = present_children.len(); 
+        if present_children_len < n {
+            let depends = self.get_depends_for_template(
+                parent_index, 
+                ammount.template_index,   
+                template,
+                parent_template_node,
+                &ammount.dependecy_tree);
+
+            for _ in present_children_len..n {
+                self.add_node(
+                    ammount.template_index, 
+                    depends.clone(), 
+                    parent_index, 
+                    CollapseChildKey::null(), 
+                    template); 
+            }
+
+        } else if present_children_len > n {
+
+            for child in present_children.to_owned().into_iter().take(n - present_children_len) {
+                self.delete_node(child, template);
+            }
+        } 
+    }
+
+    pub fn update_defined_by_node(
+        &mut self, 
+        parent_index: CollapseNodeKey, 
+        defines_index: usize, 
+        template: &ComposeTemplate<V2, V3, T>, 
     ) {
         let node = &self.nodes[parent_index];
         let template_node = &template.nodes[node.template_index];
-        let by_value = &template_node.defines_by_value[by_value_index];
+        let ammount = &template_node.defines[defines_index];
 
-        let depends = self.get_restricts_depends_and_knows_for_template(
-            parent_index, 
-            by_value.template_index,   
-            template,
-            template_node,
-            &by_value.dependecy_tree);
+        
+        let (to_create_children, is_valid) = match &node.data {
+            NodeDataType::PositionSpace(d) => {
+                (d.get_new_children(), |index| {d.is_child_valid(index)})
+            },
+            _ => panic!("Template Node {:?} is not of Type Position Space Set", node.template_index)
+        };
 
-        for new_child in to_create_children {
-            self.add_node(
-                by_value.template_index, 
-                depends.clone(), 
+        let to_remove_children = node.children.iter()
+            .find(|(template_index, _)| *template_index == ammount.template_index)
+            .map(|(_, children)| children)
+            .unwrap_or(&vec![])
+            .iter()
+            .map(|key| (*key, &self.nodes[*key]) )
+            .filter(|(_, child)| !is_valid(child.child_key))
+            .map(|(key, _)| key )
+            .collect::<Vec<_>>();
+
+        if !to_create_children.is_empty() {
+            let new_template_node = &template.nodes[ammount.template_index];
+            let depends = self.get_depends_for_template(
                 parent_index, 
-                new_child, 
-                template); 
+                ammount.template_index,   
+                template,
+                template_node,
+                &ammount.dependecy_tree);
+
+            for new_child in to_create_children.to_owned() {
+                self.add_node(
+                    ammount.template_index, 
+                    depends.clone(), 
+                    parent_index, 
+                    new_child, 
+                    template); 
+            }
+        }
+
+        for child_index in to_remove_children {
+            self.delete_node(child_index, template);
         }
     }
-    */
   
     pub fn get_depends_for_template<'a>(
         &self, 

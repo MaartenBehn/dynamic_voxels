@@ -41,7 +41,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> TemplateDebugGui<V2, V3, T> {
                 ui.strong("Defines:");
                 for ammount in node.defines.iter() {
                     Self::node(template, ui, ammount.template_index, &ammount.dependecy_tree);
-                    ui.label(format!("Ammount: {:?}", ammount.n));
+                    ui.label(format!("Ammount: {:?}", ammount.t));
                 }
             } 
 

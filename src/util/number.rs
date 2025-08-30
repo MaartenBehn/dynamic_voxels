@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{iter::Step, ops::{Add, AddAssign, Deref, Div, DivAssign, Mul, MulAssign, Sub, SubAssign}};
+use std::{ops::{Add, AddAssign, Deref, Div, DivAssign, Mul, MulAssign, Sub, SubAssign}};
 
 use bvh::bounding_hierarchy::BHValue;
 
