@@ -73,7 +73,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
                     },
             NodeDataType::PositionSpace(space) => space.update(),
             NodeDataType::None => {},
-            NodeDataType::Build(t) => { dbg!(t); },
+            NodeDataType::Build(t) => B::on_collapse(t),
         }
 
         self.push_defined(node_index, template);

@@ -25,4 +25,6 @@ pub trait BS<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu>: fmt::Debug + Clone + Default {
         t: &Self::TemplateValue,
         depends: &[(TemplateIndex, Vec<CollapseNodeKey>)], 
         collapser: &Collapser<V2, V3, T, Self>) -> Self::CollapseValue;
+
+    fn on_collapse(t: &Self::CollapseValue);
 }

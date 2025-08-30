@@ -43,7 +43,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
     type TemplateValue = TemplateValue<V3, T>;
     type CollapseValue = CollapseValue;
 
-
     fn compose_nodes() -> Vec<ComposeNode<V2, V3, T, Self>> {
         vec![
             ComposeNode { 
@@ -95,7 +94,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
         CollapseValue::Object
     }
 
-    
+    fn on_collapse(t: &Self::CollapseValue) {
+
+    }
 }
 
 
