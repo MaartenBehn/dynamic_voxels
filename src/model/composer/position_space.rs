@@ -5,7 +5,7 @@ use slotmap::{new_key_type, SecondaryMap, SlotMap};
 
 use crate::{csg::csg_tree::tree::CSGTree, model::generation::collapse::CollapseChildKey, util::{number::Nu, vector::Ve}};
 
-use super::{data_type::ComposeDataType, nodes::ComposeNodeType, number_space::NumberSpaceTemplate, primitive::{NumberTemplate, PositionTemplate}, template::{ComposeTemplate, TemplateIndex}, volume::VolumeTemplate, ModelComposer};
+use super::{build::BS, data_type::ComposeDataType, nodes::ComposeNodeType, number_space::NumberSpaceTemplate, primitive::{NumberTemplate, PositionTemplate}, template::{ComposeTemplate, TemplateIndex}, volume::VolumeTemplate, ModelComposer};
 
 
 #[derive(Debug, Clone)]
@@ -37,11 +37,11 @@ pub struct PathTemplate<V: Ve<T, 2>, T: Nu> {
 }
 
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> ModelComposer<V2, V3, T> {
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> {
     pub fn make_pos_space(
         &self, 
         pin: OutPinId, 
-        template: &ComposeTemplate<V2, V3, T>
+        template: &ComposeTemplate<V2, V3, T, B>
     ) -> PositionSpaceTemplate<V2, V3, T> {
 
         let node = self.snarl.get_node(pin.node).expect("Node of remote not found");
@@ -49,7 +49,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> ModelComposer<V2, V3, T> {
             ComposeNodeType::GridInVolume => {
                 
                 let grid = GridVolumeTemplate {
-                    volume: self.make_volume(self.get_input_node_by_type(node, ComposeDataType::Volume3D), template),
+                    volume: self.make_volume(self.get_input_pin_by_type(node, ComposeDataType::Volume3D), template),
                     spacing: self.make_number(node, self.get_input_index_by_type(node, ComposeDataType::Number(None)), template),
                 };
                 PositionSpaceTemplate::GridInVolume(grid)
@@ -57,7 +57,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> ModelComposer<V2, V3, T> {
             ComposeNodeType::GridOnPlane => {
                 
                 let grid = GridOnPlaneTemplate {
-                    volume: self.make_volume(self.get_input_node_by_type(node, ComposeDataType::Volume2D), template),
+                    volume: self.make_volume(self.get_input_pin_by_type(node, ComposeDataType::Volume2D), template),
                     spacing: self.make_number(node, 1, template),
                     height: self.make_number(node, 2, template),
                 };

@@ -16,6 +16,7 @@ use csg::union::tree::{Union, UnionNode};
 use model::composer::ModelComposer;
 use model::debug_gui::collapser::CollapserDebugGui;
 use model::debug_gui::template::TemplateDebugGui;
+use model::examples::compose_island::{ComposeIsland};
 use model::examples::islands::{self, IslandGenerationTypes, IslandUpdateData, Islands};
 use model::worker::ModelWorker;
 use octa_force::engine::Engine;
@@ -129,7 +130,7 @@ pub struct RenderState {
 
 
     #[cfg(feature="graph_builder")]
-    pub composer: ModelComposer<IVec2, IVec3, i32>
+    pub islands: ComposeIsland
 }
 
 #[unsafe(no_mangle)]
@@ -225,8 +226,10 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
     #[cfg(feature="graph_builder")]
     {
-        let composer = ModelComposer::new();
-        return Ok(RenderState { gui, composer })
+        return Ok(RenderState { 
+            gui, 
+            islands: ComposeIsland::new()
+        })
     }
 
 
@@ -265,7 +268,7 @@ pub fn update(
         engine.get_current_frame_index())?;
 
     #[cfg(feature="graph_builder")]
-    render_state.composer.update()?;
+    render_state.islands.update()?;
 
     Ok(())
 }
@@ -313,7 +316,7 @@ pub fn record_render_commands(
             }
 
             #[cfg(any(feature="graph_builder"))]
-            render_state.composer.render(ctx);
+            render_state.islands.render(ctx);
         },
     )?;
 

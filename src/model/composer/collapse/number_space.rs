@@ -1,6 +1,6 @@
 use octa_force::{anyhow::bail, OctaResult};
 
-use crate::{model::composer::{number_space::NumberSpaceTemplate, template::TemplateIndex}, util::{number::Nu, vector::Ve}, volume::VolumeQureyPosValid};
+use crate::{model::composer::{build::BS, number_space::NumberSpaceTemplate, template::TemplateIndex}, util::{number::Nu, vector::Ve}, volume::VolumeQureyPosValid};
 
 use super::collapser::{CollapseNode, CollapseNodeKey, Collapser};
 
@@ -12,10 +12,10 @@ pub struct NumberSpace<T: Nu> {
 }
 
 impl<T: Nu> NumberSpace<T> {
-    pub fn from_template<V2: Ve<T, 2>, V3: Ve<T, 3>>(
+    pub fn from_template<V2: Ve<T, 2>, V3: Ve<T, 3>, B: BS<V2, V3, T>>(
         space_template: &NumberSpaceTemplate<T>, 
         depends: &[(TemplateIndex, Vec<CollapseNodeKey>)], 
-        collapser: &Collapser<V2, V3, T>
+        collapser: &Collapser<V2, V3, T, B>
     ) -> Self {
         match space_template {
             NumberSpaceTemplate::NumberRange { min, max, step } => {

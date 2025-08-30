@@ -5,7 +5,7 @@ use itertools::Itertools;
 
 use crate::util::{number::Nu, vector::Ve};
 
-use super::{data_type::ComposeDataType, dependency_tree::DependencyTree, nodes::ComposeNodeType, primitive::NumberTemplate, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
+use super::{build::BS, data_type::ComposeDataType, dependency_tree::DependencyTree, nodes::ComposeNodeType, primitive::NumberTemplate, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
 
 
 #[derive(Debug, Clone)]
@@ -21,8 +21,8 @@ pub enum AmmountType<T: Nu> {
     ByPosSpace,
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> ModelComposer<V2, V3, T> {
-    pub fn make_ammount(&self, pin: OutPinId, template_index: TemplateIndex, template: &ComposeTemplate<V2, V3, T>) -> (Ammount<T>, TemplateIndex) {
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> {
+    pub fn make_ammount(&self, pin: OutPinId, template_index: TemplateIndex, template: &ComposeTemplate<V2, V3, T, B>) -> (Ammount<T>, TemplateIndex) {
         let node = self.snarl.get_node(pin.node).expect("Node of remote not found");
         match &node.t {
             ComposeNodeType::OneGlobal => (Ammount { 
@@ -35,13 +35,13 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> ModelComposer<V2, V3, T> {
                 template_index, 
                 t: AmmountType::NPer(NumberTemplate::Const(T::ONE)), 
                 dependecy_tree: DependencyTree::default(),
-            }, template.get_index_by_out_pin(self.get_input_node_by_type(node, ComposeDataType::Identifier))),
+            }, template.get_index_by_out_pin(self.get_input_pin_by_type(node, ComposeDataType::Identifier))),
 
             ComposeNodeType::NPer => (Ammount { 
                 template_index, 
                 t: AmmountType::NPer(self.make_number(node, 1, template)),
                 dependecy_tree: DependencyTree::default(),
-            }, template.get_index_by_out_pin(self.get_input_node_by_type(node, ComposeDataType::Identifier))),
+            }, template.get_index_by_out_pin(self.get_input_pin_by_type(node, ComposeDataType::Identifier))),
 
             _ => unreachable!(),
         }

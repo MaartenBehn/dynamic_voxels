@@ -11,10 +11,12 @@ pub mod volume;
 pub mod ammount;
 pub mod dependency_tree;
 pub mod debug_gui;
+pub mod build;
 
 use std::{fs::{self, File}, io::Write};
 
-use debug_gui::template::TemplateDebugGui;
+use build::BS;
+use collapse::collapser::Collapser;
 use egui_snarl::{ui::{NodeLayout, PinPlacement, SnarlStyle, SnarlWidget}, Snarl};
 use nodes::ComposeNode;
 use octa_force::{anyhow::anyhow, egui::{self, CornerRadius, Id}, OctaResult};
@@ -26,11 +28,12 @@ use crate::util::{number::Nu, vector::Ve};
 const TEMP_SAVE_FILE: &str = "./composer_temp_save.json";
 
 #[derive(Debug)]
-pub struct ModelComposer<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
-    snarl: Snarl<ComposeNode>,
+pub struct ModelComposer<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
+    snarl: Snarl<ComposeNode<V2, V3, T, B>>,
     style: SnarlStyle,
-    viewer: ComposeViewer,
-    template_debug: TemplateDebugGui<V2, V3, T>,
+    viewer: ComposeViewer<V2, V3, T, B>,
+    template: ComposeTemplate<V2, V3, T, B>,
+    collapser: Collapser<V2, V3, T, B>,
 }
 
 const fn default_style() -> SnarlStyle {
@@ -63,19 +66,24 @@ const fn default_style() -> SnarlStyle {
     }
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> ModelComposer<V2, V3, T> {
-     pub fn new() -> Self {
+impl<V2, V3, T, B> ModelComposer<V2, V3, T, B> 
+where 
+    V2: Ve<T, 2> + serde::Serialize + serde::de::DeserializeOwned, 
+    V3: Ve<T, 3> + serde::Serialize + serde::de::DeserializeOwned, 
+    T: Nu + serde::Serialize + serde::de::DeserializeOwned, 
+    B: BS<V2, V3, T> + serde::Serialize + serde::de::DeserializeOwned 
+{
+    pub fn new() -> Self {
         let snarl = load_snarl().unwrap_or(Snarl::new());       
         let style = SnarlStyle::new();
         let viewer = ComposeViewer::new();
-
-        let template_debug = TemplateDebugGui::new();
 
         ModelComposer {
             snarl,
             style, 
             viewer,
-            template_debug,
+            template: Default::default(),
+            collapser: Default::default(),
         }
     }
 
@@ -84,11 +92,17 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> ModelComposer<V2, V3, T> {
             .default_width(300.0)
             .show(ctx, |ui| {
                 if ui.button("Build Template").clicked() {
-                    let template = ComposeTemplate::new(self);
-                    self.template_debug.template = template;
+                    self.template = ComposeTemplate::new(self);
                 }
 
-                self.template_debug.render(ui);
+                self.template.debug_render(ui);
+
+                if ui.button("Build Collapser").clicked() {
+                    self.collapser = self.template.get_collapser();
+                    self.collapser.run(&self.template);
+                }
+
+                self.collapser.debug_render(ui);
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -109,7 +123,13 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> ModelComposer<V2, V3, T> {
     }
 }
 
-pub fn load_snarl() -> OctaResult<Snarl<ComposeNode>> {
+pub fn load_snarl<V2, V3, T, B>() -> OctaResult<Snarl<ComposeNode<V2, V3, T, B>>> 
+where 
+    V2: Ve<T, 2> + serde::de::DeserializeOwned, 
+    V3: Ve<T, 3> + serde::de::DeserializeOwned, 
+    T: Nu + serde::de::DeserializeOwned, 
+    B: BS<V2, V3, T> + serde::de::DeserializeOwned 
+{
     let content = fs::read_to_string(TEMP_SAVE_FILE)?; 
     let snarl = serde_json::from_str(&content)?; 
     Ok(snarl)

@@ -3,7 +3,7 @@ use std::{collections::{HashMap, VecDeque}, fmt::{Debug, Octal}, iter, marker::P
 
 use octa_force::{anyhow::{anyhow, bail, ensure}, glam::{vec3, vec3a, IVec3, Vec3, Vec3Swizzles}, log::{debug, error, info}, vulkan::ash::vk::OpaqueCaptureDescriptorDataCreateInfoEXT, OctaResult};
 use slotmap::{new_key_type, Key, SlotMap};
-use crate::{model::{composer::{number_space::NumberSpaceTemplate, template::{ComposeTemplate, TemplateIndex}}, generation::pos_set::PositionSetRule}, util::{number::Nu, vector::Ve}, volume::VolumeQureyPosValid};
+use crate::{model::{composer::{build::BS, number_space::NumberSpaceTemplate, template::{ComposeTemplate, TemplateIndex}}, generation::pos_set::PositionSetRule}, util::{number::Nu, vector::Ve}, volume::VolumeQureyPosValid};
 
 use super::{number_space::NumberSpace, pending_operations::{PendingOperations, PendingOperationsRes}, position_space::PositionSpace};
 
@@ -11,28 +11,29 @@ new_key_type! { pub struct CollapseNodeKey; }
 new_key_type! { pub struct CollapseChildKey; }
 
 #[derive(Debug, Clone, Default)]
-pub struct Collapser<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
-    pub nodes: SlotMap<CollapseNodeKey, CollapseNode<V2, V3, T>>,
+pub struct Collapser<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
+    pub nodes: SlotMap<CollapseNodeKey, CollapseNode<V2, V3, T, B>>,
     pub pending: PendingOperations,
 }
 
 #[derive(Debug, Clone)]
-pub struct CollapseNode<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
+pub struct CollapseNode<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub template_index: usize,
     pub level: usize,
     pub children: Vec<(TemplateIndex, Vec<CollapseNodeKey>)>, 
     pub depends: Vec<(TemplateIndex, Vec<CollapseNodeKey>)>,
     pub defined_by: CollapseNodeKey,
     pub child_key: CollapseChildKey,
-    pub data: NodeDataType<V2, V3, T>,
+    pub data: NodeDataType<V2, V3, T, B>,
     pub next_reset: CollapseNodeKey,
 }
 
 #[derive(Debug, Clone)]
-pub enum NodeDataType<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
+pub enum NodeDataType<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     NumberSet(NumberSpace<T>),
     PositionSpace(PositionSpace<V2, V3, T>),
     None,
+    Build(B::CollapseValue)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -47,8 +48,8 @@ pub enum UpdateDefinesOperation {
     }
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> Collapser<V2, V3, T> {
-    pub fn run(&mut self, template: &ComposeTemplate<V2, V3, T>) {
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B> {
+    pub fn run(&mut self, template: &ComposeTemplate<V2, V3, T, B>) {
 
         loop {
             match self.pending.pop() {
@@ -59,19 +60,20 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> Collapser<V2, V3, T> {
         }
     }
 
-    fn collapse_node(&mut self, node_index: CollapseNodeKey, template: &ComposeTemplate<V2, V3, T>) {
+    fn collapse_node(&mut self, node_index: CollapseNodeKey, template: &ComposeTemplate<V2, V3, T, B>) {
         let node = &mut self.nodes[node_index];
         let template_node = &template.nodes[node.template_index]; 
         //info!("{:?} Collapse: {:?}", node_index, node.identifier);
 
-        match &mut node.data { 
+        match &mut node.data {
             NodeDataType::NumberSet(space) => {
-                if space.update().is_err() {
-                    panic!("{:?} Collapse Number faild", node_index);
-                }
-            },
+                        if space.update().is_err() {
+                            panic!("{:?} Collapse Number faild", node_index);
+                        }
+                    },
             NodeDataType::PositionSpace(space) => space.update(),
             NodeDataType::None => {},
+            NodeDataType::Build(t) => { dbg!(t); },
         }
 
         self.push_defined(node_index, template);
@@ -100,7 +102,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> Collapser<V2, V3, T> {
         &self, 
         template_index: TemplateIndex,
         depends: &[(TemplateIndex, Vec<CollapseNodeKey>)],
-        collapser: &Collapser<V2, V3, T>
+        collapser: &Collapser<V2, V3, T, B>
     ) -> CollapseNodeKey {
         depends.iter().find(|(i, _)| *i == template_index)
             .expect(&format!("Node does not depend on {:?}", template_index)).1[0]
@@ -110,7 +112,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> Collapser<V2, V3, T> {
         &self, 
         template_index: TemplateIndex,
         depends: &[(TemplateIndex, Vec<CollapseNodeKey>)],
-        collapser: &Collapser<V2, V3, T>
+        collapser: &Collapser<V2, V3, T, B>
     ) -> T { 
         collapser.get_number(self.get_dependend_index(template_index, depends, collapser))
     }
@@ -119,15 +121,15 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> Collapser<V2, V3, T> {
         &self, 
         template_index: TemplateIndex,
         depends: &[(TemplateIndex, Vec<CollapseNodeKey>)],
-        collapser: &Collapser<V2, V3, T>
+        collapser: &Collapser<V2, V3, T, B>
     ) -> V { 
         collapser.get_position(self.get_dependend_index(template_index, depends, collapser))
     }
 }
 
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> ComposeTemplate<V2, V3, T> {
-    pub fn get_collaper(&self) -> Collapser<V2, V3, T> {
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3, T, B> {
+    pub fn get_collapser(&self) -> Collapser<V2, V3, T, B> {
         let inital_capacity = 1000;
 
         let mut collapser = Collapser{

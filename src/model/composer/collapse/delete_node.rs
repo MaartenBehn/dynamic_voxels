@@ -1,13 +1,13 @@
 use octa_force::{anyhow::{self, ensure, anyhow}, log::info, OctaResult};
 use slotmap::Key;
 
-use crate::{model::{composer::template::ComposeTemplate, generation::collapse::CollapseOperation}, util::{number::Nu, vector::Ve}};
+use crate::{model::{composer::{build::BS, template::ComposeTemplate}, generation::collapse::CollapseOperation}, util::{number::Nu, vector::Ve}};
 
 use super::collapser::{CollapseNodeKey, Collapser};
 
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> Collapser<V2, V3, T> { 
-    pub fn delete_node(&mut self, node_index: CollapseNodeKey, template: &ComposeTemplate<V2, V3, T>) {
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B> { 
+    pub fn delete_node(&mut self, node_index: CollapseNodeKey, template: &ComposeTemplate<V2, V3, T, B>) {
         let node = self.nodes.remove(node_index);
         if node.is_none() {
             return;

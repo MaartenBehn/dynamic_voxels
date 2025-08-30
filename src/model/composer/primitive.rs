@@ -3,7 +3,7 @@ use octa_force::glam::{ivec2, IVec2, IVec3, Vec2, Vec3A};
 
 use crate::{csg::csg_tree::tree::CSGTree, model::generation::traits::ModelGenerationTypes, util::{math_config::{MC}, number::Nu, vector::Ve}};
 
-use super::{collapse::collapser::{CollapseNode, CollapseNodeKey, Collapser}, data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, template::{ComposeTemplate, TemplateIndex, TemplateNode}, ModelComposer};
+use super::{build::BS, collapse::collapser::{CollapseNode, CollapseNodeKey, Collapser}, data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, template::{ComposeTemplate, TemplateIndex, TemplateNode}, ModelComposer};
 use crate::util::vector;
 use crate::util::math_config;
 
@@ -25,8 +25,8 @@ pub enum PositionSetTemplate {
     Hook(TemplateIndex),
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> ModelComposer<V2, V3, T> { 
-    pub fn make_number(&self, original_node: &ComposeNode, in_index: usize, template: &ComposeTemplate<V2, V3, T>) -> NumberTemplate<T> {
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> { 
+    pub fn make_number(&self, original_node: &ComposeNode<V2, V3, T, B>, in_index: usize, template: &ComposeTemplate<V2, V3, T, B>) -> NumberTemplate<T> {
         let remotes = self.snarl.in_pin(InPinId{ node: original_node.id, input: in_index }).remotes;
         if remotes.len() >= 2 {
             panic!("More than one node connected to {:?}", original_node.t);
@@ -53,9 +53,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> ModelComposer<V2, V3, T> {
 
     pub fn make_position<V: Ve<T, D>, const D: usize>(
         &self, 
-        original_node: &ComposeNode, 
+        original_node: &ComposeNode<V2, V3, T, B>, 
         in_index: usize, 
-        template: &ComposeTemplate<V2, V3, T>,
+        template: &ComposeTemplate<V2, V3, T, B>,
     ) -> PositionTemplate<V, T, D> {
 
         let remotes = self.snarl.in_pin(InPinId{ node: original_node.id, input: in_index }).remotes;
@@ -100,7 +100,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> ModelComposer<V2, V3, T> {
         }
     }
 
-    pub fn make_position_set(&self, pin: OutPinId, template: &ComposeTemplate<V2, V3, T>) -> PositionSetTemplate {
+    pub fn make_position_set(&self, pin: OutPinId, template: &ComposeTemplate<V2, V3, T, B>) -> PositionSetTemplate {
         PositionSetTemplate::Hook(template.get_index_by_out_pin(pin))
     }
 
@@ -115,10 +115,10 @@ impl<T: Nu> NumberTemplate<T> {
         }.into_iter()
     }
 
-    pub fn get_value<V2: Ve<T, 2>, V3: Ve<T, 3>>(
+    pub fn get_value<V2: Ve<T, 2>, V3: Ve<T, 3>, B: BS<V2, V3, T>>(
         &self, 
         depends: &[(TemplateIndex, Vec<CollapseNodeKey>)], 
-        collapser: &Collapser<V2, V3, T>
+        collapser: &Collapser<V2, V3, T, B>
     ) -> T {
 
         match self {
@@ -137,10 +137,10 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> PositionTemplate<V, T, D> {
         }.into_iter()
     }
 
-    pub fn get_value<V2: Ve<T, 2>, V3: Ve<T, 3>>(
+    pub fn get_value<V2: Ve<T, 2>, V3: Ve<T, 3>, B: BS<V2, V3, T>>(
         &self, 
         depends: &[(TemplateIndex, Vec<CollapseNodeKey>)], 
-        collapser: &Collapser<V2, V3, T>
+        collapser: &Collapser<V2, V3, T, B>
     ) -> V {
 
         match self {

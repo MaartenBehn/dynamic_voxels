@@ -5,7 +5,7 @@ use smallvec::SmallVec;
 
 use crate::util::{number::Nu, vector::Ve};
 
-use super::template::{ComposeTemplate, TemplateIndex, TemplateNode};
+use super::{build::BS, template::{ComposeTemplate, TemplateIndex, TemplateNode}};
 
 
 #[derive(Debug, Clone, Default)]
@@ -22,15 +22,15 @@ pub struct DependencyPathStep {
 }
 
 impl DependencyTree {
-    pub fn new<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu>(
-        template: &ComposeTemplate<V2, V3, T>, 
+    pub fn new<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>>(
+        template: &ComposeTemplate<V2, V3, T, B>, 
         parent_index: TemplateIndex, 
         depends: &[TemplateIndex], 
     ) -> DependencyTree {
         let mut depends = depends.iter().copied().enumerate().collect::<Vec<_>>();
 
-        let mut open_child_paths: VecDeque<(&TemplateNode<V2, V3, T>, Vec<DependencyPathStep>)> = VecDeque::new();
-        let mut open_parent_paths: VecDeque<(&TemplateNode<V2, V3, T>, Vec<DependencyPathStep>)> = VecDeque::new();
+        let mut open_child_paths: VecDeque<(&TemplateNode<V2, V3, T, B>, Vec<DependencyPathStep>)> = VecDeque::new();
+        let mut open_parent_paths: VecDeque<(&TemplateNode<V2, V3, T, B>, Vec<DependencyPathStep>)> = VecDeque::new();
 
         open_parent_paths.push_back((
             &template.nodes[parent_index], 
@@ -46,7 +46,7 @@ impl DependencyTree {
             steps: vec![],
         };
 
-        let mut check_hit = |node: &TemplateNode<V2, V3, T>, path: &Vec<DependencyPathStep>| {
+        let mut check_hit = |node: &TemplateNode<V2, V3, T, B>, path: &Vec<DependencyPathStep>| {
             let depends_res = depends.iter()
                 .enumerate()
                 .find(|(_, (_, i))| *i == node.index)
@@ -115,9 +115,9 @@ impl DependencyTree {
         path_tree
     }
 
-    fn copy_path<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu>(
+    fn copy_path<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>>(
         &mut self, 
-        node: &TemplateNode<V2, V3, T>, 
+        node: &TemplateNode<V2, V3, T, B>, 
         path: &Vec<DependencyPathStep>, 
     ) -> usize {
         if self.steps.is_empty() {

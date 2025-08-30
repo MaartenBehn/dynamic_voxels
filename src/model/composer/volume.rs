@@ -3,7 +3,7 @@ use itertools::Itertools;
 
 use crate::{csg::csg_tree::tree::CSGTree, util::{number::Nu, vector::Ve}};
 
-use super::{collapse::collapser::{CollapseNodeKey, Collapser}, data_type::ComposeDataType, nodes::ComposeNodeType, primitive::{NumberTemplate, PositionSetTemplate, PositionTemplate}, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
+use super::{build::BS, collapse::collapser::{CollapseNodeKey, Collapser}, data_type::ComposeDataType, nodes::ComposeNodeType, primitive::{NumberTemplate, PositionSetTemplate, PositionTemplate}, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
 
 #[derive(Debug, Clone, Copy)]
 pub enum VolumeTemplateData<V: Ve<T, D>, T: Nu, const D: usize> {
@@ -35,8 +35,13 @@ pub struct VolumeTemplate<V: Ve<T, D>, T: Nu, const D: usize> {
     pub root: usize,
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> ModelComposer<V2, V3, T> {
-    pub fn make_volume<V: Ve<T, D>, const D: usize>(&self, pin: OutPinId, template: &ComposeTemplate<V2, V3, T>) -> VolumeTemplate<V, T, D> {
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> {
+    pub fn make_volume<V: Ve<T, D>, const D: usize>(
+        &self, 
+        pin: OutPinId, 
+        template: &ComposeTemplate<V2, V3, T, B>
+    ) -> VolumeTemplate<V, T, D> {
+
         let node = self.snarl.get_node(pin.node).expect("Node of remote not found");
         match &node.t {
             ComposeNodeType::Sphere => VolumeTemplate {
@@ -58,8 +63,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> ModelComposer<V2, V3, T> {
                 root: 0,
             },
             ComposeNodeType::UnionVolume3D => {
-                let mut a = self.make_volume(self.get_input_node_by_index(node, 0), template);
-                let mut b = self.make_volume(self.get_input_node_by_index(node, 1), template);
+                let mut a = self.make_volume(self.get_input_pin_by_index(node, 0), template);
+                let mut b = self.make_volume(self.get_input_pin_by_index(node, 1), template);
 
                 let mut nodes = vec![];
 
@@ -78,8 +83,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> ModelComposer<V2, V3, T> {
                 }
             },
             ComposeNodeType::CutVolume3D => {
-                let mut base = self.make_volume(self.get_input_node_by_index(node, 0), template);
-                let mut cut = self.make_volume(self.get_input_node_by_index(node, 1), template);
+                let mut base = self.make_volume(self.get_input_pin_by_index(node, 0), template);
+                let mut cut = self.make_volume(self.get_input_pin_by_index(node, 1), template);
 
                 let mut nodes = vec![];
 
@@ -99,7 +104,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> ModelComposer<V2, V3, T> {
             },
             ComposeNodeType::SphereUnion => VolumeTemplate {
                 nodes: vec![VolumeTemplateData::SphereUnion { 
-                    position_set: self.make_position_set(self.get_input_node_by_type(node, ComposeDataType::PositionSet), template), 
+                    position_set: self.make_position_set(self.get_input_pin_by_type(node, ComposeDataType::PositionSet), template), 
                     size: self.make_number(node, self.get_input_index_by_type(node, ComposeDataType::Number(None)), template) 
                 }],
                 root: 0,
@@ -143,20 +148,20 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> VolumeTemplate<V, T, D> {
         }.into_iter()
     }
 
-    pub fn get_value<V2: Ve<T, 2>, V3: Ve<T, 3>>(
+    pub fn get_value<V2: Ve<T, 2>, V3: Ve<T, 3>, B: BS<V2, V3, T>>(
         &self, 
         depends: &[(TemplateIndex, Vec<CollapseNodeKey>)], 
-        collapser: &Collapser<V2, V3, T>
+        collapser: &Collapser<V2, V3, T, B>
 
     ) -> CSGTree<(), V, T, D>  {
         self.get_value_inner(self.root, depends, collapser)
     }
 
-    pub fn get_value_inner<V2: Ve<T, 2>, V3: Ve<T, 3>>(
+    pub fn get_value_inner<V2: Ve<T, 2>, V3: Ve<T, 3>, B: BS<V2, V3, T>>(
         &self, 
         index: usize, 
         depends: &[(TemplateIndex, Vec<CollapseNodeKey>)], 
-        collapser: &Collapser<V2, V3, T>
+        collapser: &Collapser<V2, V3, T, B>
     ) -> CSGTree<(), V, T, D> {
 
         let node = self.nodes[index];

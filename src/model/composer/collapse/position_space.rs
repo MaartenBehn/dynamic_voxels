@@ -4,7 +4,7 @@ use itertools::Itertools;
 use octa_force::{anyhow::bail, glam::{IVec3, Mat4, Vec3, Vec3A}, OctaResult};
 use slotmap::{new_key_type, SecondaryMap, SlotMap};
 
-use crate::{csg::csg_tree::tree::CSGTree, model::composer::{position_space::PositionSpaceTemplate, template::TemplateIndex}, util::{number::Nu, vector::Ve}, volume::VolumeQureyPosValid};
+use crate::{csg::csg_tree::tree::CSGTree, model::composer::{build::BS, position_space::PositionSpaceTemplate, template::TemplateIndex}, util::{number::Nu, vector::Ve}, volume::VolumeQureyPosValid};
 
 use super::collapser::{CollapseChildKey, CollapseNodeKey, Collapser};
 
@@ -43,10 +43,10 @@ pub struct Path<V: Ve<T, 2>, T: Nu> {
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> PositionSpace<V2, V3, T> {
-    pub fn from_template(
+    pub fn from_template<B: BS<V2, V3, T>>(
         template_space: &PositionSpaceTemplate<V2, V3, T>, 
         depends: &[(TemplateIndex, Vec<CollapseNodeKey>)], 
-        collapser: &Collapser<V2, V3, T>
+        collapser: &Collapser<V2, V3, T, B>
     ) -> Self {
         match &template_space {
             PositionSpaceTemplate::GridInVolume(grid_volume_template) 
