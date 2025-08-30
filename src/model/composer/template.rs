@@ -10,8 +10,8 @@ use crate::util::number::Nu;
 use crate::model::generation::{relative_path::RelativePathTree};
 
 use super::ammount::Ammount;
-use super::pos_space::{GridVolumeData, PositionSpaceRule};
-use super::{data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, number_space::NumberSpace, pos_space::PositionSpace, primitive::Number, ModelComposer};
+use super::position_space::PositionSpace;
+use super::{data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, number_space::NumberSpace, primitive::Number, ModelComposer};
 
 pub type TemplateIndex = usize;
 pub const TEMPLATE_INDEX_ROOT: TemplateIndex = 0;

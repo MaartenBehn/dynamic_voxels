@@ -3,7 +3,7 @@ use octa_force::glam::{ivec2, IVec2, IVec3, Vec2, Vec3A};
 
 use crate::{csg::csg_tree::tree::CSGTree, model::generation::traits::ModelGenerationTypes, util::math_config::{Int2D, Int3D}};
 
-use super::{data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, template::{ComposeTemplate, TemplateIndex, TemplateNode}, ModelComposer};
+use super::{collapse::collapser::{CollapseNode, CollapseNodeKey, Collapser}, data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, template::{ComposeTemplate, TemplateIndex, TemplateNode}, ModelComposer};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Number {
@@ -116,6 +116,13 @@ impl Number {
             Number::Const(_) => None,
             Number::Hook(index) => Some(*index),
         }.into_iter()
+    }
+
+    pub fn get_value(&self, depends: &[(TemplateIndex, Vec<CollapseNodeKey>)], collapser: &Collapser) -> i32 {
+        match self {
+            Number::Const(v) => *v,
+            Number::Hook(i) => collapser.get_dependend_number(*i, depends, collapser),
+        }
     }
 }
 

@@ -1,6 +1,5 @@
 use egui_snarl::{NodeId, OutPinId};
 
-
 use super::{data_type::ComposeDataType, dependency_tree::DependencyTree, nodes::ComposeNodeType, primitive::Number, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
 
 

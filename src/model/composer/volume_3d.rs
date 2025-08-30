@@ -1,7 +1,7 @@
 use egui_snarl::OutPinId;
 use itertools::Itertools;
 
-use super::{data_type::ComposeDataType, nodes::ComposeNodeType, pos_space::PositionSpace, primitive::{Number, Position3D, PositionSet}, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
+use super::{data_type::ComposeDataType, nodes::ComposeNodeType, primitive::{Number, Position3D, PositionSet}, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Volume3DData {
