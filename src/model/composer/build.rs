@@ -7,24 +7,60 @@ use crate::util::{number::Nu, vector::Ve};
 use super::{collapse::collapser::{CollapseNodeKey, Collapser}, nodes::ComposeNode, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
 
 pub trait BS<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu>: fmt::Debug + Clone + Default {
-    type BuildNodeType: fmt::Debug + Clone + serde::Serialize + serde::de::DeserializeOwned;
-    type TemplateValue: fmt::Debug + Clone; 
-    type CollapseValue: fmt::Debug + Clone; 
+    type ComposeType: ComposeTypeTrait;
+    type TemplateValue: TemplateValueTrait; 
+    type CollapseValue: CollapseValueTrait; 
 
     fn compose_nodes() -> Vec<ComposeNode<V2, V3, T, Self>>;
-    fn is_template_node(t: &Self::BuildNodeType) -> bool;
+    fn is_template_node(t: &Self::ComposeType) -> bool;
     
-    fn get_depends_and_value(
-        t: &Self::BuildNodeType, 
-        composer_node: &ComposeNode<V2, V3, T, Self>, 
-        composer: &ModelComposer<V2, V3, T, Self>,
-        template: &ComposeTemplate<V2, V3, T, Self>,
-    ) -> (SmallVec<[TemplateIndex; 4]>, Self::TemplateValue);
+    fn get_template_value(args: GetTemplateValueArgs<V2, V3, T, Self>) -> Self::TemplateValue;
+    fn get_collapse_value(args: GetCollapseValueArgs<V2, V3, T, Self>) -> Self::CollapseValue;
+    fn on_collapse(args: OnCollapseArgs<V2, V3, T, Self>);
+    fn on_delete(args: OnDeleteArgs<V2, V3, T, Self>);
+}
 
-    fn from_template(
-        t: &Self::TemplateValue,
-        depends: &[(TemplateIndex, Vec<CollapseNodeKey>)], 
-        collapser: &Collapser<V2, V3, T, Self>) -> Self::CollapseValue;
+pub trait ComposeTypeTrait: fmt::Debug + Clone + serde::Serialize + serde::de::DeserializeOwned {
+}
 
-    fn on_collapse(t: &Self::CollapseValue);
+pub trait TemplateValueTrait: fmt::Debug + Clone {
+    fn get_dependend_template_nodes(&self) -> SmallVec<[TemplateIndex; 4]>;
+}
+
+pub trait CollapseValueTrait: fmt::Debug + Clone {
+
+}
+
+pub struct GetTemplateValueArgs<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
+    pub compose_type: &'a B::ComposeType, 
+    pub composer_node: &'a ComposeNode<V2, V3, T, B>,
+
+    pub composer: &'a ModelComposer<V2, V3, T, B>,
+    pub template: &'a ComposeTemplate<V2, V3, T, B>,
+    pub state: &'a mut B,
+}
+
+pub struct GetCollapseValueArgs<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
+    pub template_value: &'a B::TemplateValue,
+    pub depends: &'a [(TemplateIndex, Vec<CollapseNodeKey>)], 
+
+    pub collapser: &'a Collapser<V2, V3, T, B>,
+    pub template: &'a ComposeTemplate<V2, V3, T, B>,
+    pub state: &'a mut B,
+}
+
+pub struct OnCollapseArgs<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
+    pub collapse_index: CollapseNodeKey,
+
+    pub collapser: &'a Collapser<V2, V3, T, B>,
+    pub template: &'a ComposeTemplate<V2, V3, T, B>,
+    pub state: &'a mut B,
+}
+
+pub struct OnDeleteArgs<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
+    pub collapse_index: CollapseNodeKey,
+
+    pub collapser: &'a Collapser<V2, V3, T, B>,
+    pub template: &'a ComposeTemplate<V2, V3, T, B>,
+    pub state: &'a mut B,
 }

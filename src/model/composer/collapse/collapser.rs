@@ -3,7 +3,7 @@ use std::{collections::{HashMap, VecDeque}, fmt::{Debug, Octal}, iter, marker::P
 
 use octa_force::{anyhow::{anyhow, bail, ensure}, glam::{vec3, vec3a, IVec3, Vec3, Vec3Swizzles}, log::{debug, error, info}, vulkan::ash::vk::OpaqueCaptureDescriptorDataCreateInfoEXT, OctaResult};
 use slotmap::{new_key_type, Key, SlotMap};
-use crate::{model::{composer::{build::BS, number_space::NumberSpaceTemplate, template::{ComposeTemplate, TemplateIndex}}, generation::pos_set::PositionSetRule}, util::{number::Nu, vector::Ve}, volume::VolumeQureyPosValid};
+use crate::{model::{composer::{build::{OnCollapseArgs, BS}, number_space::NumberSpaceTemplate, template::{ComposeTemplate, TemplateIndex}}, generation::pos_set::PositionSetRule}, util::{number::Nu, state_saver, vector::Ve}, volume::VolumeQureyPosValid};
 
 use super::{number_space::NumberSpace, pending_operations::{PendingOperations, PendingOperationsRes}, position_space::PositionSpace};
 
@@ -49,18 +49,19 @@ pub enum UpdateDefinesOperation {
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B> {
-    pub fn run(&mut self, template: &ComposeTemplate<V2, V3, T, B>) {
+    pub fn run(&mut self, template: &ComposeTemplate<V2, V3, T, B>, state: &mut B) {
 
         loop {
             match self.pending.pop() {
-                PendingOperationsRes::Collapse(key) => self.collapse_node(key, template),
-                PendingOperationsRes::CreateDefined(operation) => self.upadte_defined(operation, template),
+                PendingOperationsRes::Collapse(key) => self.collapse_node(key, template, state),
+                PendingOperationsRes::CreateDefined(operation) => self.upadte_defined(
+                    operation, template, state),
                 PendingOperationsRes::Empty => break,
             }
         }
     }
 
-    fn collapse_node(&mut self, node_index: CollapseNodeKey, template: &ComposeTemplate<V2, V3, T, B>) {
+    fn collapse_node(&mut self, node_index: CollapseNodeKey, template: &ComposeTemplate<V2, V3, T, B>, state: &mut B) {
         let node = &mut self.nodes[node_index];
         let template_node = &template.nodes[node.template_index]; 
         //info!("{:?} Collapse: {:?}", node_index, node.identifier);
@@ -73,7 +74,12 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
                     },
             NodeDataType::PositionSpace(space) => space.update(),
             NodeDataType::None => {},
-            NodeDataType::Build(t) => B::on_collapse(t),
+            NodeDataType::Build(t) => B::on_collapse(OnCollapseArgs { 
+                collapse_index: node_index,
+                collapser: &self, 
+                template: template, 
+                state
+            }),
         }
 
         self.push_defined(node_index, template);
@@ -129,7 +135,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3, T, B> {
-    pub fn get_collapser(&self) -> Collapser<V2, V3, T, B> {
+    pub fn get_collapser(&self, state: &mut B) -> Collapser<V2, V3, T, B> {
         let inital_capacity = 1000;
 
         let mut collapser = Collapser{
@@ -137,7 +143,14 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
             pending: PendingOperations::new(self.max_level),
         };
 
-        collapser.add_node(0, vec![], CollapseNodeKey::null(), CollapseChildKey::null(), self);
+        collapser.add_node(
+            0, 
+            vec![], 
+            CollapseNodeKey::null(), 
+            CollapseChildKey::null(), 
+            self,
+            state);
+
         collapser
     }
 }

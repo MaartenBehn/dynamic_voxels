@@ -4,7 +4,7 @@ use octa_force::{anyhow::{anyhow, bail}, glam::Vec3, log::{debug, info}, OctaRes
 use slotmap::Key;
 use tree64::Node;
 
-use crate::{model::composer::{ammount::{Ammount, AmmountType}, build::BS, collapse::collapser::CollapseNode, dependency_tree::DependencyTree, template::{ComposeTemplate, ComposeTemplateValue, TemplateIndex, TemplateNode}}, util::{number::Nu, vector::Ve}};
+use crate::{model::composer::{ammount::{Ammount, AmmountType}, build::{GetCollapseValueArgs, BS}, collapse::collapser::CollapseNode, dependency_tree::DependencyTree, template::{ComposeTemplate, ComposeTemplateValue, TemplateIndex, TemplateNode}}, util::{number::Nu, vector::Ve}};
 
 use super::{collapser::{CollapseChildKey, CollapseNodeKey, Collapser, UpdateDefinesOperation, NodeDataType}, number_space::NumberSpace, position_space::PositionSpace};
 
@@ -32,13 +32,18 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         }
     }
 
-    pub fn upadte_defined(&mut self, opperation: UpdateDefinesOperation, template: &ComposeTemplate<V2, V3, T, B>) {
+    pub fn upadte_defined(
+        &mut self, 
+        opperation: UpdateDefinesOperation, 
+        template: &ComposeTemplate<V2, V3, T, B>,
+        state: &mut B
+    ) {
         match opperation {
             UpdateDefinesOperation::N { parent_index, defines_index } => {
-                self.update_defined_n(parent_index, defines_index, template);
+                self.update_defined_n(parent_index, defines_index, template, state);
             },
             UpdateDefinesOperation::ByNode { parent_index, defines_index } => {
-                self.update_defined_by_node(parent_index, defines_index, template);
+                self.update_defined_by_node(parent_index, defines_index, template, state);
             },
         }
     }
@@ -47,7 +52,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         &mut self, 
         parent_index: CollapseNodeKey, 
         defines_index: usize, 
-        template: &ComposeTemplate<V2, V3, T, B>
+        template: &ComposeTemplate<V2, V3, T, B>,
+        state: &mut B,
     ) {
 
         let parent = &self.nodes[parent_index];
@@ -79,7 +85,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
                     depends.clone(), 
                     parent_index, 
                     CollapseChildKey::null(), 
-                    template); 
+                    template, 
+                    state,
+                ); 
             }
 
         } else if present_children_len > n {
@@ -95,6 +103,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         parent_index: CollapseNodeKey, 
         defines_index: usize, 
         template: &ComposeTemplate<V2, V3, T, B>, 
+        state: &mut B,
     ) {
         let node = &self.nodes[parent_index];
         let template_node = &template.nodes[node.template_index];
@@ -133,7 +142,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
                     depends.clone(), 
                     parent_index, 
                     new_child, 
-                    template); 
+                    template, 
+                    state,
+                ); 
             }
         }
 
@@ -211,6 +222,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         defined_by: CollapseNodeKey,
         child_key: CollapseChildKey,
         template: &ComposeTemplate<V2, V3, T, B>,
+        state: &mut B,
     ) {
         let new_node_template = &template.nodes[new_node_template_index];
 
@@ -223,7 +235,13 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             => NodeDataType::PositionSpace(PositionSpace::from_template(space, &depends, &self)),
 
             ComposeTemplateValue::Build(t) 
-            => NodeDataType::Build(B::from_template(t, &depends, &self)),
+            => NodeDataType::Build(B::get_collapse_value(GetCollapseValueArgs { 
+                template_value: t, 
+                depends: &depends, 
+                collapser: &self, 
+                template, 
+                state 
+            })),
         };
 
         self.push_new_node(new_node_template, depends, defined_by, child_key, data)

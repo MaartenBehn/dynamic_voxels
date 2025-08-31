@@ -11,7 +11,7 @@ use crate::model::generation::{relative_path::RelativePathTree};
 use crate::util::vector::Ve;
 
 use super::ammount::Ammount;
-use super::build::BS;
+use super::build::{GetTemplateValueArgs, TemplateValueTrait, BS};
 use super::position_space::PositionSpaceTemplate;
 use super::{data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, number_space::NumberSpaceTemplate, primitive::NumberTemplate, ModelComposer};
 
@@ -45,7 +45,7 @@ pub struct TemplateNode<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3, T, B> {
-    pub fn new(composer: &ModelComposer<V2, V3, T, B>) -> ComposeTemplate<V2, V3, T, B> {
+    pub fn new(composer: &ModelComposer<V2, V3, T, B>, state: &mut B) -> ComposeTemplate<V2, V3, T, B> {
         let mut nodes = vec![
             TemplateNode {
                 node_id: NodeId(usize::MAX),
@@ -120,7 +120,15 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                     )
                 },
                 ComposeNodeType::Build(t) => {
-                    let (depends, value) = B::get_depends_and_value(t, composer_node, composer, &template);
+                    let value = B::get_template_value(GetTemplateValueArgs { 
+                        compose_type: t, 
+                        composer_node, 
+                        composer: &composer, 
+                        template: &template, 
+                        state: state 
+                    });
+
+                    let depends = value.get_dependend_template_nodes();
 
                     (depends, ComposeTemplateValue::Build(value))
                 },

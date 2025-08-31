@@ -63,7 +63,7 @@ pub enum ComposeNodeType<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     // Globals 
     PlayerPosition,
 
-    Build(B::BuildNodeType)
+    Build(B::ComposeType)
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

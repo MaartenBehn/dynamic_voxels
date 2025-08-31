@@ -29,11 +29,11 @@ const TEMP_SAVE_FILE: &str = "./composer_temp_save.json";
 
 #[derive(Debug)]
 pub struct ModelComposer<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
-    snarl: Snarl<ComposeNode<V2, V3, T, B>>,
-    style: SnarlStyle,
-    viewer: ComposeViewer<V2, V3, T, B>,
-    template: ComposeTemplate<V2, V3, T, B>,
-    collapser: Collapser<V2, V3, T, B>,
+    pub snarl: Snarl<ComposeNode<V2, V3, T, B>>,
+    pub style: SnarlStyle,
+    pub viewer: ComposeViewer<V2, V3, T, B>,
+    pub template: ComposeTemplate<V2, V3, T, B>,
+    pub collapser: Collapser<V2, V3, T, B>,
 }
 
 const fn default_style() -> SnarlStyle {
@@ -87,19 +87,19 @@ where
         }
     }
 
-    pub fn render(&mut self, ctx: &egui::Context) { 
+    pub fn render(&mut self, ctx: &egui::Context, state: &mut B) { 
         egui::SidePanel::right("Right Side")
             .default_width(300.0)
             .show(ctx, |ui| {
                 if ui.button("Build Template").clicked() {
-                    self.template = ComposeTemplate::new(self);
+                    self.template = ComposeTemplate::new(self, state);
                 }
 
                 self.template.debug_render(ui);
 
                 if ui.button("Build Collapser").clicked() {
-                    self.collapser = self.template.get_collapser();
-                    self.collapser.run(&self.template);
+                    self.collapser = self.template.get_collapser(state);
+                    self.collapser.run(&self.template, state);
                 }
 
                 self.collapser.debug_render(ui);
