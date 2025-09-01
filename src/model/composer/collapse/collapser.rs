@@ -49,6 +49,26 @@ pub enum UpdateDefinesOperation {
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B> {
+    pub fn new(template: &ComposeTemplate<V2, V3, T, B>, state: &mut B) -> Self {
+        let inital_capacity = 1000;
+
+        let mut collapser = Self {
+            nodes: SlotMap::with_capacity_and_key(inital_capacity),
+            pending: PendingOperations::new(template.max_level),
+        };
+
+        collapser.add_node(
+            0, 
+            vec![], 
+            CollapseNodeKey::null(), 
+            CollapseChildKey::null(), 
+            template,
+            state);
+
+        collapser.template_changed(template, state); 
+        collapser
+    }
+ 
     pub fn run(&mut self, template: &ComposeTemplate<V2, V3, T, B>, state: &mut B) {
 
         loop {
@@ -68,10 +88,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
         match &mut node.data {
             NodeDataType::NumberSet(space) => {
-                        if space.update().is_err() {
-                            panic!("{:?} Collapse Number faild", node_index);
-                        }
-                    },
+                if space.update().is_err() {
+                    panic!("{:?} Collapse Number faild", node_index);
+                }
+            },
             NodeDataType::PositionSpace(space) => space.update(),
             NodeDataType::None => {},
             NodeDataType::Build(t) => B::on_collapse(OnCollapseArgs { 
@@ -131,27 +151,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
     ) -> V { 
         collapser.get_position(self.get_dependend_index(template_index, depends, collapser))
     }
-}
 
-
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3, T, B> {
-    pub fn get_collapser(&self, state: &mut B) -> Collapser<V2, V3, T, B> {
-        let inital_capacity = 1000;
-
-        let mut collapser = Collapser{
-            nodes: SlotMap::with_capacity_and_key(inital_capacity),
-            pending: PendingOperations::new(self.max_level),
-        };
-
-        collapser.add_node(
-            0, 
-            vec![], 
-            CollapseNodeKey::null(), 
-            CollapseChildKey::null(), 
-            self,
-            state);
-
-        collapser
+    pub fn get_root_key(&self) -> CollapseNodeKey {
+        self.nodes.keys().next().unwrap()
     }
 }
 

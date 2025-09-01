@@ -1,10 +1,11 @@
 use std::marker::PhantomData;
 
 use egui_snarl::{NodeId, OutPinId};
-use octa_force::{egui, glam::{IVec2, IVec3}, OctaResult};
+use octa_force::{egui, glam::{EulerRot, IVec2, IVec3, Mat4, Quat, Vec3}, OctaResult};
+use slotmap::Key;
 use smallvec::SmallVec;
 
-use crate::{csg::csg_tree::tree::CSGTree, model::composer::{build::{CollapseValueTrait, ComposeTypeTrait, GetCollapseValueArgs, GetTemplateValueArgs, OnCollapseArgs, OnDeleteArgs, TemplateValueTrait, BS}, collapse::collapser::{CollapseNodeKey, Collapser}, data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeType}, template::{ComposeTemplate, TemplateIndex}, volume::VolumeTemplate, ModelComposer}, util::{number::Nu, vector::Ve}};
+use crate::{csg::csg_tree::tree::CSGTree, model::composer::{build::{CollapseValueTrait, ComposeTypeTrait, GetCollapseValueArgs, GetTemplateValueArgs, OnCollapseArgs, OnDeleteArgs, TemplateValueTrait, BS}, collapse::collapser::{CollapseNodeKey, Collapser, NodeDataType}, data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeType}, primitive::PositionTemplate, template::{ComposeTemplate, TemplateIndex}, volume::VolumeTemplate, ModelComposer}, scene::{dag_store::SceneDAGKey, worker::SceneWorkerSend, SceneObjectKey}, util::{number::Nu, vector::Ve}, volume::VolumeBounds, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, grid::shared::SharedVoxelGrid, palette::{palette::MATERIAL_ID_BASE, shared::SharedPalette}}, METERS_PER_SHADER_UNIT};
 
 
 // Compose Type
@@ -31,7 +32,8 @@ pub enum TemplateValue<V: Ve<T, 3>, T: Nu> {
 
 #[derive(Debug, Clone)]
 pub struct ObjectTemplate<V: Ve<T, 3>, T: Nu> {
-    volume: VolumeTemplate<V, T, 3>
+    pos: PositionTemplate<V, T, 3>,
+    volume: VolumeTemplate<V, T, 3>,
 }
 
 impl<V: Ve<T, 3>, T: Nu> TemplateValueTrait for TemplateValue<V, T> {
@@ -48,24 +50,31 @@ impl<V: Ve<T, 3>, T: Nu> TemplateValueTrait for TemplateValue<V, T> {
 
 #[derive(Debug, Clone)]
 pub enum CollapseValue {
-    Object
+    Object(Object)
 }
 
 #[derive(Debug, Clone)]
-pub struct Object {}
+pub struct Object {
+    pub scene_key: SceneObjectKey,
+    pub dag_key: DAG64EntryKey,
+}
 
 impl CollapseValueTrait for CollapseValue {}
 
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
-pub struct ComposeIslandState {}
+#[derive(Debug, Clone)]
+pub struct ComposeIslandState {
+    pub dag: ParallelVoxelDAG64,
+    pub scene: SceneWorkerSend,
+    pub scene_dag_key: SceneDAGKey,
+}
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
     type ComposeType = ComposeType;
     type TemplateValue = TemplateValue<V3, T>;
     type CollapseValue = CollapseValue;
 
-    fn compose_nodes() -> Vec<ComposeNode<V2, V3, T, Self>> {
+    fn compose_nodes() -> Vec<ComposeNode<Self::ComposeType>> {
         vec![
             ComposeNode { 
                 t: ComposeNodeType::Build(ComposeType::Object), 
@@ -79,6 +88,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
                     ComposeNodeInput { 
                         name: "volume".to_string(), 
                         data_type: ComposeDataType::Volume3D, 
+                    },
+                    ComposeNodeInput { 
+                        name: "pos".to_string(), 
+                        data_type: ComposeDataType::Position3D(None), 
                     },
                 ], 
                 outputs: vec![], 
@@ -94,15 +107,42 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
         match args.compose_type {
             ComposeType::Object => {
                 let volume = args.composer.make_volume(
-                    args.composer.get_input_pin_by_type(args.composer_node, ComposeDataType::Volume3D), args.template);
+                    args.composer.get_input_pin_by_type(args.composer_node, ComposeDataType::Volume3D),
+                    args.template);
+
+                let pos = args.composer.make_position(
+                    args.composer_node,
+                    args.composer.get_input_index_by_type(args.composer_node, ComposeDataType::Position3D(None)),
+                    args.template);
  
-                TemplateValue::Object(ObjectTemplate { volume }) 
+                TemplateValue::Object(ObjectTemplate { volume, pos }) 
             },
         }
     }
 
     fn get_collapse_value(args: GetCollapseValueArgs<V2, V3, T, Self>) -> Self::CollapseValue {
-        CollapseValue::Object
+        match args.template_value {
+            TemplateValue::Object(object_template) => {
+                
+                let mut volume = object_template.volume.get_value(args.depends, args.collapser, MATERIAL_ID_BASE);
+                let pos = object_template.pos.get_value(args.depends, args.collapser);
+
+                volume.calculate_bounds();
+
+                let dag_key = args.state.dag.add_pos_query_volume(&volume).expect("Could not add DAG Entry!");
+                let scene_key = args.state.scene.add_dag_object(
+                    Mat4::from_scale_rotation_translation(
+                        Vec3::ONE,
+                        Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, 0.0),
+                        pos.to_vec3() / METERS_PER_SHADER_UNIT as f32
+                    ), 
+                    args.state.scene_dag_key,
+                    args.state.dag.get_entry(dag_key),
+                ).result_blocking();
+
+                CollapseValue::Object(Object { scene_key, dag_key })
+            },
+        }
     }
 
     fn on_collapse(args: OnCollapseArgs<V2, V3, T, Self>) {
@@ -110,15 +150,30 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
     }
 
     fn on_delete(args: OnDeleteArgs<V2, V3, T, Self>) {
-    
+        match &args.collapse_node.data {
+            NodeDataType::Build(t) => match t {
+                CollapseValue::Object(object) => {
+                    args.state.scene.remove_object(object.scene_key);
+                },
+            },
+            _ => unreachable!()
+        }
     }
 }
 
 impl ComposeIsland {
-    pub fn new() -> Self {
+    pub fn new(scene: SceneWorkerSend) -> Self {
+        let mut dag = VoxelDAG64::new(1000000, 1000000).parallel();
+        let scene_dag_key = scene.add_dag(dag.clone()).result_blocking();
+        let mut state =  ComposeIslandState {
+            dag,
+            scene,
+            scene_dag_key,
+        }; 
+
         Self {
-            composer: ModelComposer::new(),
-            state: ComposeIslandState::default(),
+            composer: ModelComposer::new(&mut state),
+            state
         }
     }
 

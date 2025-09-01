@@ -26,7 +26,7 @@ pub enum PositionSetTemplate {
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> { 
-    pub fn make_number(&self, original_node: &ComposeNode<V2, V3, T, B>, in_index: usize, template: &ComposeTemplate<V2, V3, T, B>) -> NumberTemplate<T> {
+    pub fn make_number(&self, original_node: &ComposeNode<B::ComposeType>, in_index: usize, template: &ComposeTemplate<V2, V3, T, B>) -> NumberTemplate<T> {
         let remotes = self.snarl.in_pin(InPinId{ node: original_node.id, input: in_index }).remotes;
         if remotes.len() >= 2 {
             panic!("More than one node connected to {:?}", original_node.t);
@@ -53,7 +53,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
 
     pub fn make_position<V: Ve<T, D>, const D: usize>(
         &self, 
-        original_node: &ComposeNode<V2, V3, T, B>, 
+        original_node: &ComposeNode<B::ComposeType>, 
         in_index: usize, 
         template: &ComposeTemplate<V2, V3, T, B>,
     ) -> PositionTemplate<V, T, D> {

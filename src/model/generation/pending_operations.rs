@@ -18,7 +18,7 @@ pub enum PendingOperationsRes {
     Empty
 }
 
-impl PendingOperations {
+impl PendingOperations { 
     pub fn new(max_level: usize) -> Self {
         Self {
             pending_per_level: iter::repeat_with(|| {(VecDeque::new(), VecDeque::new())}).take(max_level).collect(),

@@ -3,7 +3,7 @@ use octa_force::egui::Ui;
 
 use crate::util::{number::Nu, vector::Ve};
 
-use super::{build::BS, data_type::ComposeDataType};
+use super::{build::{ComposeTypeTrait, BS}, data_type::ComposeDataType};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ComposeNodeGroupe {
@@ -24,7 +24,7 @@ pub enum ComposeNodeGroupe {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum ComposeNodeType<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
+pub enum ComposeNodeType<CT: ComposeTypeTrait> {
     Position2D,
     Position3D,
 
@@ -63,12 +63,12 @@ pub enum ComposeNodeType<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     // Globals 
     PlayerPosition,
 
-    Build(B::ComposeType)
+    Build(CT)
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct ComposeNode<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
-    pub t: ComposeNodeType<V2, V3, T, B>,
+pub struct ComposeNode<CT: ComposeTypeTrait> {
+    pub t: ComposeNodeType<CT>,
     pub id: NodeId,
     pub group: ComposeNodeGroupe,
     pub inputs: Vec<ComposeNodeInput>,
@@ -88,7 +88,7 @@ pub struct ComposeNodeOutput {
     pub data_type: ComposeDataType,
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeNode<V2, V3, T, B> { 
+impl<CT: ComposeTypeTrait> ComposeNode<CT> { 
     pub fn title(&self) -> String {
         format!("{:?}", self.t)
     }
@@ -107,7 +107,7 @@ impl ComposeNodeOutput {
 }
 
 
-pub fn get_node_templates<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>>() -> Vec<ComposeNode<V2, V3, T, B>> {
+pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
     vec![ 
         ComposeNode { 
             t: ComposeNodeType::Position2D, 

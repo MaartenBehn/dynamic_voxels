@@ -15,7 +15,7 @@ pub mod build;
 
 use std::{fs::{self, File}, io::Write};
 
-use build::BS;
+use build::{ComposeTypeTrait, BS};
 use collapse::collapser::Collapser;
 use egui_snarl::{ui::{NodeLayout, PinPlacement, SnarlStyle, SnarlWidget}, Snarl};
 use nodes::ComposeNode;
@@ -29,11 +29,13 @@ const TEMP_SAVE_FILE: &str = "./composer_temp_save.json";
 
 #[derive(Debug)]
 pub struct ModelComposer<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
-    pub snarl: Snarl<ComposeNode<V2, V3, T, B>>,
+    pub snarl: Snarl<ComposeNode<B::ComposeType>>,
     pub style: SnarlStyle,
     pub viewer: ComposeViewer<V2, V3, T, B>,
     pub template: ComposeTemplate<V2, V3, T, B>,
     pub collapser: Collapser<V2, V3, T, B>,
+
+    pub show: bool,
 }
 
 const fn default_style() -> SnarlStyle {
@@ -68,22 +70,27 @@ const fn default_style() -> SnarlStyle {
 
 impl<V2, V3, T, B> ModelComposer<V2, V3, T, B> 
 where 
-    V2: Ve<T, 2> + serde::Serialize + serde::de::DeserializeOwned, 
-    V3: Ve<T, 3> + serde::Serialize + serde::de::DeserializeOwned, 
-    T: Nu + serde::Serialize + serde::de::DeserializeOwned, 
-    B: BS<V2, V3, T> + serde::Serialize + serde::de::DeserializeOwned 
+    V2: Ve<T, 2>, 
+    V3: Ve<T, 3>, 
+    T: Nu, 
+    B: BS<V2, V3, T>,
+    B::ComposeType: serde::Serialize + serde::de::DeserializeOwned,
 {
-    pub fn new() -> Self {
+    pub fn new(state: &mut B) -> Self {
         let snarl = load_snarl().unwrap_or(Snarl::new());       
         let style = SnarlStyle::new();
         let viewer = ComposeViewer::new();
+        let template = ComposeTemplate::empty();
+        let collapser =  Collapser::new(&template, state);
 
         ModelComposer {
             snarl,
             style, 
             viewer,
-            template: Default::default(),
-            collapser: Default::default(),
+            template,
+            collapser,
+
+            show: true,
         }
     }
 
@@ -91,6 +98,10 @@ where
         egui::SidePanel::right("Right Side")
             .default_width(300.0)
             .show(ctx, |ui| {
+                if ui.button("Graph View").clicked() {
+                    self.show = !self.show;
+                }
+
                 if ui.button("Build Template").clicked() {
                     self.template = ComposeTemplate::new(self, state);
                 }
@@ -98,19 +109,21 @@ where
                 self.template.debug_render(ui);
 
                 if ui.button("Build Collapser").clicked() {
-                    self.collapser = self.template.get_collapser(state);
+                    self.collapser.template_changed(&self.template, state);
                     self.collapser.run(&self.template, state);
                 }
 
                 self.collapser.debug_render(ui);
             });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            SnarlWidget::new()
-                .id(Id::new("snarl-demo"))
-                .style(self.style)
-                .show(&mut self.snarl, &mut self.viewer, ui);
-        });
+        if self.show {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                SnarlWidget::new()
+                    .id(Id::new("snarl-demo"))
+                    .style(self.style)
+                    .show(&mut self.snarl, &mut self.viewer, ui);
+            });
+        }
     }
 
     pub fn update(&mut self) -> OctaResult<()> {
@@ -123,13 +136,7 @@ where
     }
 }
 
-pub fn load_snarl<V2, V3, T, B>() -> OctaResult<Snarl<ComposeNode<V2, V3, T, B>>> 
-where 
-    V2: Ve<T, 2> + serde::de::DeserializeOwned, 
-    V3: Ve<T, 3> + serde::de::DeserializeOwned, 
-    T: Nu + serde::de::DeserializeOwned, 
-    B: BS<V2, V3, T> + serde::de::DeserializeOwned 
-{
+pub fn load_snarl<CT: ComposeTypeTrait + serde::de::DeserializeOwned>() -> OctaResult<Snarl<ComposeNode<CT>>> {
     let content = fs::read_to_string(TEMP_SAVE_FILE)?; 
     let snarl = serde_json::from_str(&content)?; 
     Ok(snarl)

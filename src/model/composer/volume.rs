@@ -1,7 +1,7 @@
 use egui_snarl::OutPinId;
 use itertools::Itertools;
 
-use crate::{csg::csg_tree::tree::CSGTree, util::{number::Nu, vector::Ve}};
+use crate::{csg::{csg_tree::tree::CSGTree, Base}, util::{number::Nu, vector::Ve}};
 
 use super::{build::BS, collapse::collapser::{CollapseNodeKey, Collapser}, data_type::ComposeDataType, nodes::ComposeNodeType, primitive::{NumberTemplate, PositionSetTemplate, PositionTemplate}, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
 
@@ -148,43 +148,44 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> VolumeTemplate<V, T, D> {
         }.into_iter()
     }
 
-    pub fn get_value<V2: Ve<T, 2>, V3: Ve<T, 3>, B: BS<V2, V3, T>>(
+    pub fn get_value<V2: Ve<T, 2>, V3: Ve<T, 3>, B: BS<V2, V3, T>, M: Base>(
         &self, 
         depends: &[(TemplateIndex, Vec<CollapseNodeKey>)], 
-        collapser: &Collapser<V2, V3, T, B>
-
-    ) -> CSGTree<(), V, T, D>  {
-        self.get_value_inner(self.root, depends, collapser)
+        collapser: &Collapser<V2, V3, T, B>,
+        mat: M, 
+    ) -> CSGTree<M, V, T, D>  {
+        self.get_value_inner(self.root, depends, collapser, mat)
     }
-
-    pub fn get_value_inner<V2: Ve<T, 2>, V3: Ve<T, 3>, B: BS<V2, V3, T>>(
+ 
+    pub fn get_value_inner<V2: Ve<T, 2>, V3: Ve<T, 3>, B: BS<V2, V3, T>, M: Base>(
         &self, 
         index: usize, 
         depends: &[(TemplateIndex, Vec<CollapseNodeKey>)], 
-        collapser: &Collapser<V2, V3, T, B>
-    ) -> CSGTree<(), V, T, D> {
+        collapser: &Collapser<V2, V3, T, B>,
+        mat: M,
+    ) -> CSGTree<M, V, T, D> {
 
         let node = self.nodes[index];
         match &node {
             VolumeTemplateData::Sphere { pos, size } => CSGTree::new_sphere(
                 pos.get_value(depends, collapser), 
                 size.get_value(depends, collapser), 
-                ()
+                mat
             ),
             VolumeTemplateData::Box { pos, size } => CSGTree::new_box(
                 pos.get_value(depends, collapser), 
                 size.get_value(depends, collapser), 
-                ()
+                mat
             ),
             VolumeTemplateData::Union { a, b } => {
-                let mut a = self.get_value_inner(*a, depends, collapser);
-                let b = self.get_value_inner(*b, depends, collapser);
+                let mut a = self.get_value_inner(*a, depends, collapser, mat);
+                let b = self.get_value_inner(*b, depends, collapser, mat);
                 a.union_at_root(&b.nodes, b.root);
                 a
             },
             VolumeTemplateData::Cut { base, cut } => {
-                let mut base = self.get_value_inner(*base, depends, collapser);
-                let cut = self.get_value_inner(*cut, depends, collapser);
+                let mut base = self.get_value_inner(*base, depends, collapser, mat);
+                let cut = self.get_value_inner(*cut, depends, collapser, mat);
                 base.cut_at_root(&cut.nodes, cut.root);
                 base
             },

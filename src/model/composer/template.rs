@@ -45,7 +45,23 @@ pub struct TemplateNode<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3, T, B> {
-    pub fn new(composer: &ModelComposer<V2, V3, T, B>, state: &mut B) -> ComposeTemplate<V2, V3, T, B> {
+    pub fn empty() -> Self {
+        Self {
+            nodes:  vec![
+                TemplateNode {
+                    node_id: NodeId(usize::MAX),
+                    index: 0,
+                    value: ComposeTemplateValue::None,
+                    depends: smallvec![],
+                    dependend: smallvec![],
+                    level: 1,
+                    defines: smallvec![],
+                }],
+            max_level: 1,
+        }
+    }
+
+    pub fn new(composer: &ModelComposer<V2, V3, T, B>, state: &mut B) -> Self {
         let mut nodes = vec![
             TemplateNode {
                 node_id: NodeId(usize::MAX),
@@ -53,7 +69,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                 value: ComposeTemplateValue::None,
                 depends: smallvec![],
                 dependend: smallvec![],
-                level: 0,
+                level: 1,
                 defines: smallvec![],
             }]; 
 
@@ -203,17 +219,17 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> {
-    pub fn get_input_index_by_type(&self, node: &ComposeNode<V2, V3, T, B>, t: ComposeDataType) -> usize {
+    pub fn get_input_index_by_type(&self, node: &ComposeNode<B::ComposeType>, t: ComposeDataType) -> usize {
         node.inputs.iter()
             .position(|i|  i.data_type == t)
             .expect(&format!("Node {:?} input of type {:?}", node.t, t))
     }
 
-    pub fn get_input_pin_by_type(&self, node: &ComposeNode<V2, V3, T, B>, t: ComposeDataType) -> OutPinId {
+    pub fn get_input_pin_by_type(&self, node: &ComposeNode<B::ComposeType>, t: ComposeDataType) -> OutPinId {
         self.get_input_pin_by_index(node, self.get_input_index_by_type(node, t))
     }
 
-    pub fn get_input_pin_by_index(&self, node: &ComposeNode<V2, V3, T, B>, index: usize) -> OutPinId {
+    pub fn get_input_pin_by_index(&self, node: &ComposeNode<B::ComposeType>, index: usize) -> OutPinId {
         let remotes = self.snarl.in_pin(InPinId{ node: node.id, input: index }).remotes;
         if remotes.is_empty() {
             panic!("No node connected to {:?}", node.t);

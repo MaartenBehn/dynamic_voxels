@@ -51,7 +51,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> PositionSpace<V2, V3, T> {
         match &template_space {
             PositionSpaceTemplate::GridInVolume(grid_volume_template) 
             => PositionSpace::GridInVolume(GridVolume { 
-                volume: grid_volume_template.volume.get_value(depends, collapser), 
+                volume: grid_volume_template.volume.get_value(depends, collapser, ()), 
                 spacing: grid_volume_template.spacing.get_value(depends, collapser),
                 
                 positions: Default::default(),
@@ -59,7 +59,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> PositionSpace<V2, V3, T> {
             }),
             PositionSpaceTemplate::GridOnPlane(grid_on_plane_template) 
             => PositionSpace::GridOnPlane(GridOnPlane { 
-                volume: grid_on_plane_template.volume.get_value(depends, collapser), 
+                volume: grid_on_plane_template.volume.get_value(depends, collapser, ()), 
                 spacing: grid_on_plane_template.spacing.get_value(depends, collapser),
                 height: grid_on_plane_template.height.get_value(depends, collapser),
                 

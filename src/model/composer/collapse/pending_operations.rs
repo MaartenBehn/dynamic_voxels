@@ -18,10 +18,26 @@ pub enum PendingOperationsRes {
 }
 
 impl PendingOperations {
+    pub fn empty() -> Self {
+        Self {
+            pending_per_level: vec![],
+            min_with_value: 0,
+        }
+    }
+
     pub fn new(max_level: usize) -> Self {
         Self {
             pending_per_level: iter::repeat_with(|| {(VecDeque::new(), VecDeque::new())}).take(max_level).collect(),
             min_with_value: max_level -1,
+        }
+    }
+
+    pub fn template_changed(&mut self, max_level: usize) {
+        let new_min_with_value = max_level -1; 
+        
+        if self.min_with_value != new_min_with_value {
+            self.pending_per_level.resize(max_level, (VecDeque::new(), VecDeque::new()));
+            self.min_with_value = new_min_with_value;
         }
     }
 

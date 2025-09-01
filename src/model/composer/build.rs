@@ -4,14 +4,14 @@ use smallvec::SmallVec;
 
 use crate::util::{number::Nu, vector::Ve};
 
-use super::{collapse::collapser::{CollapseNodeKey, Collapser}, nodes::ComposeNode, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
+use super::{collapse::collapser::{CollapseNode, CollapseNodeKey, Collapser}, nodes::ComposeNode, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
 
-pub trait BS<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu>: fmt::Debug + Clone + Default {
+pub trait BS<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu>: fmt::Debug + Clone {
     type ComposeType: ComposeTypeTrait;
     type TemplateValue: TemplateValueTrait; 
     type CollapseValue: CollapseValueTrait; 
 
-    fn compose_nodes() -> Vec<ComposeNode<V2, V3, T, Self>>;
+    fn compose_nodes() -> Vec<ComposeNode<Self::ComposeType>>;
     fn is_template_node(t: &Self::ComposeType) -> bool;
     
     fn get_template_value(args: GetTemplateValueArgs<V2, V3, T, Self>) -> Self::TemplateValue;
@@ -20,7 +20,7 @@ pub trait BS<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu>: fmt::Debug + Clone + Default {
     fn on_delete(args: OnDeleteArgs<V2, V3, T, Self>);
 }
 
-pub trait ComposeTypeTrait: fmt::Debug + Clone + serde::Serialize + serde::de::DeserializeOwned {
+pub trait ComposeTypeTrait: fmt::Debug + Clone {
 }
 
 pub trait TemplateValueTrait: fmt::Debug + Clone {
@@ -33,7 +33,7 @@ pub trait CollapseValueTrait: fmt::Debug + Clone {
 
 pub struct GetTemplateValueArgs<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub compose_type: &'a B::ComposeType, 
-    pub composer_node: &'a ComposeNode<V2, V3, T, B>,
+    pub composer_node: &'a ComposeNode<B::ComposeType>,
 
     pub composer: &'a ModelComposer<V2, V3, T, B>,
     pub template: &'a ComposeTemplate<V2, V3, T, B>,
@@ -58,7 +58,7 @@ pub struct OnCollapseArgs<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T
 }
 
 pub struct OnDeleteArgs<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
-    pub collapse_index: CollapseNodeKey,
+    pub collapse_node: &'a CollapseNode<V2, V3, T, B>,
 
     pub collapser: &'a Collapser<V2, V3, T, B>,
     pub template: &'a ComposeTemplate<V2, V3, T, B>,

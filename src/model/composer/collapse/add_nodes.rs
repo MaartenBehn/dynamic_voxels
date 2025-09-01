@@ -93,7 +93,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         } else if present_children_len > n {
 
             for child in present_children.to_owned().into_iter().take(n - present_children_len) {
-                self.delete_node(child, template);
+                self.delete_node(child, template, state);
             }
         } 
     }
@@ -149,7 +149,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         }
 
         for child_index in to_remove_children {
-            self.delete_node(child_index, template);
+            self.delete_node(child_index, template, state);
         }
     }
   

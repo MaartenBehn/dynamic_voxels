@@ -30,7 +30,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         }
 
         if !self.nodes.is_empty() {
-            self.node(ui, self.nodes.keys().next().unwrap(), 0);
+            self.node(ui, self.get_root_key(), 0);
         } else {
             ui.label("Collapser empty");
         }
