@@ -61,7 +61,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
         }
     }
 
-    pub fn new(composer: &ModelComposer<V2, V3, T, B>, state: &mut B) -> Self {
+    pub fn new(composer: &ModelComposer<V2, V3, T, B>) -> Self {
         let mut nodes = vec![
             TemplateNode {
                 node_id: NodeId(usize::MAX),
@@ -141,7 +141,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                         composer_node, 
                         composer: &composer, 
                         template: &template, 
-                        state: state 
                     });
 
                     let depends = value.get_dependend_template_nodes();

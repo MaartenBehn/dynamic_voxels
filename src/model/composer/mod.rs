@@ -18,7 +18,7 @@ pub mod pin;
 use std::{fs::{self, File}, io::Write, time::Duration};
 
 use build::{ComposeTypeTrait, BS};
-use collapse::collapser::Collapser;
+use collapse::{collapser::Collapser, worker::ComposeCollapseWorker};
 use egui_snarl::{ui::{NodeLayout, PinPlacement, SnarlStyle, SnarlWidget}, Snarl};
 use nodes::ComposeNode;
 use octa_force::{anyhow::anyhow, egui::{self, CornerRadius, Id}, OctaResult};
@@ -34,8 +34,7 @@ pub struct ModelComposer<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub snarl: Snarl<ComposeNode<B::ComposeType>>,
     pub style: SnarlStyle,
     pub viewer: ComposeViewer<V2, V3, T, B>,
-    pub template: ComposeTemplate<V2, V3, T, B>,
-    pub collapser: Collapser<V2, V3, T, B>,
+    pub collapser_worker: ComposeCollapseWorker<V2, V3, T, B>,
 }
 
 const fn default_style() -> SnarlStyle {
@@ -77,31 +76,24 @@ where
     B: BS<V2, V3, T>,
     B::ComposeType: serde::Serialize + serde::de::DeserializeOwned,
 {
-    pub fn new(state: &mut B) -> Self {
+    pub fn new(state: B) -> Self {
         let mut snarl = load_snarl().unwrap_or(Snarl::new());       
         let style = default_style();
         let mut viewer = ComposeViewer::new();
         let template = ComposeTemplate::empty();
-        let collapser =  Collapser::new(&template, state);
-
+        let collapser_worker = ComposeCollapseWorker::new(template, state);
+       
         viewer.check_valid_for_all_nodes(&mut snarl);
 
         ModelComposer {
             snarl,
             style, 
             viewer,
-            template,
-            collapser,
+            collapser_worker,
         }
     }
 
-    pub fn render(&mut self, ctx: &egui::Context) { 
-        egui::SidePanel::right("Right Side")
-            .default_width(300.0)
-            .show(ctx, |ui| {
-                self.collapser.debug_render(ui);
-            });
-
+    pub fn render(&mut self, ctx: &egui::Context) {  
         egui::SidePanel::left("Left Side")
             .default_width(1000.0)
             .show(ctx, |ui| {
@@ -113,15 +105,14 @@ where
 
     }
 
-    pub fn update(&mut self, time: Duration, state: &mut B) -> OctaResult<()> {
+    pub fn update(&mut self, time: Duration) -> OctaResult<()> {
         self.viewer.update(time);
 
         if self.viewer.changed {
             self.viewer.changed = false;
             if !self.viewer.invalid_nodes.any() {
-                self.template = ComposeTemplate::new(self, state);
-                self.collapser.template_changed(&self.template, state);
-                self.collapser.run(&self.template, state);
+                let template = ComposeTemplate::new(self);
+                self.collapser_worker.template_changed(template);
             }
         } 
 

@@ -32,7 +32,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         }
     }
 
-    pub fn upadte_defined(
+    pub async fn upadte_defined(
         &mut self, 
         opperation: UpdateDefinesOperation, 
         template: &ComposeTemplate<V2, V3, T, B>,
@@ -40,15 +40,15 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
     ) {
         match opperation {
             UpdateDefinesOperation::N { parent_index, defines_index } => {
-                self.update_defined_n(parent_index, defines_index, template, state);
+                self.update_defined_n(parent_index, defines_index, template, state).await;
             },
             UpdateDefinesOperation::ByNode { parent_index, defines_index } => {
-                self.update_defined_by_node(parent_index, defines_index, template, state);
+                self.update_defined_by_node(parent_index, defines_index, template, state).await;
             },
         }
     }
  
-    pub fn update_defined_n(
+    pub async fn update_defined_n(
         &mut self, 
         parent_index: CollapseNodeKey, 
         defines_index: usize, 
@@ -87,7 +87,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
                     CollapseChildKey::null(), 
                     template, 
                     state,
-                ); 
+                ).await; 
             }
 
         } else if present_children_len > n {
@@ -98,7 +98,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         } 
     }
 
-    pub fn update_defined_by_node(
+    pub async fn update_defined_by_node(
         &mut self, 
         parent_index: CollapseNodeKey, 
         defines_index: usize, 
@@ -144,7 +144,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
                     new_child, 
                     template, 
                     state,
-                ); 
+                ).await; 
             }
         }
 
@@ -215,7 +215,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         depends
     }
 
-    pub fn add_node(
+    pub async fn add_node(
         &mut self, 
         new_node_template_index: TemplateIndex, 
         depends: Vec<(TemplateIndex, Vec<CollapseNodeKey>)>, 
@@ -241,7 +241,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
                 collapser: &self, 
                 template, 
                 state 
-            })),
+            }).await),
         };
 
         self.push_new_node(new_node_template, depends, defined_by, child_key, data)

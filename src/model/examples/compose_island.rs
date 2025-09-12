@@ -13,7 +13,6 @@ use crate::{csg::csg_tree::tree::CSGTree, model::composer::{build::{CollapseValu
 #[derive(Debug)]
 pub struct ComposeIsland {
     pub composer: ModelComposer<IVec2, IVec3, i32, ComposeIslandState>,
-    pub state: ComposeIslandState,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -123,7 +122,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
         }
     }
 
-    fn get_collapse_value(args: GetCollapseValueArgs<V2, V3, T, Self>) -> Self::CollapseValue {
+    async fn get_collapse_value<'a>(args: GetCollapseValueArgs<'a, V2, V3, T, Self>) -> Self::CollapseValue {
         match args.template_value {
             TemplateValue::Object(object_template) => {
                 
@@ -141,7 +140,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
                     ), 
                     args.state.scene_dag_key,
                     args.state.dag.get_entry(dag_key),
-                ).result_blocking();
+                ).result_async().await;
 
                 CollapseValue::Object(Object { scene_key, dag_key })
             },
@@ -175,13 +174,12 @@ impl ComposeIsland {
         }; 
 
         Self {
-            composer: ModelComposer::new(&mut state),
-            state
+            composer: ModelComposer::new(state),
         }
     }
 
     pub fn update(&mut self, time: Duration) -> OctaResult<()> {
-        self.composer.update(time, &mut self.state)
+        self.composer.update(time)
     }
 
     pub fn render(&mut self, ctx: &egui::Context) {

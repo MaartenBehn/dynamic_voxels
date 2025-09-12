@@ -49,7 +49,7 @@ pub enum UpdateDefinesOperation {
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B> {
-    pub fn new(template: &ComposeTemplate<V2, V3, T, B>, state: &mut B) -> Self {
+    pub async fn new(template: &ComposeTemplate<V2, V3, T, B>, state: &mut B) -> Self {
         let inital_capacity = 1000;
 
         let mut collapser = Self {
@@ -63,19 +63,19 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             CollapseNodeKey::null(), 
             CollapseChildKey::null(), 
             template,
-            state);
+            state).await;
 
         collapser.template_changed(template, state); 
         collapser
     }
  
-    pub fn run(&mut self, template: &ComposeTemplate<V2, V3, T, B>, state: &mut B) {
+    pub async fn run(&mut self, template: &ComposeTemplate<V2, V3, T, B>, state: &mut B) {
 
         loop {
             match self.pending.pop() {
                 PendingOperationsRes::Collapse(key) => self.collapse_node(key, template, state),
                 PendingOperationsRes::CreateDefined(operation) => self.upadte_defined(
-                    operation, template, state),
+                    operation, template, state).await,
                 PendingOperationsRes::Empty => break,
             }
         }
