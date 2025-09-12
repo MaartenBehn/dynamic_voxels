@@ -123,6 +123,15 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             _ => panic!("Template Node {:?} is not of Type Position Space Set", node.template_index)
         }
     }
+
+    pub fn get_position_set<V: Ve<T, D>, const D: usize>(&self, index: CollapseNodeKey) -> impl Iterator<Item = V> {
+        let node = &self.nodes[index];
+        
+        match &node.data {
+            NodeDataType::PositionSpace(d) => d.get_positions(),
+            _ => panic!("Template Node {:?} is not of Type Position Space Set", node.template_index)
+        }
+    }
  
     fn get_dependend_index(
         &self, 
@@ -150,6 +159,15 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         collapser: &Collapser<V2, V3, T, B>
     ) -> V { 
         collapser.get_position(self.get_dependend_index(template_index, depends, collapser))
+    }
+
+    pub fn get_dependend_position_set<V: Ve<T, D>, const D: usize>(
+        &self, 
+        template_index: TemplateIndex,
+        depends: &[(TemplateIndex, Vec<CollapseNodeKey>)],
+        collapser: &Collapser<V2, V3, T, B>
+    ) -> impl Iterator<Item = V> { 
+        collapser.get_position_set(self.get_dependend_index(template_index, depends, collapser))
     }
 
     pub fn get_root_key(&self) -> CollapseNodeKey {

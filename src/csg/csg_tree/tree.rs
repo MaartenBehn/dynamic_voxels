@@ -12,7 +12,8 @@ pub const CSG_TREE_INDEX_INVALID: CSGTreeIndex = CSGTreeIndex::MAX;
 pub enum CSGTreeNodeData<M, V: Ve<T, D>, T: Nu, const D: usize> {
     Union(CSGTreeUnion<V, T, D>),
     Remove(CSGTreeRemove),
-    
+   
+    None,
     Box(CSGBox<M, V, T, D>),
     Sphere(CSGSphere<M, V, T, D>),
     OffsetVoxelGrid(OffsetVoxelGrid),
@@ -43,7 +44,7 @@ pub struct CutResult {
     pub new_object_index: CSGTreeIndex,
 }
 
-impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> { 
+impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {  
     pub fn from_node(node: CSGTreeNode<M, V, T, D>) -> Self {
         Self {
             nodes: vec![node],
@@ -53,17 +54,33 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
     }
 
     pub fn union_at_root(&mut self, other: &[CSGTreeNode<M, V, T, D>], other_root: usize) -> UnionResult {   
-        let new_index = self.nodes.len() + other_root;
-        self.nodes.extend_from_slice(other);
+        assert!(!other.is_empty());
+
         self.changed = true;
 
-        if self.nodes.len() == 1 {
-            self.root = new_index;
+        if self.nodes.is_empty() {
+            self.nodes.extend_from_slice(other);
+            self.root = other_root;
+
             return UnionResult {
-                union_node_index: new_index,
-                new_object_index: new_index,
+                union_node_index: other_root,
+                new_object_index: other_root,
             };
         }
+
+        if let CSGTreeNodeData::None = &self.nodes[self.root].data {
+            self.nodes = Vec::with_capacity(other.len());
+            self.nodes.extend_from_slice(other);
+            self.root = other_root;
+
+            return UnionResult {
+                union_node_index: other_root,
+                new_object_index: other_root,
+            };
+        }
+
+        let new_index = self.nodes.len() + other_root;
+        self.nodes.extend_from_slice(other);
 
         let root_node = &mut self.nodes[self.root];
         if let CSGTreeNodeData::Union(union) = &mut root_node.data {
@@ -122,7 +139,11 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
         }
     }
 
-    pub fn cut_at_root(&mut self, other: &[CSGTreeNode<M, V, T, D>], other_root: usize) -> CutResult {
+    pub fn cut_at_root(&mut self, other: &[CSGTreeNode<M, V, T, D>], other_root: usize) -> CutResult { 
+        if self.nodes.is_empty() {
+            self.nodes.push(CSGTreeNode::new(CSGTreeNodeData::None, CSG_TREE_INDEX_INVALID));
+        }
+
         let root_node = &self.nodes[self.root];
         if let CSGTreeNodeData::Remove(cut) = &root_node.data {
             let remove_index = cut.remove;

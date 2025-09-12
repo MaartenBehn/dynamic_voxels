@@ -31,7 +31,11 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
     }
 
     pub fn size(&self) -> V {
-        self.max - self.min
+        if self.valid() {
+            self.max - self.min
+        } else {
+            V::ZERO
+        }
     }
 
     pub fn center(&self) -> V {
@@ -96,6 +100,12 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
             self.min[i] <= other.min[i] && other.max[i] <= self.max[i]
             // self.min.x <= other.max.x && other.min.x <= self.max.x
         })
+    }
+
+    pub fn valid(self) -> bool {
+        (0..D).all(|i| {
+            self.min[i] < self.max[i]
+        }) 
     }
 
     pub fn from_min_max<M: Ma<D>>(mat: &M, min: V, max: V) -> Self { 
@@ -255,6 +265,10 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
     }
 
     pub fn get_sampled_positions(self, step: T) -> impl Iterator<Item = V> {
+        if step <= T::ZERO || !self.valid() {
+            return Either::Left(iter::empty())
+        }
+
         let min = (self.min / step);
         let max = (self.max / step);
 
@@ -263,18 +277,18 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
                 let min = min.to_ivec2();
                 let max = max.to_ivec2();
 
-                Either::Left((min.x..=max.y)
+                Either::Right(Either::Left((min.x..=max.y)
                     .flat_map(move |x| iter::repeat(x).zip(min.y..=max.y))
-                    .map(move |(x, y)| V::from_ivec2(ivec2(x, y)) * step))
+                    .map(move |(x, y)| V::from_ivec2(ivec2(x, y)) * step)))
             }
             3 => {
                 let min = min.to_ivec3();
                 let max = max.to_ivec3();
 
-                Either::Right((min.x..=max.y)
+                Either::Right(Either::Right((min.x..=max.y)
                     .flat_map(move |x| iter::repeat(x).zip(min.y..=max.y))
                     .flat_map(move |(x, y)| iter::repeat((x, y)).zip(min.z..=max.z))
-                    .map(move |((x, y), z)| V::from_ivec3(ivec3(x, y, z)) * step))
+                    .map(move |((x, y), z)| V::from_ivec3(ivec3(x, y, z)) * step)))
             }
             _ => unreachable!()
         }
@@ -291,8 +305,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
 
     pub fn from_f<V2: Ve<f32, D>>(aabb: AABB<V2, f32, D>) -> Self {
         AABB::new(V::from_vecf(aabb.min()), V::from_vecf(aabb.max()))
-    }
-
+    } 
 }
 
 impl<V: Ve<T, D>, T: Nu, const D: usize> Default for AABB<V, T, D> {

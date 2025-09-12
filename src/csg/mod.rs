@@ -7,7 +7,7 @@ pub mod sphere;
 pub mod r#box;
 pub mod all;
 
-pub trait Base: Copy {
+pub trait Base: Copy + Default {
     fn base() -> Self;
 }
 

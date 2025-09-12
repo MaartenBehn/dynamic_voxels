@@ -21,8 +21,8 @@ pub enum PositionTemplate<V: Ve<T, D>, T: Nu, const D: usize> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum PositionSetTemplate {
-    Hook(TemplateIndex),
+pub struct PositionSetTemplate {
+    template_index: TemplateIndex,
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> { 
@@ -101,7 +101,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
     }
 
     pub fn make_position_set(&self, pin: OutPinId, template: &ComposeTemplate<V2, V3, T, B>) -> PositionSetTemplate {
-        PositionSetTemplate::Hook(template.get_index_by_out_pin(pin))
+        PositionSetTemplate{ 
+            template_index: template.get_index_by_out_pin(pin)
+        }
     }
 
 } 
@@ -152,9 +154,15 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> PositionTemplate<V, T, D> {
 }
 
 impl PositionSetTemplate {
-    pub fn get_dependend_template_nodes(&self) -> impl Iterator<Item = TemplateIndex> {
-        match self {
-            PositionSetTemplate::Hook(index) => Some(*index),
-        }.into_iter()
+    pub fn get_dependend_template_nodes(&self) -> impl Iterator<Item = TemplateIndex>  {
+        Some(self.template_index).into_iter()
+    }
+
+    pub fn get_value<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>, const D: usize>(
+        &self, 
+        depends: &[(TemplateIndex, Vec<CollapseNodeKey>)], 
+        collapser: &Collapser<V2, V3, T, B>
+    ) -> impl Iterator<Item = V> {
+        collapser.get_dependend_position_set(self.template_index, depends, collapser)
     }
 }

@@ -28,6 +28,7 @@ impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
         let node = &mut self.nodes[index];
 
         match &mut node.data {
+            CSGTreeNodeData::None => {},
             CSGTreeNodeData::Union(d) => {
                 if !d.changed {
                     return;
@@ -44,7 +45,6 @@ impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
                 self.calculate_bounds_index(base);
                 self.calculate_bounds_index(remove);
             },
-
             CSGTreeNodeData::Box(d) => d.calculate_bounds(),
             CSGTreeNodeData::Sphere(d) => d.calculate_bounds(),
             CSGTreeNodeData::OffsetVoxelGrid(d) => 
@@ -58,6 +58,7 @@ impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
         let node = &self.nodes[index];
 
         match &node.data {
+            CSGTreeNodeData::None => AABB::default(),
             CSGTreeNodeData::Union(d) => d.get_bounds(),
             CSGTreeNodeData::Remove(csgtree_remove) => {
                 let base = csgtree_remove.base;

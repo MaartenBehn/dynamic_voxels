@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, time::Duration};
 
 use egui_snarl::{NodeId, OutPinId};
 use octa_force::{egui, glam::{EulerRot, IVec2, IVec3, Mat4, Quat, Vec3}, OctaResult};
@@ -83,15 +83,18 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
                 inputs: vec![
                     ComposeNodeInput { 
                         name: "ammount".to_string(), 
-                        data_type: ComposeDataType::Ammount, 
+                        data_type: ComposeDataType::Ammount,
+                        valid: false,
                     },
                     ComposeNodeInput { 
                         name: "volume".to_string(), 
                         data_type: ComposeDataType::Volume3D, 
+                        valid: false,
                     },
                     ComposeNodeInput { 
                         name: "pos".to_string(), 
                         data_type: ComposeDataType::Position3D(None), 
+                        valid: false,
                     },
                 ], 
                 outputs: vec![], 
@@ -177,12 +180,12 @@ impl ComposeIsland {
         }
     }
 
-    pub fn update(&mut self) -> OctaResult<()> {
-        self.composer.update()
+    pub fn update(&mut self, time: Duration) -> OctaResult<()> {
+        self.composer.update(time, &mut self.state)
     }
 
     pub fn render(&mut self, ctx: &egui::Context) {
-        self.composer.render(ctx, &mut self.state);
+        self.composer.render(ctx);
     }
 }
 

@@ -13,6 +13,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> CSGTree<u8, V, T, D> {
 
         let node = &self.nodes[index];
         match &node.data {
+            CSGTreeNodeData::None => VolumeQureyAABBResult::Full(MATERIAL_ID_NONE),
             CSGTreeNodeData::Union(d) => self.get_aabb_value_union(d, aabb),
             CSGTreeNodeData::Remove(d) => self.get_aabb_value_remove(d, aabb),
 

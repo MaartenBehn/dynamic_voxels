@@ -2,7 +2,7 @@ use std::hint::black_box;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use itertools::Itertools;
 use octa_force::glam::{vec3, vec3a, UVec3, Vec3, Vec3A};
-use reload::{csg::{csg_tree::tree::CSGTree, union::tree::{Union, UnionNode}}, util::{math_config::Int3D, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValue}, voxel::dag64::VoxelDAG64};
+use reload::{csg::{csg_tree::tree::CSGTree, union::tree::{Union, UnionNode}}, util::{vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValue}, voxel::dag64::VoxelDAG64};
 
 
 fn criterion_benchmark(c: &mut Criterion) {

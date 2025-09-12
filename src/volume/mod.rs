@@ -30,7 +30,7 @@ pub trait VolumeQureyPosValid<V: Ve<T, D>, T: Nu, const D: usize>: VolumeBounds<
     fn is_position_valid(&self, pos: V) -> bool;
      
     fn get_grid_positions(&self, step: T) -> impl Iterator<Item = V> {
-        let aabb = self.get_bounds();
+        let aabb = self.get_bounds(); 
         aabb.get_sampled_positions(step).into_iter()
             .filter(|p| self.is_position_valid(*p))
     }

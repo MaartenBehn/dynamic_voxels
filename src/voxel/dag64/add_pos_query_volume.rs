@@ -9,6 +9,9 @@ use super::{node::VoxelDAG64Node, util::get_dag_offset_levels, DAG64Entry, DAG64
 impl VoxelDAG64 {
     pub fn add_pos_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3>>(&mut self, model: &M) -> OctaResult<DAG64EntryKey> {
         let (offset, levels) = get_dag_offset_levels(model);
+        if levels == 0 {
+            return self.empty_entry();
+        }
 
         let root = self.add_pos_query_recursive(model, offset, levels)?;
         let root_index = self.nodes.push(&[root])?;

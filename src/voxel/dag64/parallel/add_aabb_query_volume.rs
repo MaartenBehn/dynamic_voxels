@@ -10,6 +10,9 @@ use rayon::prelude::*;
 impl ParallelVoxelDAG64 {
     pub fn add_aabb_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T,3> + Send + Sync>(&mut self, model: &M) -> OctaResult<DAG64EntryKey> {
         let (offset, levels) = get_dag_offset_levels(model);
+        if levels == 0 {
+            return self.empty_entry();
+        }
 
         let root = self.add_aabb_query_recursive_par(model, offset, levels)?;
 

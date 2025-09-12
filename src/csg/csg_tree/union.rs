@@ -46,6 +46,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> BHNode<V::VectorF, f32, D> for BVHNodeV
 impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> BHShape<V::VectorF, f32, D> for CSGTreeNode<M, V, T, D> {
     fn aabb(&self, shapes: &Shapes<Self, V::VectorF, f32, D>) -> AABB<V::VectorF, f32, D> {
         match &self.data {
+            CSGTreeNodeData::None => AABB::default(),
             CSGTreeNodeData::Union(d) => d.get_bounds().to_f(),
             CSGTreeNodeData::Remove(csgtree_remove) => {
                 let base = csgtree_remove.base;

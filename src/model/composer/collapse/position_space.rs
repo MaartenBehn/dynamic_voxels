@@ -1,6 +1,6 @@
-use std::usize;
+use std::{fmt, marker::PhantomData, usize};
 
-use itertools::Itertools;
+use itertools::{Either, Itertools};
 use octa_force::{anyhow::bail, glam::{IVec3, Mat4, Vec3, Vec3A}, OctaResult};
 use slotmap::{new_key_type, SecondaryMap, SlotMap};
 
@@ -15,7 +15,7 @@ pub enum PositionSpace<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
     Path(Path<V2, T>)
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct GridVolume<V: Ve<T, 3>, T: Nu> {
     pub volume: CSGTree<(), V, T, 3>,
     pub spacing: T,
@@ -23,7 +23,7 @@ pub struct GridVolume<V: Ve<T, 3>, T: Nu> {
     pub new_children: Vec<CollapseChildKey>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct GridOnPlane<V: Ve<T, 2>, T: Nu> {
     pub volume: CSGTree<(), V, T, 2>,
     pub spacing: T,
@@ -32,7 +32,7 @@ pub struct GridOnPlane<V: Ve<T, 2>, T: Nu> {
     pub new_children: Vec<CollapseChildKey>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Path<V: Ve<T, 2>, T: Nu> {
     pub spacing: T,
     pub side_variance: V,
@@ -40,6 +40,12 @@ pub struct Path<V: Ve<T, 2>, T: Nu> {
     pub end: V,
     pub positions: SlotMap<CollapseChildKey, V>,
     pub new_children: Vec<CollapseChildKey>,
+}
+
+union VUnion<VA: Ve<T, DA>, VB: Ve<T, DB>, T: Nu, const DA: usize, const DB: usize> {
+    va: VA,
+    vb: VB,
+    p: PhantomData<T>,
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> PositionSpace<V2, V3, T> {
@@ -85,23 +91,71 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> PositionSpace<V2, V3, T> {
                 assert_eq!(D, 3);
 
                 // TODO Maybe unsafe cast?
-                let v = grid_volume.positions[index]; 
-                V::from_iter(v.to_array().into_iter())
+                let v = grid_volume.positions[index];
+
+                // Safety: V3 and V are the same type 
+                unsafe { VUnion { va: v }.vb }
             },
             PositionSpace::GridOnPlane(grid_on_plane) => {
                 assert_eq!(D, 2);
 
-                let v = grid_on_plane.positions[index]; 
-                V::from_iter(v.to_array().into_iter())
+                let v = grid_on_plane.positions[index];
+
+                // Safety: V2 and V are the same type 
+                unsafe { VUnion { va: v }.vb }
             },
             PositionSpace::Path(path) => {
                 assert_eq!(D, 2);
 
-                let v = path.positions[index]; 
-                V::from_iter(v.to_array().into_iter())
+                let v = path.positions[index];
+
+                // Safety: V2 and V are the same type 
+                unsafe { VUnion { va: v }.vb }
             },
         }
     }
+
+    pub fn get_positions<V: Ve<T, D>, const D: usize>(&self) -> impl Iterator<Item = V> {
+        match self {
+            PositionSpace::GridInVolume(grid_volume) => {
+                assert_eq!(D, 3);
+
+                let ps = grid_volume.positions.values()
+                    .copied()
+                    .map(|p| {
+                        // Safety: V3 and V are the same type 
+                        unsafe { VUnion { va: p }.vb }
+                    });
+
+                Either::Left(Either::Left(ps))
+            },
+            PositionSpace::GridOnPlane(grid_on_plane) => {
+                assert_eq!(D, 2);
+
+                let ps = grid_on_plane.positions.values()
+                    .copied()
+                    .map(|p| {
+                        // Safety: V2 and V are the same type 
+                        unsafe { VUnion { va: p }.vb }
+                    });
+
+                Either::Left(Either::Right(ps))
+            },
+            PositionSpace::Path(path) => {
+                assert_eq!(D, 2);
+
+                let ps = path.positions.values()
+                    .copied()
+                    .map(|p| {
+                        // Safety: V2 and V are the same type 
+                        unsafe { VUnion { va: p }.vb }
+                    });
+
+                Either::Right(ps)
+            },
+        }
+    }
+
 
     pub fn is_child_valid(&self, index: CollapseChildKey) -> bool {
         match self {
@@ -179,5 +233,40 @@ impl<V: Ve<T, 2>, T: Nu> Path<V, T> {
             current = current + dir * spacing;
             points.push(V::from_vecf(current));
         }
+    }
+}
+
+impl<V: Ve<T, 3>, T: Nu> fmt::Debug for GridVolume<V, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("GridVolume")
+            .field("volume", &self.volume)
+            .field("spacing", &self.spacing)
+            .field("positions", &())
+            .field("new_children", &())
+            .finish()
+    }
+}
+
+impl<V: Ve<T, 2>, T: Nu> fmt::Debug for GridOnPlane<V, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("GridOnPlane")
+            .field("volume", &self.volume)
+            .field("spacing", &self.spacing)
+            .field("positions", &())
+            .field("new_children", &())
+            .finish()
+    }
+}
+
+impl<V: Ve<T, 2>, T: Nu> fmt::Debug for Path<V, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Path")
+            .field("spacing", &self.spacing)
+            .field("side_variance", &self.side_variance)
+            .field("start", &self.start)
+            .field("end", &self.end)
+            .field("positions", &())
+            .field("new_children", &())
+            .finish()
     }
 }

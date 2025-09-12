@@ -282,7 +282,7 @@ pub fn update(
     }
 
     #[cfg(feature="graph_builder")]
-    render_state.islands.update()?;
+    render_state.islands.update(time)?;
 
     #[cfg(any(feature="scene", feature="islands", feature="graph_builder"))]
     render_state.renderer.update(

@@ -12,8 +12,10 @@ pub mod ammount;
 pub mod dependency_tree;
 pub mod debug_gui;
 pub mod build;
+pub mod validate;
+pub mod pin;
 
-use std::{fs::{self, File}, io::Write};
+use std::{fs::{self, File}, io::Write, time::Duration};
 
 use build::{ComposeTypeTrait, BS};
 use collapse::collapser::Collapser;
@@ -34,15 +36,14 @@ pub struct ModelComposer<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub viewer: ComposeViewer<V2, V3, T, B>,
     pub template: ComposeTemplate<V2, V3, T, B>,
     pub collapser: Collapser<V2, V3, T, B>,
-
-    pub show: bool,
 }
 
 const fn default_style() -> SnarlStyle {
     SnarlStyle {
         node_layout: Some(NodeLayout::coil()),
         pin_placement: Some(PinPlacement::Edge),
-        pin_size: Some(7.0),
+        pin_size: Some(10.0),
+        collapsible: Some(false),
         node_frame: Some(egui::Frame {
             inner_margin: egui::Margin::same(8),
             outer_margin: egui::Margin {
@@ -77,11 +78,13 @@ where
     B::ComposeType: serde::Serialize + serde::de::DeserializeOwned,
 {
     pub fn new(state: &mut B) -> Self {
-        let snarl = load_snarl().unwrap_or(Snarl::new());       
-        let style = SnarlStyle::new();
-        let viewer = ComposeViewer::new();
+        let mut snarl = load_snarl().unwrap_or(Snarl::new());       
+        let style = default_style();
+        let mut viewer = ComposeViewer::new();
         let template = ComposeTemplate::empty();
         let collapser =  Collapser::new(&template, state);
+
+        viewer.check_valid_for_all_nodes(&mut snarl);
 
         ModelComposer {
             snarl,
@@ -89,46 +92,40 @@ where
             viewer,
             template,
             collapser,
-
-            show: true,
         }
     }
 
-    pub fn render(&mut self, ctx: &egui::Context, state: &mut B) { 
+    pub fn render(&mut self, ctx: &egui::Context) { 
         egui::SidePanel::right("Right Side")
             .default_width(300.0)
             .show(ctx, |ui| {
-                if ui.button("Graph View").clicked() {
-                    self.show = !self.show;
-                }
-
-                if ui.button("Build Template").clicked() {
-                    self.template = ComposeTemplate::new(self, state);
-                }
-
-                self.template.debug_render(ui);
-
-                if ui.button("Build Collapser").clicked() {
-                    self.collapser.template_changed(&self.template, state);
-                    self.collapser.run(&self.template, state);
-                }
-
                 self.collapser.debug_render(ui);
             });
 
-        if self.show {
-            egui::CentralPanel::default().show(ctx, |ui| {
-                SnarlWidget::new()
-                    .id(Id::new("snarl-demo"))
-                    .style(self.style)
-                    .show(&mut self.snarl, &mut self.viewer, ui);
-            });
-        }
+        egui::SidePanel::left("Left Side")
+            .default_width(1000.0)
+            .show(ctx, |ui| {
+            SnarlWidget::new()
+                .id(Id::new("snarl-demo"))
+                .style(self.style)
+                .show(&mut self.snarl, &mut self.viewer, ui);
+        });
+
     }
 
-    pub fn update(&mut self) -> OctaResult<()> {
-        let snarl = serde_json::to_string(&self.snarl).unwrap();
+    pub fn update(&mut self, time: Duration, state: &mut B) -> OctaResult<()> {
+        self.viewer.update(time);
 
+        if self.viewer.changed {
+            self.viewer.changed = false;
+            if !self.viewer.invalid_nodes.any() {
+                self.template = ComposeTemplate::new(self, state);
+                self.collapser.template_changed(&self.template, state);
+                self.collapser.run(&self.template, state);
+            }
+        } 
+
+        let snarl = serde_json::to_string(&self.snarl).unwrap();
         let mut file = File::create(TEMP_SAVE_FILE)?;
         file.write_all(snarl.as_bytes())?;
         
@@ -138,7 +135,7 @@ where
 
 pub fn load_snarl<CT: ComposeTypeTrait + serde::de::DeserializeOwned>() -> OctaResult<Snarl<ComposeNode<CT>>> {
     let content = fs::read_to_string(TEMP_SAVE_FILE)?; 
-    let snarl = serde_json::from_str(&content)?; 
+    let snarl = serde_json::from_str(&content)?;
     Ok(snarl)
 }
 

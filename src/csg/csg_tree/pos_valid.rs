@@ -13,6 +13,7 @@ impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
     fn is_position_valid_index(&self, index: CSGTreeIndex, pos: V) -> bool {
         let node = &self.nodes[index];
         match &node.data {
+            CSGTreeNodeData::None => false,
             CSGTreeNodeData::Union(d) => self.is_position_valid_union(d, pos),
             CSGTreeNodeData::Remove(d) => self.is_position_valid_remove(d, pos),
             

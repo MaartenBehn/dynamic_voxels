@@ -189,7 +189,17 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> VolumeTemplate<V, T, D> {
                 base.cut_at_root(&cut.nodes, cut.root);
                 base
             },
-            VolumeTemplateData::SphereUnion { position_set, size } => todo!(),
+            VolumeTemplateData::SphereUnion { position_set, size } => {
+
+                let radius = size.get_value(depends, collapser).to_f32();
+                let mut csg = CSGTree::default();
+                for pos in position_set.get_value::<V, V2, V3, T, B, D>(depends, collapser) {
+                    let pos = pos.to_vecf();
+                    csg.union_sphere(pos, radius, mat);
+                }
+
+                csg
+            },
         }
     }
 }

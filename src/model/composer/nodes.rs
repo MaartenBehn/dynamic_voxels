@@ -79,13 +79,14 @@ pub struct ComposeNode<CT: ComposeTypeTrait> {
 pub struct ComposeNodeInput {
     pub name: String,
     pub data_type: ComposeDataType,
-
+    pub valid: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ComposeNodeOutput {
     pub name: String,
     pub data_type: ComposeDataType,
+    pub valid: bool,
 }
 
 impl<CT: ComposeTypeTrait> ComposeNode<CT> { 
@@ -116,17 +117,20 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
             inputs: vec![
                 ComposeNodeInput { 
                     name: "x".to_string(), 
-                    data_type: ComposeDataType::Number(None), 
+                    data_type: ComposeDataType::Number(None),
+                    valid: false,
                 },
                 ComposeNodeInput { 
                     name: "y".to_string(), 
                     data_type: ComposeDataType::Number(None), 
+                    valid: false,
                 },
             ], 
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "out".to_string(), 
                     data_type: ComposeDataType::Position2D(None), 
+                    valid: false,
                 }
             ], 
         },
@@ -139,20 +143,24 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
                 ComposeNodeInput { 
                     name: "x".to_string(), 
                     data_type: ComposeDataType::Number(None), 
+                    valid: false,
                 },
                 ComposeNodeInput { 
                     name: "y".to_string(), 
                     data_type: ComposeDataType::Number(None), 
+                    valid: false,
                 },
                 ComposeNodeInput { 
                     name: "z".to_string(), 
                     data_type: ComposeDataType::Number(None), 
+                    valid: false,
                 },
             ], 
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "out".to_string(), 
                     data_type: ComposeDataType::Position3D(None), 
+                    valid: false,
                 }
             ], 
         },
@@ -165,20 +173,24 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
                 ComposeNodeInput { 
                     name: "min".to_string(), 
                     data_type: ComposeDataType::Number(None), 
+                    valid: false,
                 },
                 ComposeNodeInput { 
                     name: "max".to_string(), 
                     data_type: ComposeDataType::Number(None), 
+                    valid: false,
                 },
                 ComposeNodeInput { 
                     name: "step".to_string(), 
                     data_type: ComposeDataType::Number(None), 
+                    valid: false,
                 },
             ], 
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "set".to_string(), 
                     data_type: ComposeDataType::NumberSpace, 
+                    valid: false,
                 }
             ], 
         },
@@ -191,16 +203,19 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
                 ComposeNodeInput { 
                     name: "volume".to_string(), 
                     data_type: ComposeDataType::Volume3D, 
+                    valid: false,
                 },
                 ComposeNodeInput { 
                     name: "spacing".to_string(), 
                     data_type: ComposeDataType::Number(None), 
+                    valid: false,
                 },
             ], 
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "set".to_string(), 
                     data_type: ComposeDataType::PositionSpace, 
+                    valid: false,
                 }
             ], 
         },
@@ -213,20 +228,24 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
                 ComposeNodeInput { 
                     name: "volume".to_string(), 
                     data_type: ComposeDataType::Volume2D, 
+                    valid: false,
                 },
                 ComposeNodeInput { 
                     name: "spacing".to_string(), 
                     data_type: ComposeDataType::Number(None), 
+                    valid: false,
                 },
                 ComposeNodeInput { 
                     name: "height".to_string(), 
                     data_type: ComposeDataType::Number(None), 
+                    valid: false,
                 },
             ], 
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "set".to_string(), 
                     data_type: ComposeDataType::PositionSpace, 
+                    valid: false,
                 }
             ], 
         },
@@ -243,24 +262,29 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
                 ComposeNodeInput { 
                     name: "start".to_string(), 
                     data_type: ComposeDataType::Position2D(None), 
+                    valid: false,
                 },
                 ComposeNodeInput { 
                     name: "end".to_string(), 
                     data_type: ComposeDataType::Position2D(None), 
+                    valid: false,
                 },
                 ComposeNodeInput { 
                     name: "spacing".to_string(), 
                     data_type: ComposeDataType::Number(None), 
+                    valid: false,
                 },
                 ComposeNodeInput { 
                     name: "side_variance".to_string(), 
                     data_type: ComposeDataType::Position2D(None), 
+                    valid: false,
                 },
             ], 
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "set".to_string(), 
                     data_type: ComposeDataType::PositionSpace, 
+                    valid: false,
                 }
             ], 
         },
@@ -275,6 +299,7 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
                 ComposeNodeOutput { 
                     name: "out".to_string(), 
                     data_type: ComposeDataType::Volume2D, 
+                    valid: false,
                 }
             ], 
         },
@@ -287,6 +312,7 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
                 ComposeNodeOutput { 
                     name: "out".to_string(), 
                     data_type: ComposeDataType::Volume3D, 
+                    valid: false,
                 }
             ], 
         },
@@ -298,16 +324,19 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
                 ComposeNodeInput { 
                     name: "pos".to_string(), 
                     data_type: ComposeDataType::Position3D(None), 
+                    valid: false,
                 },
                 ComposeNodeInput { 
                     name: "size".to_string(), 
                     data_type: ComposeDataType::Number(None), 
+                    valid: false,
                 },
             ], 
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "out".to_string(), 
                     data_type: ComposeDataType::Volume3D, 
+                    valid: false,
                 }
             ], 
         },
@@ -319,16 +348,19 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
                 ComposeNodeInput { 
                     name: "pos".to_string(), 
                     data_type: ComposeDataType::Position2D(None), 
+                    valid: false,
                 },
                 ComposeNodeInput { 
                     name: "size".to_string(), 
                     data_type: ComposeDataType::Number(None), 
+                    valid: false,
                 },
             ], 
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "out".to_string(), 
                     data_type: ComposeDataType::Volume2D, 
+                    valid: false,
                 }
             ], 
         },
@@ -340,16 +372,19 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
                 ComposeNodeInput { 
                     name: "pos".to_string(), 
                     data_type: ComposeDataType::Position3D(None), 
+                    valid: false,
                 },
                 ComposeNodeInput { 
                     name: "size".to_string(), 
                     data_type: ComposeDataType::Position3D(None), 
+                    valid: false,
                 },
             ], 
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "out".to_string(), 
                     data_type: ComposeDataType::Volume3D, 
+                    valid: false,
                 }
             ], 
         },
@@ -362,6 +397,7 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
                 ComposeNodeOutput { 
                     name: "out".to_string(), 
                     data_type: ComposeDataType::Volume3D, 
+                    valid: false,
                 }
             ], 
         },
@@ -375,16 +411,19 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
                 ComposeNodeInput { 
                     name: "a".to_string(), 
                     data_type: ComposeDataType::Volume2D, 
+                    valid: false,
                 },
                 ComposeNodeInput { 
                     name: "b".to_string(), 
                     data_type: ComposeDataType::Volume2D, 
+                    valid: false,
                 },
             ], 
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "out".to_string(), 
                     data_type: ComposeDataType::Volume2D, 
+                    valid: false,
                 }
             ], 
         },
@@ -396,16 +435,19 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
                 ComposeNodeInput { 
                     name: "a".to_string(), 
                     data_type: ComposeDataType::Volume3D, 
+                    valid: false,
                 },
                 ComposeNodeInput { 
                     name: "b".to_string(), 
                     data_type: ComposeDataType::Volume3D, 
+                    valid: false,
                 },
             ], 
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "out".to_string(), 
                     data_type: ComposeDataType::Volume3D, 
+                    valid: false,
                 }
             ], 
         },
@@ -418,16 +460,19 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
                 ComposeNodeInput { 
                     name: "base".to_string(), 
                     data_type: ComposeDataType::Volume2D, 
+                    valid: false,
                 },
                 ComposeNodeInput { 
                     name: "cut".to_string(), 
                     data_type: ComposeDataType::Volume2D, 
+                    valid: false,
                 },
             ], 
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "out".to_string(), 
                     data_type: ComposeDataType::Volume2D, 
+                    valid: false,
                 }
             ], 
         },
@@ -439,16 +484,19 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
                 ComposeNodeInput { 
                     name: "base".to_string(), 
                     data_type: ComposeDataType::Volume3D, 
+                    valid: false,
                 },
                 ComposeNodeInput { 
                     name: "cut".to_string(), 
                     data_type: ComposeDataType::Volume3D, 
+                    valid: false,
                 },
             ], 
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "out".to_string(), 
                     data_type: ComposeDataType::Volume3D, 
+                    valid: false,
                 }
             ], 
         },
@@ -460,16 +508,19 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
                 ComposeNodeInput { 
                     name: "positions".to_string(), 
                     data_type: ComposeDataType::PositionSet, 
+                    valid: false,
                 },
                 ComposeNodeInput { 
                     name: "size".to_string(), 
                     data_type: ComposeDataType::Number(None), 
+                    valid: false,
                 },
             ], 
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "out".to_string(), 
                     data_type: ComposeDataType::Volume3D, 
+                    valid: false,
                 }
             ], 
         },
@@ -481,16 +532,19 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
                 ComposeNodeInput { 
                     name: "positions".to_string(), 
                     data_type: ComposeDataType::PositionSet, 
+                    valid: false,
                 },
                 ComposeNodeInput { 
                     name: "size".to_string(), 
                     data_type: ComposeDataType::Number(None), 
+                    valid: false,
                 },
             ], 
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "out".to_string(), 
                     data_type: ComposeDataType::Volume2D, 
+                    valid: false,
                 }
             ], 
         },
@@ -502,12 +556,14 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
                 ComposeNodeInput { 
                     name: "positions".to_string(), 
                     data_type: ComposeDataType::PositionSet, 
+                    valid: false,
                 },
             ], 
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "out".to_string(), 
                     data_type: ComposeDataType::Volume3D, 
+                    valid: false,
                 }
             ], 
         }, 
@@ -522,12 +578,14 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
                 ComposeNodeInput { 
                     name: "identifier".to_string(), 
                     data_type: ComposeDataType::Identifier, 
+                    valid: false,
                 }
             ], 
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "out".to_string(), 
                     data_type: ComposeDataType::Ammount, 
+                    valid: false,
                 }
             ], 
         },
@@ -541,6 +599,7 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
                 ComposeNodeOutput { 
                     name: "out".to_string(), 
                     data_type: ComposeDataType::Ammount, 
+                    valid: false,
                 }
             ], 
         },
@@ -552,16 +611,19 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
                 ComposeNodeInput { 
                     name: "identifier".to_string(), 
                     data_type: ComposeDataType::Identifier, 
+                    valid: false,
                 },
                 ComposeNodeInput { 
                     name: "number".to_string(), 
                     data_type: ComposeDataType::Number(None), 
+                    valid: false,
                 }
             ], 
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "out".to_string(), 
                     data_type: ComposeDataType::Ammount, 
+                    valid: false,
                 }
             ], 
         }, 
@@ -575,20 +637,24 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
                 ComposeNodeInput { 
                     name: "ammount".to_string(), 
                     data_type: ComposeDataType::Ammount, 
+                    valid: false,
                 },
                 ComposeNodeInput { 
                     name: "space".to_string(), 
                     data_type: ComposeDataType::PositionSpace, 
+                    valid: false,
                 },
             ], 
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "identifier".to_string(), 
                     data_type: ComposeDataType::Identifier, 
+                    valid: false,
                 },
                 ComposeNodeOutput { 
                     name: "positions".to_string(), 
                     data_type: ComposeDataType::PositionSet, 
+                    valid: false,
                 }
             ], 
         },
@@ -600,20 +666,24 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
                 ComposeNodeInput { 
                     name: "ammount".to_string(), 
                     data_type: ComposeDataType::Ammount, 
+                    valid: false,
                 },
                 ComposeNodeInput { 
                     name: "set".to_string(), 
                     data_type: ComposeDataType::NumberSpace, 
+                    valid: false,
                 },
             ], 
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "identifier".to_string(), 
                     data_type: ComposeDataType::Identifier, 
+                    valid: false,
                 },
                 ComposeNodeOutput { 
                     name: "number".to_string(), 
                     data_type: ComposeDataType::Number(None), 
+                    valid: false,
                 }
             ], 
         },
@@ -625,16 +695,19 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
                 ComposeNodeInput { 
                     name: "ammount".to_string(), 
                     data_type: ComposeDataType::Ammount, 
+                    valid: false,
                 },
                 ComposeNodeInput { 
                     name: "volume".to_string(), 
                     data_type: ComposeDataType::Volume3D, 
+                    valid: false,
                 },
             ], 
             outputs: vec![
                 ComposeNodeOutput { 
                     name: "identifier".to_string(), 
                     data_type: ComposeDataType::Identifier, 
+                    valid: false,
                 },
             ], 
         },
@@ -650,6 +723,7 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
                 ComposeNodeOutput { 
                     name: "out".to_string(), 
                     data_type: ComposeDataType::Position3D(None), 
+                    valid: false,
                 }
             ], 
         },

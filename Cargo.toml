@@ -42,14 +42,14 @@ scene = []
 graph_builder = []
 
 [dependencies]
-# octa-force = { path = "../octa-force-rs" }
-octa-force = { version = "0.3.3", git = "https://github.com/MaartenBehn/octa-force-rs" }
+octa-force = { path = "../octa-force-rs" }
+# octa-force = { version = "0.3.3", git = "https://github.com/MaartenBehn/octa-force-rs" }
 
 spirq= "0.2.2"
 spirv-struct-layout = "0.1.2"
 
 fastrand = "2.2.0"
-#simple-easing = "1.0.1"
+simple-easing = "1.0.1"
 
 # fast_poisson = { path="../fast_poisson", features = ["single_precision"]}
 # fast_poisson = { git="https://github.com/MaartenBehn/fast_poisson.git", version = "1.0.3", features = ["single_precision"]}

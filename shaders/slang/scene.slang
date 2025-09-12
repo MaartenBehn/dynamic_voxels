@@ -22,7 +22,6 @@ public struct DAG64SceneObject {
   Node* TreeNodes;
   uint8_t* LeafData;
   uint root_index;
-
 }
 
 public struct Scene {

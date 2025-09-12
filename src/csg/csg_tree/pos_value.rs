@@ -13,6 +13,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> CSGTree<u8, V, T, D> {
     fn get_value_index(&self, index: CSGTreeIndex, pos: V) -> u8 {
         let node = &self.nodes[index];
         match &node.data {
+            CSGTreeNodeData::None => 0,
             CSGTreeNodeData::Union(d) => self.get_value_union(d, pos),
             CSGTreeNodeData::Remove(d) => self.get_value_remove(d, pos),
             
