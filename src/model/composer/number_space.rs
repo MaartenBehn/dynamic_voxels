@@ -3,19 +3,19 @@ use octa_force::OctaResult;
 
 use crate::{model::generation::traits::ModelGenerationTypes, util::{number::Nu, vector::Ve}};
 
-use super::{build::BS, nodes::ComposeNodeType, primitive::NumberTemplate, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
+use super::{build::BS, nodes::ComposeNodeType, number::NumberTemplate, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
 
 #[derive(Debug, Clone)]
-pub enum NumberSpaceTemplate<T: Nu> {
+pub enum NumberSpaceTemplate<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
     NumberRange {
-        min: NumberTemplate<T>,
-        max: NumberTemplate<T>,
-        step: NumberTemplate<T>,
+        min: NumberTemplate<V2, V3, T>,
+        max: NumberTemplate<V2, V3, T>,
+        step: NumberTemplate<V2, V3, T>,
     }
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> {
-    pub fn make_number_space(&self, pin: OutPinId, template: &ComposeTemplate<V2, V3, T, B>) -> NumberSpaceTemplate<T> {
+    pub fn make_number_space(&self, pin: OutPinId, template: &ComposeTemplate<V2, V3, T, B>) -> NumberSpaceTemplate<V2, V3, T> {
         let node = self.snarl.get_node(pin.node).expect("Node of remote not found");
         match &node.t {
             ComposeNodeType::NumberRange => {
@@ -29,7 +29,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
     }
 }
 
-impl<T: Nu> NumberSpaceTemplate<T> {
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> NumberSpaceTemplate<V2, V3, T> {
     pub fn get_dependend_template_nodes(&self) -> impl Iterator<Item = TemplateIndex> {
         match self {
             NumberSpaceTemplate::NumberRange { min, max, step } => {

@@ -13,7 +13,7 @@ pub struct NumberSpace<T: Nu> {
 
 impl<T: Nu> NumberSpace<T> {
     pub fn from_template<V2: Ve<T, 2>, V3: Ve<T, 3>, B: BS<V2, V3, T>>(
-        space_template: &NumberSpaceTemplate<T>, 
+        space_template: &NumberSpaceTemplate<V2, V3, T>, 
         depends: &[(TemplateIndex, Vec<CollapseNodeKey>)], 
         collapser: &Collapser<V2, V3, T, B>
     ) -> Self {

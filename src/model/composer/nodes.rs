@@ -11,10 +11,13 @@ pub enum ComposeNodeGroupe {
 
     NumberSpace,
 
-    PositionSpace,
+    PositionSpace2D,
+    PositionSpace3D,
 
     Volume2D,
     Volume3D,
+
+    Math,
 
     Template,
 
@@ -30,6 +33,7 @@ pub enum ComposeNodeType<CT: ComposeTypeTrait> {
 
     NumberRange,
 
+    // Volume
     GridInVolume,
     GridOnPlane,
     Path,
@@ -39,7 +43,6 @@ pub enum ComposeNodeType<CT: ComposeTypeTrait> {
     Sphere,
     Circle,
     Box,
-    VoxelObject,
 
     UnionVolume2D,
     UnionVolume3D,
@@ -48,7 +51,12 @@ pub enum ComposeNodeType<CT: ComposeTypeTrait> {
 
     CircleUnion,
     SphereUnion,
-    VoxelObjectUnion,
+
+    // Math
+    SplitPosition2D,
+    SplitPosition3D,
+
+    PositionSet2DTo3D,
 
     // Ammount 
     OnePer,
@@ -56,12 +64,9 @@ pub enum ComposeNodeType<CT: ComposeTypeTrait> {
     NPer,
 
     // Template
-    TemplatePositionSet,
+    TemplatePositionSet2D,
+    TemplatePositionSet3D,
     TemplateNumberSet,
-    BuildObject,
-
-    // Globals 
-    PlayerPosition,
 
     Build(CT)
 }
@@ -90,6 +95,34 @@ pub struct ComposeNodeOutput {
 }
 
 impl<CT: ComposeTypeTrait> ComposeNode<CT> { 
+    pub fn new(t: ComposeNodeType<CT>, group: ComposeNodeGroupe) -> Self {
+        ComposeNode { 
+            t, 
+            id: NodeId(usize::MAX),
+            group,
+            inputs: vec![],
+            outputs: vec![],
+        }
+    }
+
+    pub fn input(mut self, t: ComposeDataType, name: &str) -> Self {
+        self.inputs.push(ComposeNodeInput {
+            name: name.to_string(),
+            data_type: t,
+            valid: false,
+        });
+        self
+    }
+
+    pub fn output(mut self, t: ComposeDataType, name: &str) -> Self {
+        self.outputs.push(ComposeNodeOutput {
+            name: name.to_string(),
+            data_type: t,
+            valid: false,
+        });
+        self
+    }
+
     pub fn title(&self) -> String {
         format!("{:?}", self.t)
     }
@@ -109,624 +142,139 @@ impl ComposeNodeOutput {
 
 
 pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
-    vec![ 
-        ComposeNode { 
-            t: ComposeNodeType::Position2D, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::Const, 
-            inputs: vec![
-                ComposeNodeInput { 
-                    name: "x".to_string(), 
-                    data_type: ComposeDataType::Number(None),
-                    valid: false,
-                },
-                ComposeNodeInput { 
-                    name: "y".to_string(), 
-                    data_type: ComposeDataType::Number(None), 
-                    valid: false,
-                },
-            ], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "out".to_string(), 
-                    data_type: ComposeDataType::Position2D(None), 
-                    valid: false,
-                }
-            ], 
-        },
+    vec![
+        ComposeNode::new(ComposeNodeType::Position2D, ComposeNodeGroupe::Const)
+            .input(ComposeDataType::Number(None), "x")
+            .input(ComposeDataType::Number(None), "y")
+            .output(ComposeDataType::Position2D(None), "out"),
 
-        ComposeNode { 
-            t: ComposeNodeType::Position3D, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::Const, 
-            inputs: vec![
-                ComposeNodeInput { 
-                    name: "x".to_string(), 
-                    data_type: ComposeDataType::Number(None), 
-                    valid: false,
-                },
-                ComposeNodeInput { 
-                    name: "y".to_string(), 
-                    data_type: ComposeDataType::Number(None), 
-                    valid: false,
-                },
-                ComposeNodeInput { 
-                    name: "z".to_string(), 
-                    data_type: ComposeDataType::Number(None), 
-                    valid: false,
-                },
-            ], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "out".to_string(), 
-                    data_type: ComposeDataType::Position3D(None), 
-                    valid: false,
-                }
-            ], 
-        },
+        ComposeNode::new(ComposeNodeType::Position3D, ComposeNodeGroupe::Const)
+            .input(ComposeDataType::Number(None), "x")
+            .input(ComposeDataType::Number(None), "y")
+            .input(ComposeDataType::Number(None), "z")
+            .output(ComposeDataType::Position3D(None), "out"),
 
-        ComposeNode { 
-            t: ComposeNodeType::NumberRange, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::NumberSpace, 
-            inputs: vec![
-                ComposeNodeInput { 
-                    name: "min".to_string(), 
-                    data_type: ComposeDataType::Number(None), 
-                    valid: false,
-                },
-                ComposeNodeInput { 
-                    name: "max".to_string(), 
-                    data_type: ComposeDataType::Number(None), 
-                    valid: false,
-                },
-                ComposeNodeInput { 
-                    name: "step".to_string(), 
-                    data_type: ComposeDataType::Number(None), 
-                    valid: false,
-                },
-            ], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "set".to_string(), 
-                    data_type: ComposeDataType::NumberSpace, 
-                    valid: false,
-                }
-            ], 
-        },
+        ComposeNode::new(ComposeNodeType::NumberRange, ComposeNodeGroupe::NumberSpace)
+            .input(ComposeDataType::Number(None), "min")
+            .input(ComposeDataType::Number(None), "max")
+            .input(ComposeDataType::Number(None), "step")
+            .output(ComposeDataType::NumberSpace, "out"),
 
-        ComposeNode { 
-            t: ComposeNodeType::GridInVolume, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::PositionSpace, 
-            inputs: vec![
-                ComposeNodeInput { 
-                    name: "volume".to_string(), 
-                    data_type: ComposeDataType::Volume3D, 
-                    valid: false,
-                },
-                ComposeNodeInput { 
-                    name: "spacing".to_string(), 
-                    data_type: ComposeDataType::Number(None), 
-                    valid: false,
-                },
-            ], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "set".to_string(), 
-                    data_type: ComposeDataType::PositionSpace, 
-                    valid: false,
-                }
-            ], 
-        },
+        ComposeNode::new(ComposeNodeType::GridInVolume, ComposeNodeGroupe::PositionSpace3D)
+            .input(ComposeDataType::Volume3D, "volume")
+            .input(ComposeDataType::Number(None), "spacing")
+            .output(ComposeDataType::PositionSpace3D, "s"),
 
-        ComposeNode { 
-            t: ComposeNodeType::GridOnPlane, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::PositionSpace, 
-            inputs: vec![
-                ComposeNodeInput { 
-                    name: "volume".to_string(), 
-                    data_type: ComposeDataType::Volume2D, 
-                    valid: false,
-                },
-                ComposeNodeInput { 
-                    name: "spacing".to_string(), 
-                    data_type: ComposeDataType::Number(None), 
-                    valid: false,
-                },
-                ComposeNodeInput { 
-                    name: "height".to_string(), 
-                    data_type: ComposeDataType::Number(None), 
-                    valid: false,
-                },
-            ], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "set".to_string(), 
-                    data_type: ComposeDataType::PositionSpace, 
-                    valid: false,
-                }
-            ], 
-        },
+        ComposeNode::new(ComposeNodeType::GridOnPlane, ComposeNodeGroupe::PositionSpace2D)
+            .input(ComposeDataType::Volume2D, "volume")
+            .input(ComposeDataType::Number(None), "spacing")
+            .output(ComposeDataType::PositionSpace2D, "s"),
 
-        ComposeNode { 
-            t: ComposeNodeType::Path, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::PositionSpace, 
-            inputs: vec![
-                //ComposeNodeInput { 
-                //    name: "volume".to_string(), 
-                //    data_type: ComposeDataType::Volume2D, 
-                //},
-                ComposeNodeInput { 
-                    name: "start".to_string(), 
-                    data_type: ComposeDataType::Position2D(None), 
-                    valid: false,
-                },
-                ComposeNodeInput { 
-                    name: "end".to_string(), 
-                    data_type: ComposeDataType::Position2D(None), 
-                    valid: false,
-                },
-                ComposeNodeInput { 
-                    name: "spacing".to_string(), 
-                    data_type: ComposeDataType::Number(None), 
-                    valid: false,
-                },
-                ComposeNodeInput { 
-                    name: "side_variance".to_string(), 
-                    data_type: ComposeDataType::Position2D(None), 
-                    valid: false,
-                },
-            ], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "set".to_string(), 
-                    data_type: ComposeDataType::PositionSpace, 
-                    valid: false,
-                }
-            ], 
-        },
+        ComposeNode::new(ComposeNodeType::Path, ComposeNodeGroupe::PositionSpace2D)
+            .input(ComposeDataType::Number(None), "start")
+            .input(ComposeDataType::Number(None), "end")
+            .input(ComposeDataType::Number(Some(10)), "spacing")
+            .input(ComposeDataType::Position2D(None), "side variance")
+            .output(ComposeDataType::PositionSpace2D, "s"),
+
 
         // New Volume
-        ComposeNode { 
-            t: ComposeNodeType::EmpytVolume2D, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::Volume2D, 
-            inputs: vec![], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "out".to_string(), 
-                    data_type: ComposeDataType::Volume2D, 
-                    valid: false,
-                }
-            ], 
-        },
-        ComposeNode { 
-            t: ComposeNodeType::EmpytVolume3D, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::Volume3D, 
-            inputs: vec![], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "out".to_string(), 
-                    data_type: ComposeDataType::Volume3D, 
-                    valid: false,
-                }
-            ], 
-        },
-        ComposeNode { 
-            t: ComposeNodeType::Sphere, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::Volume3D, 
-            inputs: vec![
-                ComposeNodeInput { 
-                    name: "pos".to_string(), 
-                    data_type: ComposeDataType::Position3D(None), 
-                    valid: false,
-                },
-                ComposeNodeInput { 
-                    name: "size".to_string(), 
-                    data_type: ComposeDataType::Number(None), 
-                    valid: false,
-                },
-            ], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "out".to_string(), 
-                    data_type: ComposeDataType::Volume3D, 
-                    valid: false,
-                }
-            ], 
-        },
-        ComposeNode { 
-            t: ComposeNodeType::Circle, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::Volume2D, 
-            inputs: vec![
-                ComposeNodeInput { 
-                    name: "pos".to_string(), 
-                    data_type: ComposeDataType::Position2D(None), 
-                    valid: false,
-                },
-                ComposeNodeInput { 
-                    name: "size".to_string(), 
-                    data_type: ComposeDataType::Number(None), 
-                    valid: false,
-                },
-            ], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "out".to_string(), 
-                    data_type: ComposeDataType::Volume2D, 
-                    valid: false,
-                }
-            ], 
-        },
-        ComposeNode { 
-            t: ComposeNodeType::Box, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::Volume3D, 
-            inputs: vec![
-                ComposeNodeInput { 
-                    name: "pos".to_string(), 
-                    data_type: ComposeDataType::Position3D(None), 
-                    valid: false,
-                },
-                ComposeNodeInput { 
-                    name: "size".to_string(), 
-                    data_type: ComposeDataType::Position3D(None), 
-                    valid: false,
-                },
-            ], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "out".to_string(), 
-                    data_type: ComposeDataType::Volume3D, 
-                    valid: false,
-                }
-            ], 
-        },
-        ComposeNode { 
-            t: ComposeNodeType::VoxelObject, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::Volume3D, 
-            inputs: vec![], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "out".to_string(), 
-                    data_type: ComposeDataType::Volume3D, 
-                    valid: false,
-                }
-            ], 
-        },
+        ComposeNode::new(ComposeNodeType::EmpytVolume2D, ComposeNodeGroupe::Volume2D)
+            .output(ComposeDataType::Volume2D, "v"),
+
+        ComposeNode::new(ComposeNodeType::EmpytVolume3D, ComposeNodeGroupe::Volume3D)
+            .output(ComposeDataType::Volume3D, "v"),
+
+        ComposeNode::new(ComposeNodeType::Circle, ComposeNodeGroupe::Volume2D)
+            .input(ComposeDataType::Position2D(None), "pos")
+            .input(ComposeDataType::Number(Some(10)), "size")
+            .output(ComposeDataType::Volume2D, "v"),
+
+        ComposeNode::new(ComposeNodeType::Sphere, ComposeNodeGroupe::Volume3D)
+            .input(ComposeDataType::Position3D(None), "pos")
+            .input(ComposeDataType::Number(Some(10)), "size")
+            .output(ComposeDataType::Volume3D, "v"),
+
+        ComposeNode::new(ComposeNodeType::Box, ComposeNodeGroupe::Volume3D)
+            .input(ComposeDataType::Position3D(None), "pos")
+            .input(ComposeDataType::Position3D(None), "size")
+            .output(ComposeDataType::Volume3D, "v"),
 
 
-        ComposeNode { 
-            t: ComposeNodeType::UnionVolume2D, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::Volume2D, 
-            inputs: vec![
-                ComposeNodeInput { 
-                    name: "a".to_string(), 
-                    data_type: ComposeDataType::Volume2D, 
-                    valid: false,
-                },
-                ComposeNodeInput { 
-                    name: "b".to_string(), 
-                    data_type: ComposeDataType::Volume2D, 
-                    valid: false,
-                },
-            ], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "out".to_string(), 
-                    data_type: ComposeDataType::Volume2D, 
-                    valid: false,
-                }
-            ], 
-        },
-        ComposeNode { 
-            t: ComposeNodeType::UnionVolume3D, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::Volume3D, 
-            inputs: vec![
-                ComposeNodeInput { 
-                    name: "a".to_string(), 
-                    data_type: ComposeDataType::Volume3D, 
-                    valid: false,
-                },
-                ComposeNodeInput { 
-                    name: "b".to_string(), 
-                    data_type: ComposeDataType::Volume3D, 
-                    valid: false,
-                },
-            ], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "out".to_string(), 
-                    data_type: ComposeDataType::Volume3D, 
-                    valid: false,
-                }
-            ], 
-        },
+        // CSG Operations
+        ComposeNode::new(ComposeNodeType::UnionVolume2D, ComposeNodeGroupe::Volume2D)
+            .input(ComposeDataType::Volume2D, "a")
+            .input(ComposeDataType::Volume2D, "b")
+            .output(ComposeDataType::Volume2D, "v"),
 
-        ComposeNode { 
-            t: ComposeNodeType::CutVolume2D, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::Volume2D, 
-            inputs: vec![
-                ComposeNodeInput { 
-                    name: "base".to_string(), 
-                    data_type: ComposeDataType::Volume2D, 
-                    valid: false,
-                },
-                ComposeNodeInput { 
-                    name: "cut".to_string(), 
-                    data_type: ComposeDataType::Volume2D, 
-                    valid: false,
-                },
-            ], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "out".to_string(), 
-                    data_type: ComposeDataType::Volume2D, 
-                    valid: false,
-                }
-            ], 
-        },
-        ComposeNode { 
-            t: ComposeNodeType::CutVolume3D, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::Volume3D, 
-            inputs: vec![
-                ComposeNodeInput { 
-                    name: "base".to_string(), 
-                    data_type: ComposeDataType::Volume3D, 
-                    valid: false,
-                },
-                ComposeNodeInput { 
-                    name: "cut".to_string(), 
-                    data_type: ComposeDataType::Volume3D, 
-                    valid: false,
-                },
-            ], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "out".to_string(), 
-                    data_type: ComposeDataType::Volume3D, 
-                    valid: false,
-                }
-            ], 
-        },
-        ComposeNode { 
-            t: ComposeNodeType::SphereUnion, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::Volume3D, 
-            inputs: vec![
-                ComposeNodeInput { 
-                    name: "positions".to_string(), 
-                    data_type: ComposeDataType::PositionSet, 
-                    valid: false,
-                },
-                ComposeNodeInput { 
-                    name: "size".to_string(), 
-                    data_type: ComposeDataType::Number(None), 
-                    valid: false,
-                },
-            ], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "out".to_string(), 
-                    data_type: ComposeDataType::Volume3D, 
-                    valid: false,
-                }
-            ], 
-        },
-        ComposeNode { 
-            t: ComposeNodeType::CircleUnion, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::Volume2D, 
-            inputs: vec![
-                ComposeNodeInput { 
-                    name: "positions".to_string(), 
-                    data_type: ComposeDataType::PositionSet, 
-                    valid: false,
-                },
-                ComposeNodeInput { 
-                    name: "size".to_string(), 
-                    data_type: ComposeDataType::Number(None), 
-                    valid: false,
-                },
-            ], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "out".to_string(), 
-                    data_type: ComposeDataType::Volume2D, 
-                    valid: false,
-                }
-            ], 
-        },
-        ComposeNode { 
-            t: ComposeNodeType::VoxelObjectUnion, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::Volume3D, 
-            inputs: vec![
-                ComposeNodeInput { 
-                    name: "positions".to_string(), 
-                    data_type: ComposeDataType::PositionSet, 
-                    valid: false,
-                },
-            ], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "out".to_string(), 
-                    data_type: ComposeDataType::Volume3D, 
-                    valid: false,
-                }
-            ], 
-        }, 
+        ComposeNode::new(ComposeNodeType::UnionVolume3D, ComposeNodeGroupe::Volume3D)
+            .input(ComposeDataType::Volume3D, "a")
+            .input(ComposeDataType::Volume3D, "b")
+            .output(ComposeDataType::Volume3D, "v"),
 
+        ComposeNode::new(ComposeNodeType::CutVolume2D, ComposeNodeGroupe::Volume2D)
+            .input(ComposeDataType::Volume2D, "base")
+            .input(ComposeDataType::Volume2D, "cut")
+            .output(ComposeDataType::Volume2D, "v"),
+
+        ComposeNode::new(ComposeNodeType::CutVolume3D, ComposeNodeGroupe::Volume3D)
+            .input(ComposeDataType::Volume3D, "base")
+            .input(ComposeDataType::Volume3D, "cut")
+            .output(ComposeDataType::Volume3D, "v"),
+
+        ComposeNode::new(ComposeNodeType::CircleUnion, ComposeNodeGroupe::Volume2D)
+            .input(ComposeDataType::PositionSet2D, "positions")
+            .input(ComposeDataType::Number(Some(10)), "size")
+            .output(ComposeDataType::Volume2D, "v"),
+
+        ComposeNode::new(ComposeNodeType::SphereUnion, ComposeNodeGroupe::Volume3D)
+            .input(ComposeDataType::PositionSet3D, "positions")
+            .input(ComposeDataType::Number(Some(10)), "size")
+            .output(ComposeDataType::Volume3D, "v"),
+
+        // Math
+        ComposeNode::new(ComposeNodeType::SplitPosition2D, ComposeNodeGroupe::Math)
+            .input(ComposeDataType::PositionSet2D, "positions")
+            .output(ComposeDataType::Number(None), "x")
+            .output(ComposeDataType::Number(None), "y"),
+
+        ComposeNode::new(ComposeNodeType::SplitPosition3D, ComposeNodeGroupe::Math)
+            .input(ComposeDataType::PositionSet3D, "positions")
+            .output(ComposeDataType::Number(None), "x")
+            .output(ComposeDataType::Number(None), "y")
+            .output(ComposeDataType::Number(None), "z"),
 
         // Ammount
-        ComposeNode { 
-            t: ComposeNodeType::OnePer, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::Template, 
-            inputs: vec![
-                ComposeNodeInput { 
-                    name: "identifier".to_string(), 
-                    data_type: ComposeDataType::Identifier, 
-                    valid: false,
-                }
-            ], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "out".to_string(), 
-                    data_type: ComposeDataType::Ammount, 
-                    valid: false,
-                }
-            ], 
-        },
+        ComposeNode::new(ComposeNodeType::OneGlobal, ComposeNodeGroupe::Template)
+            .output(ComposeDataType::Ammount, "a"),
 
-        ComposeNode { 
-            t: ComposeNodeType::OneGlobal, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::Template, 
-            inputs: vec![], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "out".to_string(), 
-                    data_type: ComposeDataType::Ammount, 
-                    valid: false,
-                }
-            ], 
-        },
-        ComposeNode { 
-            t: ComposeNodeType::NPer, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::Template, 
-            inputs: vec![
-                ComposeNodeInput { 
-                    name: "identifier".to_string(), 
-                    data_type: ComposeDataType::Identifier, 
-                    valid: false,
-                },
-                ComposeNodeInput { 
-                    name: "number".to_string(), 
-                    data_type: ComposeDataType::Number(None), 
-                    valid: false,
-                }
-            ], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "out".to_string(), 
-                    data_type: ComposeDataType::Ammount, 
-                    valid: false,
-                }
-            ], 
-        }, 
+        ComposeNode::new(ComposeNodeType::OnePer, ComposeNodeGroupe::Template)
+            .input(ComposeDataType::Identifier, "identifier")
+            .output(ComposeDataType::Ammount, "a"),
 
+        ComposeNode::new(ComposeNodeType::NPer, ComposeNodeGroupe::Template)
+            .input(ComposeDataType::Identifier, "identifier")
+            .input(ComposeDataType::Number(Some(1)), "n")
+            .output(ComposeDataType::Ammount, "a"),
+ 
         // Template
-        ComposeNode { 
-            t: ComposeNodeType::TemplatePositionSet, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::Template, 
-            inputs: vec![
-                ComposeNodeInput { 
-                    name: "ammount".to_string(), 
-                    data_type: ComposeDataType::Ammount, 
-                    valid: false,
-                },
-                ComposeNodeInput { 
-                    name: "space".to_string(), 
-                    data_type: ComposeDataType::PositionSpace, 
-                    valid: false,
-                },
-            ], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "identifier".to_string(), 
-                    data_type: ComposeDataType::Identifier, 
-                    valid: false,
-                },
-                ComposeNodeOutput { 
-                    name: "positions".to_string(), 
-                    data_type: ComposeDataType::PositionSet, 
-                    valid: false,
-                }
-            ], 
-        },
-        ComposeNode { 
-            t: ComposeNodeType::TemplateNumberSet, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::Template, 
-            inputs: vec![
-                ComposeNodeInput { 
-                    name: "ammount".to_string(), 
-                    data_type: ComposeDataType::Ammount, 
-                    valid: false,
-                },
-                ComposeNodeInput { 
-                    name: "set".to_string(), 
-                    data_type: ComposeDataType::NumberSpace, 
-                    valid: false,
-                },
-            ], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "identifier".to_string(), 
-                    data_type: ComposeDataType::Identifier, 
-                    valid: false,
-                },
-                ComposeNodeOutput { 
-                    name: "number".to_string(), 
-                    data_type: ComposeDataType::Number(None), 
-                    valid: false,
-                }
-            ], 
-        },
-        ComposeNode { 
-            t: ComposeNodeType::BuildObject, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::Template, 
-            inputs: vec![
-                ComposeNodeInput { 
-                    name: "ammount".to_string(), 
-                    data_type: ComposeDataType::Ammount, 
-                    valid: false,
-                },
-                ComposeNodeInput { 
-                    name: "volume".to_string(), 
-                    data_type: ComposeDataType::Volume3D, 
-                    valid: false,
-                },
-            ], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "identifier".to_string(), 
-                    data_type: ComposeDataType::Identifier, 
-                    valid: false,
-                },
-            ], 
-        },
+        ComposeNode::new(ComposeNodeType::TemplateNumberSet, ComposeNodeGroupe::Template)
+            .input(ComposeDataType::Ammount, "ammount")
+            .input(ComposeDataType::NumberSpace, "space")
+            .output(ComposeDataType::Identifier, "identifier")
+            .output(ComposeDataType::Number(None), "number"),
 
+        ComposeNode::new(ComposeNodeType::TemplatePositionSet2D, ComposeNodeGroupe::Template)
+            .input(ComposeDataType::Ammount, "ammount")
+            .input(ComposeDataType::PositionSpace2D, "space")
+            .output(ComposeDataType::Identifier, "identifier")
+            .output(ComposeDataType::PositionSet2D, "positions"),
 
-        // Globals
-        ComposeNode { 
-            t: ComposeNodeType::PlayerPosition, 
-            id: NodeId(usize::MAX),
-            group: ComposeNodeGroupe::Globals, 
-            inputs: vec![], 
-            outputs: vec![
-                ComposeNodeOutput { 
-                    name: "out".to_string(), 
-                    data_type: ComposeDataType::Position3D(None), 
-                    valid: false,
-                }
-            ], 
-        },
+        ComposeNode::new(ComposeNodeType::TemplatePositionSet3D, ComposeNodeGroupe::Template)
+            .input(ComposeDataType::Ammount, "ammount")
+            .input(ComposeDataType::PositionSpace3D, "space")
+            .output(ComposeDataType::Identifier, "identifier")
+            .output(ComposeDataType::PositionSet3D, "positions"),
     ]
 }
 

@@ -23,6 +23,7 @@ pub trait Ve<T: Nu, const D: usize>:
     + Index<usize, Output = T>
     + PartialEq
     + MC<Self, T, D>
+    + 'static
 {
     const ZERO: Self;
     const ONE: Self;

@@ -19,6 +19,7 @@ pub trait Nu:
     + DivAssign
     + PartialEq
     + PartialOrd 
+    + 'static
 {
     const ZERO: Self;
     const ONE: Self;

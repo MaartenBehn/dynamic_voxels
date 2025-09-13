@@ -5,11 +5,9 @@ use octa_force::{egui, glam::{EulerRot, IVec2, IVec3, Mat4, Quat, Vec3}, OctaRes
 use slotmap::Key;
 use smallvec::SmallVec;
 
-use crate::{csg::csg_tree::tree::CSGTree, model::composer::{build::{CollapseValueTrait, ComposeTypeTrait, GetCollapseValueArgs, GetTemplateValueArgs, OnCollapseArgs, OnDeleteArgs, TemplateValueTrait, BS}, collapse::collapser::{CollapseNodeKey, Collapser, NodeDataType}, data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeType}, primitive::PositionTemplate, template::{ComposeTemplate, TemplateIndex}, volume::VolumeTemplate, ModelComposer}, scene::{dag_store::SceneDAGKey, worker::SceneWorkerSend, SceneObjectKey}, util::{number::Nu, vector::Ve}, volume::VolumeBounds, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, grid::shared::SharedVoxelGrid, palette::{palette::MATERIAL_ID_BASE, shared::SharedPalette}}, METERS_PER_SHADER_UNIT};
-
+use crate::{csg::csg_tree::tree::CSGTree, model::composer::{build::{CollapseValueTrait, ComposeTypeTrait, GetCollapseValueArgs, GetTemplateValueArgs, OnCollapseArgs, OnDeleteArgs, TemplateValueTrait, BS}, collapse::collapser::{CollapseNodeKey, Collapser, NodeDataType}, data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeType}, position::PositionTemplate, template::{ComposeTemplate, TemplateIndex}, volume::VolumeTemplate, ModelComposer}, scene::{dag_store::SceneDAGKey, worker::SceneWorkerSend, SceneObjectKey}, util::{number::Nu, vector::Ve}, volume::VolumeBounds, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, grid::shared::SharedVoxelGrid, palette::{palette::MATERIAL_ID_BASE, shared::SharedPalette}}, METERS_PER_SHADER_UNIT};
 
 // Compose Type
-
 #[derive(Debug)]
 pub struct ComposeIsland {
     pub composer: ModelComposer<IVec2, IVec3, i32, ComposeIslandState>,
@@ -23,16 +21,15 @@ impl ComposeTypeTrait for ComposeType {}
 
 
 // Template Value
-
 #[derive(Debug, Clone)]
-pub enum TemplateValue<V: Ve<T, 3>, T: Nu> {
-    Object(ObjectTemplate<V, T>)
+pub enum TemplateValue<V3: Ve<T, 3>, V2: Ve<T, 2>, T: Nu> {
+    Object(ObjectTemplate<V3, V2, T>)
 }
 
 #[derive(Debug, Clone)]
-pub struct ObjectTemplate<V: Ve<T, 3>, T: Nu> {
-    pos: PositionTemplate<V, T, 3>,
-    volume: VolumeTemplate<V, T, 3>,
+pub struct ObjectTemplate<V3: Ve<T, 3>, V2: Ve<T, 2>, T: Nu> {
+    pos: PositionTemplate<V3, V2, V3, T, 3>,
+    volume: VolumeTemplate<V3, V2, V3, T, 3>,
 }
 
 impl<V: Ve<T, 3>, T: Nu> TemplateValueTrait for TemplateValue<V, T> {

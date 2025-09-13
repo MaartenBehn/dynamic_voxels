@@ -17,7 +17,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         for (i, ammount) in template_node.defines.iter().enumerate() {
             let new_template_node = &template.nodes[ammount.template_index];
            
-            let operation = match ammount.t {
+            let operation = match &ammount.t {
                 AmmountType::NPer(n) => UpdateDefinesOperation::N { 
                     parent_index: node_index, 
                     defines_index: i, 
@@ -60,7 +60,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         let parent_template_node = &template.nodes[parent.template_index];
         let ammount = &parent_template_node.defines[defines_index];
 
-        let n = match ammount.t {
+        let n = match &ammount.t {
             AmmountType::NPer(n) => n.get_value(&parent.depends, &self).to_usize(),
             _ => unreachable!()
         };

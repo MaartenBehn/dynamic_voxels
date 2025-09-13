@@ -13,9 +13,10 @@ use crate::util::vector::Ve;
 use super::ammount::Ammount;
 use super::build::{GetTemplateValueArgs, TemplateValueTrait, BS};
 use super::position_space::PositionSpaceTemplate;
-use super::{data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, number_space::NumberSpaceTemplate, primitive::NumberTemplate, ModelComposer};
+use super::{data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, number_space::NumberSpaceTemplate, ModelComposer};
 
 pub type TemplateIndex = usize;
+pub type OutputIndex = usize;
 pub const TEMPLATE_INDEX_ROOT: TemplateIndex = 0;
 pub const AMMOUNT_PATH_INDEX: usize = 0;
 
@@ -28,7 +29,7 @@ pub struct ComposeTemplate<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> 
 #[derive(Debug, Clone)]
 pub enum ComposeTemplateValue<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     None,
-    NumberSpace(NumberSpaceTemplate<T>),
+    NumberSpace(NumberSpaceTemplate<V2, V3, T>),
     PositionSpace(PositionSpaceTemplate<V2, V3, T>),
     Build(B::TemplateValue)
 }
@@ -41,7 +42,7 @@ pub struct TemplateNode<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub depends: SmallVec<[TemplateIndex; 4]>,
     pub dependend: SmallVec<[TemplateIndex; 4]>,
     pub level: usize,
-    pub defines: SmallVec<[Ammount<T>; 4]>,
+    pub defines: SmallVec<[Ammount<V2, V3, T>; 4]>,
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3, T, B> {
@@ -77,7 +78,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
             .map(|node| {
                 match &node.t {
                     ComposeNodeType::TemplateNumberSet 
-                    | ComposeNodeType::TemplatePositionSet => Some(node.id),
+                    | ComposeNodeType::TemplatePositionSet2D
+                    | ComposeNodeType::TemplatePositionSet3D => Some(node.id),
                     ComposeNodeType::Build(t) => if B::is_template_node(t) {
                         Some(node.id) 
                     } else {
@@ -102,7 +104,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
 
         let mut template = ComposeTemplate {
             nodes,
-            max_level: 0,
+            max_level: 1,
         };
 
         // Values Depends and Dependend
@@ -116,9 +118,18 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                 ComposeDataType::Ammount), i, &template);
 
             let (mut depends , value): (SmallVec<[TemplateIndex; 4]>, ComposeTemplateValue<V2, V3, T, B>) = match &composer_node.t { 
-                ComposeNodeType::TemplatePositionSet => {
+                ComposeNodeType::TemplatePositionSet2D => {
                     let space = composer.make_pos_space(
-                        composer.get_input_pin_by_type(composer_node, ComposeDataType::PositionSpace),
+                        composer.get_input_pin_by_type(composer_node, ComposeDataType::PositionSpace2D),
+                        &template);
+                    (
+                        space.get_dependend_template_nodes().collect(),
+                        ComposeTemplateValue::PositionSpace(space)
+                    )
+                },
+                ComposeNodeType::TemplatePositionSet3D => {
+                    let space = composer.make_pos_space(
+                        composer.get_input_pin_by_type(composer_node, ComposeDataType::PositionSpace3D),
                         &template);
                     (
                         space.get_dependend_template_nodes().collect(),
@@ -213,7 +224,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
     } 
 
     pub fn get_index_by_out_pin(&self, pin: OutPinId) -> TemplateIndex {
-        self.nodes.iter().position(|n| n.node_id == pin.node).expect("No Template Node for node id found")
+        self.nodes.iter()
+            .position(|n| n.node_id == pin.node)
+            .expect("No Template Node for node id found")
     }
 }
 

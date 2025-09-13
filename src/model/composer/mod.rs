@@ -5,7 +5,6 @@ pub mod collapse;
 pub mod template;
 pub mod number_space;
 pub mod position_space;
-pub mod primitive;
 pub mod identifier;
 pub mod volume;
 pub mod ammount;
@@ -14,6 +13,9 @@ pub mod debug_gui;
 pub mod build;
 pub mod validate;
 pub mod pin;
+pub mod number;
+pub mod position;
+pub mod position_set;
 
 use std::{fs::{self, File}, io::Write, time::Duration};
 

@@ -55,12 +55,14 @@ impl egui_snarl::ui::SnarlPin for ComposePin {
         let pin_info = match self.data_type {
             ComposeDataType::Number(..) => PinInfo::circle().with_fill(Color32::ORANGE),
             ComposeDataType::NumberSpace => PinInfo::triangle().with_fill(Color32::ORANGE),
-            ComposeDataType::Position2D(..) => PinInfo::circle().with_fill(Color32::BLUE),
+            ComposeDataType::Position2D(..) => PinInfo::circle().with_fill(Color32::LIGHT_BLUE),
             ComposeDataType::Position3D(..) => PinInfo::circle().with_fill(Color32::BLUE),
-            ComposeDataType::PositionSpace => PinInfo::triangle().with_fill(Color32::BLUE),
-            ComposeDataType::PositionSet => PinInfo::square().with_fill(Color32::BLUE),
+            ComposeDataType::PositionSpace2D => PinInfo::triangle().with_fill(Color32::LIGHT_BLUE),
+            ComposeDataType::PositionSpace3D => PinInfo::triangle().with_fill(Color32::BLUE),
+            ComposeDataType::PositionSet2D => PinInfo::square().with_fill(Color32::LIGHT_BLUE),
+            ComposeDataType::PositionSet3D => PinInfo::square().with_fill(Color32::BLUE),
 
-            ComposeDataType::Volume2D => PinInfo::square().with_fill(Color32::RED),
+            ComposeDataType::Volume2D => PinInfo::square().with_fill(Color32::LIGHT_RED),
             ComposeDataType::Volume3D => PinInfo::square().with_fill(Color32::RED),
             ComposeDataType::Ammount => PinInfo::square().with_fill(Color32::GREEN),
             ComposeDataType::Identifier => PinInfo::circle().with_fill(Color32::GREEN),

@@ -3,17 +3,17 @@ use itertools::Itertools;
 
 use crate::{csg::{csg_tree::tree::CSGTree, Base}, util::{number::Nu, vector::Ve}};
 
-use super::{build::BS, collapse::collapser::{CollapseNodeKey, Collapser}, data_type::ComposeDataType, nodes::ComposeNodeType, primitive::{NumberTemplate, PositionSetTemplate, PositionTemplate}, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
+use super::{build::BS, collapse::collapser::{CollapseNodeKey, Collapser}, data_type::ComposeDataType, nodes::ComposeNodeType, number::NumberTemplate, position::PositionTemplate, position_set::PositionSetTemplate, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
 
-#[derive(Debug, Clone, Copy)]
-pub enum VolumeTemplateData<V: Ve<T, D>, T: Nu, const D: usize> {
+#[derive(Debug, Clone)]
+pub enum VolumeTemplateData<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> {
     Sphere {
-        pos: PositionTemplate<V, T, D>,
-        size: NumberTemplate<T>
+        pos: PositionTemplate<V, V2, V3, T, D>,
+        size: NumberTemplate<V2, V3, T>
     },
     Box {
-        pos: PositionTemplate<V, T, D>,
-        size: PositionTemplate<V, T, D>,
+        pos: PositionTemplate<V, V2, V3, T, D>,
+        size: PositionTemplate<V, V2, V3, T, D>,
     },
     Union {
         a: usize,
@@ -25,13 +25,13 @@ pub enum VolumeTemplateData<V: Ve<T, D>, T: Nu, const D: usize> {
     },
     SphereUnion {
         position_set: PositionSetTemplate,
-        size: NumberTemplate<T>,
+        size: NumberTemplate<V2, V3, T>,
     },
 }
 
 #[derive(Debug, Clone)]
-pub struct VolumeTemplate<V: Ve<T, D>, T: Nu, const D: usize> {
-    pub nodes: Vec<VolumeTemplateData<V, T, D>>,
+pub struct VolumeTemplate<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> {
+    pub nodes: Vec<VolumeTemplateData<V, V2, V3, T, D>>,
     pub root: usize,
 }
 
@@ -40,7 +40,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
         &self, 
         pin: OutPinId, 
         template: &ComposeTemplate<V2, V3, T, B>
-    ) -> VolumeTemplate<V, T, D> {
+    ) -> VolumeTemplate<V, V2, V3, T, D> {
 
         let node = self.snarl.get_node(pin.node).expect("Node of remote not found");
         match &node.t {
@@ -102,9 +102,16 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
                     root,
                 }
             },
+            ComposeNodeType::CircleUnion => VolumeTemplate {
+                nodes: vec![VolumeTemplateData::SphereUnion { 
+                    position_set: self.make_position_set(self.get_input_pin_by_type(node, ComposeDataType::PositionSet2D), template), 
+                    size: self.make_number(node, self.get_input_index_by_type(node, ComposeDataType::Number(None)), template) 
+                }],
+                root: 0,
+            },
             ComposeNodeType::SphereUnion => VolumeTemplate {
                 nodes: vec![VolumeTemplateData::SphereUnion { 
-                    position_set: self.make_position_set(self.get_input_pin_by_type(node, ComposeDataType::PositionSet), template), 
+                    position_set: self.make_position_set(self.get_input_pin_by_type(node, ComposeDataType::PositionSet3D), template), 
                     size: self.make_number(node, self.get_input_index_by_type(node, ComposeDataType::Number(None)), template) 
                 }],
                 root: 0,
@@ -114,7 +121,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
     }
 }
 
-impl<V: Ve<T, D>, T: Nu, const D: usize> VolumeTemplate<V, T, D> {
+impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> VolumeTemplate<V, V2, V3, T, D> {
     pub fn get_dependend_template_nodes(&self) -> impl Iterator<Item = TemplateIndex> {
         self.get_dependend_template_nodes_inner(self.root)
     }
@@ -148,7 +155,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> VolumeTemplate<V, T, D> {
         }.into_iter()
     }
 
-    pub fn get_value<V2: Ve<T, 2>, V3: Ve<T, 3>, B: BS<V2, V3, T>, M: Base>(
+    pub fn get_value<B: BS<V2, V3, T>, M: Base>(
         &self, 
         depends: &[(TemplateIndex, Vec<CollapseNodeKey>)], 
         collapser: &Collapser<V2, V3, T, B>,
@@ -157,7 +164,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> VolumeTemplate<V, T, D> {
         self.get_value_inner(self.root, depends, collapser, mat)
     }
  
-    pub fn get_value_inner<V2: Ve<T, 2>, V3: Ve<T, 3>, B: BS<V2, V3, T>, M: Base>(
+    pub fn get_value_inner<B: BS<V2, V3, T>, M: Base>(
         &self, 
         index: usize, 
         depends: &[(TemplateIndex, Vec<CollapseNodeKey>)], 
@@ -165,7 +172,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> VolumeTemplate<V, T, D> {
         mat: M,
     ) -> CSGTree<M, V, T, D> {
 
-        let node = self.nodes[index];
+        let node = &self.nodes[index];
         match &node {
             VolumeTemplateData::Sphere { pos, size } => CSGTree::new_sphere(
                 pos.get_value(depends, collapser), 

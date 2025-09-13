@@ -19,9 +19,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeCollapseWorker<
         let (update_s, update_r) = 
             smol::channel::bounded(1);
          
-        let task = smol::spawn(async move {
-            Self::run(update_r, template, state).await;
-        });
+        let task = smol::spawn(Self::run(update_r, template, state));
 
         ComposeCollapseWorker {
             task,
@@ -36,13 +34,13 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeCollapseWorker<
     ) {
 
         let mut collasper = Collapser::<V2, V3, T, B>::new(&template, &mut state).await;
-        collasper.run(&template, &mut state);
+        collasper.run(&template, &mut state).await;
 
         loop {
             match update_r.recv().await {
                 Ok(template) => {
                     collasper.template_changed(&template, &mut state);
-                    collasper.run(&template, &mut state);
+                    collasper.run(&template, &mut state).await;
                 },
                 Err(e) => break,
             }
