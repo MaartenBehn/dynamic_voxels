@@ -1,4 +1,4 @@
-use std::iter;
+use std::{hint::unreachable_unchecked, iter};
 
 use octa_force::{anyhow::{anyhow, bail}, glam::Vec3, log::{debug, info}, OctaResult};
 use slotmap::Key;
@@ -110,10 +110,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         let ammount = &template_node.defines[defines_index];
 
         
-        let (to_create_children, is_valid) = match &node.data {
-            NodeDataType::PositionSpace(d) => {
-                (d.get_new_children(), |index| {d.is_child_valid(index)})
-            },
+        let to_create_children= match &node.data {
+            NodeDataType::PositionSpace2D(d) => d.get_new_children(),
+            NodeDataType::PositionSpace3D(d) => d.get_new_children(),
             _ => panic!("Template Node {:?} is not of Type Position Space Set", node.template_index)
         };
 
@@ -123,7 +122,15 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             .unwrap_or(&vec![])
             .iter()
             .map(|key| (*key, &self.nodes[*key]) )
-            .filter(|(_, child)| !is_valid(child.child_key))
+            .filter(|(_, child)| {
+                match &node.data {
+                    NodeDataType::PositionSpace2D(d) => !d.is_child_valid(child.child_key),
+                    NodeDataType::PositionSpace3D(d) => !d.is_child_valid(child.child_key),
+
+                    // Safety: Enum gets checked by to_create_children 
+                    _ => unsafe { unreachable_unchecked() }
+                }
+            })
             .map(|(key, _)| key )
             .collect::<Vec<_>>();
 
@@ -231,8 +238,12 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             ComposeTemplateValue::NumberSpace(space) 
             => NodeDataType::NumberSet(NumberSpace::from_template(space, &depends, &self)),
 
-            ComposeTemplateValue::PositionSpace(space) 
-            => NodeDataType::PositionSpace(PositionSpace::from_template(space, &depends, &self)),
+            ComposeTemplateValue::PositionSpace2D(space) 
+            => NodeDataType::PositionSpace2D(PositionSpace::from_template(space, &depends, &self)),
+
+            ComposeTemplateValue::PositionSpace3D(space) 
+            => NodeDataType::PositionSpace3D(PositionSpace::from_template(space, &depends, &self)),
+
 
             ComposeTemplateValue::Build(t) 
             => NodeDataType::Build(B::get_collapse_value(GetCollapseValueArgs { 

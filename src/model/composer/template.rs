@@ -30,7 +30,8 @@ pub struct ComposeTemplate<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> 
 pub enum ComposeTemplateValue<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     None,
     NumberSpace(NumberSpaceTemplate<V2, V3, T>),
-    PositionSpace(PositionSpaceTemplate<V2, V3, T>),
+    PositionSpace2D(PositionSpaceTemplate<V2, V2, V3, T, 2>),
+    PositionSpace3D(PositionSpaceTemplate<V3, V2, V3, T, 3>),
     Build(B::TemplateValue)
 }
 
@@ -124,7 +125,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                         &template);
                     (
                         space.get_dependend_template_nodes().collect(),
-                        ComposeTemplateValue::PositionSpace(space)
+                        ComposeTemplateValue::PositionSpace2D(space)
                     )
                 },
                 ComposeNodeType::TemplatePositionSet3D => {
@@ -133,7 +134,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                         &template);
                     (
                         space.get_dependend_template_nodes().collect(),
-                        ComposeTemplateValue::PositionSpace(space)
+                        ComposeTemplateValue::PositionSpace3D(space)
                     )
                 },
                 ComposeNodeType::TemplateNumberSet => {

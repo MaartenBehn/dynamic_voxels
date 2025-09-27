@@ -20,7 +20,7 @@ pub mod position_set;
 use std::{fs::{self, File}, io::Write, time::Duration};
 
 use build::{ComposeTypeTrait, BS};
-use collapse::{collapser::Collapser, worker::ComposeCollapseWorker};
+use collapse::{collapser::Collapser, worker::{CollapserChangeReciver, ComposeCollapseWorker}};
 use egui_snarl::{ui::{NodeLayout, PinPlacement, SnarlStyle, SnarlWidget}, Snarl};
 use nodes::ComposeNode;
 use octa_force::{anyhow::anyhow, egui::{self, CornerRadius, Id}, OctaResult};
@@ -29,6 +29,7 @@ use viewer::ComposeViewer;
 
 use crate::util::{number::Nu, vector::Ve};
 
+
 const TEMP_SAVE_FILE: &str = "./composer_temp_save.json";
 
 #[derive(Debug)]
@@ -36,7 +37,10 @@ pub struct ModelComposer<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub snarl: Snarl<ComposeNode<B::ComposeType>>,
     pub style: SnarlStyle,
     pub viewer: ComposeViewer<V2, V3, T, B>,
+
+    pub template: ComposeTemplate<V2, V3, T, B>,
     pub collapser_worker: ComposeCollapseWorker<V2, V3, T, B>,
+    pub collapser_reciver: CollapserChangeReciver<V2, V3, T, B>,
 }
 
 const fn default_style() -> SnarlStyle {
@@ -83,7 +87,7 @@ where
         let style = default_style();
         let mut viewer = ComposeViewer::new();
         let template = ComposeTemplate::empty();
-        let collapser_worker = ComposeCollapseWorker::new(template, state);
+        let (collapser_worker, collapser_reciver) = ComposeCollapseWorker::new(template.clone(), state);
        
         viewer.check_valid_for_all_nodes(&mut snarl);
 
@@ -91,19 +95,37 @@ where
             snarl,
             style, 
             viewer,
+            template,
             collapser_worker,
+            collapser_reciver,
         }
     }
 
     pub fn render(&mut self, ctx: &egui::Context) {  
-        egui::SidePanel::left("Left Side")
-            .default_width(1000.0)
+        egui::TopBottomPanel::bottom("Bottom")
+            .default_height(500.0)
             .show(ctx, |ui| {
-            SnarlWidget::new()
-                .id(Id::new("snarl-demo"))
-                .style(self.style)
-                .show(&mut self.snarl, &mut self.viewer, ui);
-        });
+                SnarlWidget::new()
+                    .id(Id::new("snarl-demo"))
+                    .style(self.style)
+                    .show(&mut self.snarl, &mut self.viewer, ui);
+            });
+
+        egui::SidePanel::right("Right Side")
+            .default_width(500.0)
+            .show(ctx, |ui| {
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    egui::CollapsingHeader::new("Template:")
+                        .show(ui, |ui| {
+                            self.template.debug_render(ui);
+                        });
+
+                    egui::CollapsingHeader::new("Collapser:")
+                        .show(ui, |ui| {
+                            self.collapser_reciver.get_collapser().debug_render(ui);
+                        });
+                });
+            });
 
     }
 
@@ -113,8 +135,8 @@ where
         if self.viewer.changed {
             self.viewer.changed = false;
             if !self.viewer.invalid_nodes.any() {
-                let template = ComposeTemplate::new(self);
-                self.collapser_worker.template_changed(template);
+                self.template = ComposeTemplate::new(self);
+                self.collapser_worker.template_changed(self.template.clone());
             }
         } 
 

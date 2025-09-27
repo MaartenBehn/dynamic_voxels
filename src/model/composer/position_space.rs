@@ -9,60 +9,88 @@ use super::{build::BS, data_type::ComposeDataType, nodes::ComposeNodeType, numbe
 
 
 #[derive(Debug, Clone)]
-pub enum PositionSpaceTemplate<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
-    GridInVolume(GridVolumeTemplate<V2, V3, T>),
-    GridOnPlane(GridOnPlaneTemplate<V2, V3, T>),
-    Path(PathTemplate<V2, V3, T>)
+pub enum PositionSpaceTemplate<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> {
+    Grid(GridTemplate<V, V2, V3, T, D>),
+    LeafSpread(LeafSpreadTemplate<V, V2, V3, T, D>),
+    Path(PathTemplate<V, V2, V3, T, D>)
 }
 
 #[derive(Debug, Clone)]
-pub struct GridVolumeTemplate<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
-    pub volume: VolumeTemplate<V3, V2, V3, T, 3>,
+pub struct GridTemplate<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> {
+    pub volume: VolumeTemplate<V, V2, V3, T, D>,
     pub spacing: NumberTemplate<V2, V3, T>,
 }
 
 #[derive(Debug, Clone)]
-pub struct GridOnPlaneTemplate<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
-    pub volume: VolumeTemplate<V2, V2, V3, T, 2>,
-    pub spacing: NumberTemplate<V2, V3, T>,
-    pub height: NumberTemplate<V2, V3, T>,
+pub struct LeafSpreadTemplate<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> {
+    pub volume: VolumeTemplate<V, V2, V3, T, D>,
+    pub samples: NumberTemplate<V2, V3, T>,
 }
 
 #[derive(Debug, Clone)]
-pub struct PathTemplate<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
+pub struct PathTemplate<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> {
     pub spacing: NumberTemplate<V2, V3, T>,
-    pub side_variance: PositionTemplate<V2, V2, V3, T, 2>,
-    pub start: PositionTemplate<V2, V2, V3, T, 2>,
-    pub end: PositionTemplate<V2, V2, V3, T, 2>,
+    pub side_variance: PositionTemplate<V, V2, V3, T, D>,
+    pub start: PositionTemplate<V, V2, V3, T, D>,
+    pub end: PositionTemplate<V, V2, V3, T, D>,
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> {
-    pub fn make_pos_space(
+    pub fn make_pos_space<V: Ve<T, D>, const D: usize>(
         &self, 
         pin: OutPinId, 
         template: &ComposeTemplate<V2, V3, T, B>
-    ) -> PositionSpaceTemplate<V2, V3, T> {
+    ) -> PositionSpaceTemplate<V, V2, V3, T, D> {
 
         let node = self.snarl.get_node(pin.node).expect("Node of remote not found");
         match &node.t {
-            ComposeNodeType::GridInVolume => {
+            ComposeNodeType::Grid3D => {
+                assert_eq!(D, 3);
                 
-                let grid = GridVolumeTemplate {
+                let grid = GridTemplate {
                     volume: self.make_volume(self.get_input_pin_by_type(node, ComposeDataType::Volume3D), template),
                     spacing: self.make_number(node, self.get_input_index_by_type(node, ComposeDataType::Number(None)), template),
                 };
-                PositionSpaceTemplate::GridInVolume(grid)
+                PositionSpaceTemplate::Grid(grid)
             },
-            ComposeNodeType::GridOnPlane => {
+            ComposeNodeType::Grid2D => {
+                assert_eq!(D, 2);
                 
-                let grid = GridOnPlaneTemplate {
+                let grid = GridTemplate {
                     volume: self.make_volume(self.get_input_pin_by_type(node, ComposeDataType::Volume2D), template),
-                    spacing: self.make_number(node, 1, template),
-                    height: self.make_number(node, 2, template),
+                    spacing: self.make_number(node, self.get_input_index_by_type(node, ComposeDataType::Number(None)), template),                
                 };
-                PositionSpaceTemplate::GridOnPlane(grid)
+                PositionSpaceTemplate::Grid(grid)
             },
-            ComposeNodeType::Path => {
+            ComposeNodeType::LeafSpread3D => {
+                assert_eq!(D, 3);
+                
+                let leaf_spread = LeafSpreadTemplate {
+                    volume: self.make_volume(self.get_input_pin_by_type(node, ComposeDataType::Volume3D), template),
+                    samples: self.make_number(node, self.get_input_index_by_type(node, ComposeDataType::Number(None)), template),                
+                };
+                PositionSpaceTemplate::LeafSpread(leaf_spread)
+            },
+            ComposeNodeType::LeafSpread2D => {
+                assert_eq!(D, 2);
+                
+                let leaf_spread = LeafSpreadTemplate {
+                    volume: self.make_volume(self.get_input_pin_by_type(node, ComposeDataType::Volume2D), template),
+                    samples: self.make_number(node, self.get_input_index_by_type(node, ComposeDataType::Number(None)), template),                
+                };
+                PositionSpaceTemplate::LeafSpread(leaf_spread)
+            },
+            ComposeNodeType::Path3D => {
+                
+                let path = PathTemplate {
+                    start: self.make_position(node, 0, template),
+                    end: self.make_position(node, 1, template),
+                    spacing: self.make_number(node, self.get_input_index_by_type(node, ComposeDataType::Number(None)), template),
+                    side_variance: self.make_position(node, 3, template),
+                };
+                PositionSpaceTemplate::Path(path)
+            },
+            ComposeNodeType::Path2D => {
                 
                 let path = PathTemplate {
                     start: self.make_position(node, 0, template),
@@ -78,17 +106,16 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
     }
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> PositionSpaceTemplate<V2, V3, T> {
+impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> PositionSpaceTemplate<V, V2, V3, T, D> {
     pub fn get_dependend_template_nodes(&self) -> impl Iterator<Item = TemplateIndex> {
         match &self {
-            PositionSpaceTemplate::GridInVolume(grid_volume_data) => {
+            PositionSpaceTemplate::Grid(grid_volume_data) => {
                 grid_volume_data.volume.get_dependend_template_nodes()
                     .chain(grid_volume_data.spacing.get_dependend_template_nodes())
                     .collect_vec()
             },
-            PositionSpaceTemplate::GridOnPlane(grid_on_plane_data) => {
-                grid_on_plane_data.volume.get_dependend_template_nodes()
-                    .chain(grid_on_plane_data.spacing.get_dependend_template_nodes())
+            PositionSpaceTemplate::LeafSpread(leaf_spread_template) => {
+                leaf_spread_template.volume.get_dependend_template_nodes()
                     .collect_vec()
             },
             PositionSpaceTemplate::Path(path) => {
@@ -97,7 +124,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> PositionSpaceTemplate<V2, V3, T> {
                     .chain(path.spacing.get_dependend_template_nodes())
                     .chain(path.side_variance.get_dependend_template_nodes())
                     .collect_vec()
-            }      
+            }
         }.into_iter()  
     }
 }

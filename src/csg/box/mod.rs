@@ -31,6 +31,7 @@ impl<M, V: Ve<T, D>, T: Nu, const D: usize> VolumeBounds<V, T, D> for CSGBox<M, 
 impl<M, V: Ve<T, D>, T: Nu, const D: usize> VolumeQureyPosValid<V, T, D> for CSGBox<M, V, T, D> {
     fn is_position_valid(&self, pos: V) -> bool {
         let pos = self.mat.mul_vector(V::to_vector_f(pos));
+
         let aabb = AABB::<V::VectorF, f32, D>::new(V::VectorF::new([-0.5; D]), V::VectorF::new([0.5; D]));
 
         aabb.pos_in_aabb(pos)

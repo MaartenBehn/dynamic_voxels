@@ -1,4 +1,4 @@
-use std::{fmt::Debug, ops::{Add, Div, Index, Mul, Neg, Sub}, process::Output};
+use std::{fmt::Debug, iter, ops::{Add, Div, Index, Mul, Neg, Sub}, process::Output};
 
 use octa_force::glam::{vec2, IVec2, IVec3, Mat3, Mat4, UVec3, Vec2, Vec3, Vec3A, Vec3Swizzles, Vec4, Vec4Swizzles};
 
@@ -31,7 +31,7 @@ pub trait Ve<T: Nu, const D: usize>:
     const MAX: Self;
 
     fn new(v: [T; D]) -> Self;
-    fn from_iter<I: Iterator<Item = T>>(iter: I) -> Self;
+    fn from_iter<I: Iterator<Item = T>>(iter: &mut I) -> Self;
     
     fn dot(self, other: Self) -> T;
     fn length_squared(self) -> T;
@@ -77,7 +77,6 @@ pub trait Ve<T: Nu, const D: usize>:
 
     fn to_array(&self) -> [T; D];
 
-
     fn max_index(self) -> usize {
 
         let mut e_max = T::ZERO;
@@ -102,7 +101,7 @@ impl Ve<f32, 2> for Vec2 {
     const MAX: Self = Vec2::MAX;
 
     fn new(v: [f32; 2]) -> Self { Vec2::from_array(v) }
-    fn from_iter<I: Iterator<Item = f32>>(mut iter: I) -> Self {
+    fn from_iter<I: Iterator<Item = f32>>(iter: &mut I) -> Self {
         let mut v = Vec2::ZERO;
         v.x = iter.next().unwrap();
         v.y = iter.next().unwrap();
@@ -152,7 +151,6 @@ impl Ve<f32, 2> for Vec2 {
     fn from_uvec3(v: UVec3) -> Self { unreachable!() }
 
     fn to_array(&self) -> [f32; 2] { Self::to_array(self) }
-
 }
 
 impl MC<Vec2, f32, 2> for Vec2 {
@@ -170,7 +168,7 @@ impl Ve<f32, 3> for Vec3 {
     const MAX: Self = Vec3::MAX;
 
     fn new(v: [f32; 3]) -> Self { Vec3::from_array(v) }
-    fn from_iter<I: Iterator<Item = f32>>(mut iter: I) -> Self {
+    fn from_iter<I: Iterator<Item = f32>>(iter: &mut I) -> Self {
         let mut v = Vec3::ZERO;
         v.x = iter.next().unwrap();
         v.y = iter.next().unwrap();
@@ -221,7 +219,6 @@ impl Ve<f32, 3> for Vec3 {
     fn from_uvec3(v: UVec3) -> Self { v.as_vec3() }
 
     fn to_array(&self) -> [f32; 3] { Self::to_array(self) }
-
 }
 
 impl MC<Vec3, f32, 3> for Vec3 {
@@ -239,7 +236,7 @@ impl Ve<f32, 3> for Vec3A {
     const MAX: Self = Vec3A::MAX;
 
     fn new(v: [f32; 3]) -> Self { Vec3A::from_array(v) }
-    fn from_iter<I: Iterator<Item = f32>>(mut iter: I) -> Self {
+    fn from_iter<I: Iterator<Item = f32>>(iter: &mut I) -> Self {
         let mut v = Vec3A::ZERO;
         v.x = iter.next().unwrap();
         v.y = iter.next().unwrap();
@@ -289,7 +286,7 @@ impl Ve<f32, 3> for Vec3A {
     fn from_ivec2(v: IVec2) -> Self { unreachable!() }
     fn from_uvec3(v: UVec3) -> Self { v.as_vec3a() }
 
-    fn to_array(&self) -> [f32; 3] { Self::to_array(self) }
+    fn to_array(&self) -> [f32; 3] { Self::to_array(self) } 
 }
 
 impl MC<Vec3A, f32, 3> for Vec3A {
@@ -307,7 +304,7 @@ impl Ve<i32, 3> for IVec3 {
     const MAX: Self = IVec3::MAX;
 
     fn new(v: [i32; 3]) -> Self { IVec3::from_array(v) }
-    fn from_iter<I: Iterator<Item = i32>>(mut iter: I) -> Self {
+    fn from_iter<I: Iterator<Item = i32>>(iter: &mut I) -> Self {
         let mut v = IVec3::ZERO;
         v.x = iter.next().unwrap();
         v.y = iter.next().unwrap();
@@ -376,7 +373,7 @@ impl Ve<i32, 2> for IVec2 {
     const MAX: Self = IVec2::MAX;
 
     fn new(v: [i32; 2]) -> Self { IVec2::from_array(v) }
-    fn from_iter<I: Iterator<Item = i32>>(mut iter: I) -> Self {
+    fn from_iter<I: Iterator<Item = i32>>(iter: &mut I) -> Self {
         let mut v = IVec2::ZERO;
         v.x = iter.next().unwrap();
         v.y = iter.next().unwrap();
@@ -419,7 +416,7 @@ impl Ve<i32, 2> for IVec2 {
     fn to_uvec3(self) -> UVec3 { unreachable!() }
     
     fn from_vec4h(v: Vec4) -> Self { unreachable!() }
-    fn from_vec3a(v: Vec3A) -> Self { unreachable!() }
+    fn from_vec3a(v: Vec3A) -> Self { v.xy().as_ivec2() }
     fn from_vec3(v: Vec3) -> Self { unreachable!() }
     fn from_vec2(v:  Vec2) -> Self { v.as_ivec2() }
     fn from_ivec3(v: IVec3) -> Self { unreachable!() }
@@ -442,5 +439,5 @@ pub fn vector_to_nalgebra<V: Ve<f32, D>, const D: usize>(v: V) -> nalgebra::OPoi
 }
 
 pub fn nalgebra_to_vector<V: Ve<f32, D>, const D: usize>(v: nalgebra::OPoint<f32, nalgebra::Const<D>>) -> V {
-    V::from_iter(v.iter().copied())
+    V::from_iter(&mut v.iter().copied())
 }

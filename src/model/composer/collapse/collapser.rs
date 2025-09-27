@@ -1,6 +1,6 @@
+use std::{collections::{HashMap, VecDeque}, fmt::{Debug, Octal}, iter, marker::PhantomData, mem::{self, ManuallyDrop}, task::ready, usize};
 
-use std::{collections::{HashMap, VecDeque}, fmt::{Debug, Octal}, iter, marker::PhantomData, mem, task::ready, usize};
-
+use itertools::Either;
 use octa_force::{anyhow::{anyhow, bail, ensure}, glam::{vec3, vec3a, IVec3, Vec3, Vec3Swizzles}, log::{debug, error, info}, vulkan::ash::vk::OpaqueCaptureDescriptorDataCreateInfoEXT, OctaResult};
 use slotmap::{new_key_type, Key, SlotMap};
 use crate::{model::{composer::{build::{OnCollapseArgs, BS}, number_space::NumberSpaceTemplate, template::{ComposeTemplate, TemplateIndex}}, generation::pos_set::PositionSetRule}, util::{number::Nu, state_saver, vector::Ve}, volume::VolumeQureyPosValid};
@@ -31,9 +31,16 @@ pub struct CollapseNode<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
 #[derive(Debug, Clone)]
 pub enum NodeDataType<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     NumberSet(NumberSpace<T>),
-    PositionSpace(PositionSpace<V2, V3, T>),
+    PositionSpace2D(PositionSpace<V2, T, 2>),
+    PositionSpace3D(PositionSpace<V3, T, 3>),
     None,
     Build(B::CollapseValue)
+}
+
+union VUnion<VA: Ve<T, DA>, VB: Ve<T, DB>, T: Nu, const DA: usize, const DB: usize> {
+    a: VA,
+    b: VB,
+    p: PhantomData<T>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -92,7 +99,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
                     panic!("{:?} Collapse Number faild", node_index);
                 }
             },
-            NodeDataType::PositionSpace(space) => space.update(),
+            NodeDataType::PositionSpace2D(space) => space.update(),
+            NodeDataType::PositionSpace3D(space) => space.update(),
             NodeDataType::None => {},
             NodeDataType::Build(t) => B::on_collapse(OnCollapseArgs { 
                 collapse_index: node_index,
@@ -117,19 +125,57 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
     pub fn get_position<V: Ve<T, D>, const D: usize>(&self, index: CollapseNodeKey) -> V {
         let node = &self.nodes[index];
         let parent = &self.nodes[node.defined_by];
-        
-        match &parent.data {
-            NodeDataType::PositionSpace(d) => d.get_position(node.child_key),
-            _ => panic!("Template Node {:?} is not of Type Position Space Set", node.template_index)
+       
+        match D {
+            2 => {
+                let v = match &parent.data {
+                    NodeDataType::PositionSpace2D(d) => d.get_position(node.child_key),
+                    _ => panic!("Template Node {:?} is not of Type Position Space 2D Set", node.template_index)
+                };
+
+                // Safety V2 and V are the same Type bause D == 2
+                unsafe { VUnion{ a: v }.b }
+            }
+            3 => {
+                let v = match &parent.data {
+                    NodeDataType::PositionSpace3D(d) => d.get_position(node.child_key),
+                    _ => panic!("Template Node {:?} is not of Type Position Space 3D Set", node.template_index)
+                };
+
+                // Safety V3 and V are the same Type bause D == 3
+                unsafe { VUnion{ a: v }.b }
+            }
+            _ => unreachable!()
         }
     }
 
     pub fn get_position_set<V: Ve<T, D>, const D: usize>(&self, index: CollapseNodeKey) -> impl Iterator<Item = V> {
         let node = &self.nodes[index];
-        
-        match &node.data {
-            NodeDataType::PositionSpace(d) => d.get_positions(),
-            _ => panic!("Template Node {:?} is not of Type Position Space Set", node.template_index)
+       
+        match D {
+            2 => {
+                let i = match &node.data {
+                    NodeDataType::PositionSpace2D(d) => d.get_positions(),
+                    _ => panic!("Template Node {:?} is not of Type Position Space Set 2D", node.template_index)
+                };
+                
+                Either::Left(i.map(|v|  {
+                    // Safety V2 and V are the same Type bause D == 2
+                    unsafe { VUnion{ a: v }.b }
+                }))
+            }
+            3 => {
+                let i = match &node.data {
+                    NodeDataType::PositionSpace3D(d) => d.get_positions(),
+                    _ => panic!("Template Node {:?} is not of Type Position Space Set 3D", node.template_index)
+                };
+
+                Either::Right(i.map(|v| {
+                    // Safety V3 and V are the same Type bause D == 3
+                    unsafe { VUnion{ a: v }.b }
+                }))
+            }
+            _ => unreachable!()
         }
     }
  

@@ -19,6 +19,10 @@ impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> VolumeBounds<V, T, D> f
     }
 
     fn get_bounds(&self) -> AABB<V, T, D> {
+        if self.nodes.is_empty() {
+            return AABB::default();
+        }
+
         self.get_bounds_index(self.root)
     }
 }

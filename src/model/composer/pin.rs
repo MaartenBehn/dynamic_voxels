@@ -61,11 +61,14 @@ impl egui_snarl::ui::SnarlPin for ComposePin {
             ComposeDataType::PositionSpace3D => PinInfo::triangle().with_fill(Color32::BLUE),
             ComposeDataType::PositionSet2D => PinInfo::square().with_fill(Color32::LIGHT_BLUE),
             ComposeDataType::PositionSet3D => PinInfo::square().with_fill(Color32::BLUE),
-
             ComposeDataType::Volume2D => PinInfo::square().with_fill(Color32::LIGHT_RED),
             ComposeDataType::Volume3D => PinInfo::square().with_fill(Color32::RED),
             ComposeDataType::Ammount => PinInfo::square().with_fill(Color32::GREEN),
+
             ComposeDataType::Identifier => PinInfo::circle().with_fill(Color32::GREEN),
+            ComposeDataType::IdentifierNumberSet => PinInfo::circle().with_fill(Color32::GREEN),
+            ComposeDataType::IdentifierPositionSet2D => PinInfo::circle().with_fill(Color32::GREEN),
+            ComposeDataType::IdentifierPositionSet3D => PinInfo::circle().with_fill(Color32::GREEN),
         };
 
         let wire_info = pin_info.draw(snarl_style, style, rect, painter);
@@ -76,8 +79,6 @@ impl egui_snarl::ui::SnarlPin for ComposePin {
 
             draw_exclemation_mark(center, size, painter);
         }
-
-        
 
         wire_info
     }

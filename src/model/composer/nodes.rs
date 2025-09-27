@@ -34,15 +34,19 @@ pub enum ComposeNodeType<CT: ComposeTypeTrait> {
     NumberRange,
 
     // Volume
-    GridInVolume,
-    GridOnPlane,
-    Path,
+    Grid2D,
+    Grid3D,
+    LeafSpread2D,
+    LeafSpread3D,
+    Path2D,
+    Path3D,
 
     EmpytVolume2D,
     EmpytVolume3D,
     Sphere,
     Circle,
-    Box,
+    Box2D,
+    Box3D,
 
     UnionVolume2D,
     UnionVolume3D,
@@ -59,9 +63,11 @@ pub enum ComposeNodeType<CT: ComposeTypeTrait> {
     PositionSet2DTo3D,
 
     // Ammount 
-    OnePer,
     OneGlobal,
+    OnePer,
     NPer,
+    ByPositionSet2D,
+    ByPositionSet3D,
 
     // Template
     TemplatePositionSet2D,
@@ -160,19 +166,36 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
             .input(ComposeDataType::Number(None), "step")
             .output(ComposeDataType::NumberSpace, "out"),
 
-        ComposeNode::new(ComposeNodeType::GridInVolume, ComposeNodeGroupe::PositionSpace3D)
+        ComposeNode::new(ComposeNodeType::Grid3D, ComposeNodeGroupe::PositionSpace3D)
             .input(ComposeDataType::Volume3D, "volume")
             .input(ComposeDataType::Number(None), "spacing")
             .output(ComposeDataType::PositionSpace3D, "s"),
 
-        ComposeNode::new(ComposeNodeType::GridOnPlane, ComposeNodeGroupe::PositionSpace2D)
+        ComposeNode::new(ComposeNodeType::Grid2D, ComposeNodeGroupe::PositionSpace2D)
             .input(ComposeDataType::Volume2D, "volume")
             .input(ComposeDataType::Number(None), "spacing")
             .output(ComposeDataType::PositionSpace2D, "s"),
 
-        ComposeNode::new(ComposeNodeType::Path, ComposeNodeGroupe::PositionSpace2D)
-            .input(ComposeDataType::Number(None), "start")
-            .input(ComposeDataType::Number(None), "end")
+        ComposeNode::new(ComposeNodeType::LeafSpread3D, ComposeNodeGroupe::PositionSpace3D)
+            .input(ComposeDataType::Volume3D, "volume")
+            .input(ComposeDataType::Number(None), "samples")
+            .output(ComposeDataType::PositionSpace3D, "s"),
+
+        ComposeNode::new(ComposeNodeType::LeafSpread2D, ComposeNodeGroupe::PositionSpace2D)
+            .input(ComposeDataType::Volume2D, "volume")
+            .input(ComposeDataType::Number(None), "samples")
+            .output(ComposeDataType::PositionSpace2D, "s"),
+
+        ComposeNode::new(ComposeNodeType::Path3D, ComposeNodeGroupe::PositionSpace3D)
+            .input(ComposeDataType::Position3D(None), "start")
+            .input(ComposeDataType::Position3D(None), "end")
+            .input(ComposeDataType::Number(Some(10)), "spacing")
+            .input(ComposeDataType::Position3D(None), "side variance")
+            .output(ComposeDataType::PositionSpace3D, "s"),
+
+        ComposeNode::new(ComposeNodeType::Path2D, ComposeNodeGroupe::PositionSpace2D)
+            .input(ComposeDataType::Position2D(None), "start")
+            .input(ComposeDataType::Position2D(None), "end")
             .input(ComposeDataType::Number(Some(10)), "spacing")
             .input(ComposeDataType::Position2D(None), "side variance")
             .output(ComposeDataType::PositionSpace2D, "s"),
@@ -195,7 +218,12 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
             .input(ComposeDataType::Number(Some(10)), "size")
             .output(ComposeDataType::Volume3D, "v"),
 
-        ComposeNode::new(ComposeNodeType::Box, ComposeNodeGroupe::Volume3D)
+        ComposeNode::new(ComposeNodeType::Box2D, ComposeNodeGroupe::Volume2D)
+            .input(ComposeDataType::Position2D(None), "pos")
+            .input(ComposeDataType::Position2D(None), "size")
+            .output(ComposeDataType::Volume2D, "v"),
+
+        ComposeNode::new(ComposeNodeType::Box3D, ComposeNodeGroupe::Volume3D)
             .input(ComposeDataType::Position3D(None), "pos")
             .input(ComposeDataType::Position3D(None), "size")
             .output(ComposeDataType::Volume3D, "v"),
@@ -234,15 +262,20 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
 
         // Math
         ComposeNode::new(ComposeNodeType::SplitPosition2D, ComposeNodeGroupe::Math)
-            .input(ComposeDataType::PositionSet2D, "positions")
+            .input(ComposeDataType::Position2D(None), "position")
             .output(ComposeDataType::Number(None), "x")
             .output(ComposeDataType::Number(None), "y"),
 
         ComposeNode::new(ComposeNodeType::SplitPosition3D, ComposeNodeGroupe::Math)
-            .input(ComposeDataType::PositionSet3D, "positions")
+            .input(ComposeDataType::Position3D(None), "position")
             .output(ComposeDataType::Number(None), "x")
             .output(ComposeDataType::Number(None), "y")
             .output(ComposeDataType::Number(None), "z"),
+
+        ComposeNode::new(ComposeNodeType::PositionSet2DTo3D, ComposeNodeGroupe::Math)
+            .input(ComposeDataType::PositionSet2D, "xy")
+            .input(ComposeDataType::Number(None), "z")
+            .output(ComposeDataType::PositionSet3D, "xyz"),
 
         // Ammount
         ComposeNode::new(ComposeNodeType::OneGlobal, ComposeNodeGroupe::Template)
@@ -250,30 +283,42 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
 
         ComposeNode::new(ComposeNodeType::OnePer, ComposeNodeGroupe::Template)
             .input(ComposeDataType::Identifier, "identifier")
+            .input(ComposeDataType::Number(Some(1)), "n")
             .output(ComposeDataType::Ammount, "a"),
 
         ComposeNode::new(ComposeNodeType::NPer, ComposeNodeGroupe::Template)
             .input(ComposeDataType::Identifier, "identifier")
             .input(ComposeDataType::Number(Some(1)), "n")
             .output(ComposeDataType::Ammount, "a"),
- 
+
+        ComposeNode::new(ComposeNodeType::ByPositionSet2D, ComposeNodeGroupe::Template)
+            .input(ComposeDataType::IdentifierPositionSet2D, "identifier")
+            .output(ComposeDataType::Ammount, "a")
+            .output(ComposeDataType::Position2D(None), "pos"),
+
+        ComposeNode::new(ComposeNodeType::ByPositionSet3D, ComposeNodeGroupe::Template)
+            .input(ComposeDataType::IdentifierPositionSet3D, "identifier")
+            .output(ComposeDataType::Ammount, "a")
+            .output(ComposeDataType::Position3D(None), "pos"),
+
+
         // Template
         ComposeNode::new(ComposeNodeType::TemplateNumberSet, ComposeNodeGroupe::Template)
             .input(ComposeDataType::Ammount, "ammount")
             .input(ComposeDataType::NumberSpace, "space")
-            .output(ComposeDataType::Identifier, "identifier")
+            .output(ComposeDataType::IdentifierNumberSet, "identifier")
             .output(ComposeDataType::Number(None), "number"),
 
         ComposeNode::new(ComposeNodeType::TemplatePositionSet2D, ComposeNodeGroupe::Template)
             .input(ComposeDataType::Ammount, "ammount")
             .input(ComposeDataType::PositionSpace2D, "space")
-            .output(ComposeDataType::Identifier, "identifier")
+            .output(ComposeDataType::IdentifierPositionSet2D, "identifier")
             .output(ComposeDataType::PositionSet2D, "positions"),
 
         ComposeNode::new(ComposeNodeType::TemplatePositionSet3D, ComposeNodeGroupe::Template)
             .input(ComposeDataType::Ammount, "ammount")
             .input(ComposeDataType::PositionSpace3D, "space")
-            .output(ComposeDataType::Identifier, "identifier")
+            .output(ComposeDataType::IdentifierPositionSet3D, "identifier")
             .output(ComposeDataType::PositionSet3D, "positions"),
     ]
 }

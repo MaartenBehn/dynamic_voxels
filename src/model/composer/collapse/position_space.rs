@@ -1,193 +1,109 @@
-use std::{fmt, marker::PhantomData, usize};
+use std::{fmt, iter, marker::PhantomData, usize};
 
 use itertools::{Either, Itertools};
-use octa_force::{anyhow::bail, glam::{IVec3, Mat4, Vec3, Vec3A}, OctaResult};
+use octa_force::{anyhow::bail, glam::{IVec3, Mat4, Vec3, Vec3A}, log::warn, OctaResult};
 use slotmap::{new_key_type, SecondaryMap, SlotMap};
 
-use crate::{csg::csg_tree::tree::CSGTree, model::composer::{build::BS, position_space::PositionSpaceTemplate, template::TemplateIndex}, util::{number::Nu, vector::Ve}, volume::VolumeQureyPosValid};
+use crate::{csg::csg_tree::tree::CSGTree, model::composer::{build::BS, position_space::PositionSpaceTemplate, template::TemplateIndex}, util::{aabb::AABB, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
 
 use super::collapser::{CollapseChildKey, CollapseNodeKey, Collapser};
 
+const LEAF_SPREAD_MAX_SAMPLES_MULTIPLYER: usize = 2;
+const PATH_MAX_SAMPLES_MULTIPLYER: usize = 2;
+
 #[derive(Debug, Clone)]
-pub enum PositionSpace<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
-    GridInVolume(GridVolume<V3, T>),
-    GridOnPlane(GridOnPlane<V2, T>),
-    Path(Path<V2, T>)
+pub struct PositionSpace<V: Ve<T, D>, T: Nu, const D: usize> {
+    data: PositionSpaceData<V, T, D>,
+    positions: SlotMap<CollapseChildKey, V>,
+    new_children: Vec<CollapseChildKey>,
 }
 
-#[derive(Clone)]
-pub struct GridVolume<V: Ve<T, 3>, T: Nu> {
-    pub volume: CSGTree<(), V, T, 3>,
+#[derive(Debug, Clone)]
+enum PositionSpaceData<V: Ve<T, D>, T: Nu, const D: usize> {
+    Grid(Grid<V, T, D>),
+    LeafSpread(LeafSpread<V, T, D>),
+    Path(Path<V, T, D>)
+}
+
+#[derive(Clone, Debug)]
+struct Grid<V: Ve<T, D>, T: Nu, const D: usize> {
+    pub volume: CSGTree<(), V, T, D>,
     pub spacing: T,
-    pub positions: SlotMap<CollapseChildKey, V>,
-    pub new_children: Vec<CollapseChildKey>,
 }
 
-#[derive(Clone)]
-pub struct GridOnPlane<V: Ve<T, 2>, T: Nu> {
-    pub volume: CSGTree<(), V, T, 2>,
-    pub spacing: T,
-    pub height: T,
-    pub positions: SlotMap<CollapseChildKey, V>,
-    pub new_children: Vec<CollapseChildKey>,
+#[derive(Clone, Debug)]
+struct LeafSpread<V: Ve<T, D>, T: Nu, const D: usize> {
+    pub volume: CSGTree<(), V, T, D>,
+    pub samples: T,
 }
 
-#[derive(Clone)]
-pub struct Path<V: Ve<T, 2>, T: Nu> {
+#[derive(Clone, Debug)]
+struct Path<V: Ve<T, D>, T: Nu, const D: usize> {
     pub spacing: T,
     pub side_variance: V,
     pub start: V,
     pub end: V,
-    pub positions: SlotMap<CollapseChildKey, V>,
-    pub new_children: Vec<CollapseChildKey>,
 }
 
-union VUnion<VA: Ve<T, DA>, VB: Ve<T, DB>, T: Nu, const DA: usize, const DB: usize> {
-    va: VA,
-    vb: VB,
-    p: PhantomData<T>,
-}
-
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> PositionSpace<V2, V3, T> {
-    pub fn from_template<B: BS<V2, V3, T>>(
-        template_space: &PositionSpaceTemplate<V2, V3, T>, 
+impl<V: Ve<T, D>,  T: Nu, const D: usize> PositionSpace<V, T, D> {
+    pub fn from_template<V2: Ve<T, 2>, V3: Ve<T, 3>, B: BS<V2, V3, T>>(
+        template_space: &PositionSpaceTemplate<V, V2, V3, T, D>, 
         depends: &[(TemplateIndex, Vec<CollapseNodeKey>)], 
         collapser: &Collapser<V2, V3, T, B>
     ) -> Self {
-        match &template_space {
-            PositionSpaceTemplate::GridInVolume(grid_volume_template) 
-            => PositionSpace::GridInVolume(GridVolume { 
-                volume: grid_volume_template.volume.get_value(depends, collapser, ()), 
-                spacing: grid_volume_template.spacing.get_value(depends, collapser),
-                
-                positions: Default::default(),
-                new_children: Default::default(),
+        let data = match &template_space {
+            PositionSpaceTemplate::Grid(template) 
+            => PositionSpaceData::Grid(Grid { 
+                volume: template.volume.get_value(depends, collapser, ()), 
+                spacing: template.spacing.get_value(depends, collapser),
             }),
-            PositionSpaceTemplate::GridOnPlane(grid_on_plane_template) 
-            => PositionSpace::GridOnPlane(GridOnPlane { 
-                volume: grid_on_plane_template.volume.get_value(depends, collapser, ()), 
-                spacing: grid_on_plane_template.spacing.get_value(depends, collapser),
-                height: grid_on_plane_template.height.get_value(depends, collapser),
-                
-                positions: Default::default(),
-                new_children: Default::default(),
+            PositionSpaceTemplate::LeafSpread(template) 
+            => PositionSpaceData::LeafSpread(LeafSpread { 
+                volume: template.volume.get_value(depends, collapser, ()), 
+                samples: template.samples.get_value(depends, collapser), 
             }),
-            PositionSpaceTemplate::Path(path_template) 
-            => PositionSpace::Path(Path {
-                spacing: path_template.spacing.get_value(depends, collapser),
-                side_variance: path_template.side_variance.get_value(depends, collapser),
-                start: path_template.start.get_value(depends, collapser),
-                end: path_template.end.get_value(depends, collapser),
-                
-                positions: Default::default(),
-                new_children: Default::default(),
+            PositionSpaceTemplate::Path(template) 
+            => PositionSpaceData::Path(Path {
+                spacing: template.spacing.get_value(depends, collapser),
+                side_variance: template.side_variance.get_value(depends, collapser),
+                start: template.start.get_value(depends, collapser),
+                end: template.end.get_value(depends, collapser),
             }),
+        };
+
+        Self {
+            data,
+            positions: Default::default(),
+            new_children: Default::default(),
         }
     }
 
-    pub fn get_position<V: Ve<T, D>, const D: usize>(&self, index: CollapseChildKey) -> V {
-        match self {
-            PositionSpace::GridInVolume(grid_volume) => {
-                assert_eq!(D, 3);
-
-                // TODO Maybe unsafe cast?
-                let v = grid_volume.positions[index];
-
-                // Safety: V3 and V are the same type 
-                unsafe { VUnion { va: v }.vb }
-            },
-            PositionSpace::GridOnPlane(grid_on_plane) => {
-                assert_eq!(D, 2);
-
-                let v = grid_on_plane.positions[index];
-
-                // Safety: V2 and V are the same type 
-                unsafe { VUnion { va: v }.vb }
-            },
-            PositionSpace::Path(path) => {
-                assert_eq!(D, 2);
-
-                let v = path.positions[index];
-
-                // Safety: V2 and V are the same type 
-                unsafe { VUnion { va: v }.vb }
-            },
-        }
+    pub fn get_position(&self, index: CollapseChildKey) -> V {
+        self.positions[index]    
     }
 
-    pub fn get_positions<V: Ve<T, D>, const D: usize>(&self) -> impl Iterator<Item = V> {
-        match self {
-            PositionSpace::GridInVolume(grid_volume) => {
-                assert_eq!(D, 3);
-
-                let ps = grid_volume.positions.values()
-                    .copied()
-                    .map(|p| {
-                        // Safety: V3 and V are the same type 
-                        unsafe { VUnion { va: p }.vb }
-                    });
-
-                Either::Left(Either::Left(ps))
-            },
-            PositionSpace::GridOnPlane(grid_on_plane) => {
-                assert_eq!(D, 2);
-
-                let ps = grid_on_plane.positions.values()
-                    .copied()
-                    .map(|p| {
-                        // Safety: V2 and V are the same type 
-                        unsafe { VUnion { va: p }.vb }
-                    });
-
-                Either::Left(Either::Right(ps))
-            },
-            PositionSpace::Path(path) => {
-                assert_eq!(D, 2);
-
-                let ps = path.positions.values()
-                    .copied()
-                    .map(|p| {
-                        // Safety: V2 and V are the same type 
-                        unsafe { VUnion { va: p }.vb }
-                    });
-
-                Either::Right(ps)
-            },
-        }
+    pub fn get_positions(&self) -> impl Iterator<Item = V> {
+         self.positions.values().copied()
     }
-
 
     pub fn is_child_valid(&self, index: CollapseChildKey) -> bool {
-        match self {
-            PositionSpace::GridInVolume(grid_volume) => grid_volume.positions.contains_key(index) ,
-            PositionSpace::GridOnPlane(grid_on_plane) => grid_on_plane.positions.contains_key(index),
-            PositionSpace::Path(path) => path.positions.contains_key(index),
-        }
+        self.positions.contains_key(index)    
     }
 
     pub fn update(&mut self) {
-        match self {
-            PositionSpace::GridInVolume(grid_volume) => {
-                let new_positions = grid_volume.volume.get_grid_positions(grid_volume.spacing).collect_vec();
-                grid_volume.new_children = update_positions(new_positions, &mut grid_volume.positions);
+        let new_positions = match &self.data {
+            PositionSpaceData::Grid(grid_volume) => {
+                grid_volume.volume.get_grid_positions(grid_volume.spacing).collect_vec()
             },
-            PositionSpace::GridOnPlane(grid_on_plane) => {
-                let mut new_positions = grid_on_plane.volume.get_grid_positions(grid_on_plane.spacing).collect_vec();
-                grid_on_plane.new_children = update_positions(new_positions, &mut grid_on_plane.positions);
-            },
-            PositionSpace::Path(path) => {
-                let mut new_positions = path.get_positions();
-                path.new_children = update_positions(new_positions, &mut path.positions);
-            },
-        }
+            PositionSpaceData::LeafSpread(leaf_spread) => leaf_spread.get_positions(),
+            PositionSpaceData::Path(path) => path.get_positions(),
+        };
+
+        self.new_children = update_positions(new_positions, &mut self.positions);
     }
 
     pub fn get_new_children(&self) -> &[CollapseChildKey] {
-        match self {
-            PositionSpace::GridInVolume(grid_volume) => &grid_volume.new_children,
-            PositionSpace::GridOnPlane(grid_on_plane) => &grid_on_plane.new_children,
-            PositionSpace::Path(path) => &path.new_children,
-        }
+        &self.new_children
     }
 }
 
@@ -210,7 +126,7 @@ fn update_positions<V: Ve<T, D>, T: Nu, const D: usize>(
 
 }
 
-impl<V: Ve<T, 2>, T: Nu> Path<V, T> {
+impl<V: Ve<T, D>, T: Nu, const D: usize> Path<V, T, D> {
     pub fn get_positions(&self) -> Vec<V> {
         let end: V::VectorF = self.end.to_vecf();
         let side_variance: V::VectorF = self.side_variance.to_vecf();
@@ -219,7 +135,11 @@ impl<V: Ve<T, 2>, T: Nu> Path<V, T> {
         let mut points = vec![self.start];
         let mut current: V::VectorF = self.start.to_vecf();
 
-        loop {
+        let delta: V::VectorF = end - current;
+        let steps = (delta.length() / spacing) as usize;
+        let tries = steps * PATH_MAX_SAMPLES_MULTIPLYER;
+
+        for i in 0..tries {
             let delta: V::VectorF = end - current;
             let length = delta.length();
             if length < spacing {
@@ -227,46 +147,45 @@ impl<V: Ve<T, 2>, T: Nu> Path<V, T> {
                 return points;
             }
 
-            let r = V::VectorF::new([fastrand::f32(), fastrand::f32()]) * 2.0 - 1.0;
+            let r = V::VectorF::from_iter(&mut iter::from_fn(|| Some(fastrand::f32()))) * 2.0 - 1.0;
             let side = r * side_variance * length;
             let dir = (delta + side).normalize();
             current = current + dir * spacing;
             points.push(V::from_vecf(current));
         }
+
+        warn!("Path timeout at {:?} did not react end {:?}", current, end);
+
+        points
     }
 }
 
-impl<V: Ve<T, 3>, T: Nu> fmt::Debug for GridVolume<V, T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("GridVolume")
-            .field("volume", &self.volume)
-            .field("spacing", &self.spacing)
-            .field("positions", &())
-            .field("new_children", &())
-            .finish()
-    }
-}
+impl<V: Ve<T, D>, T: Nu, const D: usize> LeafSpread<V, T, D> {
+    pub fn get_positions(&self) -> Vec<V> {
+        let aabb = self.volume.get_bounds();
+        let min: V::VectorF = AABB::min(&aabb).to_vecf();
+        let size: V::VectorF = aabb.size().to_vecf();
 
-impl<V: Ve<T, 2>, T: Nu> fmt::Debug for GridOnPlane<V, T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("GridOnPlane")
-            .field("volume", &self.volume)
-            .field("spacing", &self.spacing)
-            .field("positions", &())
-            .field("new_children", &())
-            .finish()
-    }
-}
+        let samples = self.samples.to_usize();
+        let tries = samples * LEAF_SPREAD_MAX_SAMPLES_MULTIPLYER;
 
-impl<V: Ve<T, 2>, T: Nu> fmt::Debug for Path<V, T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Path")
-            .field("spacing", &self.spacing)
-            .field("side_variance", &self.side_variance)
-            .field("start", &self.start)
-            .field("end", &self.end)
-            .field("positions", &())
-            .field("new_children", &())
-            .finish()
+        let mut seq = quasi_rd::Sequence::new(D);
+        let mut fi = iter::from_fn(|| Some(seq.next_f32()));
+
+        let points = iter::from_fn(|| {
+            let vf = V::VectorF::from_iter(&mut fi);
+            let v = V::from_vecf(vf * size + min); 
+            Some(v)
+        })
+            .take(tries)
+            .filter(|v| self.volume.is_position_valid(*v))
+            .take(samples)
+            .collect_vec();
+
+        if points.len() < samples {
+            warn!("Leaf Spread timeout only {:?} of {:?} samples points created.", points.len(), samples);
+        }
+
+        points
     }
 }

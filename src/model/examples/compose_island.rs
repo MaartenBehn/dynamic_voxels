@@ -32,7 +32,7 @@ pub struct ObjectTemplate<V3: Ve<T, 3>, V2: Ve<T, 2>, T: Nu> {
     volume: VolumeTemplate<V3, V2, V3, T, 3>,
 }
 
-impl<V: Ve<T, 3>, T: Nu> TemplateValueTrait for TemplateValue<V, T> {
+impl<V3: Ve<T, 3>, V2: Ve<T, 2>, T: Nu> TemplateValueTrait for TemplateValue<V3, V2, T> {
     fn get_dependend_template_nodes(&self) -> SmallVec<[TemplateIndex; 4]> {
         match self {
             TemplateValue::Object(object_template) => {
@@ -67,8 +67,8 @@ pub struct ComposeIslandState {
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
     type ComposeType = ComposeType;
-    type TemplateValue = TemplateValue<V3, T>;
-    type CollapseValue = CollapseValue;
+    type TemplateValue = TemplateValue<V3, V2, T>;
+    type CollapseValue = CollapseValue; 
 
     fn compose_nodes() -> Vec<ComposeNode<Self::ComposeType>> {
         vec![

@@ -19,7 +19,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
         ui.collapsing(format!("Node: {:?}", node.node_id), |ui| {
             ui.label(format!("Value: {}", match &node.value {
                 ComposeTemplateValue::NumberSpace(space) => format!("Number Space: {:#?}",space),
-                ComposeTemplateValue::PositionSpace(space) => format!("Position Space: {:#?}",space),
+                ComposeTemplateValue::PositionSpace2D(space) => format!("Position Space 2D: {:#?}",space),
+                ComposeTemplateValue::PositionSpace3D(space) => format!("Position Space 3D: {:#?}",space),
                 ComposeTemplateValue::None => "None".to_string(),
                 ComposeTemplateValue::Build(t) => "Build".to_string(),
             }));

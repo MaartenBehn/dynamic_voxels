@@ -5,7 +5,7 @@ use crate::{model::composer::{build::BS, collapse::collapser::{CollapseNodeKey, 
 
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B> { 
-    pub fn debug_render(&mut self, ui: &mut egui::Ui) {
+    pub fn debug_render(&self, ui: &mut egui::Ui) {
         ui.strong("Pending");
         ui.label(format!("Min Level: {}", self.pending.min_with_value));
         for (i, (collapse, create)) in self.pending.pending_per_level
@@ -68,7 +68,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
                 }
             }
  
-            ui.label(format!("Data: {:?}", node.data));
+            ui.label(format!("Data: {:#?}", node.data));
 
             i
         }).body_returned.unwrap_or(i)  

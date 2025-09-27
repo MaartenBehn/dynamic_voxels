@@ -24,7 +24,7 @@ pub enum VolumeTemplateData<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, cons
         cut: usize,
     },
     SphereUnion {
-        position_set: PositionSetTemplate,
+        position_set: PositionSetTemplate<V2, V3, T>,
         size: NumberTemplate<V2, V3, T>,
     },
 }
@@ -55,7 +55,14 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
                 }],
                 root: 0,
             },
-            ComposeNodeType::Box => VolumeTemplate {
+            ComposeNodeType::Box2D => VolumeTemplate {
+                nodes: vec![VolumeTemplateData::Box { 
+                    pos: self.make_position(node, 0, template),
+                    size: self.make_position(node, 1, template),
+                }],
+                root: 0,
+            },
+            ComposeNodeType::Box3D => VolumeTemplate {
                 nodes: vec![VolumeTemplateData::Box { 
                     pos: self.make_position(node, 0, template),
                     size: self.make_position(node, 1, template),
@@ -200,7 +207,7 @@ impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> VolumeTempl
 
                 let radius = size.get_value(depends, collapser).to_f32();
                 let mut csg = CSGTree::default();
-                for pos in position_set.get_value::<V, V2, V3, T, B, D>(depends, collapser) {
+                for pos in position_set.get_value::<V, B, D>(depends, collapser) {
                     let pos = pos.to_vecf();
                     csg.union_sphere(pos, radius, mat);
                 }

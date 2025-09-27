@@ -118,7 +118,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<ComposeNod
                     }
 
                     ui.label("z:");
-                    let res = ui.add(DragValue::new(&mut v.y));
+                    let res = ui.add(DragValue::new(&mut v.z));
                     if res.changed() {
                         (*d) = Some(v);
                     }
