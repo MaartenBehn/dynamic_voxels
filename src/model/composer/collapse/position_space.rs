@@ -6,7 +6,7 @@ use slotmap::{new_key_type, SecondaryMap, SlotMap};
 
 use crate::{csg::csg_tree::tree::CSGTree, model::composer::{build::BS, position_space::PositionSpaceTemplate, template::TemplateIndex}, util::{aabb::AABB, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
 
-use super::collapser::{CollapseChildKey, CollapseNodeKey, Collapser};
+use super::{add_nodes::GetValueData, collapser::{CollapseChildKey, CollapseNodeKey, Collapser}};
 
 const LEAF_SPREAD_MAX_SAMPLES_MULTIPLYER: usize = 2;
 const PATH_MAX_SAMPLES_MULTIPLYER: usize = 2;
@@ -48,26 +48,26 @@ struct Path<V: Ve<T, D>, T: Nu, const D: usize> {
 impl<V: Ve<T, D>,  T: Nu, const D: usize> PositionSpace<V, T, D> {
     pub fn from_template<V2: Ve<T, 2>, V3: Ve<T, 3>, B: BS<V2, V3, T>>(
         template_space: &PositionSpaceTemplate<V, V2, V3, T, D>, 
-        depends: &[(TemplateIndex, Vec<CollapseNodeKey>)], 
+        get_value_data: GetValueData,
         collapser: &Collapser<V2, V3, T, B>
     ) -> Self {
         let data = match &template_space {
             PositionSpaceTemplate::Grid(template) 
             => PositionSpaceData::Grid(Grid { 
-                volume: template.volume.get_value(depends, collapser, ()), 
-                spacing: template.spacing.get_value(depends, collapser),
+                volume: template.volume.get_value(get_value_data, collapser, ()), 
+                spacing: template.spacing.get_value(get_value_data, collapser),
             }),
             PositionSpaceTemplate::LeafSpread(template) 
             => PositionSpaceData::LeafSpread(LeafSpread { 
-                volume: template.volume.get_value(depends, collapser, ()), 
-                samples: template.samples.get_value(depends, collapser), 
+                volume: template.volume.get_value(get_value_data, collapser, ()), 
+                samples: template.samples.get_value(get_value_data, collapser), 
             }),
             PositionSpaceTemplate::Path(template) 
             => PositionSpaceData::Path(Path {
-                spacing: template.spacing.get_value(depends, collapser),
-                side_variance: template.side_variance.get_value(depends, collapser),
-                start: template.start.get_value(depends, collapser),
-                end: template.end.get_value(depends, collapser),
+                spacing: template.spacing.get_value(get_value_data, collapser),
+                side_variance: template.side_variance.get_value(get_value_data, collapser),
+                start: template.start.get_value(get_value_data, collapser),
+                end: template.end.get_value(get_value_data, collapser),
             }),
         };
 

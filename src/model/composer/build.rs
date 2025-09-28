@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::util::{number::Nu, vector::Ve};
 
-use super::{collapse::collapser::{CollapseNode, CollapseNodeKey, Collapser}, nodes::ComposeNode, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
+use super::{collapse::{add_nodes::GetValueData, collapser::{CollapseNode, CollapseNodeKey, Collapser}}, nodes::ComposeNode, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
 
 pub trait BS<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu>: fmt::Debug + Clone + Send + Sync + 'static {
     type ComposeType: ComposeTypeTrait;
@@ -32,6 +32,8 @@ pub trait CollapseValueTrait: fmt::Debug + Clone + Send + Sync {
 }
 
 pub struct GetTemplateValueArgs<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
+    pub building_template_index: TemplateIndex,
+
     pub compose_type: &'a B::ComposeType, 
     pub composer_node: &'a ComposeNode<B::ComposeType>,
 
@@ -41,7 +43,7 @@ pub struct GetTemplateValueArgs<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2,
 
 pub struct GetCollapseValueArgs<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub template_value: &'a B::TemplateValue,
-    pub depends: &'a [(TemplateIndex, Vec<CollapseNodeKey>)], 
+    pub get_value_data: GetValueData<'a>,
 
     pub collapser: &'a Collapser<V2, V3, T, B>,
     pub template: &'a ComposeTemplate<V2, V3, T, B>,

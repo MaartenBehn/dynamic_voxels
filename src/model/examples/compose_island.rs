@@ -106,13 +106,13 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
         match args.compose_type {
             ComposeType::Object => {
                 let volume = args.composer.make_volume(
-                    args.composer.get_input_pin_by_type(args.composer_node, ComposeDataType::Volume3D),
-                    args.template);
+                    args.composer.get_input_remote_pin_by_type(args.composer_node, ComposeDataType::Volume3D),
+                    args.building_template_index, args.template);
 
                 let pos = args.composer.make_position(
                     args.composer_node,
-                    args.composer.get_input_index_by_type(args.composer_node, ComposeDataType::Position3D(None)),
-                    args.template);
+                    args.composer.get_input_pin_index_by_type(args.composer_node, ComposeDataType::Position3D(None)),
+                    args.building_template_index, args.template);
  
                 TemplateValue::Object(ObjectTemplate { volume, pos }) 
             },
@@ -123,8 +123,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
         match args.template_value {
             TemplateValue::Object(object_template) => {
                 
-                let mut volume = object_template.volume.get_value(args.depends, args.collapser, MATERIAL_ID_BASE);
-                let pos = object_template.pos.get_value(args.depends, args.collapser);
+                let mut volume = object_template.volume.get_value(args.get_value_data, args.collapser, MATERIAL_ID_BASE);
+                let pos = object_template.pos.get_value(args.get_value_data, args.collapser);
 
                 volume.calculate_bounds();
 

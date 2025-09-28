@@ -4,7 +4,7 @@ use octa_force::glam::{ivec2, IVec2, IVec3, Vec2, Vec3A};
 
 use crate::{csg::csg_tree::tree::CSGTree, model::generation::traits::ModelGenerationTypes, util::{math_config::{MC}, number::Nu, vector::Ve}};
 
-use super::{build::BS, collapse::collapser::{CollapseNode, CollapseNodeKey, Collapser}, data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, number::NumberTemplate, template::{ComposeTemplate, TemplateIndex, TemplateNode}, ModelComposer};
+use super::{build::BS, collapse::{add_nodes::GetValueData, collapser::{CollapseNode, CollapseNodeKey, Collapser}}, data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, number::NumberTemplate, template::{ComposeTemplate, TemplateIndex, TemplateNode}, ModelComposer};
 use crate::util::vector;
 use crate::util::math_config;
 
@@ -21,7 +21,7 @@ pub struct PositionSet2DTo3DTemplate<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> {  
-    pub fn make_position_set(&self, pin: OutPinId, template: &ComposeTemplate<V2, V3, T, B>) -> PositionSetTemplate<V2, V3, T> {
+    pub fn make_position_set(&self, pin: OutPinId, building_template_index: TemplateIndex, template: &ComposeTemplate<V2, V3, T, B>) -> PositionSetTemplate<V2, V3, T> {
 
         let node = self.snarl.get_node(pin.node).expect("Node of remote not found");
         match &node.t {
@@ -29,8 +29,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
             ComposeNodeType::TemplatePositionSet3D => PositionSetTemplate::Hook(template.get_index_by_out_pin(pin)),
             ComposeNodeType::PositionSet2DTo3D => {
                 let t2dto3d = PositionSet2DTo3DTemplate {
-                    p2d: Box::new(self.make_position_set(self.get_input_pin_by_type(node, ComposeDataType::PositionSet2D), template)), 
-                    z: self.make_number(node, self.get_input_index_by_type(node, ComposeDataType::Number(None)), template),                
+                    p2d: Box::new(self.make_position_set(self.get_input_remote_pin_by_type(node, ComposeDataType::PositionSet2D), building_template_index, template)), 
+                    z: self.make_number(node, self.get_input_pin_index_by_type(node, ComposeDataType::Number(None)), building_template_index, template),                
                 };
                 PositionSetTemplate::T2Dto3D(t2dto3d)
             },
@@ -58,16 +58,16 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> PositionSetTemplate<V2, V3, T> {
 
     pub fn get_value<V: Ve<T, D>, B: BS<V2, V3, T>, const D: usize>(
         &self, 
-        depends: &[(TemplateIndex, Vec<CollapseNodeKey>)], 
+        get_value_data: GetValueData,
         collapser: &Collapser<V2, V3, T, B>
     ) -> impl Iterator<Item = V> {
         match self {
-            PositionSetTemplate::Hook(i) => Either::Left(collapser.get_dependend_position_set(*i, depends, collapser)),
+            PositionSetTemplate::Hook(i) => Either::Left(collapser.get_dependend_position_set(*i, get_value_data.depends)),
             PositionSetTemplate::T2Dto3D(template) => {
                 assert_eq!(3, D);
 
-                let z = template.z.get_value(depends, collapser);
-                let points = template.p2d.get_value::<V2, B, 2>(depends, collapser)
+                let z = template.z.get_value(get_value_data, collapser);
+                let points = template.p2d.get_value::<V2, B, 2>(get_value_data, collapser)
                     .map(move |v| {
                         let arr = v.to_array();
                         

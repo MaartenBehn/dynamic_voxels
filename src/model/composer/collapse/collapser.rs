@@ -122,15 +122,14 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         }
     }
 
-    pub fn get_position<V: Ve<T, D>, const D: usize>(&self, index: CollapseNodeKey) -> V {
-        let node = &self.nodes[index];
-        let parent = &self.nodes[node.defined_by];
+pub fn get_position<V: Ve<T, D>, const D: usize>(&self, parent_index: CollapseNodeKey, child_index: CollapseChildKey) -> V {
+        let parent = &self.nodes[parent_index];
        
         match D {
             2 => {
                 let v = match &parent.data {
-                    NodeDataType::PositionSpace2D(d) => d.get_position(node.child_key),
-                    _ => panic!("Template Node {:?} is not of Type Position Space 2D Set", node.template_index)
+                    NodeDataType::PositionSpace2D(d) => d.get_position(child_index),
+                    _ => panic!("Template Node {:?} is not of Type Position Space 2D Set", parent.template_index)
                 };
 
                 // Safety V2 and V are the same Type bause D == 2
@@ -138,8 +137,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             }
             3 => {
                 let v = match &parent.data {
-                    NodeDataType::PositionSpace3D(d) => d.get_position(node.child_key),
-                    _ => panic!("Template Node {:?} is not of Type Position Space 3D Set", node.template_index)
+                    NodeDataType::PositionSpace3D(d) => d.get_position(child_index),
+                    _ => panic!("Template Node {:?} is not of Type Position Space 3D Set", parent.template_index)
                 };
 
                 // Safety V3 and V are the same Type bause D == 3
@@ -183,7 +182,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         &self, 
         template_index: TemplateIndex,
         depends: &[(TemplateIndex, Vec<CollapseNodeKey>)],
-        collapser: &Collapser<V2, V3, T, B>
     ) -> CollapseNodeKey {
         depends.iter().find(|(i, _)| *i == template_index)
             .expect(&format!("Node does not depend on {:?}", template_index)).1[0]
@@ -193,27 +191,26 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         &self, 
         template_index: TemplateIndex,
         depends: &[(TemplateIndex, Vec<CollapseNodeKey>)],
-        collapser: &Collapser<V2, V3, T, B>
     ) -> T { 
-        collapser.get_number(self.get_dependend_index(template_index, depends, collapser))
-    }
-
-    pub fn get_dependend_position<V: Ve<T, D>, const D: usize>(
-        &self, 
-        template_index: TemplateIndex,
-        depends: &[(TemplateIndex, Vec<CollapseNodeKey>)],
-        collapser: &Collapser<V2, V3, T, B>
-    ) -> V { 
-        collapser.get_position(self.get_dependend_index(template_index, depends, collapser))
+        self.get_number(self.get_dependend_index(template_index, depends))
     }
 
     pub fn get_dependend_position_set<V: Ve<T, D>, const D: usize>(
         &self, 
         template_index: TemplateIndex,
         depends: &[(TemplateIndex, Vec<CollapseNodeKey>)],
-        collapser: &Collapser<V2, V3, T, B>
     ) -> impl Iterator<Item = V> { 
-        collapser.get_position_set(self.get_dependend_index(template_index, depends, collapser))
+        self.get_position_set(self.get_dependend_index(template_index, depends))
+    }
+ 
+    pub fn get_dependend_position<V: Ve<T, D>, const D: usize>(
+        &self, 
+        template_index: TemplateIndex,
+        depends: &[(TemplateIndex, Vec<CollapseNodeKey>)],
+    ) -> V { 
+        let index = self.get_dependend_index(template_index, depends);
+        let node = &self.nodes[index];
+        self.get_position(node.defined_by, node.child_key)
     }
 
     pub fn get_root_key(&self) -> CollapseNodeKey {

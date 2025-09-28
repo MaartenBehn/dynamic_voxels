@@ -15,13 +15,13 @@ pub enum NumberSpaceTemplate<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> {
-    pub fn make_number_space(&self, pin: OutPinId, template: &ComposeTemplate<V2, V3, T, B>) -> NumberSpaceTemplate<V2, V3, T> {
+    pub fn make_number_space(&self, pin: OutPinId, building_template_index: usize, template: &ComposeTemplate<V2, V3, T, B>) -> NumberSpaceTemplate<V2, V3, T> {
         let node = self.snarl.get_node(pin.node).expect("Node of remote not found");
         match &node.t {
             ComposeNodeType::NumberRange => {
-                let min = self.make_number(node, 0, template);
-                let max = self.make_number(node, 1, template);
-                let step = self.make_number(node, 2, template);
+                let min = self.make_number(node, 0, building_template_index,  template);
+                let max = self.make_number(node, 1, building_template_index, template);
+                let step = self.make_number(node, 2, building_template_index, template);
                 NumberSpaceTemplate::NumberRange { min, max, step }
             },
             _ => unreachable!(),

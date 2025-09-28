@@ -115,14 +115,14 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                 .expect("Composer Node for Template not found");
 
             let (ammount, parent_index) = composer.make_ammount(
-                composer.get_input_pin_by_type(composer_node,
+                composer.get_input_remote_pin_by_type(composer_node,
                 ComposeDataType::Ammount), i, &template);
 
             let (mut depends , value): (SmallVec<[TemplateIndex; 4]>, ComposeTemplateValue<V2, V3, T, B>) = match &composer_node.t { 
                 ComposeNodeType::TemplatePositionSet2D => {
                     let space = composer.make_pos_space(
-                        composer.get_input_pin_by_type(composer_node, ComposeDataType::PositionSpace2D),
-                        &template);
+                        composer.get_input_remote_pin_by_type(composer_node, ComposeDataType::PositionSpace2D),
+                        i, &template);
                     (
                         space.get_dependend_template_nodes().collect(),
                         ComposeTemplateValue::PositionSpace2D(space)
@@ -130,8 +130,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                 },
                 ComposeNodeType::TemplatePositionSet3D => {
                     let space = composer.make_pos_space(
-                        composer.get_input_pin_by_type(composer_node, ComposeDataType::PositionSpace3D),
-                        &template);
+                        composer.get_input_remote_pin_by_type(composer_node, ComposeDataType::PositionSpace3D),
+                        i, &template);
                     (
                         space.get_dependend_template_nodes().collect(),
                         ComposeTemplateValue::PositionSpace3D(space)
@@ -139,8 +139,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                 },
                 ComposeNodeType::TemplateNumberSet => {
                     let space = composer.make_number_space(
-                        composer.get_input_pin_by_type(composer_node, ComposeDataType::NumberSpace),
-                        &template);
+                        composer.get_input_remote_pin_by_type(composer_node, ComposeDataType::NumberSpace),
+                        i, &template);
                     
                     (
                         space.get_dependend_template_nodes().collect(),
@@ -152,7 +152,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                         compose_type: t, 
                         composer_node, 
                         composer: &composer, 
-                        template: &template, 
+                        template: &template,
+                        building_template_index: i, 
                     });
 
                     let depends = value.get_dependend_template_nodes();
@@ -229,20 +230,26 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
             .position(|n| n.node_id == pin.node)
             .expect("No Template Node for node id found")
     }
+
+    pub fn get_index_by_in_pin(&self, pin: InPinId) -> TemplateIndex {
+        self.nodes.iter()
+            .position(|n| n.node_id == pin.node)
+            .expect("No Template Node for node id found")
+    }
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> {
-    pub fn get_input_index_by_type(&self, node: &ComposeNode<B::ComposeType>, t: ComposeDataType) -> usize {
+    pub fn get_input_pin_index_by_type(&self, node: &ComposeNode<B::ComposeType>, t: ComposeDataType) -> usize {
         node.inputs.iter()
             .position(|i|  i.data_type == t)
-            .expect(&format!("Node {:?} input of type {:?}", node.t, t))
+            .expect(&format!("No Node {:?} input of type {:?}", node.t, t))
+    }
+ 
+    pub fn get_input_remote_pin_by_type(&self, node: &ComposeNode<B::ComposeType>, t: ComposeDataType) -> OutPinId {
+        self.get_input_remote_pin_by_index(node, self.get_input_pin_index_by_type(node, t))
     }
 
-    pub fn get_input_pin_by_type(&self, node: &ComposeNode<B::ComposeType>, t: ComposeDataType) -> OutPinId {
-        self.get_input_pin_by_index(node, self.get_input_index_by_type(node, t))
-    }
-
-    pub fn get_input_pin_by_index(&self, node: &ComposeNode<B::ComposeType>, index: usize) -> OutPinId {
+    pub fn get_input_remote_pin_by_index(&self, node: &ComposeNode<B::ComposeType>, index: usize) -> OutPinId {
         let remotes = self.snarl.in_pin(InPinId{ node: node.id, input: index }).remotes;
         if remotes.is_empty() {
             panic!("No node connected to {:?}", node.t);
@@ -252,6 +259,25 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
             panic!("More than one node connected to {:?}", node.t);
         }
 
+        remotes[0]
+    }
+
+    pub fn get_output_pin_index_by_type(&self, node: &ComposeNode<B::ComposeType>, t: ComposeDataType) -> usize {
+        node.outputs.iter()
+            .position(|i|  i.data_type == t)
+            .expect(&format!("No Node {:?} output of type {:?}", node.t, t))
+    }
+
+    pub fn get_output_first_remote_pin_by_type(&self, node: &ComposeNode<B::ComposeType>, t: ComposeDataType) -> InPinId {
+        self.get_output_first_remote_pin_by_index(node, self.get_output_pin_index_by_type(node, t))
+    }
+
+    pub fn get_output_first_remote_pin_by_index(&self, node: &ComposeNode<B::ComposeType>, index: usize) -> InPinId {
+        let remotes = self.snarl.out_pin(OutPinId{ node: node.id, output: index }).remotes;
+        if remotes.is_empty() {
+            panic!("No output node connected to {:?}", node.t);
+        }
+ 
         remotes[0]
     }
 }

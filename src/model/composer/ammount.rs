@@ -5,7 +5,7 @@ use itertools::Itertools;
 
 use crate::util::{number::Nu, vector::Ve};
 
-use super::{build::BS, data_type::ComposeDataType, dependency_tree::DependencyTree, nodes::ComposeNodeType, number::NumberTemplate, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
+use super::{build::BS, data_type::ComposeDataType, dependency_tree::DependencyTree, nodes::{ComposeNode, ComposeNodeType}, number::NumberTemplate, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
 
 
 #[derive(Debug, Clone)]
@@ -24,25 +24,68 @@ pub enum AmmountType<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> {
     pub fn make_ammount(&self, pin: OutPinId, template_index: TemplateIndex, template: &ComposeTemplate<V2, V3, T, B>) -> (Ammount<V2, V3, T>, TemplateIndex) {
         let node = self.snarl.get_node(pin.node).expect("Node of remote not found");
-        match &node.t {
-            ComposeNodeType::OneGlobal => (Ammount { 
+        let ammount = match &node.t {
+            ComposeNodeType::OneGlobal => Ammount { 
                 template_index, 
                 t: AmmountType::NPer(NumberTemplate::Const(T::ONE)),
                 dependecy_tree: DependencyTree::default(),
-            }, 0),
+            },
 
-            ComposeNodeType::OnePer => (Ammount { 
+            ComposeNodeType::OnePer => Ammount { 
                 template_index, 
                 t: AmmountType::NPer(NumberTemplate::Const(T::ONE)), 
                 dependecy_tree: DependencyTree::default(),
-            }, template.get_index_by_out_pin(self.get_input_pin_by_type(node, ComposeDataType::Identifier))),
+            },
 
-            ComposeNodeType::NPer => (Ammount { 
+            ComposeNodeType::NPer => Ammount { 
                 template_index, 
-                t: AmmountType::NPer(self.make_number(node, 1, template)),
+                t: AmmountType::NPer(self.make_number(node, 1,  template_index, template)),
                 dependecy_tree: DependencyTree::default(),
-            }, template.get_index_by_out_pin(self.get_input_pin_by_type(node, ComposeDataType::Identifier))),
+            },
 
+            ComposeNodeType::ByPositionSet2D => Ammount { 
+                template_index, 
+                t: AmmountType::ByPosSpace,
+                dependecy_tree: DependencyTree::default(),
+            },
+
+            ComposeNodeType::ByPositionSet3D => Ammount { 
+                template_index, 
+                t: AmmountType::ByPosSpace,
+                dependecy_tree: DependencyTree::default(),
+            },
+
+            _ => unreachable!(),
+        };
+
+        let parent_index = self.get_ammount_parent_index(node, template);
+        (ammount, parent_index)
+    }
+
+    pub fn get_ammount_parent_index(&self, node: &ComposeNode<B::ComposeType>, template: &ComposeTemplate<V2, V3, T, B>) -> TemplateIndex {
+        match &node.t {
+            ComposeNodeType::OneGlobal => 0,
+            ComposeNodeType::OnePer => template.get_index_by_out_pin(self.get_input_remote_pin_by_type(node, ComposeDataType::Identifier)),
+            ComposeNodeType::NPer => template.get_index_by_out_pin(self.get_input_remote_pin_by_type(node, ComposeDataType::Identifier)),
+
+            ComposeNodeType::ByPositionSet2D => 
+                template.get_index_by_out_pin(self.get_input_remote_pin_by_type(node, ComposeDataType::IdentifierPositionSet2D)),
+
+            ComposeNodeType::ByPositionSet3D => 
+                template.get_index_by_out_pin(self.get_input_remote_pin_by_type(node, ComposeDataType::IdentifierPositionSet3D)),
+ 
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn get_ammount_child_index(&self, node: &ComposeNode<B::ComposeType>, template: &ComposeTemplate<V2, V3, T, B>) -> TemplateIndex {
+        match &node.t {
+            ComposeNodeType::ByPositionSet2D => 
+                template.get_index_by_in_pin(self.get_output_first_remote_pin_by_index(node, 0)),
+
+            ComposeNodeType::ByPositionSet3D => 
+                template.get_index_by_in_pin(self.get_output_first_remote_pin_by_index(node, 0)),
+ 
             _ => unreachable!(),
         }
     }

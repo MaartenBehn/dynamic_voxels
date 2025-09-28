@@ -38,7 +38,8 @@ pub struct PathTemplate<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D:
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> {
     pub fn make_pos_space<V: Ve<T, D>, const D: usize>(
         &self, 
-        pin: OutPinId, 
+        pin: OutPinId,
+        building_template_index: TemplateIndex,
         template: &ComposeTemplate<V2, V3, T, B>
     ) -> PositionSpaceTemplate<V, V2, V3, T, D> {
 
@@ -48,8 +49,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
                 assert_eq!(D, 3);
                 
                 let grid = GridTemplate {
-                    volume: self.make_volume(self.get_input_pin_by_type(node, ComposeDataType::Volume3D), template),
-                    spacing: self.make_number(node, self.get_input_index_by_type(node, ComposeDataType::Number(None)), template),
+                    volume: self.make_volume(self.get_input_remote_pin_by_type(node, ComposeDataType::Volume3D), building_template_index, template),
+                    spacing: self.make_number(node, self.get_input_pin_index_by_type(node, ComposeDataType::Number(None)), building_template_index, template),
                 };
                 PositionSpaceTemplate::Grid(grid)
             },
@@ -57,8 +58,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
                 assert_eq!(D, 2);
                 
                 let grid = GridTemplate {
-                    volume: self.make_volume(self.get_input_pin_by_type(node, ComposeDataType::Volume2D), template),
-                    spacing: self.make_number(node, self.get_input_index_by_type(node, ComposeDataType::Number(None)), template),                
+                    volume: self.make_volume(self.get_input_remote_pin_by_type(node, ComposeDataType::Volume2D), building_template_index, template),
+                    spacing: self.make_number(node, self.get_input_pin_index_by_type(node, ComposeDataType::Number(None)), building_template_index, template),                
                 };
                 PositionSpaceTemplate::Grid(grid)
             },
@@ -66,8 +67,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
                 assert_eq!(D, 3);
                 
                 let leaf_spread = LeafSpreadTemplate {
-                    volume: self.make_volume(self.get_input_pin_by_type(node, ComposeDataType::Volume3D), template),
-                    samples: self.make_number(node, self.get_input_index_by_type(node, ComposeDataType::Number(None)), template),                
+                    volume: self.make_volume(self.get_input_remote_pin_by_type(node, ComposeDataType::Volume3D), building_template_index, template),
+                    samples: self.make_number(node, self.get_input_pin_index_by_type(node, ComposeDataType::Number(None)), building_template_index, template),                
                 };
                 PositionSpaceTemplate::LeafSpread(leaf_spread)
             },
@@ -75,28 +76,28 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
                 assert_eq!(D, 2);
                 
                 let leaf_spread = LeafSpreadTemplate {
-                    volume: self.make_volume(self.get_input_pin_by_type(node, ComposeDataType::Volume2D), template),
-                    samples: self.make_number(node, self.get_input_index_by_type(node, ComposeDataType::Number(None)), template),                
+                    volume: self.make_volume(self.get_input_remote_pin_by_type(node, ComposeDataType::Volume2D), building_template_index, template),
+                    samples: self.make_number(node, self.get_input_pin_index_by_type(node, ComposeDataType::Number(None)), building_template_index, template),                
                 };
                 PositionSpaceTemplate::LeafSpread(leaf_spread)
             },
             ComposeNodeType::Path3D => {
                 
                 let path = PathTemplate {
-                    start: self.make_position(node, 0, template),
-                    end: self.make_position(node, 1, template),
-                    spacing: self.make_number(node, self.get_input_index_by_type(node, ComposeDataType::Number(None)), template),
-                    side_variance: self.make_position(node, 3, template),
+                    start: self.make_position(node, 0, building_template_index, template),
+                    end: self.make_position(node, 1, building_template_index, template),
+                    spacing: self.make_number(node, self.get_input_pin_index_by_type(node, ComposeDataType::Number(None)), building_template_index, template),
+                    side_variance: self.make_position(node, 3, building_template_index, template),
                 };
                 PositionSpaceTemplate::Path(path)
             },
             ComposeNodeType::Path2D => {
                 
                 let path = PathTemplate {
-                    start: self.make_position(node, 0, template),
-                    end: self.make_position(node, 1, template),
-                    spacing: self.make_number(node, self.get_input_index_by_type(node, ComposeDataType::Number(None)), template),
-                    side_variance: self.make_position(node, 3, template),
+                    start: self.make_position(node, 0, building_template_index, template),
+                    end: self.make_position(node, 1, building_template_index, template),
+                    spacing: self.make_number(node, self.get_input_pin_index_by_type(node, ComposeDataType::Number(None)), building_template_index, template),
+                    side_variance: self.make_position(node, 3, building_template_index, template),
                 };
                 PositionSpaceTemplate::Path(path)
             },

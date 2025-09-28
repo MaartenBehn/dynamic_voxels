@@ -2,7 +2,7 @@ use octa_force::{anyhow::bail, OctaResult};
 
 use crate::{model::composer::{build::BS, number_space::NumberSpaceTemplate, template::TemplateIndex}, util::{number::Nu, vector::Ve}, volume::VolumeQureyPosValid};
 
-use super::collapser::{CollapseNode, CollapseNodeKey, Collapser};
+use super::{add_nodes::GetValueData, collapser::{CollapseNode, CollapseNodeKey, Collapser}};
 
 
 #[derive(Debug, Clone)]
@@ -13,15 +13,15 @@ pub struct NumberSpace<T: Nu> {
 
 impl<T: Nu> NumberSpace<T> {
     pub fn from_template<V2: Ve<T, 2>, V3: Ve<T, 3>, B: BS<V2, V3, T>>(
-        space_template: &NumberSpaceTemplate<V2, V3, T>, 
-        depends: &[(TemplateIndex, Vec<CollapseNodeKey>)], 
+        space_template: &NumberSpaceTemplate<V2, V3, T>,
+        get_value_data: GetValueData,
         collapser: &Collapser<V2, V3, T, B>
     ) -> Self {
         match space_template {
             NumberSpaceTemplate::NumberRange { min, max, step } => {
-                let min = min.get_value(depends, collapser);
-                let max = max.get_value(depends, collapser);
-                let step = step.get_value(depends, collapser);
+                let min = min.get_value(get_value_data, collapser);
+                let max = max.get_value(get_value_data, collapser);
+                let step = step.get_value(get_value_data, collapser);
 
                 let mut values = vec![];
                 let mut i = min;

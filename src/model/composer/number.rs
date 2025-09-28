@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::util::{number::Nu, vector::Ve};
 
-use super::{build::BS, collapse::collapser::{CollapseNodeKey, Collapser}, data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, position::PositionTemplate, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
+use super::{build::BS, collapse::{add_nodes::GetValueData, collapser::{CollapseNodeKey, Collapser}}, data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, position::PositionTemplate, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
 
 
 #[derive(Debug, Clone)]
@@ -16,7 +16,13 @@ pub enum NumberTemplate<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> { 
-    pub fn make_number(&self, original_node: &ComposeNode<B::ComposeType>, in_index: usize, template: &ComposeTemplate<V2, V3, T, B>) -> NumberTemplate<V2, V3, T> {
+    pub fn make_number(
+        &self, 
+        original_node: &ComposeNode<B::ComposeType>, 
+        in_index: usize, 
+        building_template_index: usize,
+        template: &ComposeTemplate<V2, V3, T, B>
+    ) -> NumberTemplate<V2, V3, T> {
         let remotes = self.snarl.in_pin(InPinId{ node: original_node.id, input: in_index }).remotes;
         if remotes.len() >= 2 {
             panic!("More than one node connected to {:?}", original_node.t);
@@ -40,13 +46,13 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
             match remote_node.t {
                 ComposeNodeType::NumberRange => NumberTemplate::Hook(template.get_index_by_out_pin(pin)),
                 ComposeNodeType::SplitPosition2D => {
-                    let pos = self.make_position(remote_node, 0, template);
+                    let pos = self.make_position(remote_node, 0, building_template_index, template);
 
                     assert!(pin.output >= 0 && pin.output <= 1);
                     NumberTemplate::SplitPosition2D((Box::new(pos), pin.output))
                 },
                 ComposeNodeType::SplitPosition3D => {
-                    let pos = self.make_position(remote_node, 0, template);
+                    let pos = self.make_position(remote_node, 0, building_template_index, template);
 
                     assert!(pin.output >= 0 && pin.output <= 2);
                     NumberTemplate::SplitPosition2D((Box::new(pos), pin.output))
@@ -73,18 +79,18 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> NumberTemplate<V2, V3, T> {
 
     pub fn get_value<B: BS<V2, V3, T>>(
         &self, 
-        depends: &[(TemplateIndex, Vec<CollapseNodeKey>)], 
+        get_value_data: GetValueData,
         collapser: &Collapser<V2, V3, T, B>
     ) -> T {
 
         match self {
             NumberTemplate::Const(v) => *v,
-            NumberTemplate::Hook(i) => collapser.get_dependend_number(*i, depends, collapser),
+            NumberTemplate::Hook(i) => collapser.get_dependend_number(*i, get_value_data.depends),
             NumberTemplate::SplitPosition2D((position_template, i)) => {
-                position_template.get_value(depends, collapser)[*i]
+                position_template.get_value(get_value_data, collapser)[*i]
             },
             NumberTemplate::SplitPosition3D((position_template, i)) => {
-                position_template.get_value(depends, collapser)[*i]
+                position_template.get_value(get_value_data, collapser)[*i]
             },
         }
     }

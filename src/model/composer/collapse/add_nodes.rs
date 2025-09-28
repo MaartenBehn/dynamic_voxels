@@ -8,6 +8,12 @@ use crate::{model::composer::{ammount::{Ammount, AmmountType}, build::{GetCollap
 
 use super::{collapser::{CollapseChildKey, CollapseNodeKey, Collapser, UpdateDefinesOperation, NodeDataType}, number_space::NumberSpace, position_space::PositionSpace};
 
+#[derive(Debug, Clone, Copy)]
+pub struct GetValueData<'a> {
+    pub defined_by: CollapseNodeKey,
+    pub child_index: CollapseChildKey,
+    pub depends: &'a [(TemplateIndex, Vec<CollapseNodeKey>)] ,
+}
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B> {
     pub fn push_defined(&mut self, node_index: CollapseNodeKey, template: &ComposeTemplate<V2, V3, T, B>) {
@@ -60,8 +66,21 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         let parent_template_node = &template.nodes[parent.template_index];
         let ammount = &parent_template_node.defines[defines_index];
 
+        let depends = self.get_depends_for_template(
+            parent_index, 
+            ammount.template_index,   
+            template,
+            parent_template_node,
+            &ammount.dependecy_tree);
+
+        let get_value_data = GetValueData {
+            defined_by: parent_index,
+            child_index: CollapseChildKey::null(),
+            depends: &depends,
+        };
+
         let n = match &ammount.t {
-            AmmountType::NPer(n) => n.get_value(&parent.depends, &self).to_usize(),
+            AmmountType::NPer(n) => n.get_value(get_value_data, &self).to_usize(),
             _ => unreachable!()
         };
 
@@ -72,12 +91,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
         let present_children_len = present_children.len(); 
         if present_children_len < n {
-            let depends = self.get_depends_for_template(
-                parent_index, 
-                ammount.template_index,   
-                template,
-                parent_template_node,
-                &ammount.dependecy_tree);
 
             for _ in present_children_len..n {
                 self.add_node(
@@ -232,39 +245,35 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         state: &mut B,
     ) {
         let new_node_template = &template.nodes[new_node_template_index];
+      
+        let get_value_data = GetValueData {
+            defined_by,
+            child_index: child_key,
+            depends: &depends,
+        };
 
         let data = match &(&template.nodes[new_node_template_index]).value {
             ComposeTemplateValue::None => NodeDataType::None,
             ComposeTemplateValue::NumberSpace(space) 
-            => NodeDataType::NumberSet(NumberSpace::from_template(space, &depends, &self)),
+            => NodeDataType::NumberSet(NumberSpace::from_template(space, get_value_data, &self)),
 
             ComposeTemplateValue::PositionSpace2D(space) 
-            => NodeDataType::PositionSpace2D(PositionSpace::from_template(space, &depends, &self)),
+            => NodeDataType::PositionSpace2D(PositionSpace::from_template(space, get_value_data, &self)),
 
             ComposeTemplateValue::PositionSpace3D(space) 
-            => NodeDataType::PositionSpace3D(PositionSpace::from_template(space, &depends, &self)),
+            => NodeDataType::PositionSpace3D(PositionSpace::from_template(space, get_value_data, &self)),
 
 
             ComposeTemplateValue::Build(t) 
             => NodeDataType::Build(B::get_collapse_value(GetCollapseValueArgs { 
-                template_value: t, 
-                depends: &depends, 
+                template_value: t,
+                get_value_data,
                 collapser: &self, 
                 template, 
                 state 
             }).await),
         };
 
-        self.push_new_node(new_node_template, depends, defined_by, child_key, data)
-    }
- 
-    pub fn push_new_node(&mut self, 
-        new_node_template: &TemplateNode<V2, V3, T, B>, 
-        depends: Vec<(TemplateIndex, Vec<CollapseNodeKey>)>, 
-        defined_by: CollapseNodeKey, 
-        child_key: CollapseChildKey, 
-        data: NodeDataType<V2, V3, T, B>
-    ) {        
         let index = self.nodes.insert(CollapseNode {
             template_index: new_node_template.index,
             level: new_node_template.level,
@@ -275,7 +284,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             next_reset: CollapseNodeKey::null(),
             child_key,
         });
-        info!("{:?} Node added {:?}", index, new_node_template.node_id);
 
         for (_, dependend) in depends.iter() {
             for depend in dependend.iter() {
@@ -290,6 +298,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
                 };
             }
         }
+
+        info!("{:?} Node added {:?}", index, new_node_template.node_id);
                 
         self.pending.push_collpase(new_node_template.level, index);
     }
