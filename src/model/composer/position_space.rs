@@ -128,4 +128,24 @@ impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> PositionSpa
             }
         }.into_iter()  
     }
+
+    pub fn cut_loop(&mut self, to_index: usize) {
+        match self {
+            PositionSpaceTemplate::Grid(grid_template) => {
+                grid_template.volume.cut_loop(to_index);
+                grid_template.spacing.cut_loop(to_index);
+            },
+            PositionSpaceTemplate::LeafSpread(leaf_spread_template) => {
+                leaf_spread_template.volume.cut_loop(to_index);
+                leaf_spread_template.samples.cut_loop(to_index);
+            },
+            PositionSpaceTemplate::Path(path_template) => {
+                path_template.spacing.cut_loop(to_index);
+                path_template.start.cut_loop(to_index);
+                path_template.end.cut_loop(to_index);
+                path_template.side_variance.cut_loop(to_index);
+            },
+        }
+    }
+
 }

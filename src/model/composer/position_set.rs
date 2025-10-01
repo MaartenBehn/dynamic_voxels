@@ -4,13 +4,13 @@ use octa_force::glam::{ivec2, IVec2, IVec3, Vec2, Vec3A};
 
 use crate::{csg::csg_tree::tree::CSGTree, model::generation::traits::ModelGenerationTypes, util::{math_config::{MC}, number::Nu, vector::Ve}};
 
-use super::{build::BS, collapse::{add_nodes::GetValueData, collapser::{CollapseNode, CollapseNodeKey, Collapser}}, data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, number::NumberTemplate, template::{ComposeTemplate, TemplateIndex, TemplateNode}, ModelComposer};
+use super::{build::BS, collapse::{add_nodes::GetValueData, collapser::{CollapseNode, CollapseNodeKey, Collapser}}, data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, number::{Hook, NumberTemplate}, template::{ComposeTemplate, TemplateIndex, TemplateNode}, ModelComposer};
 use crate::util::vector;
 use crate::util::math_config;
 
 #[derive(Debug, Clone)]
 pub enum PositionSetTemplate<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
-    Hook(TemplateIndex),
+    Hook(Hook),
     T2Dto3D(PositionSet2DTo3DTemplate<V2, V3, T>),
 }
 
@@ -25,8 +25,14 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
 
         let node = self.snarl.get_node(pin.node).expect("Node of remote not found");
         match &node.t {
-            ComposeNodeType::TemplatePositionSet2D => PositionSetTemplate::Hook(template.get_index_by_out_pin(pin)),
-            ComposeNodeType::TemplatePositionSet3D => PositionSetTemplate::Hook(template.get_index_by_out_pin(pin)),
+            ComposeNodeType::TemplatePositionSet2D => PositionSetTemplate::Hook(Hook {
+                template_index: template.get_index_by_out_pin(pin),
+                loop_cut: false,
+            }),
+            ComposeNodeType::TemplatePositionSet3D => PositionSetTemplate::Hook(Hook {
+                template_index: template.get_index_by_out_pin(pin),
+                loop_cut: false,
+            }),
             ComposeNodeType::PositionSet2DTo3D => {
                 let t2dto3d = PositionSet2DTo3DTemplate {
                     p2d: Box::new(self.make_position_set(self.get_input_remote_pin_by_type(node, ComposeDataType::PositionSet2D), building_template_index, template)), 
@@ -47,7 +53,7 @@ union ArrayUnion<T: Nu, const D: usize> {
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> PositionSetTemplate<V2, V3, T> {
     pub fn get_dependend_template_nodes(&self) -> impl Iterator<Item = TemplateIndex>  {
         match self {
-            PositionSetTemplate::Hook(i) => vec![*i],
+            PositionSetTemplate::Hook(h) => vec![h.template_index],
             PositionSetTemplate::T2Dto3D(template) => {
                 template.p2d.get_dependend_template_nodes()
                     .chain(template.z.get_dependend_template_nodes())
@@ -62,7 +68,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> PositionSetTemplate<V2, V3, T> {
         collapser: &Collapser<V2, V3, T, B>
     ) -> impl Iterator<Item = V> {
         match self {
-            PositionSetTemplate::Hook(i) => Either::Left(collapser.get_dependend_position_set(*i, get_value_data.depends)),
+            PositionSetTemplate::Hook(hook) => Either::Left(collapser.get_dependend_position_set(hook.template_index, get_value_data.depends)),
             PositionSetTemplate::T2Dto3D(template) => {
                 assert_eq!(3, D);
 
@@ -78,6 +84,18 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> PositionSetTemplate<V2, V3, T> {
                     }).collect_vec();
 
                 Either::Right(points.into_iter())
+            },
+        }
+    }
+
+    pub fn cut_loop(&mut self, to_index: usize) {
+        match self {
+            PositionSetTemplate::Hook(hook) => {
+                hook.loop_cut |= to_index == hook.template_index;
+            },
+            PositionSetTemplate::T2Dto3D(template) => {
+                template.p2d.cut_loop(to_index);
+                template.z.cut_loop(to_index);
             },
         }
     }

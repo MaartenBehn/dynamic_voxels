@@ -15,4 +15,9 @@ impl CSGTreeRemove {
             remove,
         }
     }
+
+    pub fn shift_indecies(&mut self, ammount: usize) {
+        self.base += ammount;
+        self.remove += ammount;
+    }
 }

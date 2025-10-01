@@ -52,16 +52,24 @@ impl<V: Ve<T, D>,  T: Nu, const D: usize> PositionSpace<V, T, D> {
         collapser: &Collapser<V2, V3, T, B>
     ) -> Self {
         let data = match &template_space {
-            PositionSpaceTemplate::Grid(template) 
-            => PositionSpaceData::Grid(Grid { 
-                volume: template.volume.get_value(get_value_data, collapser, ()), 
-                spacing: template.spacing.get_value(get_value_data, collapser),
-            }),
-            PositionSpaceTemplate::LeafSpread(template) 
-            => PositionSpaceData::LeafSpread(LeafSpread { 
-                volume: template.volume.get_value(get_value_data, collapser, ()), 
-                samples: template.samples.get_value(get_value_data, collapser), 
-            }),
+            PositionSpaceTemplate::Grid(template)  => {
+                let mut volume = template.volume.get_value(get_value_data, collapser, ()); 
+                volume.calculate_bounds();
+
+                PositionSpaceData::Grid(Grid { 
+                    volume, 
+                    spacing: template.spacing.get_value(get_value_data, collapser),
+                })
+            },
+            PositionSpaceTemplate::LeafSpread(template) => {
+                let mut volume = template.volume.get_value(get_value_data, collapser, ()); 
+                volume.calculate_bounds();
+
+                PositionSpaceData::LeafSpread(LeafSpread { 
+                    volume, 
+                    samples: template.samples.get_value(get_value_data, collapser), 
+                })
+            },
             PositionSpaceTemplate::Path(template) 
             => PositionSpaceData::Path(Path {
                 spacing: template.spacing.get_value(get_value_data, collapser),
@@ -163,6 +171,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> Path<V, T, D> {
 impl<V: Ve<T, D>, T: Nu, const D: usize> LeafSpread<V, T, D> {
     pub fn get_positions(&self) -> Vec<V> {
         let aabb = self.volume.get_bounds();
+
         let min: V::VectorF = AABB::min(&aabb).to_vecf();
         let size: V::VectorF = aabb.size().to_vecf();
 

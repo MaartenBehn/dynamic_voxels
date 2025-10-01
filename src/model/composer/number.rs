@@ -6,11 +6,16 @@ use crate::util::{number::Nu, vector::Ve};
 
 use super::{build::BS, collapse::{add_nodes::GetValueData, collapser::{CollapseNodeKey, Collapser}}, data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, position::PositionTemplate, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
 
+#[derive(Debug, Clone)]
+pub struct Hook {
+    pub template_index: TemplateIndex,
+    pub loop_cut: bool,
+}
 
 #[derive(Debug, Clone)]
 pub enum NumberTemplate<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
     Const(T),
-    Hook(TemplateIndex),
+    Hook(Hook),
     SplitPosition2D((Box<PositionTemplate<V2, V2, V3, T, 2>>, usize)),
     SplitPosition3D((Box<PositionTemplate<V3, V2, V3, T, 3>>, usize)),
 }
@@ -44,7 +49,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
             let remote_node = self.snarl.get_node(pin.node).expect("Node of remote not found");
 
             match remote_node.t {
-                ComposeNodeType::NumberRange => NumberTemplate::Hook(template.get_index_by_out_pin(pin)),
+                ComposeNodeType::NumberRange => NumberTemplate::Hook(Hook {
+                    template_index: template.get_index_by_out_pin(pin),
+                    loop_cut: false,
+                }),
                 ComposeNodeType::SplitPosition2D => {
                     let pos = self.make_position(remote_node, 0, building_template_index, template);
 
@@ -69,7 +77,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> NumberTemplate<V2, V3, T> {
     pub fn get_dependend_template_nodes(&self) -> impl Iterator<Item = TemplateIndex> {
         match self {
             NumberTemplate::Const(_) => vec![],
-            NumberTemplate::Hook(index) => vec![*index],
+            NumberTemplate::Hook(hook) => vec![hook.template_index],
             NumberTemplate::SplitPosition2D((position_template, _)) 
                 => position_template.get_dependend_template_nodes().collect_vec(),
             NumberTemplate::SplitPosition3D((position_template, _))
@@ -85,12 +93,27 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> NumberTemplate<V2, V3, T> {
 
         match self {
             NumberTemplate::Const(v) => *v,
-            NumberTemplate::Hook(i) => collapser.get_dependend_number(*i, get_value_data.depends),
+            NumberTemplate::Hook(hook) => collapser.get_dependend_number(hook.template_index, get_value_data.depends),
             NumberTemplate::SplitPosition2D((position_template, i)) => {
                 position_template.get_value(get_value_data, collapser)[*i]
             },
             NumberTemplate::SplitPosition3D((position_template, i)) => {
                 position_template.get_value(get_value_data, collapser)[*i]
+            },
+        }
+    }
+
+    pub fn cut_loop(&mut self, to_index: usize) {
+        match self {
+            NumberTemplate::Const(_) => {},
+            NumberTemplate::Hook(h) => {
+                h.loop_cut |= h.template_index == to_index;
+            },
+            NumberTemplate::SplitPosition2D((s, _)) => {
+                s.cut_loop(to_index);
+            },
+            NumberTemplate::SplitPosition3D((s, _)) => {
+                s.cut_loop(to_index);
             },
         }
     }

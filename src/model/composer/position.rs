@@ -5,12 +5,12 @@ use itertools::Itertools;
 
 use crate::util::{number::Nu, vector::Ve};
 
-use super::{build::BS, collapse::{add_nodes::GetValueData, collapser::{CollapseNodeKey, Collapser}}, data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, number::NumberTemplate, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
+use super::{build::BS, collapse::{add_nodes::GetValueData, collapser::{CollapseNodeKey, Collapser}}, data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, number::{Hook, NumberTemplate}, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
 
 #[derive(Debug, Clone)]
 pub enum PositionTemplate<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> {
     Const(V),
-    ByPositionSetChild(TemplateIndex),
+    ByPositionSetChild(Hook),
     ByPositionSetChildSelf,
     FromNumbers([NumberTemplate<V2, V3, T>; D]),
 }
@@ -99,7 +99,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
                     if (child_index == building_template_index) {
                         PositionTemplate::ByPositionSetChildSelf
                     } else {
-                        PositionTemplate::ByPositionSetChild(child_index)
+                        PositionTemplate::ByPositionSetChild(Hook {
+                            template_index: child_index,
+                            loop_cut: false,
+                        })
                     }
                 },
  
@@ -121,7 +124,7 @@ impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> PositionTem
                             .flatten()
                             .collect_vec()
                     },
-            PositionTemplate::ByPositionSetChild(index) => vec![*index],
+            PositionTemplate::ByPositionSetChild(h) => vec![h.template_index],
             PositionTemplate::ByPositionSetChildSelf => vec![],
         }.into_iter()
     }
@@ -134,7 +137,7 @@ impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> PositionTem
 
         match self {
             PositionTemplate::Const(v) => *v,
-            PositionTemplate::ByPositionSetChild(i) => collapser.get_dependend_position(*i, get_value_data.depends),
+            PositionTemplate::ByPositionSetChild(h) => collapser.get_dependend_position(h.template_index, get_value_data.depends),
             PositionTemplate::ByPositionSetChildSelf => collapser.get_position(get_value_data.defined_by, get_value_data.child_index),
             PositionTemplate::FromNumbers(n) => {
                 let mut numbers = [T::ZERO; D];
@@ -142,6 +145,21 @@ impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> PositionTem
                     numbers[i] = n[i].get_value(get_value_data, collapser);
                 }
                 V::new(numbers)
+            },
+        }
+    }
+
+    pub fn cut_loop(&mut self, to_index: usize) {
+        match self {
+            PositionTemplate::Const(_) => {},
+            PositionTemplate::ByPositionSetChild(hook) => {
+                hook.loop_cut |= hook.template_index == to_index;
+            },
+            PositionTemplate::ByPositionSetChildSelf => {},
+            PositionTemplate::FromNumbers(numbers) => {
+                for number in numbers {
+                    number.cut_loop(to_index);
+                }
             },
         }
     }

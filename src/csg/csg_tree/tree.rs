@@ -55,8 +55,8 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
 
     pub fn union_at_root(&mut self, other: &[CSGTreeNode<M, V, T, D>], other_root: usize) -> UnionResult {   
         assert!(!other.is_empty());
-
         self.changed = true;
+
 
         if self.nodes.is_empty() {
             self.nodes.extend_from_slice(other);
@@ -79,8 +79,10 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
             };
         }
 
-        let new_index = self.nodes.len() + other_root;
+        let length = self.nodes.len();
+        let new_index = other_root + length;
         self.nodes.extend_from_slice(other);
+        shift_node_indecies(&mut self.nodes[length..], length);
 
         let root_node = &mut self.nodes[self.root];
         if let CSGTreeNodeData::Union(union) = &mut root_node.data {
@@ -108,9 +110,12 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
     }
 
     pub fn union_at_index(&mut self, index: CSGTreeIndex, other: &[CSGTreeNode<M, V, T, D>], other_root: usize) -> UnionResult {
-        let new_index = self.nodes.len() + other_root;
-        self.nodes.extend_from_slice(other);
         self.changed = true;
+
+        let length = self.nodes.len();
+        let new_index = other_root + length;
+        self.nodes.extend_from_slice(other);
+        shift_node_indecies(&mut self.nodes[length..], length);
 
         let current_node = &mut self.nodes[index];
         if let CSGTreeNodeData::Union(union) = &mut current_node.data {
@@ -140,6 +145,8 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
     }
 
     pub fn cut_at_root(&mut self, other: &[CSGTreeNode<M, V, T, D>], other_root: usize) -> CutResult { 
+        self.changed = true;
+
         if self.nodes.is_empty() {
             self.nodes.push(CSGTreeNode::new(CSGTreeNodeData::None, CSG_TREE_INDEX_INVALID));
         }
@@ -160,8 +167,10 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
 
         assert!(!self.nodes.is_empty(), "You can not remove from an empty CSGTree");
 
-        let new_index = self.nodes.len() + other_root;
+        let length = self.nodes.len();
+        let new_index = other_root + length;
         self.nodes.extend_from_slice(other);
+        shift_node_indecies(&mut self.nodes[length..], length);
 
         let cut_index = self.nodes.len();
         let base_index = self.root;
@@ -180,6 +189,8 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
     }
 
     pub fn cut_at_index(&mut self, index: CSGTreeIndex, other: &[CSGTreeNode<M, V, T, D>], other_root: usize) -> CutResult {
+        self.changed = true;
+
         let current_node = &self.nodes[index];
         if let CSGTreeNodeData::Remove(cut) = &current_node.data {
             let remove_index = cut.remove;
@@ -198,8 +209,10 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
 
         let parent = current_node.parent;
 
-        let new_index = self.nodes.len() + other_root;
+        let length = self.nodes.len();
+        let new_index = other_root + length;
         self.nodes.extend_from_slice(other);
+        shift_node_indecies(&mut self.nodes[length..], length);
 
         let cut_index = self.nodes.len();
         self.nodes.push(CSGTreeNode::new_remove(index, new_index));
@@ -238,6 +251,21 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
             },
             _ => unreachable!()
         }
+    }
+}
+
+// Can be used to offset the store indecies of nodes so they align when appended.
+pub fn shift_node_indecies<M: Base, V: Ve<T, D>, T: Nu, const D: usize>(nodes: &mut [CSGTreeNode<M, V, T, D>], ammount: usize) {
+    for node in nodes {
+        match &mut node.data {
+            CSGTreeNodeData::Union(csgtree_union) => csgtree_union.shift_indecies(ammount),
+            CSGTreeNodeData::Remove(csgtree_remove) => csgtree_remove.shift_indecies(ammount),
+            _ => {}
+        }
+
+        if node.parent != CSG_TREE_INDEX_INVALID {
+            node.parent += ammount;
+        } 
     }
 }
 

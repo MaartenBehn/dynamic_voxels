@@ -31,6 +31,12 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> CSGTreeUnion<V, T, D> {
         self.indecies.push(index);
         self.changed = true;
     }
+
+    pub fn shift_indecies(&mut self, ammount: usize) {
+        for index in self.indecies.iter_mut() {
+            *(index) += ammount;
+        }
+    }
 } 
 
 impl<V: Ve<T, D>, T: Nu, const D: usize> BHNode<V::VectorF, f32, D> for BVHNodeV2<V, T, D> {

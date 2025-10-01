@@ -70,16 +70,19 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
                 }],
                 root: 0,
             },
-            ComposeNodeType::UnionVolume3D => {
+            ComposeNodeType::UnionVolume2D
+            | ComposeNodeType::UnionVolume3D => {
                 let mut a = self.make_volume(self.get_input_remote_pin_by_index(node, 0), building_template_index, template);
                 let mut b = self.make_volume(self.get_input_remote_pin_by_index(node, 1), building_template_index, template);
 
                 let mut nodes = vec![];
-
-                let a_root = a.root;
+ 
+                let a_root = a.root + nodes.len();
+                a.shift_ptrs(nodes.len());
                 nodes.append(&mut a.nodes);
 
                 let b_root = b.root + nodes.len();
+                b.shift_ptrs(nodes.len());
                 nodes.append(&mut b.nodes);
 
                 let root = nodes.len();
@@ -90,16 +93,19 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
                     root,
                 }
             },
-            ComposeNodeType::CutVolume3D => {
+            ComposeNodeType::CutVolume2D
+            | ComposeNodeType::CutVolume3D => {
                 let mut base = self.make_volume(self.get_input_remote_pin_by_index(node, 0), building_template_index, template);
                 let mut cut = self.make_volume(self.get_input_remote_pin_by_index(node, 1), building_template_index, template);
 
                 let mut nodes = vec![];
 
-                let base_root = base.root;
+                let base_root = base.root + nodes.len();
+                base.shift_ptrs(nodes.len());
                 nodes.append(&mut base.nodes);
 
                 let cut_root = cut.root + nodes.len();
+                cut.shift_ptrs(nodes.len());
                 nodes.append(&mut cut.nodes);
 
                 let root = nodes.len();
@@ -130,6 +136,22 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
 }
 
 impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> VolumeTemplate<V, V2, V3, T, D> {
+    fn shift_ptrs(&mut self, ammount: usize) {
+        for node in &mut self.nodes {
+            match node {
+                VolumeTemplateData::Union { a, b } => {
+                    *(a) += ammount;
+                    *(b) += ammount;
+                },
+                VolumeTemplateData::Cut { base, cut } => {
+                    *(base) += ammount;
+                    *(cut) += ammount;
+                },
+                _ => {}
+            }
+        }
+    }
+
     pub fn get_dependend_template_nodes(&self) -> impl Iterator<Item = TemplateIndex> {
         self.get_dependend_template_nodes_inner(self.root)
     }
@@ -214,6 +236,40 @@ impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> VolumeTempl
                 }
 
                 csg
+            },
+        }
+    }
+
+    pub fn cut_loop(&mut self, to_index: usize) {
+    }
+
+    pub fn cut_loop_inner(&mut self, i: usize, to_index: usize) {
+        
+        let node: &mut VolumeTemplateData<V, V2, V3, T, D> = &mut self.nodes[i];
+        match node {
+            VolumeTemplateData::Sphere { pos, size } => {
+                pos.cut_loop(to_index);
+            },
+            VolumeTemplateData::Box { pos, size } => {
+                pos.cut_loop(to_index);
+                size.cut_loop(to_index);
+            },
+            VolumeTemplateData::Union { a, b } => {
+                let a = *a;
+                let b = *b;
+
+                self.cut_loop_inner(a, to_index);
+                self.cut_loop_inner(b, to_index);
+            },
+            VolumeTemplateData::Cut { base, cut } => {
+                let base = *base;
+                let cut = *cut;
+
+                self.cut_loop_inner(base, to_index);
+                self.cut_loop_inner(cut, to_index);
+            },
+            VolumeTemplateData::SphereUnion { position_set, size } => {
+                position_set.cut_loop(to_index);
             },
         }
     }

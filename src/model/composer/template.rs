@@ -108,6 +108,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
             max_level: 1,
         };
 
+        dbg!(&template);
+
         // Values Depends and Dependend
         for i in 1..template.nodes.len() {
             let template_node =  &template.nodes[i]; 
@@ -183,11 +185,13 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
             node.value = value;
         }
 
+        dbg!(&template);
+
         // Levels and dependency_tree
         for i in 0..template.nodes.len() {
 
             if template.nodes[i].level == 0 {
-                template.set_level_of_node(i);
+                template.set_level_of_node(i, i);
             }
 
             for j in 0..template.nodes[i].defines.len() {
@@ -201,18 +205,40 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
             }
         }
 
+        dbg!(&template);
+
         template
     }
 
-    fn set_level_of_node(&mut self, index: usize) -> usize {
-        let node = &self.nodes[index];
+    fn set_level_of_node(&mut self, index: usize, index_self: usize) -> usize {
+        let node: &TemplateNode<V2, V3, T, B> = &mut self.nodes[index];
 
         let mut max_level = 0;
-        for index in node.depends.to_owned().iter() {
+        for index in node.depends.to_owned().iter().rev() {
+            if *index == index_self {
+                let node = &mut self.nodes[*index];
+
+                match &mut node.value {
+                    ComposeTemplateValue::NumberSpace(number_space_template) => {
+                        number_space_template.cut_loop(index_self);
+                    },
+                    ComposeTemplateValue::PositionSpace2D(position_space_template) => {
+                        position_space_template.cut_loop(index_self)
+                    },
+                    ComposeTemplateValue::PositionSpace3D(position_space_template) => {
+                        position_space_template.cut_loop(index_self);
+                    },
+                    _ => {} 
+                }
+
+                node.depends.swap_remove(*index);
+                continue;
+            }
+
             let mut level = self.nodes[*index].level; 
 
             if level == 0 {
-                level = self.set_level_of_node(*index);
+                level = self.set_level_of_node(*index, index_self);
             } 
 
             max_level = max_level.max(level);
@@ -223,7 +249,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
         self.max_level = self.max_level.max(node_level);
 
         node_level
-    } 
+    }
 
     pub fn get_index_by_out_pin(&self, pin: OutPinId) -> TemplateIndex {
         self.nodes.iter()
@@ -277,7 +303,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
         if remotes.is_empty() {
             panic!("No output node connected to {:?}", node.t);
         }
- 
+
         remotes[0]
     }
 }

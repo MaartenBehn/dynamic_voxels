@@ -39,4 +39,14 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> NumberSpaceTemplate<V2, V3, T> {
             },
         }
     }
+
+    pub fn cut_loop(&mut self, to_index: usize) {
+        match self {
+            NumberSpaceTemplate::NumberRange { min, max, step } => {
+                min.cut_loop(to_index);
+                max.cut_loop(to_index);
+                step.cut_loop(to_index);
+            },
+        }
+    }
 }
