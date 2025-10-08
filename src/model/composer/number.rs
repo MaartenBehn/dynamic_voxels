@@ -1,5 +1,6 @@
 use egui_snarl::InPinId;
 use itertools::Itertools;
+use octa_force::log::debug;
 use smallvec::SmallVec;
 
 use crate::util::{number::Nu, vector::Ve};
@@ -107,6 +108,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> NumberTemplate<V2, V3, T> {
         match self {
             NumberTemplate::Const(_) => {},
             NumberTemplate::Hook(h) => {
+                dbg!(&h);
                 h.loop_cut |= h.template_index == to_index;
             },
             NumberTemplate::SplitPosition2D((s, _)) => {

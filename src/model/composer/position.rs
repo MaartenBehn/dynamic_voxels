@@ -153,6 +153,7 @@ impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> PositionTem
         match self {
             PositionTemplate::Const(_) => {},
             PositionTemplate::ByPositionSetChild(hook) => {
+                dbg!(&hook);
                 hook.loop_cut |= hook.template_index == to_index;
             },
             PositionTemplate::ByPositionSetChildSelf => {},

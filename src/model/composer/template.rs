@@ -3,6 +3,7 @@ use std::{iter, ops::RangeBounds};
 use egui_snarl::{InPinId, NodeId, OutPinId};
 use itertools::Itertools;
 use octa_force::glam::Vec3;
+use octa_force::log::{self, debug};
 use smallvec::{SmallVec, smallvec};
 use crate::model::composer::dependency_tree::DependencyTree;
 use crate::util::number::Nu;
@@ -187,58 +188,80 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
 
         dbg!(&template);
 
-        // Levels and dependency_tree
+        // Levels and cut loops
         for i in 0..template.nodes.len() {
+            dbg!(i);
 
             if template.nodes[i].level == 0 {
-                template.set_level_of_node(i, i);
-            }
-
-            for j in 0..template.nodes[i].defines.len() {
-                let new_index = template.nodes[i].defines[j].template_index; 
-                let new_node = &template.nodes[new_index];
-
-                template.nodes[i].defines[j].dependecy_tree = DependencyTree::new(
-                    &template, 
-                    i,
-                    &new_node.depends,);
+                template.set_level_of_node(i, vec![]);
             }
         }
 
         dbg!(&template);
 
+        for i in 0..template.nodes.len() {
+            dbg!(i);
+
+            for j in 0..template.nodes[i].defines.len() {
+                dbg!(j);
+
+                let new_index = template.nodes[i].defines[j].template_index; 
+                let new_node = &template.nodes[new_index];
+                
+                template.nodes[i].defines[j].dependecy_tree = DependencyTree::new(
+                    &template, 
+                    i,
+                    &new_node.depends);
+            }
+        }
+
         template
     }
 
-    fn set_level_of_node(&mut self, index: usize, index_self: usize) -> usize {
-        let node: &TemplateNode<V2, V3, T, B> = &mut self.nodes[index];
+    fn set_level_of_node(&mut self, index: usize, mut index_seen: Vec<usize>) -> usize {
+        index_seen.push(index);
 
+        debug!("Set level of node {}, index_seen: {:?}", index, &index_seen);
+
+        let node: &mut TemplateNode<V2, V3, T, B> = &mut self.nodes[index];
+        
         let mut max_level = 0;
-        for index in node.depends.to_owned().iter().rev() {
-            if *index == index_self {
-                let node = &mut self.nodes[*index];
+        for (i, depends_index) in node.depends.to_owned().iter().enumerate().rev() {
+            debug!("Node {}, depends on {}", index, *depends_index);
+
+            if let Some(loop_index) = index_seen.iter().find(|p| **p == *depends_index) {
+                let node: &mut TemplateNode<V2, V3, T, B> = &mut self.nodes[index];
+
+                debug!("Loop found from {} to {:?}", index, loop_index);
 
                 match &mut node.value {
                     ComposeTemplateValue::NumberSpace(number_space_template) => {
-                        number_space_template.cut_loop(index_self);
+                        number_space_template.cut_loop(*loop_index);
                     },
                     ComposeTemplateValue::PositionSpace2D(position_space_template) => {
-                        position_space_template.cut_loop(index_self)
+                        position_space_template.cut_loop(*loop_index)
                     },
                     ComposeTemplateValue::PositionSpace3D(position_space_template) => {
-                        position_space_template.cut_loop(index_self);
+                        position_space_template.cut_loop(*loop_index);
                     },
                     _ => {} 
                 }
 
-                node.depends.swap_remove(*index);
+                node.depends.swap_remove(i);
+
+                let loop_node: &mut TemplateNode<V2, V3, T, B> = &mut self.nodes[*loop_index];
+                if let Some(i) = loop_node.dependend.iter().position(|p| *p == index) {
+                    loop_node.dependend.swap_remove(i);
+                }
+
                 continue;
             }
 
-            let mut level = self.nodes[*index].level; 
-
+            let mut level = self.nodes[*depends_index].level; 
             if level == 0 {
-                level = self.set_level_of_node(*index, index_self);
+                level = self.set_level_of_node(*depends_index, index_seen.to_owned());
+                debug!("Node {} has level {}, index_seen: {:?}", *depends_index, level, index_seen);
+                debug!("Now in {}", index);
             } 
 
             max_level = max_level.max(level);

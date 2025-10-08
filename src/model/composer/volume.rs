@@ -241,10 +241,10 @@ impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> VolumeTempl
     }
 
     pub fn cut_loop(&mut self, to_index: usize) {
+        self.cut_loop_inner(self.root, to_index);
     }
 
     pub fn cut_loop_inner(&mut self, i: usize, to_index: usize) {
-        
         let node: &mut VolumeTemplateData<V, V2, V3, T, D> = &mut self.nodes[i];
         match node {
             VolumeTemplateData::Sphere { pos, size } => {

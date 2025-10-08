@@ -1,5 +1,5 @@
 use egui_snarl::OutPinId;
-use octa_force::OctaResult;
+use octa_force::{log::debug, OctaResult};
 
 use crate::{model::generation::traits::ModelGenerationTypes, util::{number::Nu, vector::Ve}};
 
