@@ -108,7 +108,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> NumberTemplate<V2, V3, T> {
         match self {
             NumberTemplate::Const(_) => {},
             NumberTemplate::Hook(h) => {
-                dbg!(&h);
                 h.loop_cut |= h.template_index == to_index;
             },
             NumberTemplate::SplitPosition2D((s, _)) => {

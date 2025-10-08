@@ -27,7 +27,10 @@ impl DependencyTree {
         parent_index: TemplateIndex, 
         depends: &[TemplateIndex], 
     ) -> DependencyTree {
-        let mut depends = depends.iter().copied().enumerate().collect::<Vec<_>>();
+        let mut depends = depends.iter()
+            .copied()
+            .enumerate()
+            .collect::<Vec<_>>();
 
         let mut open_child_paths: VecDeque<(&TemplateNode<V2, V3, T, B>, Vec<DependencyPathStep>)> = VecDeque::new();
         let mut open_parent_paths: VecDeque<(&TemplateNode<V2, V3, T, B>, Vec<DependencyPathStep>)> = VecDeque::new();
@@ -63,7 +66,7 @@ impl DependencyTree {
             if let Some((node, path)) = open_child_paths.pop_front() {
                 check_hit(node, &path);
                 
-                for index in node.dependend.iter() {
+                for index in node.dependend_loop_cut.iter() {
                     let child = &template.nodes[*index];
 
                     let mut child_path = path.clone();
@@ -80,7 +83,7 @@ impl DependencyTree {
             } else if let Some((node, path)) = open_parent_paths.pop_front() {
                 check_hit(node, &path);
 
-                for index in node.dependend.iter() {
+                for index in node.dependend_loop_cut.iter() {
                     let child = &template.nodes[*index];
 
                     let mut child_path = path.clone();
@@ -94,7 +97,7 @@ impl DependencyTree {
                     open_child_paths.push_back((child, child_path));
                 }
 
-                for parent_index in node.depends.iter() {
+                for parent_index in node.depends_loop_cut.iter() {
                     let parent = &template.nodes[*parent_index];
 
                     let mut parent_path = path.clone();

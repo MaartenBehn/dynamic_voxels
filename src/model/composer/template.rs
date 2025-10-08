@@ -43,6 +43,8 @@ pub struct TemplateNode<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub value: ComposeTemplateValue<V2, V3, T, B>,
     pub depends: SmallVec<[TemplateIndex; 4]>,
     pub dependend: SmallVec<[TemplateIndex; 4]>,
+    pub depends_loop_cut: SmallVec<[TemplateIndex; 4]>,
+    pub dependend_loop_cut: SmallVec<[TemplateIndex; 4]>,
     pub level: usize,
     pub defines: SmallVec<[Ammount<V2, V3, T>; 4]>,
 }
@@ -57,6 +59,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                     value: ComposeTemplateValue::None,
                     depends: smallvec![],
                     dependend: smallvec![],
+                    depends_loop_cut: smallvec![],
+                    dependend_loop_cut: smallvec![],
                     level: 1,
                     defines: smallvec![],
                 }],
@@ -72,6 +76,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                 value: ComposeTemplateValue::None,
                 depends: smallvec![],
                 dependend: smallvec![],
+                depends_loop_cut: smallvec![],
+                dependend_loop_cut: smallvec![],
                 level: 1,
                 defines: smallvec![],
             }]; 
@@ -99,6 +105,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                     value: ComposeTemplateValue::None,
                     depends: smallvec![],
                     dependend: smallvec![],
+                    depends_loop_cut: smallvec![],
+                    dependend_loop_cut: smallvec![],
                     level: 0,
                     defines: smallvec![],
                 }
@@ -108,8 +116,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
             nodes,
             max_level: 1,
         };
-
-        dbg!(&template);
 
         // Values Depends and Dependend
         for i in 1..template.nodes.len() {
@@ -173,47 +179,43 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
             let parent_node = &mut template.nodes[parent_index];
             parent_node.defines.push(ammount);
             parent_node.dependend.push(i);
+            parent_node.dependend_loop_cut.push(i);
 
             for depend in depends.iter() {
                 let dependend_node = &mut template.nodes[*depend];
                 if !dependend_node.dependend.contains(&i) {
                     dependend_node.dependend.push(i);
+                    dependend_node.dependend_loop_cut.push(i);
                 }
             }
 
             let node =  &mut template.nodes[i]; 
-            node.depends = depends;
+            node.depends = depends.clone();
+            node.depends_loop_cut = depends;
             node.value = value;
         }
 
-        dbg!(&template);
-
         // Levels and cut loops
         for i in 0..template.nodes.len() {
-            dbg!(i);
-
             if template.nodes[i].level == 0 {
                 template.set_level_of_node(i, vec![]);
             }
         }
 
-        dbg!(&template);
-
         for i in 0..template.nodes.len() {
-            dbg!(i);
-
             for j in 0..template.nodes[i].defines.len() {
-                dbg!(j);
-
                 let new_index = template.nodes[i].defines[j].template_index; 
                 let new_node = &template.nodes[new_index];
                 
                 template.nodes[i].defines[j].dependecy_tree = DependencyTree::new(
                     &template, 
                     i,
-                    &new_node.depends);
+                    &new_node.depends,
+                );
             }
         }
+
+        dbg!(&template);
 
         template
     }
@@ -229,29 +231,29 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
         for (i, depends_index) in node.depends.to_owned().iter().enumerate().rev() {
             debug!("Node {}, depends on {}", index, *depends_index);
 
-            if let Some(loop_index) = index_seen.iter().find(|p| **p == *depends_index) {
+            if let Some(_) = index_seen.iter().find(|p| **p == *depends_index) {
                 let node: &mut TemplateNode<V2, V3, T, B> = &mut self.nodes[index];
 
-                debug!("Loop found from {} to {:?}", index, loop_index);
+                debug!("Loop found from {} to {:?}", index, depends_index);
 
                 match &mut node.value {
                     ComposeTemplateValue::NumberSpace(number_space_template) => {
-                        number_space_template.cut_loop(*loop_index);
+                        number_space_template.cut_loop(*depends_index);
                     },
                     ComposeTemplateValue::PositionSpace2D(position_space_template) => {
-                        position_space_template.cut_loop(*loop_index)
+                        position_space_template.cut_loop(*depends_index)
                     },
                     ComposeTemplateValue::PositionSpace3D(position_space_template) => {
-                        position_space_template.cut_loop(*loop_index);
+                        position_space_template.cut_loop(*depends_index);
                     },
                     _ => {} 
                 }
 
-                node.depends.swap_remove(i);
+                node.depends_loop_cut.swap_remove(i);
 
-                let loop_node: &mut TemplateNode<V2, V3, T, B> = &mut self.nodes[*loop_index];
+                let loop_node: &mut TemplateNode<V2, V3, T, B> = &mut self.nodes[*depends_index];
                 if let Some(i) = loop_node.dependend.iter().position(|p| *p == index) {
-                    loop_node.dependend.swap_remove(i);
+                    loop_node.dependend_loop_cut.swap_remove(i);
                 }
 
                 continue;
