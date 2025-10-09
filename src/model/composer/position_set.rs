@@ -66,15 +66,18 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> PositionSetTemplate<V2, V3, T> {
         &self, 
         get_value_data: GetValueData,
         collapser: &Collapser<V2, V3, T, B>
-    ) -> impl Iterator<Item = V> {
+    ) -> (impl Iterator<Item = V>, bool) {
         match self {
-            PositionSetTemplate::Hook(hook) => Either::Left(collapser.get_dependend_position_set(hook.template_index, get_value_data.depends)),
+            PositionSetTemplate::Hook(hook) => {
+                let (set, r) = collapser.get_dependend_position_set(hook.template_index, get_value_data);
+                (Either::Left(set), r)
+            },
             PositionSetTemplate::T2Dto3D(template) => {
                 assert_eq!(3, D);
 
-                let z = template.z.get_value(get_value_data, collapser);
-                let points = template.p2d.get_value::<V2, B, 2>(get_value_data, collapser)
-                    .map(move |v| {
+                let (z, r_0) = template.z.get_value(get_value_data, collapser);
+                let (points, r_1) = template.p2d.get_value::<V2, B, 2>(get_value_data, collapser);
+                let points = points.map(move |v| {
                         let arr = v.to_array();
                         
                         // Safety: D is 3
@@ -83,7 +86,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> PositionSetTemplate<V2, V3, T> {
                         V::new(b)
                     }).collect_vec();
 
-                Either::Right(points.into_iter())
+                (Either::Right(points.into_iter()), r_0 || r_1)
             },
         }
     }

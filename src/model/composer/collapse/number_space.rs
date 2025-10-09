@@ -16,12 +16,12 @@ impl<T: Nu> NumberSpace<T> {
         space_template: &NumberSpaceTemplate<V2, V3, T>,
         get_value_data: GetValueData,
         collapser: &Collapser<V2, V3, T, B>
-    ) -> Self {
+    ) -> (Self, bool) {
         match space_template {
             NumberSpaceTemplate::NumberRange { min, max, step } => {
-                let min = min.get_value(get_value_data, collapser);
-                let max = max.get_value(get_value_data, collapser);
-                let step = step.get_value(get_value_data, collapser);
+                let (min, r_0) = min.get_value(get_value_data, collapser);
+                let (max, r_1) = max.get_value(get_value_data, collapser);
+                let (step, r_2) = step.get_value(get_value_data, collapser);
 
                 let mut values = vec![];
                 let mut i = min;
@@ -30,10 +30,10 @@ impl<T: Nu> NumberSpace<T> {
                     i += step;
                 }
 
-                Self {
+                (Self {
                     values,
                     value: T::ZERO,
-                }
+                }, r_0 || r_1 || r_2)
             },
         }
 

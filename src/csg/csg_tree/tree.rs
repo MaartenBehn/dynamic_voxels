@@ -145,6 +145,14 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
     }
 
     pub fn cut_at_root(&mut self, other: &[CSGTreeNode<M, V, T, D>], other_root: usize) -> CutResult { 
+        if other.is_empty() {
+            return CutResult {
+                cut_node_index: self.root,
+                base_index: self.root,
+                new_object_index: self.root,
+            };
+        }
+
         self.changed = true;
 
         if self.nodes.is_empty() {

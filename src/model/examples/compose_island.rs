@@ -123,8 +123,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
         match args.template_value {
             TemplateValue::Object(object_template) => {
                 
-                let mut volume = object_template.volume.get_value(args.get_value_data, args.collapser, MATERIAL_ID_BASE);
-                let pos = object_template.pos.get_value(args.get_value_data, args.collapser);
+                let (mut volume, r_0) = object_template.volume.get_value(args.get_value_data, args.collapser, MATERIAL_ID_BASE);
+                let (pos, r_1) = object_template.pos.get_value(args.get_value_data, args.collapser);
 
                 volume.calculate_bounds();
 

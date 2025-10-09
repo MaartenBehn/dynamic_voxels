@@ -3,9 +3,9 @@ use std::{collections::{HashMap, VecDeque}, fmt::{Debug, Octal}, iter, marker::P
 use itertools::Either;
 use octa_force::{anyhow::{anyhow, bail, ensure}, glam::{vec3, vec3a, IVec3, Vec3, Vec3Swizzles}, log::{debug, error, info}, vulkan::ash::vk::OpaqueCaptureDescriptorDataCreateInfoEXT, OctaResult};
 use slotmap::{new_key_type, Key, SlotMap};
-use crate::{model::{composer::{build::{OnCollapseArgs, BS}, number_space::NumberSpaceTemplate, template::{ComposeTemplate, TemplateIndex}}, generation::pos_set::PositionSetRule}, util::{number::Nu, state_saver, vector::Ve}, volume::VolumeQureyPosValid};
+use crate::{model::{composer::{build::{GetCollapseValueArgs, OnCollapseArgs, BS}, number_space::NumberSpaceTemplate, template::{ComposeTemplate, ComposeTemplateValue, TemplateIndex}}, generation::pos_set::PositionSetRule}, util::{number::Nu, state_saver, vector::Ve}, volume::VolumeQureyPosValid};
 
-use super::{number_space::NumberSpace, pending_operations::{PendingOperations, PendingOperationsRes}, position_space::PositionSpace};
+use super::{add_nodes::GetValueData, number_space::NumberSpace, pending_operations::{PendingOperations, PendingOperationsRes}, position_space::PositionSpace};
 
 new_key_type! { pub struct CollapseNodeKey; }
 new_key_type! { pub struct CollapseChildKey; }
@@ -25,11 +25,13 @@ pub struct CollapseNode<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub defined_by: CollapseNodeKey,
     pub child_key: CollapseChildKey,
     pub data: NodeDataType<V2, V3, T, B>,
+    pub needs_recompute: bool,
     pub next_reset: CollapseNodeKey,
 }
 
 #[derive(Debug, Clone)]
 pub enum NodeDataType<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
+    Pending,
     NumberSet(NumberSpace<T>),
     PositionSpace2D(PositionSpace<V2, T, 2>),
     PositionSpace3D(PositionSpace<V3, T, 3>),
@@ -80,20 +82,77 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
         loop {
             match self.pending.pop() {
-                PendingOperationsRes::Collapse(key) => self.collapse_node(key, template, state),
+                PendingOperationsRes::Collapse(key) => self.collapse_node(key, template, state).await,
                 PendingOperationsRes::CreateDefined(operation) => self.upadte_defined(
                     operation, template, state).await,
+                PendingOperationsRes::Retry => {
+                    info!("Swaped Next Collapse");
+                },
                 PendingOperationsRes::Empty => break,
             }
         }
     }
 
-    fn collapse_node(&mut self, node_index: CollapseNodeKey, template: &ComposeTemplate<V2, V3, T, B>, state: &mut B) {
-        let node = &mut self.nodes[node_index];
+    async fn collapse_node(&mut self, node_index: CollapseNodeKey, template: &ComposeTemplate<V2, V3, T, B>, state: &mut B) {
+        let node = &self.nodes[node_index];
         let template_node = &template.nodes[node.template_index]; 
-        //info!("{:?} Collapse: {:?}", node_index, node.identifier);
+        info!("{:?} Collapse", node_index);
 
+        if matches!(node.data, NodeDataType::Pending) || node.needs_recompute {
+            
+            let get_value_data = GetValueData { 
+                defined_by: node.defined_by, 
+                child_index: node.child_key, 
+                depends: &node.depends, 
+                depends_loop: &template_node.depends_loop,
+                index: node_index,
+            }; 
+
+            let (data, needs_recompute) = match &template_node.value {
+                ComposeTemplateValue::None => (NodeDataType::None, false),
+                ComposeTemplateValue::NumberSpace(space) => {
+                    let (data, r) = NumberSpace::from_template(space, get_value_data, &self);
+                    
+                    (NodeDataType::NumberSet(data), r)
+                },
+
+                ComposeTemplateValue::PositionSpace2D(space) => {
+                    let (data, r) = PositionSpace::from_template(space, get_value_data, &self);
+                    
+                    (NodeDataType::PositionSpace2D(data), r)
+                },
+
+                ComposeTemplateValue::PositionSpace3D(space) => {
+                    let (data, r) = PositionSpace::from_template(space, get_value_data, &self);
+
+                    (NodeDataType::PositionSpace3D(data), r)
+                },
+ 
+                ComposeTemplateValue::Build(t) => {
+                    let build = NodeDataType::Build(B::get_collapse_value(GetCollapseValueArgs { 
+                        template_value: t,
+                        get_value_data,
+                        collapser: &self, 
+                        template, 
+                        state 
+                    }).await);
+                    
+                    (build, false)
+                },
+            };   
+
+            if needs_recompute {
+                self.pending.push_later_collpase(template_node.level, node_index);
+            }
+
+            self.nodes[node_index].data = data;
+            self.nodes[node_index].needs_recompute = needs_recompute;
+        }
+
+        let node = &mut self.nodes[node_index];
         match &mut node.data {
+            NodeDataType::Pending => unreachable!(),
+            NodeDataType::None => {},
             NodeDataType::NumberSet(space) => {
                 if space.update().is_err() {
                     panic!("{:?} Collapse Number faild", node_index);
@@ -101,7 +160,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             },
             NodeDataType::PositionSpace2D(space) => space.update(),
             NodeDataType::PositionSpace3D(space) => space.update(),
-            NodeDataType::None => {},
             NodeDataType::Build(t) => B::on_collapse(OnCollapseArgs { 
                 collapse_index: node_index,
                 collapser: &self, 
@@ -113,19 +171,26 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         self.push_defined(node_index, template);
     }
 
-    pub fn get_number(&self, index: CollapseNodeKey) -> T {
-        let node = self.nodes.get(index).expect("Number Set by index not found");
+    pub fn get_number(&self, index: Option<CollapseNodeKey>) -> (T, bool) {
+        if index.is_none() {
+            return (T::ZERO, true);
+        }
+
+        let node = self.nodes.get(index.unwrap())
+            .expect("Number Set by index not found");
         
-        match &node.data {
+        let v = match &node.data {
             NodeDataType::NumberSet(d) => d.value,
             _ => panic!("Template Node {:?} is not of Type Number Space", node.template_index)
-        }
+        };
+
+        (v, false)
     }
 
-pub fn get_position<V: Ve<T, D>, const D: usize>(&self, parent_index: CollapseNodeKey, child_index: CollapseChildKey) -> V {
+pub fn get_position<V: Ve<T, D>, const D: usize>(&self, parent_index: CollapseNodeKey, child_index: CollapseChildKey) -> (V, bool) {
         let parent = &self.nodes[parent_index];
        
-        match D {
+        let v = match D {
             2 => {
                 let v = match &parent.data {
                     NodeDataType::PositionSpace2D(d) => d.get_position(child_index),
@@ -145,13 +210,19 @@ pub fn get_position<V: Ve<T, D>, const D: usize>(&self, parent_index: CollapseNo
                 unsafe { VUnion{ a: v }.b }
             }
             _ => unreachable!()
-        }
+        };
+
+        (v, false)
     }
 
-    pub fn get_position_set<V: Ve<T, D>, const D: usize>(&self, index: CollapseNodeKey) -> impl Iterator<Item = V> {
-        let node = &self.nodes[index];
+    pub fn get_position_set<V: Ve<T, D>, const D: usize>(&self, index: Option<CollapseNodeKey>) -> (impl Iterator<Item = V>, bool) {
+        if index.is_none() {
+            return (Either::Left(iter::empty()), true);
+        }
+
+        let node = &self.nodes[index.unwrap()];
        
-        match D {
+        let set = match D {
             2 => {
                 let i = match &node.data {
                     NodeDataType::PositionSpace2D(d) => d.get_positions(),
@@ -175,41 +246,59 @@ pub fn get_position<V: Ve<T, D>, const D: usize>(&self, parent_index: CollapseNo
                 }))
             }
             _ => unreachable!()
-        }
+        };
+
+        (Either::Right(set), false)
     }
  
     fn get_dependend_index(
         &self, 
         template_index: TemplateIndex,
-        depends: &[(TemplateIndex, Vec<CollapseNodeKey>)],
-    ) -> CollapseNodeKey {
-        depends.iter().find(|(i, _)| *i == template_index)
-            .expect(&format!("Node does not depend on {:?}", template_index)).1[0]
+        get_value_data: GetValueData,
+    ) -> Option<CollapseNodeKey> {
+        if let Some((_, keys)) = get_value_data.depends.iter().find(|(i, _)| *i == template_index) {
+            return Some(keys[0]);
+        }
+
+        let (_, loop_path) = get_value_data.depends_loop.iter().find(|(i, _)| *i == template_index)
+            .expect(&format!("{template_index} must be in depends or depends_loop"));
+
+        let keys = self.get_depends_from_loop_path(get_value_data, loop_path);
+        if keys.is_empty() {
+            None
+        } else {
+            Some(keys[0])
+        }
     }
 
     pub fn get_dependend_number(
         &self, 
         template_index: TemplateIndex,
-        depends: &[(TemplateIndex, Vec<CollapseNodeKey>)],
-    ) -> T { 
-        self.get_number(self.get_dependend_index(template_index, depends))
+        get_value_data: GetValueData,
+    ) -> (T, bool) { 
+        self.get_number(self.get_dependend_index(template_index, get_value_data))
     }
 
     pub fn get_dependend_position_set<V: Ve<T, D>, const D: usize>(
         &self, 
         template_index: TemplateIndex,
-        depends: &[(TemplateIndex, Vec<CollapseNodeKey>)],
-    ) -> impl Iterator<Item = V> { 
-        self.get_position_set(self.get_dependend_index(template_index, depends))
+        get_value_data: GetValueData,
+    ) -> (impl Iterator<Item = V>, bool) { 
+        self.get_position_set(self.get_dependend_index(template_index, get_value_data))
     }
  
     pub fn get_dependend_position<V: Ve<T, D>, const D: usize>(
         &self, 
         template_index: TemplateIndex,
-        depends: &[(TemplateIndex, Vec<CollapseNodeKey>)],
-    ) -> V { 
-        let index = self.get_dependend_index(template_index, depends);
-        let node = &self.nodes[index];
+        get_value_data: GetValueData,
+    ) -> (V, bool) { 
+        let index = self.get_dependend_index(template_index, get_value_data);
+        
+        if index.is_none() {
+            return (V::ZERO, true);
+        }
+
+        let node = &self.nodes[index.unwrap()];
         self.get_position(node.defined_by, node.child_key)
     }
 

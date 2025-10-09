@@ -190,7 +190,7 @@ impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> VolumeTempl
         get_value_data: GetValueData,
         collapser: &Collapser<V2, V3, T, B>,
         mat: M, 
-    ) -> CSGTree<M, V, T, D>  {
+    ) -> (CSGTree<M, V, T, D>, bool)  {
         self.get_value_inner(self.root, get_value_data, collapser, mat)
     }
  
@@ -200,42 +200,54 @@ impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> VolumeTempl
         get_value_data: GetValueData,
         collapser: &Collapser<V2, V3, T, B>,
         mat: M,
-    ) -> CSGTree<M, V, T, D> {
+    ) -> (CSGTree<M, V, T, D>, bool) {
 
         let node = &self.nodes[index];
         match &node {
-            VolumeTemplateData::Sphere { pos, size } => CSGTree::new_sphere(
-                pos.get_value(get_value_data, collapser), 
-                size.get_value(get_value_data, collapser), 
-                mat
-            ),
-            VolumeTemplateData::Box { pos, size } => CSGTree::new_box(
-                pos.get_value(get_value_data, collapser), 
-                size.get_value(get_value_data, collapser), 
-                mat
-            ),
+            VolumeTemplateData::Sphere { pos, size } => {
+                let (pos, r_0) = pos.get_value(get_value_data, collapser);
+                let (size, r_1) = size.get_value(get_value_data, collapser);
+
+                (CSGTree::new_sphere(
+                pos, 
+                size, 
+                mat), r_0 || r_1)
+            },
+            VolumeTemplateData::Box { pos, size } => {
+                let (pos, r_0) = pos.get_value(get_value_data, collapser);
+                let (size, r_1) = size.get_value(get_value_data, collapser);
+
+                (CSGTree::new_box(
+                pos, 
+                size, 
+                mat), r_0 || r_1)
+            },
             VolumeTemplateData::Union { a, b } => {
-                let mut a = self.get_value_inner(*a, get_value_data, collapser, mat);
-                let b = self.get_value_inner(*b, get_value_data, collapser, mat);
+                let (mut a, r_0) = self.get_value_inner(*a, get_value_data, collapser, mat);
+                let (b, r_1) = self.get_value_inner(*b, get_value_data, collapser, mat);
                 a.union_at_root(&b.nodes, b.root);
-                a
+                (a, r_0 || r_1)
             },
             VolumeTemplateData::Cut { base, cut } => {
-                let mut base = self.get_value_inner(*base, get_value_data, collapser, mat);
-                let cut = self.get_value_inner(*cut, get_value_data, collapser, mat);
+                let (mut base, r_0) = self.get_value_inner(*base, get_value_data, collapser, mat);
+                let (cut, r_1) = self.get_value_inner(*cut, get_value_data, collapser, mat);
                 base.cut_at_root(&cut.nodes, cut.root);
-                base
+                (base, r_0 || r_1)
             },
             VolumeTemplateData::SphereUnion { position_set, size } => {
 
-                let radius = size.get_value(get_value_data, collapser).to_f32();
+                let (radius, r_0) = size.get_value(get_value_data, collapser);
+                let radius = radius.to_f32();
+
                 let mut csg = CSGTree::default();
-                for pos in position_set.get_value::<V, B, D>(get_value_data, collapser) {
+                let (set, r_1) = position_set.get_value::<V, B, D>(get_value_data, collapser);
+
+                for pos in set {
                     let pos = pos.to_vecf();
                     csg.union_sphere(pos, radius, mat);
                 }
 
-                csg
+                (csg, r_0 || r_1)
             },
         }
     }

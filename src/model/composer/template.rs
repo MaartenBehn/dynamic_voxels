@@ -5,7 +5,7 @@ use itertools::Itertools;
 use octa_force::glam::Vec3;
 use octa_force::log::{self, debug};
 use smallvec::{SmallVec, smallvec};
-use crate::model::composer::dependency_tree::DependencyTree;
+use crate::model::composer::dependency_tree::{get_dependency_tree_and_loop_paths, DependencyTree};
 use crate::util::number::Nu;
 
 use crate::model::generation::{relative_path::RelativePathTree};
@@ -13,6 +13,7 @@ use crate::util::vector::Ve;
 
 use super::ammount::Ammount;
 use super::build::{GetTemplateValueArgs, TemplateValueTrait, BS};
+use super::dependency_tree::DependencyPath;
 use super::position_space::PositionSpaceTemplate;
 use super::{data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, number_space::NumberSpaceTemplate, ModelComposer};
 
@@ -43,8 +44,7 @@ pub struct TemplateNode<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub value: ComposeTemplateValue<V2, V3, T, B>,
     pub depends: SmallVec<[TemplateIndex; 4]>,
     pub dependend: SmallVec<[TemplateIndex; 4]>,
-    pub depends_loop_cut: SmallVec<[TemplateIndex; 4]>,
-    pub dependend_loop_cut: SmallVec<[TemplateIndex; 4]>,
+    pub depends_loop: SmallVec<[(TemplateIndex, DependencyPath); 4]>,
     pub level: usize,
     pub defines: SmallVec<[Ammount<V2, V3, T>; 4]>,
 }
@@ -59,8 +59,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                     value: ComposeTemplateValue::None,
                     depends: smallvec![],
                     dependend: smallvec![],
-                    depends_loop_cut: smallvec![],
-                    dependend_loop_cut: smallvec![],
+                    depends_loop: smallvec![],
                     level: 1,
                     defines: smallvec![],
                 }],
@@ -74,10 +73,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                 node_id: NodeId(usize::MAX),
                 index: 0,
                 value: ComposeTemplateValue::None,
+                depends_loop: smallvec![],
                 depends: smallvec![],
                 dependend: smallvec![],
-                depends_loop_cut: smallvec![],
-                dependend_loop_cut: smallvec![],
                 level: 1,
                 defines: smallvec![],
             }]; 
@@ -103,10 +101,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                     node_id: node_id,
                     index: i + 1,
                     value: ComposeTemplateValue::None,
+                    depends_loop: smallvec![],
                     depends: smallvec![],
                     dependend: smallvec![],
-                    depends_loop_cut: smallvec![],
-                    dependend_loop_cut: smallvec![],
                     level: 0,
                     defines: smallvec![],
                 }
@@ -179,48 +176,50 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
             let parent_node = &mut template.nodes[parent_index];
             parent_node.defines.push(ammount);
             parent_node.dependend.push(i);
-            parent_node.dependend_loop_cut.push(i);
 
             for depend in depends.iter() {
                 let dependend_node = &mut template.nodes[*depend];
                 if !dependend_node.dependend.contains(&i) {
                     dependend_node.dependend.push(i);
-                    dependend_node.dependend_loop_cut.push(i);
                 }
             }
 
             let node =  &mut template.nodes[i]; 
-            node.depends = depends.clone();
-            node.depends_loop_cut = depends;
+            node.depends = depends;
             node.value = value;
         }
 
         // Levels and cut loops
         for i in 0..template.nodes.len() {
             if template.nodes[i].level == 0 {
-                template.set_level_of_node(i, vec![]);
+                template.cut_loops(i, vec![]);
             }
         }
 
+        // Dependency Tree and Loop Paths
         for i in 0..template.nodes.len() {
             for j in 0..template.nodes[i].defines.len() {
                 let new_index = template.nodes[i].defines[j].template_index; 
                 let new_node = &template.nodes[new_index];
-                
-                template.nodes[i].defines[j].dependecy_tree = DependencyTree::new(
-                    &template, 
-                    i,
-                    &new_node.depends,
-                );
-            }
-        }
 
-        dbg!(&template);
+                let (tree, loop_paths) = get_dependency_tree_and_loop_paths(
+                    &template, 
+                    i, 
+                    &new_node.depends, 
+                    &new_node.dependend, 
+                    &new_node.depends_loop,
+                );
+                
+                template.nodes[i].defines[j].dependecy_tree = tree;
+                template.nodes[new_index].depends_loop = loop_paths;
+            }
+
+        }
 
         template
     }
 
-    fn set_level_of_node(&mut self, index: usize, mut index_seen: Vec<usize>) -> usize {
+    fn cut_loops(&mut self, index: usize, mut index_seen: Vec<usize>) -> usize {
         index_seen.push(index);
 
         debug!("Set level of node {}, index_seen: {:?}", index, &index_seen);
@@ -249,11 +248,12 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                     _ => {} 
                 }
 
-                node.depends_loop_cut.swap_remove(i);
+                node.depends.swap_remove(i);
+                node.depends_loop.push((*depends_index, DependencyPath::default()));
 
                 let loop_node: &mut TemplateNode<V2, V3, T, B> = &mut self.nodes[*depends_index];
                 if let Some(i) = loop_node.dependend.iter().position(|p| *p == index) {
-                    loop_node.dependend_loop_cut.swap_remove(i);
+                    loop_node.dependend.swap_remove(i);
                 }
 
                 continue;
@@ -261,7 +261,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
 
             let mut level = self.nodes[*depends_index].level; 
             if level == 0 {
-                level = self.set_level_of_node(*depends_index, index_seen.to_owned());
+                level = self.cut_loops(*depends_index, index_seen.to_owned());
                 debug!("Node {} has level {}, index_seen: {:?}", *depends_index, level, index_seen);
                 debug!("Now in {}", index);
             } 

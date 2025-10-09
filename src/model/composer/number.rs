@@ -90,16 +90,18 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> NumberTemplate<V2, V3, T> {
         &self, 
         get_value_data: GetValueData,
         collapser: &Collapser<V2, V3, T, B>
-    ) -> T {
+    ) -> (T, bool) {
 
         match self {
-            NumberTemplate::Const(v) => *v,
-            NumberTemplate::Hook(hook) => collapser.get_dependend_number(hook.template_index, get_value_data.depends),
+            NumberTemplate::Const(v) => (*v, false),
+            NumberTemplate::Hook(hook) => collapser.get_dependend_number(hook.template_index, get_value_data),
             NumberTemplate::SplitPosition2D((position_template, i)) => {
-                position_template.get_value(get_value_data, collapser)[*i]
+                let (v, r) = position_template.get_value(get_value_data, collapser);
+                (v[*i], r)
             },
             NumberTemplate::SplitPosition3D((position_template, i)) => {
-                position_template.get_value(get_value_data, collapser)[*i]
+                let (v, r) = position_template.get_value(get_value_data, collapser);
+                (v[*i], r)
             },
         }
     }

@@ -8,8 +8,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
     pub fn debug_render(&self, ui: &mut egui::Ui) {
         ui.strong("Pending");
         ui.label(format!("Min Level: {}", self.pending.min_with_value));
-        for (i, (collapse, create)) in self.pending.pending_per_level
-            .iter()
+        for (i, ((collapse, create), next_collapse)) in self.pending.pending_collapse.iter()
+            .zip(self.pending.pending_create_defined.iter())
+            .zip(self.pending.pending_next_collapse.iter())
             .enumerate() {
 
             if !create.is_empty()  {
@@ -22,6 +23,14 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
             if !collapse.is_empty()  {
                 ui.label(format!("- Level {} Collapse", i));
+
+                for pending in collapse {
+                    ui.label(format!("{:?}", pending));
+                }
+            }
+
+            if !next_collapse.is_empty()  {
+                ui.label(format!("- Level {} Next Collapse", i));
 
                 for pending in collapse {
                     ui.label(format!("{:?}", pending));

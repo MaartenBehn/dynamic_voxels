@@ -133,18 +133,22 @@ impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> PositionTem
         &self,
         get_value_data: GetValueData,
         collapser: &Collapser<V2, V3, T, B>
-    ) -> V {
+    ) -> (V, bool) {
 
         match self {
-            PositionTemplate::Const(v) => *v,
-            PositionTemplate::ByPositionSetChild(h) => collapser.get_dependend_position(h.template_index, get_value_data.depends),
+            PositionTemplate::Const(v) => (*v, false),
+            PositionTemplate::ByPositionSetChild(h) => collapser.get_dependend_position(h.template_index, get_value_data),
             PositionTemplate::ByPositionSetChildSelf => collapser.get_position(get_value_data.defined_by, get_value_data.child_index),
             PositionTemplate::FromNumbers(n) => {
                 let mut numbers = [T::ZERO; D];
+                let mut r_final = false;
                 for i in 0..D {
-                    numbers[i] = n[i].get_value(get_value_data, collapser);
+                    let (n, r) = n[i].get_value(get_value_data, collapser);
+                    r_final |= r;
+
+                    numbers[i] = n;
                 }
-                V::new(numbers)
+                (V::new(numbers), r_final)
             },
         }
     }
@@ -153,7 +157,6 @@ impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> PositionTem
         match self {
             PositionTemplate::Const(_) => {},
             PositionTemplate::ByPositionSetChild(hook) => {
-                dbg!(&hook);
                 hook.loop_cut |= hook.template_index == to_index;
             },
             PositionTemplate::ByPositionSetChildSelf => {},

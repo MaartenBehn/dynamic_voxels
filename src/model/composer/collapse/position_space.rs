@@ -50,40 +50,48 @@ impl<V: Ve<T, D>,  T: Nu, const D: usize> PositionSpace<V, T, D> {
         template_space: &PositionSpaceTemplate<V, V2, V3, T, D>, 
         get_value_data: GetValueData,
         collapser: &Collapser<V2, V3, T, B>
-    ) -> Self {
-        let data = match &template_space {
+    ) -> (Self, bool) {
+        let (data, needs_recompute) = match &template_space {
             PositionSpaceTemplate::Grid(template)  => {
-                let mut volume = template.volume.get_value(get_value_data, collapser, ()); 
+                let (mut volume, r_0) = template.volume.get_value(get_value_data, collapser, ());
                 volume.calculate_bounds();
+                let (spacing, r_1) = template.spacing.get_value(get_value_data, collapser); 
 
-                PositionSpaceData::Grid(Grid { 
+                (PositionSpaceData::Grid(Grid { 
                     volume, 
-                    spacing: template.spacing.get_value(get_value_data, collapser),
-                })
+                    spacing,
+                }), r_0 || r_1 )
             },
             PositionSpaceTemplate::LeafSpread(template) => {
-                let mut volume = template.volume.get_value(get_value_data, collapser, ()); 
+                let (mut volume, r_0) = template.volume.get_value(get_value_data, collapser, ());
                 volume.calculate_bounds();
+                let (samples, r_1) = template.samples.get_value(get_value_data, collapser); 
 
-                PositionSpaceData::LeafSpread(LeafSpread { 
+                (PositionSpaceData::LeafSpread(LeafSpread { 
                     volume, 
-                    samples: template.samples.get_value(get_value_data, collapser), 
-                })
+                    samples, 
+                }), r_0 || r_1 )
             },
-            PositionSpaceTemplate::Path(template) 
-            => PositionSpaceData::Path(Path {
-                spacing: template.spacing.get_value(get_value_data, collapser),
-                side_variance: template.side_variance.get_value(get_value_data, collapser),
-                start: template.start.get_value(get_value_data, collapser),
-                end: template.end.get_value(get_value_data, collapser),
-            }),
+            PositionSpaceTemplate::Path(template) => {
+                let (spacing, r_0) = template.spacing.get_value(get_value_data, collapser); 
+                let (side_variance, r_1) = template.side_variance.get_value(get_value_data, collapser); 
+                let (start, r_2) = template.start.get_value(get_value_data, collapser); 
+                let (end, r_3) = template.end.get_value(get_value_data, collapser); 
+
+                (PositionSpaceData::Path(Path {
+                    spacing,
+                    side_variance,
+                    start,
+                    end,
+                }), r_0 || r_1 || r_2 || r_3)
+            } 
         };
 
-        Self {
+        (Self {
             data,
             positions: Default::default(),
             new_children: Default::default(),
-        }
+        }, needs_recompute)
     }
 
     pub fn get_position(&self, index: CollapseChildKey) -> V {
