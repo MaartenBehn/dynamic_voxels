@@ -5,7 +5,7 @@ use octa_force::{egui, glam::{EulerRot, IVec2, IVec3, Mat4, Quat, Vec3}, OctaRes
 use slotmap::Key;
 use smallvec::SmallVec;
 
-use crate::{csg::csg_tree::tree::CSGTree, model::composer::{build::{CollapseValueTrait, ComposeTypeTrait, GetCollapseValueArgs, GetTemplateValueArgs, OnCollapseArgs, OnDeleteArgs, TemplateValueTrait, BS}, collapse::collapser::{CollapseNodeKey, Collapser, NodeDataType}, data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeType}, position::PositionTemplate, template::{ComposeTemplate, TemplateIndex}, volume::VolumeTemplate, ModelComposer}, scene::{dag_store::SceneDAGKey, worker::SceneWorkerSend, SceneObjectKey}, util::{number::Nu, vector::Ve}, volume::VolumeBounds, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, grid::shared::SharedVoxelGrid, palette::{palette::MATERIAL_ID_BASE, shared::SharedPalette}}, METERS_PER_SHADER_UNIT};
+use crate::{csg::csg_tree::tree::CSGTree, model::composer::{build::{CollapseValueTrait, ComposeTypeTrait, GetTemplateValueArgs, OnCollapseArgs, OnDeleteArgs, TemplateValueTrait, BS}, collapse::collapser::{CollapseNode, CollapseNodeKey, Collapser, NodeDataType}, data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeType}, position::PositionTemplate, template::{ComposeTemplate, TemplateIndex}, volume::VolumeTemplate, ModelComposer}, scene::{dag_store::SceneDAGKey, worker::SceneWorkerSend, SceneObjectKey}, util::{number::Nu, vector::Ve}, volume::VolumeBounds, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, grid::shared::SharedVoxelGrid, palette::{palette::MATERIAL_ID_BASE, shared::SharedPalette}}, METERS_PER_SHADER_UNIT};
 
 // Compose Type
 #[derive(Debug)]
@@ -119,7 +119,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
         }
     }
 
-    async fn get_collapse_value<'a>(args: GetCollapseValueArgs<'a, V2, V3, T, Self>) -> Self::CollapseValue {
+    async fn on_collapse<'a>(args: OnCollapseArgs<'a, V2, V3, T, Self>) -> Self::CollapseValue {
+        delete_object(args.collapse_node, args.state);
+
         match args.template_value {
             TemplateValue::Object(object_template) => {
                 
@@ -144,19 +146,19 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
         }
     }
 
-    fn on_collapse(args: OnCollapseArgs<V2, V3, T, Self>) {
-    
-    }
-
     fn on_delete(args: OnDeleteArgs<V2, V3, T, Self>) {
-        match &args.collapse_node.data {
-            NodeDataType::Build(t) => match t {
-                CollapseValue::Object(object) => {
-                    args.state.scene.remove_object(object.scene_key);
-                },
+        delete_object(args.collapse_node, args.state);
+    }
+}
+
+fn delete_object<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu>(node: &'a CollapseNode<V2, V3, T, ComposeIslandState>, state: &'a mut ComposeIslandState) {
+    match &node.data {
+        NodeDataType::Build(t) => match t {
+            CollapseValue::Object(object) => {
+                state.scene.remove_object(object.scene_key);
             },
-            _ => unreachable!()
-        }
+        },
+        _ => {}
     }
 }
 

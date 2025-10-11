@@ -15,8 +15,7 @@ pub trait BS<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu>: fmt::Debug + Clone + Send + Syn
     fn is_template_node(t: &Self::ComposeType) -> bool;
     
     fn get_template_value(args: GetTemplateValueArgs<V2, V3, T, Self>) -> Self::TemplateValue;
-    fn get_collapse_value(args: GetCollapseValueArgs<V2, V3, T, Self>) -> impl std::future::Future<Output = Self::CollapseValue> + Send;
-    fn on_collapse(args: OnCollapseArgs<V2, V3, T, Self>);
+    fn on_collapse(args: OnCollapseArgs<V2, V3, T, Self>) -> impl std::future::Future<Output = Self::CollapseValue> + Send;
     fn on_delete(args: OnDeleteArgs<V2, V3, T, Self>);
 }
 
@@ -41,17 +40,10 @@ pub struct GetTemplateValueArgs<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2,
     pub template: &'a ComposeTemplate<V2, V3, T, B>,
 }
 
-pub struct GetCollapseValueArgs<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
+pub struct OnCollapseArgs<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub template_value: &'a B::TemplateValue,
     pub get_value_data: GetValueData<'a>,
-
-    pub collapser: &'a Collapser<V2, V3, T, B>,
-    pub template: &'a ComposeTemplate<V2, V3, T, B>,
-    pub state: &'a mut B,
-}
-
-pub struct OnCollapseArgs<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
-    pub collapse_index: CollapseNodeKey,
+    pub collapse_node: &'a CollapseNode<V2, V3, T, B>,
 
     pub collapser: &'a Collapser<V2, V3, T, B>,
     pub template: &'a ComposeTemplate<V2, V3, T, B>,

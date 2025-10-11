@@ -54,9 +54,14 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
     }
 
     pub fn union_at_root(&mut self, other: &[CSGTreeNode<M, V, T, D>], other_root: usize) -> UnionResult {   
-        assert!(!other.is_empty());
-        self.changed = true;
+        if other.is_empty() {
+            return UnionResult {
+                union_node_index: self.root,
+                new_object_index: self.root,
+            };
+        }
 
+        self.changed = true;
 
         if self.nodes.is_empty() {
             self.nodes.extend_from_slice(other);
