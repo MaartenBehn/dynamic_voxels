@@ -3,9 +3,9 @@ use std::iter;
 use egui_snarl::{NodeId, OutPinId};
 use itertools::Itertools;
 
-use crate::util::{number::Nu, vector::Ve};
+use crate::{model::composer::{build::BS, dependency_tree::DependencyTree, nodes::{ComposeNode, ComposeNodeType}, template::{ComposeTemplate, TemplateIndex}, ModelComposer}, util::{number::Nu, vector::Ve}};
 
-use super::{build::BS, data_type::ComposeDataType, dependency_tree::DependencyTree, nodes::{ComposeNode, ComposeNodeType}, number::NumberTemplate, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
+use super::{data_type::ComposeDataType, number::NumberTemplate};
 
 
 #[derive(Debug, Clone)]

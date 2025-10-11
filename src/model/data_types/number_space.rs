@@ -1,9 +1,9 @@
 use egui_snarl::OutPinId;
 use octa_force::{log::debug, OctaResult};
 
-use crate::{model::generation::traits::ModelGenerationTypes, util::{number::Nu, vector::Ve}};
+use crate::{model::composer::{build::BS, nodes::ComposeNodeType, template::{ComposeTemplate, TemplateIndex}, ModelComposer}, util::{number::Nu, vector::Ve}};
 
-use super::{build::BS, nodes::ComposeNodeType, number::NumberTemplate, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
+use super::number::NumberTemplate;
 
 #[derive(Debug, Clone)]
 pub enum NumberSpaceTemplate<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {

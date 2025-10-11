@@ -3,9 +3,9 @@ use itertools::Itertools;
 use octa_force::log::debug;
 use smallvec::SmallVec;
 
-use crate::util::{number::Nu, vector::Ve};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::{ComposeNode, ComposeNodeType}, template::{ComposeTemplate, TemplateIndex}, ModelComposer}}, util::{number::Nu, vector::Ve}};
 
-use super::{build::BS, collapse::{add_nodes::GetValueData, collapser::{CollapseNodeKey, Collapser}}, data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, position::PositionTemplate, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
+use super::{data_type::ComposeDataType, position::PositionTemplate};
 
 #[derive(Debug, Clone)]
 pub struct Hook {

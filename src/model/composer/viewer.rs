@@ -5,9 +5,9 @@ use egui_snarl::{ui::{AnyPins, PinInfo, SnarlViewer}, InPin, InPinId, NodeId, Ou
 use itertools::Itertools;
 use octa_force::{egui::{self, Color32, DragValue, Ui}, glam::{IVec2, IVec3, Vec2, Vec3A}};
 
-use crate::util::{number::Nu, vector::Ve};
+use crate::{model::data_types::data_type::ComposeDataType, util::{number::Nu, vector::Ve}};
 
-use super::{build::{ComposeTypeTrait, BS}, data_type::ComposeDataType, nodes::{get_node_templates, ComposeNode, ComposeNodeInput, ComposeNodeOutput, ComposeNodeType}, pin::{ComposePin}};
+use super::{build::{ComposeTypeTrait, BS}, nodes::{get_node_templates, ComposeNode, ComposeNodeInput, ComposeNodeOutput, ComposeNodeType}, pin::{ComposePin}};
 
 const NOT_VALID_ANIMATION_TIME: f32 = 1.5;
 

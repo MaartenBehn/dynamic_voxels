@@ -1,9 +1,10 @@
 use egui_snarl::NodeId;
 use octa_force::egui::Ui;
 
-use crate::util::{number::Nu, vector::Ve};
+use crate::{model::data_types::data_type::ComposeDataType, util::{number::Nu, vector::Ve}};
 
-use super::{build::{ComposeTypeTrait, BS}, data_type::ComposeDataType};
+use super::build::ComposeTypeTrait;
+
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ComposeNodeGroupe {

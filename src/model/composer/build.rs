@@ -2,9 +2,9 @@ use core::fmt;
 
 use smallvec::SmallVec;
 
-use crate::util::{number::Nu, vector::Ve};
+use crate::{model::collapse::{add_nodes::GetValueData, collapser::{CollapseNode, Collapser}}, util::{number::Nu, vector::Ve}};
 
-use super::{collapse::{add_nodes::GetValueData, collapser::{CollapseNode, CollapseNodeKey, Collapser}}, nodes::ComposeNode, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
+use super::{nodes::ComposeNode, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
 
 pub trait BS<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu>: fmt::Debug + Clone + Send + Sync + 'static {
     type ComposeType: ComposeTypeTrait;

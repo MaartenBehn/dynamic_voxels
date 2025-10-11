@@ -1,9 +1,9 @@
 use egui_snarl::OutPinId;
 use itertools::Itertools;
 
-use crate::{csg::{csg_tree::tree::CSGTree, Base}, util::{number::Nu, vector::Ve}};
+use crate::{csg::{csg_tree::tree::CSGTree, Base}, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::ComposeNodeType, template::{ComposeTemplate, TemplateIndex}, ModelComposer}}, util::{number::Nu, vector::Ve}};
 
-use super::{build::BS, collapse::{add_nodes::GetValueData, collapser::{CollapseNodeKey, Collapser}}, data_type::ComposeDataType, nodes::ComposeNodeType, number::NumberTemplate, position::PositionTemplate, position_set::PositionSetTemplate, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
+use super::{data_type::ComposeDataType, number::NumberTemplate, position::PositionTemplate, position_set::PositionSetTemplate};
 
 #[derive(Debug, Clone)]
 pub enum VolumeTemplateData<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> {

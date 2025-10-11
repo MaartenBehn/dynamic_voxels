@@ -2,9 +2,9 @@ use egui_snarl::{ui::{PinWireInfo, WireStyle}, InPin, InPinId, NodeId, OutPinId,
 use itertools::Itertools;
 use octa_force::egui::{self, epaint::{CircleShape, PathShape, PathStroke}, Color32, Shape};
 
-use crate::util::{number::Nu, vector::Ve};
+use crate::{model::data_types::data_type::ComposeDataType, util::{number::Nu, vector::Ve}};
 
-use super::{build::BS, data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeInput, ComposeNodeOutput}, template::ComposeTemplate, viewer::ComposeViewer, ModelComposer};
+use super::{build::BS, nodes::{ComposeNode, ComposeNodeInput, ComposeNodeOutput}, template::ComposeTemplate, viewer::ComposeViewer, ModelComposer};
 
 
 

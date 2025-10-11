@@ -6,16 +6,17 @@ use octa_force::glam::Vec3;
 use octa_force::log::{self, debug};
 use smallvec::{SmallVec, smallvec};
 use crate::model::composer::dependency_tree::{get_dependency_tree_and_loop_paths, DependencyTree};
+use crate::model::data_types::ammount::Ammount;
+use crate::model::data_types::data_type::ComposeDataType;
+use crate::model::data_types::number_space::NumberSpaceTemplate;
+use crate::model::data_types::position_space::PositionSpaceTemplate;
 use crate::util::number::Nu;
 
-use crate::model::generation::{relative_path::RelativePathTree};
 use crate::util::vector::Ve;
-
-use super::ammount::Ammount;
 use super::build::{GetTemplateValueArgs, TemplateValueTrait, BS};
 use super::dependency_tree::DependencyPath;
-use super::position_space::PositionSpaceTemplate;
-use super::{data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, number_space::NumberSpaceTemplate, ModelComposer};
+use super::nodes::{ComposeNode, ComposeNodeType};
+use super::ModelComposer;
 
 pub type TemplateIndex = usize;
 pub type OutputIndex = usize;

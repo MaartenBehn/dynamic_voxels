@@ -5,7 +5,7 @@ use octa_force::{egui, glam::{EulerRot, IVec2, IVec3, Mat4, Quat, Vec3}, OctaRes
 use slotmap::Key;
 use smallvec::SmallVec;
 
-use crate::{csg::csg_tree::tree::CSGTree, model::composer::{build::{CollapseValueTrait, ComposeTypeTrait, GetTemplateValueArgs, OnCollapseArgs, OnDeleteArgs, TemplateValueTrait, BS}, collapse::collapser::{CollapseNode, CollapseNodeKey, Collapser, NodeDataType}, data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeType}, position::PositionTemplate, template::{ComposeTemplate, TemplateIndex}, volume::VolumeTemplate, ModelComposer}, scene::{dag_store::SceneDAGKey, worker::SceneWorkerSend, SceneObjectKey}, util::{number::Nu, vector::Ve}, volume::VolumeBounds, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, grid::shared::SharedVoxelGrid, palette::{palette::MATERIAL_ID_BASE, shared::SharedPalette}}, METERS_PER_SHADER_UNIT};
+use crate::{model::{collapse::collapser::{CollapseNode, NodeDataType}, composer::{build::{CollapseValueTrait, ComposeTypeTrait, GetTemplateValueArgs, OnCollapseArgs, OnDeleteArgs, TemplateValueTrait, BS}, nodes::{ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeType}, template::TemplateIndex, ModelComposer}, data_types::{data_type::ComposeDataType, position::PositionTemplate, volume::VolumeTemplate}}, scene::{dag_store::SceneDAGKey, worker::SceneWorkerSend, SceneObjectKey}, util::{number::Nu, vector::Ve}, volume::VolumeBounds, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, palette::palette::MATERIAL_ID_BASE}, METERS_PER_SHADER_UNIT};
 
 // Compose Type
 #[derive(Debug)]

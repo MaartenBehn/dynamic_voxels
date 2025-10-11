@@ -1,7 +1,7 @@
 use egui_snarl::ui::{PinInfo, PinWireInfo, WireStyle};
 use octa_force::egui::{self, epaint::{CircleShape, PathShape, PathStroke}, Color32, Shape};
 
-use super::{data_type::ComposeDataType};
+use crate::model::data_types::data_type::ComposeDataType;
 
 pub struct ComposePin {
     data_type: ComposeDataType,

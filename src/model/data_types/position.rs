@@ -3,9 +3,10 @@ use std::mem::ManuallyDrop;
 use egui_snarl::InPinId;
 use itertools::Itertools;
 
-use crate::util::{number::Nu, vector::Ve};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::{ComposeNode, ComposeNodeType}, template::{ComposeTemplate, TemplateIndex}, ModelComposer}}, util::{number::Nu, vector::Ve}};
 
-use super::{build::BS, collapse::{add_nodes::GetValueData, collapser::{CollapseNodeKey, Collapser}}, data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, number::{Hook, NumberTemplate}, template::{ComposeTemplate, TemplateIndex}, ModelComposer};
+use super::{data_type::ComposeDataType, number::{Hook, NumberTemplate}};
+
 
 #[derive(Debug, Clone)]
 pub enum PositionTemplate<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> {

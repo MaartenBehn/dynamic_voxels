@@ -3,7 +3,7 @@ use std::{collections::{HashMap, VecDeque}, fmt::{Debug, Octal}, iter, marker::P
 use itertools::Either;
 use octa_force::{anyhow::{anyhow, bail, ensure}, glam::{vec3, vec3a, IVec3, Vec3, Vec3Swizzles}, log::{debug, error, info}, vulkan::ash::vk::OpaqueCaptureDescriptorDataCreateInfoEXT, OctaResult};
 use slotmap::{new_key_type, Key, SlotMap};
-use crate::{model::{composer::{build::{OnCollapseArgs, BS}, number_space::NumberSpaceTemplate, template::{ComposeTemplate, ComposeTemplateValue, TemplateIndex}}, generation::pos_set::PositionSetRule}, util::{number::Nu, state_saver, vector::Ve}, volume::VolumeQureyPosValid};
+use crate::{model::{composer::{build::{OnCollapseArgs, BS}, template::{ComposeTemplate, ComposeTemplateValue, TemplateIndex}}}, util::{number::Nu, state_saver, vector::Ve}, volume::VolumeQureyPosValid};
 
 use super::{add_nodes::GetValueData, number_space::NumberSpace, pending_operations::{PendingOperations, PendingOperationsRes}, position_space::PositionSpace};
 

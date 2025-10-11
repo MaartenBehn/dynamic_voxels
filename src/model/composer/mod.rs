@@ -1,26 +1,15 @@
 pub mod nodes;
 pub mod viewer;
-pub mod data_type;
-pub mod collapse;
 pub mod template;
-pub mod number_space;
-pub mod position_space;
 pub mod identifier;
-pub mod volume;
-pub mod ammount;
 pub mod dependency_tree;
-pub mod debug_gui;
 pub mod build;
 pub mod validate;
 pub mod pin;
-pub mod number;
-pub mod position;
-pub mod position_set;
 
 use std::{fs::{self, File}, io::Write, time::Duration};
 
 use build::{ComposeTypeTrait, BS};
-use collapse::{collapser::Collapser, worker::{CollapserChangeReciver, ComposeCollapseWorker}};
 use egui_snarl::{ui::{NodeLayout, PinPlacement, SnarlStyle, SnarlWidget}, Snarl};
 use nodes::ComposeNode;
 use octa_force::{anyhow::anyhow, egui::{self, CornerRadius, Id}, OctaResult};
@@ -28,6 +17,8 @@ use template::ComposeTemplate;
 use viewer::ComposeViewer;
 
 use crate::util::{number::Nu, vector::Ve};
+
+use super::collapse::worker::{CollapserChangeReciver, ComposeCollapseWorker};
 
 
 const TEMP_SAVE_FILE: &str = "./composer_temp_save.json";

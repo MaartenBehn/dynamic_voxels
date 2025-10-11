@@ -2,11 +2,12 @@ use egui_snarl::{InPinId, NodeId, OutPinId};
 use itertools::{Either, Itertools};
 use octa_force::glam::{ivec2, IVec2, IVec3, Vec2, Vec3A};
 
-use crate::{csg::csg_tree::tree::CSGTree, model::generation::traits::ModelGenerationTypes, util::{math_config::{MC}, number::Nu, vector::Ve}};
+use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::ComposeNodeType, template::{ComposeTemplate, TemplateIndex}, ModelComposer}}, util::{math_config::MC, number::Nu, vector::Ve}};
 
-use super::{build::BS, collapse::{add_nodes::GetValueData, collapser::{CollapseNode, CollapseNodeKey, Collapser}}, data_type::ComposeDataType, nodes::{ComposeNode, ComposeNodeType}, number::{Hook, NumberTemplate}, template::{ComposeTemplate, TemplateIndex, TemplateNode}, ModelComposer};
 use crate::util::vector;
 use crate::util::math_config;
+
+use super::{data_type::ComposeDataType, number::{Hook, NumberTemplate}};
 
 #[derive(Debug, Clone)]
 pub enum PositionSetTemplate<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {

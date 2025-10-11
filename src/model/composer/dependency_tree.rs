@@ -4,9 +4,9 @@ use std::{collections::VecDeque, usize};
 use itertools::Itertools;
 use smallvec::{SmallVec, smallvec};
 
-use crate::{model::generation::template::TemplateIndex, util::{number::Nu, vector::Ve}};
+use crate::{util::{number::Nu, vector::Ve}};
 
-use super::{build::BS, template::{ComposeTemplate, TemplateNode}};
+use super::{build::BS, template::{ComposeTemplate, TemplateIndex, TemplateNode}};
 
 #[derive(Debug, Clone, Default)]
 pub struct DependencyPath {
