@@ -3,7 +3,7 @@ use itertools::{Either, Itertools};
 use octa_force::glam::{ivec2, IVec2, IVec3, Vec2, Vec3A};
 use smallvec::SmallVec;
 
-use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::ComposeNodeType, template::{Ammount, ComposeTemplate, MakeTemplateData, TemplateIndex}, ModelComposer}}, util::{math_config::MC, number::Nu, vector::Ve}};
+use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::{GetValueData}, collapser::{CollapseChildKey, Collapser}}, composer::{build::BS, nodes::ComposeNodeType, template::{ComposeTemplate, MakeTemplateData, TemplateIndex}, ModelComposer}}, util::{math_config::MC, number::Nu, vector::Ve}};
 
 use crate::util::vector;
 use crate::util::math_config;
@@ -30,6 +30,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
     ) -> PositionSetTemplate<V2, V3, T> {
 
         let node = self.snarl.get_node(pin.node).expect("Node of remote not found");
+
         match &node.t {
             ComposeNodeType::TemplatePositionSet2D => {
                 let template_index = data.template.get_index_by_out_pin(pin);

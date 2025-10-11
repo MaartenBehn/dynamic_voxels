@@ -45,13 +45,14 @@ union VUnion<VA: Ve<T, DA>, VB: Ve<T, DB>, T: Nu, const DA: usize, const DB: usi
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum UpdateDefinesOperation {
-    N{
+    One {
+        template_index: TemplateIndex,
         parent_index: CollapseNodeKey,
-        defines_index: usize,
     },
-    ByNode{
+    Creates {
+        template_index: TemplateIndex,
         parent_index: CollapseNodeKey,
-        defines_index: usize,
+        creates_index: usize,
     }
 }
 
@@ -314,8 +315,7 @@ pub fn get_position<V: Ve<T, D>, const D: usize>(&self, parent_index: CollapseNo
             return (V::ZERO, true);
         }
 
-        let node = &self.nodes[index.unwrap()];
-        self.get_position(node.defined_by, node.child_key)
+        self.get_position(index.unwrap(), get_value_data.child_index)
     }
 
     pub fn get_root_key(&self) -> CollapseNodeKey {
@@ -326,8 +326,8 @@ pub fn get_position<V: Ve<T, D>, const D: usize>(&self, parent_index: CollapseNo
 impl UpdateDefinesOperation {
     pub fn get_parent_index(&self) -> CollapseNodeKey {
         match self {
-            UpdateDefinesOperation::N { parent_index, .. }
-            | UpdateDefinesOperation::ByNode { parent_index, .. } => *parent_index,
+            UpdateDefinesOperation::One { parent_index, .. }
+            | UpdateDefinesOperation::Creates { parent_index, .. } => *parent_index,
         }
     }
 }

@@ -27,6 +27,14 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
 
             ui.label(format!("Level: {}", node.level));
 
+            if !node.creates.is_empty() {
+                ui.strong("Creates:");
+                for creates in node.creates.iter() {
+                    let child = &self.nodes[creates.to_create];
+                    ui.label(format!("{:?}", child.node_id));
+                }
+            }
+
             if !node.depends.is_empty() {
                 ui.strong("Depends:");
                 for i in node.depends.iter() {

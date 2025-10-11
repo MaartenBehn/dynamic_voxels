@@ -33,7 +33,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         }
 
         self.pending.delete_collapse(template_node.level, node_index);
-        self.pending.delete_create_defined(node_index);
 
         for (_, depends) in node.depends.iter() {
             for depend in depends {

@@ -46,7 +46,7 @@ pub struct TemplateNode<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub value: ComposeTemplateValue<V2, V3, T, B>,
 
     pub level: usize,
-    pub defines: SmallVec<[Ammount<V2, V3, T>; 4]>,
+    pub creates: SmallVec<[Creates<V2, V3, T>; 4]>,
 
     pub depends: SmallVec<[TemplateIndex; 4]>,
     pub dependecy_tree: DependencyTree,
@@ -63,31 +63,38 @@ pub struct MakeTemplateData<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3,
 }
 
 #[derive(Debug, Clone)]
-pub struct Ammount<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
-    pub to_create_template: TemplateIndex,
-    pub t: AmmountType<V2, V3, T>, 
+pub struct Creates<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
+    pub to_create: TemplateIndex,
+    pub own_ammount_type: AmmountType<V2, V3, T>,
+    pub other_ammounts: SmallVec<[OtherAmmount<V2, V3, T>; 2]>
+}
+
+#[derive(Debug, Clone)]
+pub struct OtherAmmount<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
+    pub other_parent: TemplateIndex,
+    pub t: AmmountType<V2, V3, T>,
 }
 
 #[derive(Debug, Clone)]
 pub enum AmmountType<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
+    One,
     PerPosition(PositionSetTemplate<V2, V3, T>),
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3, T, B> {
     pub fn empty() -> Self {
         Self {
-            nodes:  vec![
-                TemplateNode {
-                    node_id: NodeId(usize::MAX),
-                    index: 0,
-                    value: ComposeTemplateValue::None,
-                    depends: smallvec![],
-                    dependend: smallvec![],
-                    depends_loop: smallvec![],
-                    level: 1,
-                    defines: smallvec![],
-                    dependecy_tree: Default::default(),
-                }],
+            nodes: vec![TemplateNode {
+                node_id: NodeId(usize::MAX),
+                index: 0,
+                value: ComposeTemplateValue::None,
+                depends_loop: smallvec![],
+                depends: smallvec![],
+                dependend: smallvec![],
+                level: 1,
+                creates: smallvec![],
+                dependecy_tree: Default::default(),
+            }],
             max_level: 1,
         }
     }
@@ -102,9 +109,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                 depends: smallvec![],
                 dependend: smallvec![],
                 level: 1,
-                defines: smallvec![],
+                creates: smallvec![],
                 dependecy_tree: Default::default(),
-            }]; 
+            }
+        ]; 
 
         nodes.extend(composer.snarl.nodes()
             .map(|node| {
@@ -131,7 +139,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                     depends: smallvec![],
                     dependend: smallvec![],
                     level: 0,
-                    defines: smallvec![],
+                    creates: smallvec![],
                     dependecy_tree: Default::default(),
                 }
             }));
@@ -141,8 +149,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
             max_level: 1,
         };
 
-        let ammounts_list = Vec::with_capacity(template.nodes.len());
-
         // value, depends, defined
         for i in 1..template.nodes.len() {
             let template_node =  &template.nodes[i]; 
@@ -150,7 +156,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                 .expect("Composer Node for Template not found");
 
 
-            let data = MakeTemplateData {
+            let mut data = MakeTemplateData {
                 building_template_index: i,
                 template: &template,
                 ammounts: SmallVec::new(),
@@ -181,31 +187,58 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                         compose_type: t, 
                         composer_node, 
                         composer: &composer, 
-                        make_template_data: data, 
-                    });
+                    }, &mut data);
 
                     ComposeTemplateValue::Build(value)
                 },
                 _ => unreachable!()
             };
 
-            
-            data.depends.sort();
-            data.depends.dedup();
+            let mut depends = data.depends;
+            let mut ammounts = data.ammounts;
 
-            for ammount_type in data.ammounts.into_iter() {
-                let defines = match &ammount_type {
+            depends.sort();
+            depends.dedup();
+
+            ammounts.sort();
+            ammounts.dedup();
+
+            if let Some(ammount_type) = ammounts.pop() {
+                let creates_index = match &ammount_type {
+                    AmmountType::One => unreachable!(),
                     AmmountType::PerPosition(set) => set.get_ammount_hook(),
                 };
 
-                template.nodes[defines].defines.push(Ammount {
-                    to_create_template: i,
-                    t: ammount_type,
-                });
-            }
+                let other_ammounts = ammounts.into_iter()
+                    .map(|ammount_type| {
+                        let defines = match &ammount_type {
+                            AmmountType::One => unreachable!(),
+                            AmmountType::PerPosition(set) => set.get_ammount_hook(),
+                        };
 
+                        OtherAmmount {
+                            other_parent: i,
+                            t: ammount_type,
+                        }
+                    })
+                    .collect();
+
+                template.nodes[creates_index].creates.push(Creates {
+                    to_create: i,
+                    own_ammount_type: ammount_type,
+                    other_ammounts,
+                });
+            } else {
+                template.nodes[0].creates.push(Creates {
+                    to_create: i,
+                    own_ammount_type: AmmountType::One,
+                    other_ammounts: smallvec![],
+                });
+                depends.push(0);
+            }
+            
             let node =  &mut template.nodes[i]; 
-            node.depends = data.depends;
+            node.depends = depends;
             node.value = value;
         }
 
@@ -223,8 +256,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
 
         // Dependency Tree and Loop Paths
         for i in 0..template.nodes.len() {
-            for j in 0..template.nodes[i].defines.len() {
-                let new_index = template.nodes[i].defines[j].template_index; 
+            for j in 0..template.nodes[i].creates.len() {
+                let new_index = template.nodes[i].creates[j].to_create; 
                 let new_node = &template.nodes[new_index];
 
                 let (tree, loop_paths) = get_dependency_tree_and_loop_paths(
@@ -235,11 +268,12 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                     &new_node.depends_loop,
                 );
                 
-                template.nodes[i].defines[j].dependecy_tree = tree;
+                template.nodes[new_index].dependecy_tree = tree;
                 template.nodes[new_index].depends_loop = loop_paths;
             }
-
         }
+
+        dbg!(&template);
 
         template
     }
@@ -350,3 +384,42 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
         remotes[0]
     }
 }
+
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> PartialEq for AmmountType<V2, V3, T> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::PerPosition(a), Self::PerPosition(b)) => {
+                a.get_ammount_hook() == b.get_ammount_hook()
+            },
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+        }
+    }
+}
+
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> Eq for AmmountType<V2, V3, T> {}
+
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> PartialOrd for AmmountType<V2, V3, T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(match (self, other) {
+            (Self::PerPosition(a), Self::PerPosition(b)) => {
+                a.get_ammount_hook().cmp(&b.get_ammount_hook())
+            },
+            _ => self.enum_index().cmp(&other.enum_index()),
+        })
+    }
+}
+
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> Ord for AmmountType<V2, V3, T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.partial_cmp(other).unwrap()
+    }
+}
+
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> AmmountType<V2, V3, T> {
+    pub fn enum_index(&self) -> u8 {
+        match self {
+            AmmountType::One => 0,
+            AmmountType::PerPosition(_) => 1,
+        }
+    }
+} 

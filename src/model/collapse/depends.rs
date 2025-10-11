@@ -8,22 +8,24 @@ use crate::{model::composer::{build::BS, dependency_tree::{DependencyPath, Depen
 use super::{add_nodes::GetValueData, collapser::{CollapseNode, CollapseNodeKey, Collapser}};
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B> {
-    pub fn get_depends_from_tree<'a>(
+    pub fn get_depends<'a>(
         &self, 
         parent_index: CollapseNodeKey,
-        new_template_node_index: usize, 
         template: &'a ComposeTemplate<V2, V3, T, B>,
         template_node: &'a TemplateNode<V2, V3, T, B>,
-        tree: &'a DependencyTree,
+        new_node_template: &'a TemplateNode<V2, V3, T, B>,
     ) -> Vec<(TemplateIndex, Vec<CollapseNodeKey>)> {
-        let new_node_template = &template.nodes[new_template_node_index];
 
         // Contains a list of node indecies matching the template dependency
         let mut depends = iter::repeat_with(|| vec![])
             .take(new_node_template.depends.len())
             .collect::<Vec<_>>();
+
+        if depends.is_empty() {
+            return vec![];
+        }
         
-        let mut pending_paths = vec![(&tree.steps[0], parent_index)];
+        let mut pending_paths = vec![(&new_node_template.dependecy_tree.steps[0], parent_index)];
         while let Some((step, index)) = pending_paths.pop() {
             let step_node = &self.nodes[index];
 
@@ -32,7 +34,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             }
 
             for child_index in step.children.iter() {
-                let child_step = &tree.steps[*child_index];
+                let child_step = &new_node_template.dependecy_tree.steps[*child_index];
 
                 let edges = if child_step.up { 
                     step_node.depends.iter()

@@ -5,7 +5,7 @@ use octa_force::{egui, glam::{EulerRot, IVec2, IVec3, Mat4, Quat, Vec3}, OctaRes
 use slotmap::Key;
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::collapser::{CollapseNode, NodeDataType}, composer::{build::{CollapseValueTrait, ComposeTypeTrait, GetTemplateValueArgs, OnCollapseArgs, OnDeleteArgs, TemplateValueTrait, BS}, nodes::{ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeType}, template::TemplateIndex, ModelComposer}, data_types::{data_type::ComposeDataType, position::PositionTemplate, volume::VolumeTemplate}}, scene::{dag_store::SceneDAGKey, worker::SceneWorkerSend, SceneObjectKey}, util::{number::Nu, vector::Ve}, volume::VolumeBounds, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, palette::palette::MATERIAL_ID_BASE}, METERS_PER_SHADER_UNIT};
+use crate::{model::{collapse::collapser::{CollapseNode, NodeDataType}, composer::{build::{CollapseValueTrait, ComposeTypeTrait, GetTemplateValueArgs, OnCollapseArgs, OnDeleteArgs, TemplateValueTrait, BS}, nodes::{ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeType}, template::{MakeTemplateData, TemplateIndex}, ModelComposer}, data_types::{data_type::ComposeDataType, position::PositionTemplate, volume::VolumeTemplate}}, scene::{dag_store::SceneDAGKey, worker::SceneWorkerSend, SceneObjectKey}, util::{number::Nu, vector::Ve}, volume::VolumeBounds, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, palette::palette::MATERIAL_ID_BASE}, METERS_PER_SHADER_UNIT};
 
 // Compose Type
 #[derive(Debug)]
@@ -91,17 +91,17 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
         true
     }
 
-    fn get_template_value(mut args: GetTemplateValueArgs<V2, V3, T, Self>) -> Self::TemplateValue {
+    fn get_template_value(mut args: GetTemplateValueArgs<V2, V3, T, Self>, data: &mut MakeTemplateData<V2, V3, T, Self>) -> Self::TemplateValue {
         match args.compose_type {
             ComposeType::Object => {
                 let volume = args.composer.make_volume(
                     args.composer.get_input_remote_pin_by_type(args.composer_node, ComposeDataType::Volume3D),
-                    &mut args.make_template_data);
+                    data);
 
                 let pos = args.composer.make_position(
                     args.composer_node,
                     args.composer.get_input_pin_index_by_type(args.composer_node, ComposeDataType::Position3D(None)),
-                    &mut args.make_template_data);
+                    data);
  
                 TemplateValue::Object(ObjectTemplate { volume, pos }) 
             },

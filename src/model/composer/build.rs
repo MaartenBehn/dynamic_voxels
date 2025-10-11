@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::{model::collapse::{add_nodes::GetValueData, collapser::{CollapseNode, Collapser}}, util::{number::Nu, vector::Ve}};
 
-use super::{nodes::ComposeNode, template::{Ammount, ComposeTemplate, MakeTemplateData, TemplateIndex}, ModelComposer};
+use super::{nodes::ComposeNode, template::{ComposeTemplate, MakeTemplateData, TemplateIndex}, ModelComposer};
 
 pub trait BS<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu>: fmt::Debug + Clone + Send + Sync + 'static {
     type ComposeType: ComposeTypeTrait;
@@ -14,7 +14,7 @@ pub trait BS<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu>: fmt::Debug + Clone + Send + Syn
     fn compose_nodes() -> Vec<ComposeNode<Self::ComposeType>>;
     fn is_template_node(t: &Self::ComposeType) -> bool;
     
-    fn get_template_value(args: GetTemplateValueArgs<V2, V3, T, Self>) -> Self::TemplateValue;
+    fn get_template_value(args: GetTemplateValueArgs<V2, V3, T, Self>, data: &mut MakeTemplateData<V2, V3, T, Self>) -> Self::TemplateValue;
     fn on_collapse(args: OnCollapseArgs<V2, V3, T, Self>) -> impl std::future::Future<Output = Self::CollapseValue> + Send;
     fn on_delete(args: OnDeleteArgs<V2, V3, T, Self>);
 }
@@ -32,8 +32,6 @@ pub struct GetTemplateValueArgs<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2,
     pub compose_type: &'a B::ComposeType, 
     pub composer_node: &'a ComposeNode<B::ComposeType>,
     pub composer: &'a ModelComposer<V2, V3, T, B>,
-
-    pub make_template_data: MakeTemplateData<'a, V2, V3, T, B>,
 }
 
 pub struct OnCollapseArgs<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
