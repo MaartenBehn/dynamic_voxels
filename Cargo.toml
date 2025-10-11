@@ -37,7 +37,6 @@ name = "bvh_build"
 harness = false
 
 [features]
-islands = []
 scene = []
 graph_builder = []
 

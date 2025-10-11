@@ -22,6 +22,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         match &node.data {
             NodeDataType::Build(t) => {
                 B::on_delete(OnDeleteArgs {
+                    collapse_value: t,
                     collapse_node: &node,
                     collapser: &self,
                     template,

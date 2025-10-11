@@ -22,6 +22,8 @@ pub enum ComposeNodeGroupe {
 
     Template,
 
+    Split,
+
     Globals, 
 
     Build
@@ -62,18 +64,15 @@ pub enum ComposeNodeType<CT: ComposeTypeTrait> {
     SplitPosition3D,
 
     PositionSet2DTo3D,
-
-    // Ammount 
-    OneGlobal,
-    OnePer,
-    NPer,
-    ByPositionSet2D,
-    ByPositionSet3D,
-
+ 
     // Template
     TemplatePositionSet2D,
     TemplatePositionSet3D,
     TemplateNumberSet,
+
+    // Split 
+    PerPosition2D,
+    PerPosition3D,
 
     Build(CT)
 }
@@ -278,49 +277,27 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
             .input(ComposeDataType::Number(None), "z")
             .output(ComposeDataType::PositionSet3D, "xyz"),
 
-        // Ammount
-        ComposeNode::new(ComposeNodeType::OneGlobal, ComposeNodeGroupe::Template)
-            .output(ComposeDataType::Ammount, "a"),
-
-        ComposeNode::new(ComposeNodeType::OnePer, ComposeNodeGroupe::Template)
-            .input(ComposeDataType::Identifier, "identifier")
-            .input(ComposeDataType::Number(Some(1)), "n")
-            .output(ComposeDataType::Ammount, "a"),
-
-        ComposeNode::new(ComposeNodeType::NPer, ComposeNodeGroupe::Template)
-            .input(ComposeDataType::Identifier, "identifier")
-            .input(ComposeDataType::Number(Some(1)), "n")
-            .output(ComposeDataType::Ammount, "a"),
-
-        ComposeNode::new(ComposeNodeType::ByPositionSet2D, ComposeNodeGroupe::Template)
-            .input(ComposeDataType::IdentifierPositionSet2D, "identifier")
-            .output(ComposeDataType::Ammount, "a")
-            .output(ComposeDataType::Position2D(None), "pos"),
-
-        ComposeNode::new(ComposeNodeType::ByPositionSet3D, ComposeNodeGroupe::Template)
-            .input(ComposeDataType::IdentifierPositionSet3D, "identifier")
-            .output(ComposeDataType::Ammount, "a")
-            .output(ComposeDataType::Position3D(None), "pos"),
-
-
         // Template
         ComposeNode::new(ComposeNodeType::TemplateNumberSet, ComposeNodeGroupe::Template)
-            .input(ComposeDataType::Ammount, "ammount")
             .input(ComposeDataType::NumberSpace, "space")
-            .output(ComposeDataType::IdentifierNumberSet, "identifier")
             .output(ComposeDataType::Number(None), "number"),
 
         ComposeNode::new(ComposeNodeType::TemplatePositionSet2D, ComposeNodeGroupe::Template)
-            .input(ComposeDataType::Ammount, "ammount")
             .input(ComposeDataType::PositionSpace2D, "space")
-            .output(ComposeDataType::IdentifierPositionSet2D, "identifier")
             .output(ComposeDataType::PositionSet2D, "positions"),
 
         ComposeNode::new(ComposeNodeType::TemplatePositionSet3D, ComposeNodeGroupe::Template)
-            .input(ComposeDataType::Ammount, "ammount")
             .input(ComposeDataType::PositionSpace3D, "space")
-            .output(ComposeDataType::IdentifierPositionSet3D, "identifier")
             .output(ComposeDataType::PositionSet3D, "positions"),
+
+        // Split
+        ComposeNode::new(ComposeNodeType::PerPosition2D, ComposeNodeGroupe::Split)
+            .input(ComposeDataType::PositionSet2D, "positions")
+            .output(ComposeDataType::Position2D(None), "position"),
+
+        ComposeNode::new(ComposeNodeType::PerPosition3D, ComposeNodeGroupe::Split)
+            .input(ComposeDataType::PositionSet3D, "positions")
+            .output(ComposeDataType::Position3D(None), "position"),
     ]
 }
 

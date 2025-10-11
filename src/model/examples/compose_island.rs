@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, time::Duration};
+use std::{marker::PhantomData, sync::Arc, time::Duration};
 
 use egui_snarl::{NodeId, OutPinId};
 use octa_force::{egui, glam::{EulerRot, IVec2, IVec3, Mat4, Quat, Vec3}, OctaResult};
@@ -33,19 +33,13 @@ pub struct ObjectTemplate<V3: Ve<T, 3>, V2: Ve<T, 2>, T: Nu> {
 }
 
 impl<V3: Ve<T, 3>, V2: Ve<T, 2>, T: Nu> TemplateValueTrait for TemplateValue<V3, V2, T> {
-    fn get_dependend_template_nodes(&self) -> SmallVec<[TemplateIndex; 4]> {
-        match self {
-            TemplateValue::Object(object_template) => {
-                object_template.volume.get_dependend_template_nodes().collect()
-            },
-        }
-    }
 }
 
 // Collapse Value
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum CollapseValue {
+    #[default]
+    None,
     Object(Object)
 }
 
@@ -78,11 +72,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
                 group: ComposeNodeGroupe::Build, 
                 inputs: vec![
                     ComposeNodeInput { 
-                        name: "ammount".to_string(), 
-                        data_type: ComposeDataType::Ammount,
-                        valid: false,
-                    },
-                    ComposeNodeInput { 
                         name: "volume".to_string(), 
                         data_type: ComposeDataType::Volume3D, 
                         valid: false,
@@ -102,17 +91,17 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
         true
     }
 
-    fn get_template_value(args: GetTemplateValueArgs<V2, V3, T, Self>) -> Self::TemplateValue {
+    fn get_template_value(mut args: GetTemplateValueArgs<V2, V3, T, Self>) -> Self::TemplateValue {
         match args.compose_type {
             ComposeType::Object => {
                 let volume = args.composer.make_volume(
                     args.composer.get_input_remote_pin_by_type(args.composer_node, ComposeDataType::Volume3D),
-                    args.building_template_index, args.template);
+                    &mut args.make_template_data);
 
                 let pos = args.composer.make_position(
                     args.composer_node,
                     args.composer.get_input_pin_index_by_type(args.composer_node, ComposeDataType::Position3D(None)),
-                    args.building_template_index, args.template);
+                    &mut args.make_template_data);
  
                 TemplateValue::Object(ObjectTemplate { volume, pos }) 
             },
@@ -120,7 +109,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
     }
 
     async fn on_collapse<'a>(args: OnCollapseArgs<'a, V2, V3, T, Self>) -> Self::CollapseValue {
-        delete_object(args.collapse_node, args.state);
+        delete_object(args.collapse_value, args.state);
 
         match args.template_value {
             TemplateValue::Object(object_template) => {
@@ -147,18 +136,19 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
     }
 
     fn on_delete(args: OnDeleteArgs<V2, V3, T, Self>) {
-        delete_object(args.collapse_node, args.state);
+        delete_object(args.collapse_value, args.state);
     }
 }
 
-fn delete_object<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu>(node: &'a CollapseNode<V2, V3, T, ComposeIslandState>, state: &'a mut ComposeIslandState) {
-    match &node.data {
-        NodeDataType::Build(t) => match t {
-            CollapseValue::Object(object) => {
+fn delete_object(
+    collapse_value: &CollapseValue, 
+    state: &mut ComposeIslandState
+) {
+    match collapse_value {
+        CollapseValue::Object(object) => {
                 state.scene.remove_object(object.scene_key);
             },
-        },
-        _ => {}
+        CollapseValue::None => {},
     }
 }
 

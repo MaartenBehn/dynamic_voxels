@@ -14,11 +14,7 @@ pub mod bvh;
 use csg::csg_tree::tree::CSGTree;
 use csg::union::tree::{Union, UnionNode};
 use model::composer::ModelComposer;
-use model::debug_gui::collapser::CollapserDebugGui;
-use model::debug_gui::template::TemplateDebugGui;
 use model::examples::compose_island::{ComposeIsland};
-use model::examples::islands::{self, IslandGenerationTypes, IslandUpdateData, Islands};
-use model::worker::ModelWorker;
 use octa_force::engine::Engine;
 use parking_lot::Mutex;
 use scene::dag64::SceneAddDAGObject;
@@ -84,16 +80,6 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
         camera.direction = Vec3::new(-0.6110025, -0.7362994, -0.29075617).normalize();
         
         camera.speed = 10.0;
-        camera.z_near = 0.001;
-    }
-
-    #[cfg(feature="islands")]
-    {
-        camera.set_meter_per_unit(METERS_PER_SHADER_UNIT as f32);
-        camera.set_position_in_meters(Vec3::new(0.0, -40.0, 2.0)); 
-        camera.direction = Vec3::new(0.0, 1.0, 0.0).normalize();
-        
-        camera.speed = 50.0;
         camera.z_near = 0.001;
     }
 
@@ -206,33 +192,6 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         })
     }
 
-    #[cfg(feature="islands")]
-    {
-        let scene = Scene::new(&engine.context)?.run_worker(engine.context.get_alloc_context(), 1000); 
-
-        let mut palette = SharedPalette::new();
-        let islands = ModelWorker::new(palette.clone(), scene.send.clone());
-        let template_debug = TemplateDebugGui::new(islands.get_template());
-        let collapser_debug = CollapserDebugGui::new(islands.get_collapser());
-
-        let mut renderer = SceneRenderer::new(
-            &engine.context, 
-            &engine.swapchain, 
-            &logic_state.camera,
-            scene.render_data.clone(),
-            palette.clone(),
-        )?;
-
-        Ok(RenderState {
-            gui,
-            scene,
-            renderer,
-            islands,
-            template_debug,
-            collapser_debug,
-        })
-    }
-
     #[cfg(feature="graph_builder")]
     {
         let palette = SharedPalette::new();
@@ -255,7 +214,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         })
     }
 
-    #[cfg(not(any(feature="islands",feature="scene", feature="graph_builder")))]
+    #[cfg(not(any(feature="scene", feature="graph_builder")))]
     {
         Ok(RenderState { gui })
     }
@@ -276,15 +235,10 @@ pub fn update(
     logic_state.camera.update(&engine.controls, delta_time);
     //info!("Camera Pos: {} Dir: {}", logic_state.camera.get_position_in_meters(), logic_state.camera.direction);
     
-    #[cfg(any(feature="islands"))]
-    {
-        render_state.islands.update(IslandUpdateData::new(&logic_state.camera));
-    }
-
     #[cfg(feature="graph_builder")]
     render_state.islands.update(time)?;
 
-    #[cfg(any(feature="scene", feature="islands", feature="graph_builder"))]
+    #[cfg(any(feature="scene", feature="graph_builder"))]
     render_state.renderer.update(
         &logic_state.camera, 
         &engine.context, 
@@ -307,10 +261,10 @@ pub fn record_render_commands(
 
     let command_buffer = engine.get_current_command_buffer();
     
-    #[cfg(any(feature="scene", feature="islands", feature="graph_builder"))]
+    #[cfg(any(feature="scene", feature="graph_builder"))]
     render_state.renderer.render(command_buffer, &engine)?;
 
-    #[cfg(not(any(feature="scene", feature="islands", feature="graph_builder")))]
+    #[cfg(not(any(feature="scene", feature="graph_builder")))]
     command_buffer.swapchain_image_render_barrier(&engine.get_current_swapchain_image_and_view().image)?;
 
     command_buffer.begin_rendering(
@@ -329,14 +283,8 @@ pub fn record_render_commands(
         &engine.context,
         |ctx| {
              
-            #[cfg(any(feature="scene", feature="islands", feature="graph_builder"))]
+            #[cfg(any(feature="scene", feature="graph_builder"))]
             render_state.renderer.render_ui(ctx);
-
-            #[cfg(any(feature="islands"))]
-            {
-                render_state.template_debug.render(ctx);
-                render_state.collapser_debug.render(ctx);
-            }
 
             #[cfg(any(feature="graph_builder"))]
             render_state.islands.render(ctx);
@@ -368,7 +316,7 @@ pub fn on_recreate_swapchain(
 ) -> OctaResult<()> {
     logic_state.camera.set_screen_size(engine.swapchain.size.as_vec2());
 
-    #[cfg(any(feature="scene", feature="islands", feature="graph_builder"))]
+    #[cfg(any(feature="scene", feature="graph_builder"))]
     render_state
         .renderer
             .on_recreate_swapchain(

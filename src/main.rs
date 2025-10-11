@@ -6,7 +6,6 @@ use dynamic_voxels::volume::magica_voxel::MagicaVoxelModel;
 use dynamic_voxels::voxel::dag64::VoxelDAG64;
 use dynamic_voxels::voxel::grid::shared::SharedVoxelGrid;
 use dynamic_voxels::voxel::grid::VoxelGrid;
-use dynamic_voxels::model::examples::islands::Islands;
 use octa_force::binding::r#trait::BindingTrait;
 use octa_force::egui_winit::winit::event::WindowEvent;
 use octa_force::engine::{Engine, EngineConfig, EngineFeatureValue};

@@ -4,7 +4,7 @@ use octa_force::{anyhow::{anyhow, bail}, glam::Vec3, log::{debug, info}, OctaRes
 use slotmap::Key;
 use tree64::Node;
 
-use crate::{model::{collapse::collapser::CollapseNode, composer::{build::BS, dependency_tree::DependencyPath, template::{ComposeTemplate, TemplateIndex}}, data_types::ammount::AmmountType}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::collapser::CollapseNode, composer::{build::BS, dependency_tree::DependencyPath, template::{ComposeTemplate, ComposeTemplateValue, TemplateIndex}}}, util::{number::Nu, vector::Ve}};
 
 use super::{collapser::{CollapseChildKey, CollapseNodeKey, Collapser, UpdateDefinesOperation, NodeDataType}, number_space::NumberSpace, position_space::PositionSpace};
 
@@ -194,13 +194,21 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
     ) {
         let new_node_template = &template.nodes[new_node_template_index];
        
+        let data = match new_node_template.value {
+            ComposeTemplateValue::None => NodeDataType::None,
+            ComposeTemplateValue::NumberSpace(_) => NodeDataType::NumberSet(Default::default()),
+            ComposeTemplateValue::PositionSpace2D(_) => NodeDataType::PositionSpace2D(Default::default()),
+            ComposeTemplateValue::PositionSpace3D(_) =>  NodeDataType::PositionSpace3D(Default::default()),
+            ComposeTemplateValue::Build(_) => NodeDataType::Build(B::CollapseValue::default()),
+        };
+
         let index = self.nodes.insert(CollapseNode {
             template_index: new_node_template.index,
             level: new_node_template.level,
             children: vec![],
             depends: depends.clone(),
             defined_by,
-            data: NodeDataType::Pending,
+            data,
             next_reset: CollapseNodeKey::null(),
             child_key,
         });

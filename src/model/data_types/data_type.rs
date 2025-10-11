@@ -17,25 +17,10 @@ pub enum ComposeDataType {
 
     Volume2D,
     Volume3D,
-
-    // Template 
-    Ammount,
-    Identifier,
-    IdentifierNumberSet,
-    IdentifierPositionSet2D,
-    IdentifierPositionSet3D,
 }
 
 impl PartialEq for ComposeDataType {
     fn eq(&self, other: &Self) -> bool {
-        match self {
-            ComposeDataType::Identifier => matches!(other, 
-                ComposeDataType::Identifier 
-              | ComposeDataType::IdentifierNumberSet 
-              | ComposeDataType::IdentifierPositionSet2D
-              | ComposeDataType::IdentifierPositionSet3D),
-
-            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
-        }
+        core::mem::discriminant(self) == core::mem::discriminant(other)
     }
 }

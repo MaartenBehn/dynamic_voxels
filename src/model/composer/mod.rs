@@ -1,7 +1,6 @@
 pub mod nodes;
 pub mod viewer;
 pub mod template;
-pub mod identifier;
 pub mod dependency_tree;
 pub mod build;
 pub mod validate;

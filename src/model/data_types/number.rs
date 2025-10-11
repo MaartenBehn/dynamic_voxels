@@ -3,7 +3,7 @@ use itertools::Itertools;
 use octa_force::log::debug;
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::{ComposeNode, ComposeNodeType}, template::{ComposeTemplate, TemplateIndex}, ModelComposer}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::{ComposeNode, ComposeNodeType}, template::{Ammount, ComposeTemplate, MakeTemplateData, TemplateIndex}, ModelComposer}}, util::{number::Nu, vector::Ve}};
 
 use super::{data_type::ComposeDataType, position::PositionTemplate};
 
@@ -26,8 +26,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
         &self, 
         original_node: &ComposeNode<B::ComposeType>, 
         in_index: usize, 
-        building_template_index: usize,
-        template: &ComposeTemplate<V2, V3, T, B>
+        data: &mut MakeTemplateData<V2, V3, T, B>,
     ) -> NumberTemplate<V2, V3, T> {
         let remotes = self.snarl.in_pin(InPinId{ node: original_node.id, input: in_index }).remotes;
         if remotes.len() >= 2 {
@@ -50,18 +49,23 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
             let remote_node = self.snarl.get_node(pin.node).expect("Node of remote not found");
 
             match remote_node.t {
-                ComposeNodeType::NumberRange => NumberTemplate::Hook(Hook {
-                    template_index: template.get_index_by_out_pin(pin),
-                    loop_cut: false,
-                }),
+                ComposeNodeType::NumberRange => {
+                    let template_index = data.template.get_index_by_out_pin(pin);
+                    data.depends.push(template_index);
+
+                    NumberTemplate::Hook(Hook {
+                        template_index,
+                        loop_cut: false,
+                    })
+                },
                 ComposeNodeType::SplitPosition2D => {
-                    let pos = self.make_position(remote_node, 0, building_template_index, template);
+                    let pos = self.make_position(remote_node, 0, data);
 
                     assert!(pin.output >= 0 && pin.output <= 1);
                     NumberTemplate::SplitPosition2D((Box::new(pos), pin.output))
                 },
                 ComposeNodeType::SplitPosition3D => {
-                    let pos = self.make_position(remote_node, 0, building_template_index, template);
+                    let pos = self.make_position(remote_node, 0, data);
 
                     assert!(pin.output >= 0 && pin.output <= 2);
                     NumberTemplate::SplitPosition2D((Box::new(pos), pin.output))
@@ -75,17 +79,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> NumberTemplate<V2, V3, T> {
-    pub fn get_dependend_template_nodes(&self) -> impl Iterator<Item = TemplateIndex> {
-        match self {
-            NumberTemplate::Const(_) => vec![],
-            NumberTemplate::Hook(hook) => vec![hook.template_index],
-            NumberTemplate::SplitPosition2D((position_template, _)) 
-                => position_template.get_dependend_template_nodes().collect_vec(),
-            NumberTemplate::SplitPosition3D((position_template, _))
-                => position_template.get_dependend_template_nodes().collect_vec(),
-        }.into_iter()
-    }
-
     pub fn get_value<B: BS<V2, V3, T>>(
         &self, 
         get_value_data: GetValueData,

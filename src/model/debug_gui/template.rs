@@ -27,14 +27,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
 
             ui.label(format!("Level: {}", node.level));
 
-            if !node.defines.is_empty() {
-                ui.strong("Defines:");
-                for ammount in node.defines.iter() {
-                    self.node(ui, ammount.template_index, &ammount.dependecy_tree);
-                    ui.label(format!("Ammount: {:?}", ammount.t));
-                }
-            } 
-
             if !node.depends.is_empty() {
                 ui.strong("Depends:");
                 for i in node.depends.iter() {

@@ -1,6 +1,6 @@
 use std::{collections::{HashMap, VecDeque}, fmt::{Debug, Octal}, iter, marker::PhantomData, mem::{self, ManuallyDrop}, task::ready, usize};
 
-use itertools::Either;
+use itertools::{Either, Itertools};
 use octa_force::{anyhow::{anyhow, bail, ensure}, glam::{vec3, vec3a, IVec3, Vec3, Vec3Swizzles}, log::{debug, error, info}, vulkan::ash::vk::OpaqueCaptureDescriptorDataCreateInfoEXT, OctaResult};
 use slotmap::{new_key_type, Key, SlotMap};
 use crate::{model::{composer::{build::{OnCollapseArgs, BS}, template::{ComposeTemplate, ComposeTemplateValue, TemplateIndex}}}, util::{number::Nu, state_saver, vector::Ve}, volume::VolumeQureyPosValid};
@@ -30,7 +30,6 @@ pub struct CollapseNode<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
 
 #[derive(Debug, Clone)]
 pub enum NodeDataType<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
-    Pending,
     NumberSet(NumberSpace<T>),
     PositionSpace2D(PositionSpace<V2, T, 2>),
     PositionSpace3D(PositionSpace<V3, T, 3>),
@@ -105,50 +104,71 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             index: node_index,
         }; 
 
-        let (data, needs_recompute) = match &template_node.value {
-            ComposeTemplateValue::None => (NodeDataType::None, false),
+        let needs_recompute = match &template_node.value {
+            ComposeTemplateValue::None => false,
             ComposeTemplateValue::NumberSpace(space) => {
-                let (mut data, r) = NumberSpace::from_template(space, get_value_data, &self);
-                if data.update().is_err() {
-                    panic!("{:?} Collapse Number faild", node_index);
-                }
+                let (new_val, r) = space.get_value(get_value_data, &self);
+ 
+                let data = match &mut self.nodes[node_index].data {
+                    NodeDataType::NumberSet(space) => space,
+                    _ => unreachable!()
+                };
+                data.update(new_val); 
 
-                (NodeDataType::NumberSet(data), r)
+                r
             },
 
             ComposeTemplateValue::PositionSpace2D(space) => {
-                let (mut data, r) = PositionSpace::from_template(space, get_value_data, &self);
-                data.update(); 
+                let (new_positions, r) = space.get_value(get_value_data, &self);
+                let new_positions = new_positions.collect_vec();
 
-                (NodeDataType::PositionSpace2D(data), r)
+                let data = match &mut self.nodes[node_index].data {
+                    NodeDataType::PositionSpace2D(space) => space,
+                    _ => unreachable!()
+                };
+                data.update(new_positions); 
+
+                r
             },
 
             ComposeTemplateValue::PositionSpace3D(space) => {
-                let (mut data, r) = PositionSpace::from_template(space, get_value_data, &self);
-                data.update();
+                let (new_positions, r) = space.get_value(get_value_data, &self);
+                let new_positions = new_positions.collect_vec();
 
-                (NodeDataType::PositionSpace3D(data), r)
+                let data = match &mut self.nodes[node_index].data {
+                    NodeDataType::PositionSpace3D(space) => space,
+                    _ => unreachable!()
+                };
+                data.update(new_positions); 
+
+                r
             },
 
             ComposeTemplateValue::Build(t) => {
-                let build = NodeDataType::Build(B::on_collapse(OnCollapseArgs { 
+                let data = match &node.data {
+                    NodeDataType::Build(build) => build,
+                    _ => unreachable!()
+                };
+
+                let build = B::on_collapse(OnCollapseArgs { 
                     template_value: t,
+                    collapse_node: node,
+                    collapse_value: data,
                     get_value_data,
                     collapser: &self, 
                     template, 
                     state,
-                    collapse_node: node, 
-                }).await);
+                }).await;
 
-                (build, false)
+                self.nodes[node_index].data = NodeDataType::Build(build);
+
+                false
             },
         };   
 
         if needs_recompute {
             self.pending.push_later_collpase(template_node.level, node_index);
         }
-
-        self.nodes[node_index].data = data;
 
         self.push_defined(node_index, template);
         self.collapse_all_childeren(node_index, template);

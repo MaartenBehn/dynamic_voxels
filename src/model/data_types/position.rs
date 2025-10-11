@@ -1,19 +1,19 @@
-use std::mem::ManuallyDrop;
+use std::{iter, mem::ManuallyDrop};
 
 use egui_snarl::InPinId;
-use itertools::Itertools;
+use itertools::{Either, Itertools};
+use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::{ComposeNode, ComposeNodeType}, template::{ComposeTemplate, TemplateIndex}, ModelComposer}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::{ComposeNode, ComposeNodeType}, template::{Ammount, AmmountType, ComposeTemplate, MakeTemplateData, TemplateIndex}, ModelComposer}}, util::{number::Nu, vector::Ve}};
 
-use super::{data_type::ComposeDataType, number::{Hook, NumberTemplate}};
+use super::{data_type::ComposeDataType, number::{Hook, NumberTemplate}, position_set::PositionSetTemplate};
 
 
 #[derive(Debug, Clone)]
 pub enum PositionTemplate<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> {
     Const(V),
-    ByPositionSetChild(Hook),
-    ByPositionSetChildSelf,
     FromNumbers([NumberTemplate<V2, V3, T>; D]),
+    PerPosition(PositionSetTemplate<V2, V3, T>),
 }
 
 union FromNumbersUnion<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const DA: usize, const DB: usize> {
@@ -26,8 +26,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
         &self, 
         original_node: &ComposeNode<B::ComposeType>, 
         in_index: usize,
-        building_template_index: usize,
-        template: &ComposeTemplate<V2, V3, T, B>,
+        data: &mut MakeTemplateData<V2, V3, T, B>,
     ) -> PositionTemplate<V, V2, V3, T, D> {
 
         let remotes = self.snarl.in_pin(InPinId{ node: original_node.id, input: in_index }).remotes;
@@ -64,10 +63,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
             match remote_node.t {
                 ComposeNodeType::Position2D => {
                     assert_eq!(D, 2);
-                    let x = self.make_number(
-                        remote_node, 0, building_template_index, template);
-                    let y = self.make_number(
-                        remote_node, 1, building_template_index, template);
+                    let x = self.make_number(remote_node, 0, data);
+                    let y = self.make_number(remote_node, 1, data);
 
                     // Cast [NumberTemplate; 2] to [NumberTemplate; D] 
                     // Safety: D is 2
@@ -78,12 +75,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
                 },
                 ComposeNodeType::Position3D => {
                     assert_eq!(D, 3);
-                    let x = self.make_number(
-                        remote_node, 0, building_template_index, template);
-                    let y = self.make_number(
-                        remote_node, 1, building_template_index, template);
-                    let z = self.make_number(
-                        remote_node, 2, building_template_index, template);
+                    let x = self.make_number(remote_node, 0, data);
+                    let y = self.make_number(remote_node, 1, data);
+                    let z = self.make_number(remote_node, 2, data);
 
                     // Cast [NumberTemplate; 3] to [NumberTemplate; D] 
                     // Safety: D is 3
@@ -92,21 +86,14 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
                     });
                     PositionTemplate::FromNumbers(numbers)
                 },
+                ComposeNodeType::PerPosition2D
+                | ComposeNodeType::PerPosition3D => {
+                    let set = self.make_position_set(pin, data);
 
-                ComposeNodeType::ByPositionSet3D
-                 | ComposeNodeType::ByPositionSet2D => {
-                    let child_index = self.get_ammount_child_index(remote_node, template);
-
-                    if (child_index == building_template_index) {
-                        PositionTemplate::ByPositionSetChildSelf
-                    } else {
-                        PositionTemplate::ByPositionSetChild(Hook {
-                            template_index: child_index,
-                            loop_cut: false,
-                        })
-                    }
-                },
- 
+                    data.ammounts.push(AmmountType::PerPosition(set.to_owned()));
+                    PositionTemplate::PerPosition(set)
+                }
+                 
                 _ => unreachable!(),
             }                                        
         }
@@ -116,20 +103,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
 
 
 impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> PositionTemplate<V, V2, V3, T, D> {
-    pub fn get_dependend_template_nodes(&self) -> impl Iterator<Item = TemplateIndex> {
-        match self {
-            PositionTemplate::Const(_) => vec![],
-            PositionTemplate::FromNumbers(n) => {
-                        n.iter()
-                            .map(|n| n.get_dependend_template_nodes())
-                            .flatten()
-                            .collect_vec()
-                    },
-            PositionTemplate::ByPositionSetChild(h) => vec![h.template_index],
-            PositionTemplate::ByPositionSetChildSelf => vec![],
-        }.into_iter()
-    }
-
     pub fn get_value<B: BS<V2, V3, T>>(
         &self,
         get_value_data: GetValueData,
@@ -138,8 +111,6 @@ impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> PositionTem
 
         match self {
             PositionTemplate::Const(v) => (*v, false),
-            PositionTemplate::ByPositionSetChild(h) => collapser.get_dependend_position(h.template_index, get_value_data),
-            PositionTemplate::ByPositionSetChildSelf => collapser.get_position(get_value_data.defined_by, get_value_data.child_index),
             PositionTemplate::FromNumbers(n) => {
                 let mut numbers = [T::ZERO; D];
                 let mut r_final = false;
@@ -151,21 +122,19 @@ impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> PositionTem
                 }
                 (V::new(numbers), r_final)
             },
+            PositionTemplate::PerPosition(set) => set.get_child_value(get_value_data, collapser),
         }
     }
 
     pub fn cut_loop(&mut self, to_index: usize) {
         match self {
             PositionTemplate::Const(_) => {},
-            PositionTemplate::ByPositionSetChild(hook) => {
-                hook.loop_cut |= hook.template_index == to_index;
-            },
-            PositionTemplate::ByPositionSetChildSelf => {},
             PositionTemplate::FromNumbers(numbers) => {
                 for number in numbers {
                     number.cut_loop(to_index);
                 }
             },
+            PositionTemplate::PerPosition(set) => set.cut_loop(to_index),
         }
     }
 }
