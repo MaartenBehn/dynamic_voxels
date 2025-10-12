@@ -11,14 +11,13 @@ use std::{fs::{self, File}, io::Write, time::Duration};
 use build::{ComposeTypeTrait, BS};
 use egui_snarl::{ui::{NodeLayout, PinPlacement, SnarlStyle, SnarlWidget}, Snarl};
 use nodes::ComposeNode;
-use octa_force::{anyhow::anyhow, egui::{self, Align, CornerRadius, Frame, Id, Layout}, glam::{uvec2, UVec2}, log::debug, OctaResult};
+use octa_force::{anyhow::anyhow, egui::{self, Align, CornerRadius, Frame, Id, Layout, Margin}, glam::{uvec2, UVec2}, log::{debug, info, warn}, OctaResult};
 use template::ComposeTemplate;
 use viewer::ComposeViewer;
 
 use crate::util::{number::Nu, vector::Ve};
 
 use super::collapse::worker::{CollapserChangeReciver, ComposeCollapseWorker};
-
 
 const TEMP_SAVE_FILE: &str = "./composer_temp_save.json";
 
@@ -123,7 +122,7 @@ where
                     .show(ui, |ui| {
                         ui.set_min_width(500.0);
 
-                        div(ui, |ui| {
+                        div(ui, Margin::same(10), |ui| {
                             ui.checkbox(&mut self.auto_rebuild, "Auto Rebuild");
                             if ui.button("Rebuild").clicked() {
                                 self.manual_rebuild = true;
@@ -163,6 +162,8 @@ where
 
                 self.template = ComposeTemplate::new(self);
                 self.collapser_worker.template_changed(self.template.clone());
+            } else {
+                warn!("Cant Rebuild error in graph!");
             }
         } 
 
@@ -181,8 +182,10 @@ pub fn load_snarl<CT: ComposeTypeTrait + serde::de::DeserializeOwned>() -> OctaR
 }
 
 
-fn div(ui: &mut egui::Ui, add_contents: impl FnOnce(&mut egui::Ui)) {
-    Frame::none().show(ui, |ui| {
+fn div(ui: &mut egui::Ui, margin: Margin, add_contents: impl FnOnce(&mut egui::Ui)) {
+    Frame::NONE
+        .outer_margin(margin)
+        .show(ui, |ui| {
         ui.with_layout(Layout::left_to_right(Align::TOP), add_contents);
     });
 }

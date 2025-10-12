@@ -61,13 +61,13 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
                 ComposeNodeType::SplitPosition2D => {
                     let pos = self.make_position(remote_node, 0, data);
 
-                    assert!(pin.output >= 0 && pin.output <= 1);
+                    assert!(pin.output <= 1);
                     NumberTemplate::SplitPosition2D((Box::new(pos), pin.output))
                 },
                 ComposeNodeType::SplitPosition3D => {
                     let pos = self.make_position(remote_node, 0, data);
 
-                    assert!(pin.output >= 0 && pin.output <= 2);
+                    assert!(pin.output <= 2);
                     NumberTemplate::SplitPosition2D((Box::new(pos), pin.output))
                 },
                 _ => unreachable!()

@@ -26,12 +26,12 @@ use octa_force::camera::Camera;
 use octa_force::egui_winit::winit::event::WindowEvent;
 use octa_force::glam::{vec3, vec3a, DVec3, EulerRot, IVec2, IVec3, Mat4, Quat, UVec2, UVec3, Vec3, Vec3A};
 use octa_force::gui::Gui;
-use octa_force::log::{debug, error, info, trace, Log};
+use octa_force::log::{debug, error, info, trace, LevelFilter, Log};
 use octa_force::logger::setup_logger;
 use octa_force::puffin_egui::puffin;
 use octa_force::vulkan::ash::vk::AttachmentLoadOp;
 use octa_force::vulkan::{Context, Fence, ImageBarrier};
-use octa_force::{log, OctaResult};
+use octa_force::{egui, log, OctaResult};
 use util::profiler::ShaderProfiler;
 use util::state_saver::StateSaver;
 use volume::{VolumeBounds};
@@ -53,9 +53,9 @@ pub const METERS_PER_SHADER_UNIT: usize = 1000;
 pub const VOXELS_PER_SHADER_UNIT: usize = VOXELS_PER_METER * METERS_PER_SHADER_UNIT;
 
 #[unsafe(no_mangle)]
-pub fn init_hot_reload(logger: &'static dyn Log) -> OctaResult<()> {
-    setup_logger(logger)?;
-
+pub fn init_hot_reload(logger: &'static dyn Log, level: LevelFilter) -> OctaResult<()> {
+    setup_logger(logger, level)?;
+ 
     Ok(())
 }
 
@@ -105,8 +105,6 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
 
 #[derive(Debug)]
 pub struct RenderState {
-    pub gui: Gui,
-         
     #[cfg(any(feature="scene", feature="graph_builder"))]
     pub scene: SceneWorker,
     
@@ -122,15 +120,7 @@ pub struct RenderState {
 pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> OctaResult<RenderState> {
     #[cfg(debug_assertions)]
     puffin::profile_function!();
-     
-    let mut gui = Gui::new(
-        &engine.context,
-        engine.swapchain.format,
-        engine.swapchain.depth_format,
-        &engine.window,
-        engine.in_flight_frames.num_frames,
-    )?;
-   
+       
     #[cfg(feature="scene")]
     {
         let scene = Scene::new(&engine.context)?.run_worker(engine.context.get_alloc_context(), 10);
@@ -177,7 +167,6 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         );
         
         Ok(RenderState {
-            gui,
             scene,
             renderer,
         })
@@ -201,14 +190,13 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         return Ok(RenderState {
             scene,
             renderer,
-            gui, 
             islands,
         })
     }
 
     #[cfg(not(any(feature="scene", feature="graph_builder")))]
     {
-        Ok(RenderState { gui })
+        Ok(RenderState { })
     }
    }
 
@@ -294,23 +282,22 @@ pub fn record_render_commands(
         None,
     );
 
-    render_state.gui.cmd_draw(
-        command_buffer,
-        engine.get_resolution(),
-        engine.get_current_in_flight_frame_index(),
-        &engine.window,
-        &engine.context,
-        |ctx| {
-             
-            #[cfg(any(feature="scene", feature="graph_builder"))]
-            render_state.renderer.render_ui(ctx);
-
-            #[cfg(any(feature="graph_builder"))]
-            render_state.islands.render(ctx);
-        },
-    )?;
-
     command_buffer.end_rendering();
+
+    Ok(())
+}
+
+#[unsafe(no_mangle)]
+pub fn record_ui_commands(
+    ctx: &egui::Context,
+    logic_state: &mut LogicState,
+    render_state: &mut RenderState,
+) -> OctaResult<()> {
+    #[cfg(any(feature="scene", feature="graph_builder"))]
+    render_state.renderer.render_ui(ctx);
+
+    #[cfg(any(feature="graph_builder"))]
+    render_state.islands.render(ctx);
 
     Ok(())
 }
@@ -322,7 +309,6 @@ pub fn on_window_event(
     engine: &mut Engine,
     event: &WindowEvent,
 ) -> OctaResult<()> {
-    render_state.gui.handle_event(&engine.window, event);
 
     Ok(())
 }

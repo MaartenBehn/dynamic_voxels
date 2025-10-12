@@ -11,9 +11,11 @@ unused = "allow"
 inherits = "dev"
 debug = 0
 strip = "debuginfo"
+opt-level = 3  
 
 [profile.release]
 debug = 1
+lto = true
 
 [lib]
 name = "reload"

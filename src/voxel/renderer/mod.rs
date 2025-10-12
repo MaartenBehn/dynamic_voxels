@@ -409,7 +409,7 @@ impl VoxelRenderer {
 }
 
 fn div(ui: &mut egui::Ui, add_contents: impl FnOnce(&mut egui::Ui)) {
-    Frame::none().show(ui, |ui| {
+    Frame::NONE.show(ui, |ui| {
         ui.with_layout(Layout::left_to_right(Align::TOP), add_contents);
     });
 }

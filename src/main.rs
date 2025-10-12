@@ -2,6 +2,7 @@ extern crate reload as dynamic_voxels;
 
 use bvh::bvh::Bvh;
 use dynamic_voxels::multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator;
+use dynamic_voxels::record_ui_commands;
 use dynamic_voxels::volume::magica_voxel::MagicaVoxelModel;
 use dynamic_voxels::voxel::dag64::VoxelDAG64;
 use dynamic_voxels::voxel::grid::shared::SharedVoxelGrid;
@@ -69,14 +70,12 @@ fn main() {
             //"shaderFloat16".to_string(),
         ],
 
-        hot_reload_config: None, /*Some(HotReloadConfig {
-            lib_dir: "target/debug".to_string(),
+        hot_reload_config: Some(HotReloadConfig {
+            lib_dir: "target/x86_64-unknown-linux-gnu/dev-fast".to_string(),
             lib_name: "reload".to_string(),
-        }),*/
-
+        }),
 
         backtrace: true,
-
         ..Default::default()
     });
 }
@@ -113,7 +112,13 @@ impl BindingTrait for App {
         record_render_commands(logic_state, render_state,  engine)
     }
 
-
+    fn record_ui_commands(
+        ctx: &octa_force::egui::Context, 
+        logic_state: &mut Self::LogicState,
+        render_state: &mut Self::RenderState,
+    ) -> OctaResult<()> {
+        record_ui_commands(ctx, logic_state, render_state)
+    }
 
     fn on_window_event(
         logic_state: &mut LogicState,

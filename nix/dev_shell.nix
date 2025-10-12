@@ -19,6 +19,9 @@
 
         # for vulkaninfo
         vulkan-tools
+
+        # for hot reloading
+        watchexec
       ];
 
       # Use faster linker for local build 

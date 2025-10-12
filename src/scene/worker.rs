@@ -82,6 +82,8 @@ impl Scene {
                                 if res.is_err() {
                                     warn!("Typed to removed Scene Object with invalid Key")
                                 }
+
+                                let _ = flush_s.force_send(SceneMessage::Flush);
                             },
                             SceneMessage::Flush => {
                                 self.flush().expect("Failed to flush scene");

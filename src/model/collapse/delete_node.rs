@@ -40,9 +40,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
                     continue;
                 };
 
-                let children = depends_node.children.iter_mut()
-                    .find(|(template_index, _)| *template_index == node.template_index)
-                    .map(|(_, c)| c)
+                let (children_index, children) = depends_node.children.iter_mut()
+                    .enumerate()
+                    .find(|(_, (template_index, _))| *template_index == node.template_index)
+                    .map(|(i, (_, c))| (i, c))
                     .expect("When deleting node the template index of the node was not present in the children of a dependency");
 
                 let i = children.iter()
@@ -50,6 +51,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
                     .expect("When deleting node index of the node was not present in the children of a dependency");
 
                 children.swap_remove(i);
+
+                if children.is_empty() {
+                    depends_node.children.swap_remove(children_index);
+                }
             }
         }
 
