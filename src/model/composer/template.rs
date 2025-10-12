@@ -3,7 +3,7 @@ use std::{iter, ops::RangeBounds};
 use egui_snarl::{InPinId, NodeId, OutPinId};
 use itertools::Itertools;
 use octa_force::glam::Vec3;
-use octa_force::log::{self, debug};
+use octa_force::log::{self, debug, trace};
 use smallvec::{SmallVec, smallvec};
 use crate::model::composer::dependency_tree::{get_dependency_tree_and_loop_paths, DependencyTree};
 use crate::model::data_types::data_type::ComposeDataType;
@@ -273,26 +273,24 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
             }
         }
 
-        dbg!(&template);
-
         template
     }
 
     fn cut_loops(&mut self, index: usize, mut index_seen: Vec<usize>) -> usize {
         index_seen.push(index);
 
-        debug!("Set level of node {}, index_seen: {:?}", index, &index_seen);
+        trace!("Set level of node {}, index_seen: {:?}", index, &index_seen);
 
         let node: &mut TemplateNode<V2, V3, T, B> = &mut self.nodes[index];
         
         let mut max_level = 0;
         for (i, depends_index) in node.depends.to_owned().iter().enumerate().rev() {
-            debug!("Node {}, depends on {}", index, *depends_index);
+            trace!("Node {}, depends on {}", index, *depends_index);
 
             if let Some(_) = index_seen.iter().find(|p| **p == *depends_index) {
                 let node: &mut TemplateNode<V2, V3, T, B> = &mut self.nodes[index];
 
-                debug!("Loop found from {} to {:?}", index, depends_index);
+                trace!("Loop found from {} to {:?}", index, depends_index);
 
                 match &mut node.value {
                     ComposeTemplateValue::NumberSpace(number_space_template) => {

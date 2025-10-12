@@ -5,7 +5,7 @@ use octa_force::{egui, glam::{EulerRot, IVec2, IVec3, Mat4, Quat, Vec3}, OctaRes
 use slotmap::Key;
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::collapser::{CollapseNode, NodeDataType}, composer::{build::{CollapseValueTrait, ComposeTypeTrait, GetTemplateValueArgs, OnCollapseArgs, OnDeleteArgs, TemplateValueTrait, BS}, nodes::{ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeType}, template::{MakeTemplateData, TemplateIndex}, ModelComposer}, data_types::{data_type::ComposeDataType, position::PositionTemplate, volume::VolumeTemplate}}, scene::{dag_store::SceneDAGKey, worker::SceneWorkerSend, SceneObjectKey}, util::{number::Nu, vector::Ve}, volume::VolumeBounds, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, palette::palette::MATERIAL_ID_BASE}, METERS_PER_SHADER_UNIT};
+use crate::{model::{collapse::collapser::{CollapseNode, NodeDataType}, composer::{build::{CollapseValueTrait, ComposeTypeTrait, GetTemplateValueArgs, OnCollapseArgs, OnDeleteArgs, TemplateValueTrait, BS}, nodes::{ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeType}, template::{MakeTemplateData, TemplateIndex}, ModelComposer}, data_types::{data_type::ComposeDataType, position::PositionTemplate, volume::VolumeTemplate}}, scene::{dag_store::SceneDAGKey, worker::SceneWorkerSend, SceneObjectKey}, util::{number::Nu, vector::Ve}, volume::VolumeBounds, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, palette::palette::MATERIAL_ID_BASE}, METERS_PER_SHADER_UNIT, VOXELS_PER_SHADER_UNIT};
 
 // Compose Type
 #[derive(Debug)]
@@ -124,7 +124,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
                     Mat4::from_scale_rotation_translation(
                         Vec3::ONE,
                         Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, 0.0),
-                        pos.to_vec3() / METERS_PER_SHADER_UNIT as f32
+                        pos.to_vec3() / VOXELS_PER_SHADER_UNIT as f32
                     ), 
                     args.state.scene_dag_key,
                     args.state.dag.get_entry(dag_key),

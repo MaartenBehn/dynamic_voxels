@@ -24,13 +24,16 @@ impl SceneRenderer {
         camera: &Camera,
         scene_render_data: SceneWorkerRenderData,
         palette: SharedPalette,
+        allways_fullscreen: bool,
     ) -> OctaResult<SceneRenderer> {
         let mut voxel_renderer = VoxelRenderer::new::<SceneDispatchParams>(
-            context, 
+            context,
             swapchain, 
             camera,
             palette,
-            include_bytes!("../../../shaders/slang/bin/_trace_scene.spv"))?;
+            include_bytes!("../../../shaders/slang/bin/_trace_scene.spv"),
+            allways_fullscreen,
+        )?;
 
         voxel_renderer.max_bounces = 0;
         voxel_renderer.temporal_denoise = false;
@@ -43,17 +46,18 @@ impl SceneRenderer {
         })
     }
 
-    pub fn update(&mut self, camera: &Camera, context: &Context, res: UVec2, in_flight_frame_index: usize, frame_index: usize) -> OctaResult<()> {
-        self.voxel_renderer.update(camera, context, res, in_flight_frame_index, frame_index)?;
+    pub fn update(&mut self, camera: &Camera, context: &Context, size: UVec2, in_flight_frame_index: usize, frame_index: usize) -> OctaResult<()> {
+        self.voxel_renderer.update(camera, context, size, in_flight_frame_index, frame_index)?;
         Ok(())
     }
 
     pub fn render(
         &mut self,
+        offset: UVec2,
         buffer: &CommandBuffer,
         engine: &Engine,
     ) -> OctaResult<()> {
-        self.voxel_renderer.render(buffer, engine, SceneDispatchParams {
+        self.voxel_renderer.render(offset, buffer, engine, SceneDispatchParams {
             ray_manager: self.voxel_renderer.get_ray_manager_data(),
             scene: self.scene_render_data.get_data(),
             debug: self.debug,
@@ -67,12 +71,13 @@ impl SceneRenderer {
         self.voxel_renderer.render_ui(ctx);        
     }
 
-    pub fn on_recreate_swapchain(
+    pub fn on_size_changed(
         &mut self,
+        size: UVec2,
         context: &Context,
         swapchain: &Swapchain,
     ) -> OctaResult<()> {
-        self.voxel_renderer.on_recreate_swapchain(context, swapchain)?;
+        self.voxel_renderer.on_size_changed(context, size, swapchain)?;
 
         Ok(())
     }

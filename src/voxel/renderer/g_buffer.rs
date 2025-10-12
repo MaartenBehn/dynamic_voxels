@@ -58,14 +58,21 @@ pub struct GBufferUniform {
 }
 
 impl GBuffer {
-    pub fn new(context: &Context, heap: &mut ImageDescriptorHeap, camera: &Camera, swapchain: &Swapchain) -> OctaResult<Self> {
+    pub fn new(
+        context: &Context, 
+        heap: &mut ImageDescriptorHeap, 
+        camera: &Camera, 
+        size: UVec2,
+        render_into_swapchain: bool,
+        swapchain: &Swapchain
+    ) -> OctaResult<Self> {
         let (albedo_tex, 
             irradiance_tex,
             depth_tex, 
             moments_tex,
             history_len_tex,
             iter_tex,
-            output_tex) = Self::create_image_datas(context, heap, swapchain)?;
+            output_tex) = Self::create_image_datas(context, heap, size, render_into_swapchain, swapchain)?;
 
         let uniform_buffer = context.create_buffer(
             vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS, 
@@ -93,7 +100,13 @@ impl GBuffer {
         Ok(g_buffer)
     }
 
-    fn create_image_datas(context: &Context, heap: &mut ImageDescriptorHeap, swapchain: &Swapchain) -> OctaResult<(
+    fn create_image_datas(
+        context: &Context, 
+        heap: &mut ImageDescriptorHeap, 
+        size: UVec2, 
+        render_into_swapchain: bool, 
+        swapchain: &Swapchain
+    ) -> OctaResult<(
         [ImageAndViewAndHandle; 2], 
         [ImageAndViewAndHandle; 2], 
         [ImageAndViewAndHandle; 2], 
@@ -102,6 +115,7 @@ impl GBuffer {
         ImageAndViewAndHandle, 
         OutputTexs,
     )> {
+
         //debug!("Supported Image Formats: {:?}", context.physical_device.supported_image_formats);
         //debug!("Supported Depth Formats: {:?}", context.physical_device.supported_depth_formats);
          
@@ -113,7 +127,7 @@ impl GBuffer {
                 base_flags | usage, 
                 MemoryLocation::GpuOnly, 
                 format, 
-                swapchain.size)?;
+                size)?;
 
             let view = image.create_image_view(false)?;
 
@@ -153,12 +167,39 @@ impl GBuffer {
             vk::Format::R16G16_SFLOAT, vk::ImageUsageFlags::empty())?;
 
         
-        let output_images = if context.swapchain_supports_storage() {
+        let output_images = if render_into_swapchain {
+            debug_assert!(size == swapchain.size);
+            
             OutputTexs::Swapchain(swapchain.images_and_views.iter()
                     .map(|x| heap.create_image_handle(&x.view, vk::ImageUsageFlags::TRANSFER_DST | vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::STORAGE))
                     .collect::<OctaResult<Vec<_>>>()?)
         } else {
-            OutputTexs::Storage(create_images(context.physical_device.render_storage_image_format, vk::ImageUsageFlags::COLOR_ATTACHMENT)?)
+            let img = create_images(context.physical_device.render_storage_image_format, vk::ImageUsageFlags::COLOR_ATTACHMENT)?;
+
+            context.execute_one_time_commands(|cmd_buffer| {
+                cmd_buffer.pipeline_image_barriers(&[
+                    ImageBarrier {
+                        image: &img[0].image,
+                        old_layout: vk::ImageLayout::UNDEFINED,
+                        new_layout: vk::ImageLayout::GENERAL,
+                        src_access_mask: vk::AccessFlags2::NONE,
+                        dst_access_mask: vk::AccessFlags2::NONE,
+                        src_stage_mask: vk::PipelineStageFlags2::NONE,
+                        dst_stage_mask: vk::PipelineStageFlags2::ALL_COMMANDS,
+                    },
+                    ImageBarrier {
+                        image: &img[1].image,
+                        old_layout: vk::ImageLayout::UNDEFINED,
+                        new_layout: vk::ImageLayout::GENERAL,
+                        src_access_mask: vk::AccessFlags2::NONE,
+                        dst_access_mask: vk::AccessFlags2::NONE,
+                        src_stage_mask: vk::PipelineStageFlags2::NONE,
+                        dst_stage_mask: vk::PipelineStageFlags2::ALL_COMMANDS,
+                    }
+                ]);
+            })?;
+
+            OutputTexs::Storage(img)
         };
 
 
@@ -191,14 +232,14 @@ impl GBuffer {
         &mut self, 
         camera: &Camera, 
         context: &Context, 
-        res: UVec2, 
+        size: UVec2, 
         in_flight_frame_index: usize, 
         frame_index: usize,
         denoise_counters: bool,
     ) -> OctaResult<()> {
         let proj_mat = camera.projection_matrix().mul_mat4(&camera.view_matrix());
-        let inv_proj_mat = Self::get_inverse_proj_screen_mat(proj_mat, res);
-        let prev_inv_proj_mat = Self::get_inverse_proj_screen_mat(self.prev_proj_mat, res);
+        let inv_proj_mat = Self::get_inverse_proj_screen_mat(proj_mat, size);
+        let prev_inv_proj_mat = Self::get_inverse_proj_screen_mat(self.prev_proj_mat, size);
         
         let position = camera.get_position_in_shader_units();
 
@@ -256,14 +297,21 @@ impl GBuffer {
         inv_proj_mat.mul_mat4(&translation_mat)
     }
 
-    pub fn on_recreate_swapchain(&mut self, context: &Context, heap: &mut ImageDescriptorHeap, swapchain: &Swapchain) -> OctaResult<()> {
+    pub fn on_size_changed(
+        &mut self, 
+        context: &Context, 
+        heap: &mut ImageDescriptorHeap,
+        size: UVec2, 
+        render_into_swapchain: bool, 
+        swapchain: &Swapchain
+    ) -> OctaResult<()> {
         let (albedo_tex, 
             irradiance_tex,
             depth_tex, 
             moments_tex,
             history_len_tex, 
             iter_tex,
-            output_tex) = Self::create_image_datas(context, heap, swapchain)?;
+            output_tex) = Self::create_image_datas(context, heap, size, render_into_swapchain, swapchain)?;
 
         self.history_len_tex = history_len_tex;
         self.iter_tex = iter_tex;

@@ -59,7 +59,9 @@ pub struct VoxelRenderer {
     static_accum_number: u32,
 
     filter_passes: usize,
-    temp_irradiance_tex: ImageAndViewAndHandle, 
+    temp_irradiance_tex: ImageAndViewAndHandle,
+
+    render_into_swapchain: bool,
 }
 
 #[repr(C)]
@@ -117,13 +119,16 @@ impl VoxelRenderer {
         camera: &Camera,
         palette: SharedPalette,
         trace_ray_bin: &[u8],
+        allways_fullscreen: bool,
     ) -> OctaResult<VoxelRenderer> {
+
+        let render_into_swapchain = allways_fullscreen && context.swapchain_supports_storage();
 
         let mut heap = context.create_descriptor_heap(40)?;
 
         let palette_buffer = PaletteBuffer::new(context, palette)?;
- 
-        let g_buffer = GBuffer::new(context, &mut heap, camera, swapchain)?;
+
+        let g_buffer = GBuffer::new(context, &mut heap, camera, swapchain.size, render_into_swapchain, swapchain)?;
 
         let img = ImageReader::open("assets/stbn_vec2_2Dx1D_128x128x64_combined.png")?.decode()?;
         let red_green_pixels = img.pixels()
@@ -204,6 +209,8 @@ impl VoxelRenderer {
 
             debug_depth_range: vec2(0.5, 1.1),
             debug_heat_map_range: vec2(0.0, 100.0),
+
+            render_into_swapchain,
         })
     }
 
@@ -216,8 +223,8 @@ impl VoxelRenderer {
         }
     }
 
-    pub fn update(&mut self, camera: &Camera, context: &Context, res: UVec2, in_flight_frame_index: usize, frame_index: usize) -> OctaResult<()> {
-        self.g_buffer.update(camera, context, res, in_flight_frame_index, frame_index, self.denoise_counters)?;
+    pub fn update(&mut self, camera: &Camera, context: &Context, size: UVec2, in_flight_frame_index: usize, frame_index: usize) -> OctaResult<()> {
+        self.g_buffer.update(camera, context, size, in_flight_frame_index, frame_index, self.denoise_counters)?;
         self.palette_buffer.update(context)?;
 
         Ok(())
@@ -225,6 +232,7 @@ impl VoxelRenderer {
 
     pub fn render<D>(
         &mut self,
+        offset: UVec2,
         buffer: &CommandBuffer,
         engine: &Engine,
         trace_ray_dispact_params: D
@@ -278,12 +286,13 @@ impl VoxelRenderer {
             debug_depth_range: self.debug_depth_range,
             debug_heat_map_range: self.debug_heat_map_range,
         }, dispatch_size);
- 
+
         match &self.g_buffer.output_tex {
             g_buffer::OutputTexs::Storage(t) => {
                 buffer.swapchain_image_copy_from_compute_storage_image(
                     &t[engine.get_current_in_flight_frame_index()].image,
                     &engine.get_current_swapchain_image_and_view().image,
+                    offset,
                 )?;
             },
             g_buffer::OutputTexs::Swapchain(..) => {
@@ -296,6 +305,7 @@ impl VoxelRenderer {
 
     pub fn render_ui(&mut self, ctx: &egui::Context) { 
         egui::Window::new("Renderer")
+            .default_open(false)
             .show(ctx, |ui| {
                 ui.add(egui::Slider::new(&mut self.max_bounces, 0..=10)
                     .text("Max Bounces")
@@ -327,6 +337,7 @@ impl VoxelRenderer {
             });
 
         egui::Window::new("Debug")
+            .default_open(false)
             .show(ctx, |ui| {
                 egui::ComboBox::from_label("Channel")
                     .selected_text(format!("{:?}", self.debug_channel))
@@ -369,18 +380,19 @@ impl VoxelRenderer {
 
     }
 
-    pub fn on_recreate_swapchain(
+    pub fn on_size_changed(
         &mut self,
         context: &Context,
+        size: UVec2,
         swapchain: &Swapchain,
     ) -> OctaResult<()> {
-        self.g_buffer.on_recreate_swapchain(context, &mut self.heap, swapchain)?;
+        self.g_buffer.on_size_changed(context, &mut self.heap, size, self.render_into_swapchain, swapchain)?;
 
         let temp_irradiance_image = context.create_image(
             vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC, 
             MemoryLocation::GpuOnly, 
             Format::R8G8B8A8_UNORM, 
-            swapchain.size)?;
+            size)?;
 
         let temp_irradiance_view = temp_irradiance_image.create_image_view(false)?;
 

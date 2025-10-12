@@ -54,11 +54,13 @@ impl StaticDAG64Renderer {
     ) -> Result<StaticDAG64Renderer> {
  
         let voxel_renderer = VoxelRenderer::new::<TraceStaticDAG64DispatchParams>(
-            context, 
+            context,
             swapchain, 
             camera, 
             palette,
-            include_bytes!("../../../../shaders/slang/bin/_trace_tree64.spv"))?;
+            include_bytes!("../../../../shaders/slang/bin/_trace_tree64.spv"),
+            true,
+        )?;
 
         let voxel_tree64_buffer = tree.into_buffer(context)?;
         
@@ -79,7 +81,7 @@ impl StaticDAG64Renderer {
         buffer: &CommandBuffer,
         engine: &Engine,
     ) -> OctaResult<()> {
-        self.voxel_renderer.render(buffer, engine, TraceStaticDAG64DispatchParams {
+        self.voxel_renderer.render(UVec2::ZERO, buffer, engine, TraceStaticDAG64DispatchParams {
             ray_manager: self.voxel_renderer.get_ray_manager_data(),
             tree64: self.voxel_tree64_buffer.get_data(),
         })?;
@@ -96,7 +98,7 @@ impl StaticDAG64Renderer {
         context: &Context,
         swapchain: &Swapchain,
     ) -> OctaResult<()> {
-        self.voxel_renderer.on_recreate_swapchain(context, swapchain)?;
+        self.voxel_renderer.on_size_changed(context, swapchain.size, swapchain)?;
 
         Ok(())
     }

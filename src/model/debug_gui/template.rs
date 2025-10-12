@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use octa_force::egui;
 
-use crate::{model::composer::{build::BS, dependency_tree::DependencyTree, template::{ComposeTemplate, ComposeTemplateValue, TemplateIndex, TemplateNode}}, util::{number::Nu, vector::Ve}};
+use crate::{model::composer::{build::BS, dependency_tree::{DependencyPath, DependencyTree}, template::{ComposeTemplate, ComposeTemplateValue, TemplateIndex, TemplateNode}}, util::{number::Nu, vector::Ve}};
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3, T, B> { 
     pub fn debug_render(&self, ui: &mut egui::Ui) {
@@ -10,13 +10,17 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
             return;
         }
 
-        self.node(ui, 0, &DependencyTree::default());
+        self.node(ui, 0, &mut 0);
     }
 
-    fn node(&self, ui: &mut egui::Ui, index: TemplateIndex, dependency_tree: &DependencyTree) {
+    fn node(&self, ui: &mut egui::Ui, index: TemplateIndex, node_counter: &mut usize) {
         let node = &self.nodes[index];
+        (*node_counter) += 1;
 
-        ui.collapsing(format!("Node: {:?}", node.node_id), |ui| {
+        egui::CollapsingHeader::new(format!("Node: {:?}", index))
+            .id_salt(format!("template node: {node_counter}"))
+            .show(ui, |ui| {
+
             ui.label(format!("Value: {}", match &node.value {
                 ComposeTemplateValue::NumberSpace(space) => format!("Number Space: {:#?}",space),
                 ComposeTemplateValue::PositionSpace2D(space) => format!("Position Space 2D: {:#?}",space),
@@ -30,35 +34,51 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
             if !node.creates.is_empty() {
                 ui.strong("Creates:");
                 for creates in node.creates.iter() {
-                    let child = &self.nodes[creates.to_create];
-                    ui.label(format!("{:?}", child.node_id));
+                    self.node(ui, creates.to_create, node_counter);
+
+                    ui.label(format!("Own Ammount Type: {:#?}", creates.own_ammount_type));
+
+                    if !creates.other_ammounts.is_empty() {
+                        ui.strong("Other Ammounts:");
+                        for other in creates.other_ammounts.iter() {
+                            self.node(ui, other.other_parent, node_counter);
+
+                            ui.label(format!("Ammount Type: {:#?}", other.t));
+                        }
+                    }
                 }
             }
 
             if !node.depends.is_empty() {
                 ui.strong("Depends:");
                 for i in node.depends.iter() {
-                    let child = &self.nodes[*i];
-                    ui.label(format!("{:?}", child.node_id));
+                    self.node(ui, *i, node_counter);
                 }
             }
  
-            if !dependency_tree.steps.is_empty() {
+            if !node.dependecy_tree.steps.is_empty() {
                 ui.strong("Dependency Tree:");
-                self.relative_path(dependency_tree, node, ui, 0);
-            }  
+                self.dependecy_tree(&node.dependecy_tree, node, ui, 0);
+            } 
+
+            if !node.depends_loop.is_empty() {
+                ui.strong("Depends Loop:");
+                for (i, path) in node.depends_loop.iter() {
+                    self.node(ui, *i, node_counter);
+                    self.dependecy_path(path, ui, node_counter);
+                }
+            }
 
             if !node.dependend.is_empty() {
                 ui.strong("dependend is:");
                 for i in node.dependend.iter() {
-                    let child = &self.nodes[*i];
-                    ui.label(format!("{:?}", child.node_id));
+                    self.node(ui, *i, node_counter);
                 }
             }
         });
     }
 
-    fn relative_path(
+    fn dependecy_tree(
         &self, 
         tree: &DependencyTree, 
         inital_node: &TemplateNode<V2, V3, T, B>, 
@@ -77,7 +97,23 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
 
         ui.collapsing(format!("{} {:?} {}", up_text, node.node_id, leaf_text), |ui| {
             for i in step.children.iter() {
-                self.relative_path(tree, inital_node, ui, *i);
+                self.dependecy_tree(tree, inital_node, ui, *i);
+            }
+        });
+    }
+
+    fn dependecy_path(
+        &self, 
+        path: &DependencyPath,
+        ui: &mut egui::Ui,
+        node_counter: &mut usize,
+    ) {
+        ui.collapsing("Path", |ui| {
+            for step in path.steps.iter() {
+                let up_text = if step.up { "up" } else { "down" };
+                ui.label(format!("Step: {}", up_text));
+
+                self.node(ui, step.into_index, node_counter);
             }
         });
     }

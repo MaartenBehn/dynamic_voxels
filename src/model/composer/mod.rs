@@ -11,7 +11,7 @@ use std::{fs::{self, File}, io::Write, time::Duration};
 use build::{ComposeTypeTrait, BS};
 use egui_snarl::{ui::{NodeLayout, PinPlacement, SnarlStyle, SnarlWidget}, Snarl};
 use nodes::ComposeNode;
-use octa_force::{anyhow::anyhow, egui::{self, CornerRadius, Id}, OctaResult};
+use octa_force::{anyhow::anyhow, egui::{self, Align, CornerRadius, Frame, Id, Layout}, glam::{uvec2, UVec2}, log::debug, OctaResult};
 use template::ComposeTemplate;
 use viewer::ComposeViewer;
 
@@ -31,6 +31,13 @@ pub struct ModelComposer<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub template: ComposeTemplate<V2, V3, T, B>,
     pub collapser_worker: ComposeCollapseWorker<V2, V3, T, B>,
     pub collapser_reciver: CollapserChangeReciver<V2, V3, T, B>,
+
+    pub auto_rebuild: bool,
+    pub manual_rebuild: bool,
+
+    pub render_panel_changed: bool,
+    pub render_panel_size: UVec2,
+    pub render_panel_offset: UVec2,
 }
 
 const fn default_style() -> SnarlStyle {
@@ -88,11 +95,17 @@ where
             template,
             collapser_worker,
             collapser_reciver,
+            auto_rebuild: false,
+            manual_rebuild: true,
+
+            render_panel_changed: false,
+            render_panel_size: UVec2::ZERO,
+            render_panel_offset: UVec2::ZERO,
         }
     }
 
     pub fn render(&mut self, ctx: &egui::Context) {  
-        egui::TopBottomPanel::bottom("Bottom")
+        let res = egui::TopBottomPanel::bottom("Bottom")
             .default_height(500.0)
             .show(ctx, |ui| {
                 SnarlWidget::new()
@@ -101,30 +114,53 @@ where
                     .show(&mut self.snarl, &mut self.viewer, ui);
             });
 
-        egui::SidePanel::right("Right Side")
-            .default_width(500.0)
+        let max_y = res.response.rect.top();
+
+        let res = egui::SidePanel::right("Right Side")
+            .min_width(500.0)
             .show(ctx, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    egui::CollapsingHeader::new("Template:")
-                        .show(ui, |ui| {
-                            self.template.debug_render(ui);
+                egui::ScrollArea::vertical()
+                    .show(ui, |ui| {
+                        ui.set_min_width(500.0);
+
+                        div(ui, |ui| {
+                            ui.checkbox(&mut self.auto_rebuild, "Auto Rebuild");
+                            if ui.button("Rebuild").clicked() {
+                                self.manual_rebuild = true;
+                            }
                         });
 
-                    egui::CollapsingHeader::new("Collapser:")
-                        .show(ui, |ui| {
-                            self.collapser_reciver.get_collapser().debug_render(ui);
-                        });
-                });
+                        egui::CollapsingHeader::new("Template:")
+                            .show(ui, |ui| {
+                                self.template.debug_render(ui);
+                            });
+
+                        egui::CollapsingHeader::new("Collapser:")
+                            .show(ui, |ui| {
+                                self.collapser_reciver.get_collapser().debug_render(ui);
+                            });
+                    });
             });
 
+        let max_x = res.response.rect.left();
+        let new_render_panel_size = uvec2(max_x as u32, max_y as u32); 
+
+        if new_render_panel_size != self.render_panel_size {
+            self.render_panel_size = new_render_panel_size;
+            self.render_panel_changed = true;
+        }
     }
 
     pub fn update(&mut self, time: Duration) -> OctaResult<()> {
         self.viewer.update(time);
 
-        if self.viewer.changed {
+        if (self.viewer.changed && self.auto_rebuild) || self.manual_rebuild {
             self.viewer.changed = false;
+            self.manual_rebuild = false;
+
             if !self.viewer.invalid_nodes.any() {
+                debug!("Rebuilding Template");
+
                 self.template = ComposeTemplate::new(self);
                 self.collapser_worker.template_changed(self.template.clone());
             }
@@ -144,3 +180,9 @@ pub fn load_snarl<CT: ComposeTypeTrait + serde::de::DeserializeOwned>() -> OctaR
     Ok(snarl)
 }
 
+
+fn div(ui: &mut egui::Ui, add_contents: impl FnOnce(&mut egui::Ui)) {
+    Frame::none().show(ui, |ui| {
+        ui.with_layout(Layout::left_to_right(Align::TOP), add_contents);
+    });
+}
