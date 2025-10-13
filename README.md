@@ -1,12 +1,12 @@
 
 ### Run
 ```shell
-cargo run
+cargo run --profile dev-fast --features graph_builder
 ```
 
 ### Hot reload lib
 ```shell
-watchexec -e rs,glsl,comp "cargo build --profile dev-fast --lib"
+watchexec -e rs,glsl,comp "cargo build --lib --profile dev-fast --features graph_builder"
 ```
 
 ``` shell 

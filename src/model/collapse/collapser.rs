@@ -5,7 +5,7 @@ use octa_force::{anyhow::{anyhow, bail, ensure}, glam::{vec3, vec3a, IVec3, Vec3
 use slotmap::{new_key_type, Key, SlotMap};
 use crate::{model::{composer::{build::{OnCollapseArgs, BS}, template::{ComposeTemplate, ComposeTemplateValue, TemplateIndex}}}, util::{number::Nu, state_saver, vector::Ve}, volume::VolumeQureyPosValid};
 
-use super::{add_nodes::GetValueData, number_space::NumberSpace, pending_operations::{PendingOperations, PendingOperationsRes}, position_space::PositionSpace};
+use super::{add_nodes::{GetNewChildrenData, GetValueData}, number_space::NumberSpace, pending_operations::{PendingOperations, PendingOperationsRes}, position_space::PositionSpace};
 
 new_key_type! { pub struct CollapseNodeKey; }
 new_key_type! { pub struct CollapseChildKey; }
@@ -188,6 +188,25 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         }
     }
 
+    pub fn get_new_children(&self, index: CollapseNodeKey) -> impl Iterator<Item = CollapseChildKey> {
+        let node = self.nodes.get(index)
+            .expect("New Children Node not found");
+
+        let keys = match &node.data {
+            NodeDataType::NumberSet(number_space) => {
+                todo!()
+            },
+            NodeDataType::PositionSpace2D(position_space) => position_space.get_new_children(),
+            NodeDataType::PositionSpace3D(position_space) => position_space.get_new_children(),
+            NodeDataType::Build(_) 
+            | NodeDataType::None 
+                => panic!("Called get new children on node that has no children"),
+        };
+
+        keys.iter()
+            .copied()
+    }
+
     pub fn get_number(&self, index: Option<CollapseNodeKey>) -> (T, bool) {
         if index.is_none() {
             return (T::ZERO, true);
@@ -204,7 +223,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         (v, false)
     }
 
-pub fn get_position<V: Ve<T, D>, const D: usize>(&self, parent_index: CollapseNodeKey, child_index: CollapseChildKey) -> (V, bool) {
+    pub fn get_position<V: Ve<T, D>, const D: usize>(&self, parent_index: CollapseNodeKey, child_index: CollapseChildKey) -> (V, bool) {
         let parent = &self.nodes[parent_index];
        
         let v = match D {
@@ -267,8 +286,32 @@ pub fn get_position<V: Ve<T, D>, const D: usize>(&self, parent_index: CollapseNo
 
         (Either::Right(set), false)
     }
+
+    pub fn get_dependend_new_children(
+        &self, 
+        template_index: TemplateIndex,
+        get_data: GetNewChildrenData,
+    ) -> (impl Iterator<Item = CollapseChildKey>, bool) {
+        if get_data.defined_by_template_index == template_index {
+            return (Either::Left(self.get_new_children(get_data.defined_by)), false);
+        }
+
+        let res = get_data.depends.iter()
+            .find(|(i, _)| *i == template_index);
+
+        if res.is_none() {
+            return (Either::Right(Either::Left(iter::empty())), true);
+        }
+        let (_, keys) = res.unwrap();
+
+        (Either::Right(Either::Right(
+            keys.iter()
+            .map(|key| self.get_new_children(*key))
+            .flatten())), 
+            false)
+    }
  
-    fn get_dependend_index(
+    fn get_dependend_index_value_data(
         &self, 
         template_index: TemplateIndex,
         get_value_data: GetValueData,
@@ -287,13 +330,13 @@ pub fn get_position<V: Ve<T, D>, const D: usize>(&self, parent_index: CollapseNo
             Some(keys[0])
         }
     }
-
+  
     pub fn get_dependend_number(
         &self, 
         template_index: TemplateIndex,
         get_value_data: GetValueData,
     ) -> (T, bool) { 
-        self.get_number(self.get_dependend_index(template_index, get_value_data))
+        self.get_number(self.get_dependend_index_value_data(template_index, get_value_data))
     }
 
     pub fn get_dependend_position_set<V: Ve<T, D>, const D: usize>(
@@ -301,7 +344,7 @@ pub fn get_position<V: Ve<T, D>, const D: usize>(&self, parent_index: CollapseNo
         template_index: TemplateIndex,
         get_value_data: GetValueData,
     ) -> (impl Iterator<Item = V>, bool) { 
-        self.get_position_set(self.get_dependend_index(template_index, get_value_data))
+        self.get_position_set(self.get_dependend_index_value_data(template_index, get_value_data))
     }
  
     pub fn get_dependend_position<V: Ve<T, D>, const D: usize>(
@@ -309,7 +352,7 @@ pub fn get_position<V: Ve<T, D>, const D: usize>(&self, parent_index: CollapseNo
         template_index: TemplateIndex,
         get_value_data: GetValueData,
     ) -> (V, bool) { 
-        let index = self.get_dependend_index(template_index, get_value_data);
+        let index = self.get_dependend_index_value_data(template_index, get_value_data);
         
         if index.is_none() {
             return (V::ZERO, true);

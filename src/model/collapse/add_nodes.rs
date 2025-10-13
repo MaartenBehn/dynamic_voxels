@@ -4,7 +4,7 @@ use octa_force::{anyhow::{anyhow, bail}, glam::Vec3, log::{debug, info}, OctaRes
 use slotmap::Key;
 use tree64::Node;
 
-use crate::{model::{collapse::collapser::CollapseNode, composer::{build::BS, dependency_tree::DependencyPath, template::{AmmountType, ComposeTemplate, ComposeTemplateValue, TemplateIndex}}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::collapser::CollapseNode, composer::{build::BS, dependency_tree::DependencyPath, template::{AmmountType, ComposeTemplate, ComposeTemplateValue, Creates, TemplateIndex}}}, util::{number::Nu, vector::Ve}};
 
 use super::{collapser::{CollapseChildKey, CollapseNodeKey, Collapser, UpdateDefinesOperation, NodeDataType}, number_space::NumberSpace, position_space::PositionSpace};
 
@@ -15,6 +15,13 @@ pub struct GetValueData<'a> {
     pub child_index: CollapseChildKey,
     pub depends: &'a [(TemplateIndex, Vec<CollapseNodeKey>)],
     pub depends_loop: &'a [(TemplateIndex, DependencyPath)],
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct GetNewChildrenData<'a> {
+    pub defined_by_template_index: TemplateIndex,
+    pub defined_by: CollapseNodeKey,
+    pub depends: &'a [(TemplateIndex, Vec<CollapseNodeKey>)],
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B> {
@@ -47,8 +54,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         template: &ComposeTemplate<V2, V3, T, B>,
         state: &mut B
     ) {
-        dbg!(&opperation);
-
         match opperation {
             UpdateDefinesOperation::One { template_index, parent_index } => {
                 self.update_defined_one(template_index, parent_index, template, state).await;
@@ -100,13 +105,27 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
     ) {
         let parent_node = &self.nodes[parent_index];
         let parent_template_node = &template.nodes[parent_node.template_index];
-        let creates = &parent_template_node.creates[creates_index];
-         
-        let to_create_children= match &parent_node.data {
-            NodeDataType::PositionSpace2D(d) => d.get_new_children(),
-            NodeDataType::PositionSpace3D(d) => d.get_new_children(),
-            _ => panic!("Template Node {:?} is not of Type Position Space Set", parent_node.template_index)
+        let creates: &Creates<V2, V3, T> = &parent_template_node.creates[creates_index];
+        let template_node = &template.nodes[template_index];
+
+        let depends = self.get_depends(
+            parent_index,    
+            template,
+            parent_template_node,
+            template_node);
+
+        let get_value_data = GetNewChildrenData {
+            defined_by: parent_index,
+            defined_by_template_index: parent_node.template_index,
+            depends: &depends,
         };
+         
+        let to_create_children = match creates.own_ammount_type {
+            AmmountType::PerPosition(set) => {
+                set.get_new_children(get_value_data, &self)
+            },
+            AmmountType::One => unreachable!(),
+        }
 
         let to_remove_children = parent_node.children.iter()
             .find(|(template_index, _)| *template_index == creates.to_create)
@@ -128,7 +147,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
         if !to_create_children.is_empty() {
             
-            let template_node = &template.nodes[template_index];
             let depends = self.get_depends(
                 parent_index,    
                 template,
