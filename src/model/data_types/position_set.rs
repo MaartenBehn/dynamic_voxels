@@ -3,7 +3,7 @@ use itertools::{Either, Itertools};
 use octa_force::glam::{ivec2, IVec2, IVec3, Vec2, Vec3A};
 use smallvec::SmallVec;
 
-use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::{GetNewChildrenData, GetValueData}, collapser::{CollapseChildKey, Collapser}}, composer::{build::BS, nodes::ComposeNodeType, template::{ComposeTemplate, MakeTemplateData, TemplateIndex}, ModelComposer}}, util::{math_config::MC, number::Nu, vector::Ve}};
+use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::{GetNewChildrenData, GetValueData}, collapser::{CollapseChildKey, CollapseNodeKey, Collapser}}, composer::{build::BS, nodes::ComposeNodeType, template::{ComposeTemplate, MakeTemplateData, TemplateIndex}, ModelComposer}}, util::{math_config::MC, number::Nu, vector::Ve}};
 
 use crate::util::vector;
 use crate::util::math_config;
@@ -75,18 +75,18 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> PositionSetTemplate<V2, V3, T> {
         }
     }
 
-    pub fn get_new_children<V: Ve<T, D>, B: BS<V2, V3, T>, const D: usize>(
+    pub fn get_new_children<B: BS<V2, V3, T>>(
         &self, 
         get_data: GetNewChildrenData,
         collapser: &Collapser<V2, V3, T, B>
-    ) -> (impl Iterator<Item = CollapseChildKey>, bool) {
+    ) -> (impl Iterator<Item = (CollapseNodeKey, CollapseChildKey)>, bool) {
         match self {
             PositionSetTemplate::Hook(hook) => {
                 let (keys, r) = collapser.get_dependend_new_children(hook.template_index, get_data);
                 (Either::Left(keys), r)
             },
             PositionSetTemplate::T2Dto3D(template) => {
-                let (keys, r) = template.p2d.get_new_children::<V2, B, 2>(get_data, collapser);
+                let (keys, r) = template.p2d.get_new_children::<B>(get_data, collapser);
 
                 // To break type recursion.
                 // Hopefully this gets optimized away.

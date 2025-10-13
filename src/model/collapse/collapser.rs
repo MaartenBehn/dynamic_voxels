@@ -23,7 +23,7 @@ pub struct CollapseNode<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub children: Vec<(TemplateIndex, Vec<CollapseNodeKey>)>, 
     pub depends: Vec<(TemplateIndex, Vec<CollapseNodeKey>)>,
     pub defined_by: CollapseNodeKey,
-    pub child_key: CollapseChildKey,
+    pub child_keys: Vec<(CollapseNodeKey, CollapseChildKey)>,
     pub data: NodeDataType<V2, V3, T, B>,
     pub next_reset: CollapseNodeKey,
 }
@@ -99,7 +99,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
         let get_value_data = GetValueData { 
             defined_by: node.defined_by, 
-            child_index: node.child_key, 
+            child_index: node.child_keys, 
             depends: &node.depends, 
             depends_loop: &template_node.depends_loop,
             index: node_index,
@@ -188,7 +188,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         }
     }
 
-    pub fn get_new_children(&self, index: CollapseNodeKey) -> impl Iterator<Item = CollapseChildKey> {
+    pub fn get_new_children(&self, index: CollapseNodeKey) -> impl Iterator<Item = (CollapseNodeKey, CollapseChildKey)> {
         let node = self.nodes.get(index)
             .expect("New Children Node not found");
 
@@ -204,7 +204,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         };
 
         keys.iter()
-            .copied()
+            .map(|k| (index, *k))
     }
 
     pub fn get_number(&self, index: Option<CollapseNodeKey>) -> (T, bool) {
@@ -291,7 +291,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         &self, 
         template_index: TemplateIndex,
         get_data: GetNewChildrenData,
-    ) -> (impl Iterator<Item = CollapseChildKey>, bool) {
+    ) -> (impl Iterator<Item = (CollapseNodeKey, CollapseChildKey)>, bool) {
         if get_data.defined_by_template_index == template_index {
             return (Either::Left(self.get_new_children(get_data.defined_by)), false);
         }

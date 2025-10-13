@@ -1,5 +1,6 @@
 use std::{hint::unreachable_unchecked, iter};
 
+use itertools::Itertools;
 use octa_force::{anyhow::{anyhow, bail}, glam::Vec3, log::{debug, info}, OctaResult};
 use slotmap::Key;
 use tree64::Node;
@@ -114,18 +115,37 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             parent_template_node,
             template_node);
 
-        let get_value_data = GetNewChildrenData {
+        let get_data = GetNewChildrenData {
             defined_by: parent_index,
             defined_by_template_index: parent_node.template_index,
             depends: &depends,
         };
          
-        let to_create_children = match creates.own_ammount_type {
+        let mut to_create_children_list = vec![];
+        let (own_to_create_children, mut needs_recreation) = match &creates.own_ammount_type {
             AmmountType::PerPosition(set) => {
-                set.get_new_children(get_value_data, &self)
+                set.get_new_children(get_data, &self)
             },
             AmmountType::One => unreachable!(),
+        };
+        to_create_children_list.push(own_to_create_children.collect_vec());
+        
+        for other_ammount in creates.other_ammounts.iter() {
+            let (other_to_create_children, other_needs_recteation) = match &other_ammount.t {
+                AmmountType::PerPosition(set) => {
+                    set.get_new_children(get_data, &self)
+                },
+                AmmountType::One => unreachable!(),
+            };
+            to_create_children_list.push(other_to_create_children.collect_vec());
+
+
+            needs_recreation |= other_needs_recteation;
         }
+
+        assert!(needs_recreation == false, "loop cutting on ammount paths is not supported");
+
+        let to_create_children = to_create_children_list.into_iter().multi_cartesian_product();
 
         let to_remove_children = parent_node.children.iter()
             .find(|(template_index, _)| *template_index == creates.to_create)
@@ -135,8 +155,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             .map(|key| (*key, &self.nodes[*key]) )
             .filter(|(_, child)| {
                 match &parent_node.data {
-                    NodeDataType::PositionSpace2D(d) => !d.is_child_valid(child.child_key),
-                    NodeDataType::PositionSpace3D(d) => !d.is_child_valid(child.child_key),
+                    NodeDataType::PositionSpace2D(d) => !d.is_child_valid(child.child_keys),
+                    NodeDataType::PositionSpace3D(d) => !d.is_child_valid(child.child_keys),
 
                     // Safety: Enum gets checked by to_create_children 
                     _ => unsafe { unreachable_unchecked() }
@@ -145,24 +165,15 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             .map(|(key, _)| key )
             .collect::<Vec<_>>();
 
-        if !to_create_children.is_empty() {
-            
-            let depends = self.get_depends(
-                parent_index,    
-                template,
-                parent_template_node,
-                template_node);
-
-            for new_child in to_create_children.to_owned() {
-                self.add_node(
-                    creates.to_create, 
-                    depends.clone(), 
-                    parent_index, 
-                    new_child, 
-                    template, 
-                    state,
-                ).await; 
-            }
+        for new_children in to_create_children.to_owned() {
+            self.add_node(
+                creates.to_create, 
+                depends.clone(), 
+                parent_index, 
+                new_children, 
+                template, 
+                state,
+            ).await; 
         }
 
         for child_index in to_remove_children {
@@ -176,7 +187,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         new_node_template_index: TemplateIndex, 
         depends: Vec<(TemplateIndex, Vec<CollapseNodeKey>)>, 
         defined_by: CollapseNodeKey,
-        child_key: CollapseChildKey,
+        child_keys: Vec<(CollapseNodeKey, CollapseChildKey)>,
         template: &ComposeTemplate<V2, V3, T, B>,
         state: &mut B,
     ) {
@@ -198,7 +209,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             defined_by,
             data,
             next_reset: CollapseNodeKey::null(),
-            child_key,
+            child_keys,
         });
 
         for (_, dependend) in depends.iter() {
