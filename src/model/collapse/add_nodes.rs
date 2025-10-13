@@ -13,7 +13,7 @@ use super::{collapser::{CollapseChildKey, CollapseNodeKey, Collapser, UpdateDefi
 pub struct GetValueData<'a> {
     pub defined_by: CollapseNodeKey,
     pub index: CollapseNodeKey,
-    pub child_index: CollapseChildKey,
+    pub child_indexs: &'a [(CollapseNodeKey, CollapseChildKey)],
     pub depends: &'a [(TemplateIndex, Vec<CollapseNodeKey>)],
     pub depends_loop: &'a [(TemplateIndex, DependencyPath)],
 }
@@ -90,7 +90,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             template_index, 
             depends, 
             parent_index, 
-            CollapseChildKey::null(), 
+            vec![], 
             template, 
             state,
         ).await;    
@@ -154,14 +154,27 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             .iter()
             .map(|key| (*key, &self.nodes[*key]) )
             .filter(|(_, child)| {
-                match &parent_node.data {
-                    NodeDataType::PositionSpace2D(d) => !d.is_child_valid(child.child_keys),
-                    NodeDataType::PositionSpace3D(d) => !d.is_child_valid(child.child_keys),
 
-                    // Safety: Enum gets checked by to_create_children 
-                    _ => unsafe { unreachable_unchecked() }
-                }
-            })
+                child.child_keys.iter()
+                    .enumerate()
+                    .all(|(i, (index, child_key))| {
+
+                        // child_keys should have allways the same order as the ammount_types in
+                        // creates
+                        let ammount_type = if i == 0 {
+                            &creates.own_ammount_type
+                        } else {
+                            &creates.other_ammounts[i - 1].t
+                        };
+                        
+                        match ammount_type {
+                            AmmountType::PerPosition(set) => {
+                                set.is_child_valid(*index, *child_key, &self)
+                            },
+                            AmmountType::One => unreachable!(),
+                        }
+                    })
+                })
             .map(|(key, _)| key )
             .collect::<Vec<_>>();
 

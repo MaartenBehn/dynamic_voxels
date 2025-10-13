@@ -98,6 +98,22 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> PositionSetTemplate<V2, V3, T> {
         }
     }
 
+    pub fn is_child_valid<B: BS<V2, V3, T>>(
+        &self, 
+        index: CollapseNodeKey,
+        child_index: CollapseChildKey,
+        collapser: &Collapser<V2, V3, T, B>
+    ) -> bool {
+        match self {
+            PositionSetTemplate::Hook(hook) => {
+                collapser.is_child_valid(index, child_index)
+            },
+            PositionSetTemplate::T2Dto3D(template) => {
+                template.p2d.is_child_valid::<B>(index, child_index, collapser)
+            },
+        }
+    }
+
     pub fn get_value<V: Ve<T, D>, B: BS<V2, V3, T>, const D: usize>(
         &self, 
         get_value_data: GetValueData,

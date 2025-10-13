@@ -69,7 +69,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             0, 
             vec![], 
             CollapseNodeKey::null(), 
-            CollapseChildKey::null(), 
+            vec![], 
             template,
             state).await;
 
@@ -99,7 +99,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
         let get_value_data = GetValueData { 
             defined_by: node.defined_by, 
-            child_index: node.child_keys, 
+            child_indexs: &node.child_keys, 
             depends: &node.depends, 
             depends_loop: &template_node.depends_loop,
             index: node_index,
@@ -204,7 +204,25 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         };
 
         keys.iter()
-            .map(|k| (index, *k))
+            .map(move |k| (index, *k))
+    }
+
+    pub fn is_child_valid(
+        &self, 
+        index: CollapseNodeKey,
+        child_index: CollapseChildKey,
+    ) -> bool {
+        let node = self.nodes.get(index)
+            .expect("Is Child Valid Node not found");
+
+        match &node.data {
+            NodeDataType::PositionSpace2D(position_space) => position_space.is_child_valid(child_index),
+            NodeDataType::PositionSpace3D(position_space) => position_space.is_child_valid(child_index),
+            NodeDataType::NumberSet(_)
+            | NodeDataType::Build(_) 
+            | NodeDataType::None 
+                => panic!("Called is child valid on node that has no children"),
+        }
     }
 
     pub fn get_number(&self, index: Option<CollapseNodeKey>) -> (T, bool) {
@@ -330,7 +348,20 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             Some(keys[0])
         }
     }
-  
+
+    fn get_child_index(
+        &self, 
+        index: CollapseNodeKey,
+        get_value_data: GetValueData,
+    ) -> CollapseChildKey {
+        let (_, ci) = get_value_data.child_indexs.iter()
+            .find(|(i, _)| *i == index) 
+            .expect("Could not find child index");
+
+        *ci
+    }
+
+      
     pub fn get_dependend_number(
         &self, 
         template_index: TemplateIndex,
@@ -357,8 +388,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         if index.is_none() {
             return (V::ZERO, true);
         }
+        let index = index.unwrap();
+        let child_index = self.get_child_index(index, get_value_data);
 
-        self.get_position(index.unwrap(), get_value_data.child_index)
+        self.get_position(index, child_index)
     }
 
     pub fn get_root_key(&self) -> CollapseNodeKey {
