@@ -5,7 +5,7 @@ use octa_force::{anyhow::{anyhow, bail}, glam::Vec3, log::{debug, info}, OctaRes
 use slotmap::Key;
 use tree64::Node;
 
-use crate::{model::{collapse::collapser::CollapseNode, composer::{build::BS, dependency_tree::DependencyPath, template::{AmmountType, ComposeTemplate, ComposeTemplateValue, Creates, TemplateIndex}}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::collapser::CollapseNode, composer::{build::BS, dependency_tree::DependencyPath, template::{ComposeTemplate, ComposeTemplateValue, Creates, CreatesType, TemplateIndex}}}, util::{number::Nu, vector::Ve}};
 
 use super::{collapser::{CollapseChildKey, CollapseNodeKey, Collapser, UpdateDefinesOperation, NodeDataType}, number_space::NumberSpace, position_space::PositionSpace};
 
@@ -33,12 +33,12 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         for (i, creates) in template_node.creates.iter().enumerate() {
             let new_template_node = &template.nodes[creates.to_create];
            
-            let operation = match &creates.own_ammount_type {
-                AmmountType::One => UpdateDefinesOperation::One { 
+            let operation = match &creates.t {
+                CreatesType::One => UpdateDefinesOperation::One { 
                     template_index: creates.to_create,
                     parent_index: node_index, 
                 },
-                AmmountType::PerPosition(_) => UpdateDefinesOperation::Creates { 
+                CreatesType::Children => UpdateDefinesOperation::Creates { 
                     template_index: creates.to_create,
                     parent_index: node_index, 
                     creates_index: i, 
@@ -106,7 +106,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
     ) {
         let parent_node = &self.nodes[parent_index];
         let parent_template_node = &template.nodes[parent_node.template_index];
-        let creates: &Creates<V2, V3, T> = &parent_template_node.creates[creates_index];
+        let creates: &Creates = &parent_template_node.creates[creates_index];
         let template_node = &template.nodes[template_index];
 
         let depends = self.get_depends(
@@ -114,36 +114,16 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             template,
             parent_template_node,
             template_node);
-
-        let get_data = GetNewChildrenData {
-            defined_by: parent_index,
-            defined_by_template_index: parent_node.template_index,
-            depends: &depends,
-        };
          
         let mut to_create_children_list = vec![];
-        let (own_to_create_children, mut needs_recreation) = match &creates.own_ammount_type {
-            AmmountType::PerPosition(set) => {
-                set.get_new_children(get_data, &self)
-            },
-            AmmountType::One => unreachable!(),
-        };
+        let own_to_create_children= self.get_new_children(parent_index); 
         to_create_children_list.push(own_to_create_children.collect_vec());
         
-        for other_ammount in creates.other_ammounts.iter() {
-            let (other_to_create_children, other_needs_recteation) = match &other_ammount.t {
-                AmmountType::PerPosition(set) => {
-                    set.get_new_children(get_data, &self)
-                },
-                AmmountType::One => unreachable!(),
-            };
+        for other_template_index in creates.others.iter() {
+            let other_to_create_children = self.get_dependend_new_children(
+                *other_template_index, &depends);
             to_create_children_list.push(other_to_create_children.collect_vec());
-
-
-            needs_recreation |= other_needs_recteation;
         }
-
-        assert!(needs_recreation == false, "loop cutting on ammount paths is not supported");
 
         let to_create_children = to_create_children_list.into_iter().multi_cartesian_product();
 
@@ -157,23 +137,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
                 child.child_keys.iter()
                     .enumerate()
-                    .all(|(i, (index, child_key))| {
-
-                        // child_keys should have allways the same order as the ammount_types in
-                        // creates
-                        let ammount_type = if i == 0 {
-                            &creates.own_ammount_type
-                        } else {
-                            &creates.other_ammounts[i - 1].t
-                        };
-                        
-                        match ammount_type {
-                            AmmountType::PerPosition(set) => {
-                                set.is_child_valid(*index, *child_key, &self)
-                            },
-                            AmmountType::One => unreachable!(),
-                        }
-                    })
+                    .all(|(i, (index, child_key))| 
+                        self.is_child_valid(*index, *child_key))
                 })
             .map(|(key, _)| key )
             .collect::<Vec<_>>();

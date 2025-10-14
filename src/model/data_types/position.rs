@@ -4,7 +4,7 @@ use egui_snarl::InPinId;
 use itertools::{Either, Itertools};
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::{ComposeNode, ComposeNodeType}, template::{AmmountType, ComposeTemplate, MakeTemplateData, TemplateIndex}, ModelComposer}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::{ComposeNode, ComposeNodeType}, template::{ComposeTemplate, MakeTemplateData, TemplateIndex}, ModelComposer}}, util::{number::Nu, vector::Ve}};
 
 use super::{data_type::ComposeDataType, number::{Hook, NumberTemplate}, position_set::PositionSetTemplate};
 
@@ -91,7 +91,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
                     let set = self.make_position_set(
                         self.get_input_remote_pin_by_index(remote_node, 0), data);
 
-                    data.ammounts.push(AmmountType::PerPosition(set.to_owned()));
+                    data.creates.push(set.get_ammount_hook());
                     PositionTemplate::PerPosition(set)
                 }
                  

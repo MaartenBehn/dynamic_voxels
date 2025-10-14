@@ -36,14 +36,12 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                 for creates in node.creates.iter() {
                     self.node(ui, creates.to_create, node_counter);
 
-                    ui.label(format!("Own Ammount Type: {:#?}", creates.own_ammount_type));
+                    ui.label(format!("Type: {:#?}", creates.t));
 
-                    if !creates.other_ammounts.is_empty() {
+                    if !creates.others.is_empty() {
                         ui.strong("Other Ammounts:");
-                        for other in creates.other_ammounts.iter() {
-                            self.node(ui, other.other_parent, node_counter);
-
-                            ui.label(format!("Ammount Type: {:#?}", other.t));
+                        for other in creates.others.iter() {
+                            self.node(ui, *other, node_counter);
                         }
                     }
                 }

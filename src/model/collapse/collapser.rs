@@ -308,25 +308,16 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
     pub fn get_dependend_new_children(
         &self, 
         template_index: TemplateIndex,
-        get_data: GetNewChildrenData,
-    ) -> (impl Iterator<Item = (CollapseNodeKey, CollapseChildKey)>, bool) {
-        if get_data.defined_by_template_index == template_index {
-            return (Either::Left(self.get_new_children(get_data.defined_by)), false);
-        }
+        depends: &[(TemplateIndex, Vec<CollapseNodeKey>)],
+    ) -> impl Iterator<Item = (CollapseNodeKey, CollapseChildKey)> {
 
-        let res = get_data.depends.iter()
-            .find(|(i, _)| *i == template_index);
+        let (_, keys) = depends.iter()
+            .find(|(i, _)| *i == template_index)
+            .expect("New Child node not in depends");
 
-        if res.is_none() {
-            return (Either::Right(Either::Left(iter::empty())), true);
-        }
-        let (_, keys) = res.unwrap();
-
-        (Either::Right(Either::Right(
-            keys.iter()
+        keys.iter()
             .map(|key| self.get_new_children(*key))
-            .flatten())), 
-            false)
+            .flatten()
     }
  
     fn get_dependend_index_value_data(

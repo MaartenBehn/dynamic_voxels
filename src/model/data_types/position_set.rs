@@ -75,45 +75,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> PositionSetTemplate<V2, V3, T> {
         }
     }
 
-    pub fn get_new_children<B: BS<V2, V3, T>>(
-        &self, 
-        get_data: GetNewChildrenData,
-        collapser: &Collapser<V2, V3, T, B>
-    ) -> (impl Iterator<Item = (CollapseNodeKey, CollapseChildKey)>, bool) {
-        match self {
-            PositionSetTemplate::Hook(hook) => {
-                let (keys, r) = collapser.get_dependend_new_children(hook.template_index, get_data);
-                (Either::Left(keys), r)
-            },
-            PositionSetTemplate::T2Dto3D(template) => {
-                let (keys, r) = template.p2d.get_new_children::<B>(get_data, collapser);
-
-                // To break type recursion.
-                // Hopefully this gets optimized away.
-                let keys = keys.collect_vec();
-                let keys = keys.into_iter();
-
-                (Either::Right(keys), r)
-            },
-        }
-    }
-
-    pub fn is_child_valid<B: BS<V2, V3, T>>(
-        &self, 
-        index: CollapseNodeKey,
-        child_index: CollapseChildKey,
-        collapser: &Collapser<V2, V3, T, B>
-    ) -> bool {
-        match self {
-            PositionSetTemplate::Hook(hook) => {
-                collapser.is_child_valid(index, child_index)
-            },
-            PositionSetTemplate::T2Dto3D(template) => {
-                template.p2d.is_child_valid::<B>(index, child_index, collapser)
-            },
-        }
-    }
-
     pub fn get_value<V: Ve<T, D>, B: BS<V2, V3, T>, const D: usize>(
         &self, 
         get_value_data: GetValueData,
