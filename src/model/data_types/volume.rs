@@ -2,7 +2,7 @@ use egui_snarl::OutPinId;
 use itertools::Itertools;
 use smallvec::SmallVec;
 
-use crate::{csg::{csg_tree::tree::CSGTree, Base}, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::ComposeNodeType, template::{ComposeTemplate, MakeTemplateData, TemplateIndex}, ModelComposer}}, util::{number::Nu, vector::Ve}};
+use crate::{csg::{csg_tree::tree::CSGTree, Base}, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::ComposeNodeType, template::{ComposeTemplate, MakeTemplateData, TemplateIndex}, ModelComposer}}, util::{iter_merger::IM5, number::Nu, vector::Ve}};
 
 use super::{data_type::ComposeDataType, number::NumberTemplate, position::PositionTemplate, position_set::PositionSetTemplate};
 
@@ -175,45 +175,69 @@ impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> VolumeTempl
                 let (pos, r_0) = pos.get_value(get_value_data, collapser);
                 let (size, r_1) = size.get_value(get_value_data, collapser);
 
-                (CSGTree::new_sphere(
-                pos, 
-                size, 
-                mat), r_0 || r_1)
+                let csg = pos.into_iter().cartesian_product(size)
+                    .map(|(pos, size)| {
+                        CSGTree::new_sphere(
+                            pos, 
+                            size, 
+                            mat)
+                    })
+                    .fold(CSGTree::default(), |mut a, b| {
+                        a.union_at_root(&b.nodes, b.root);
+                        a
+                    });
+
+                (csg, r_0 || r_1)
             },
             VolumeTemplateData::Box { pos, size } => {
                 let (pos, r_0) = pos.get_value(get_value_data, collapser);
                 let (size, r_1) = size.get_value(get_value_data, collapser);
-
-                (CSGTree::new_box(
-                pos, 
-                size, 
-                mat), r_0 || r_1)
+                
+                let csg = pos.into_iter().cartesian_product(size)
+                    .map(|(pos, size)| {
+                        CSGTree::new_box(
+                            pos, 
+                            size, 
+                            mat)
+                    })
+                    .fold(CSGTree::default(), |mut a, b| {
+                        a.union_at_root(&b.nodes, b.root);
+                        a
+                    });                
+                (csg, r_0 || r_1)
             },
             VolumeTemplateData::Union { a, b } => {
                 let (mut a, r_0) = self.get_value_inner(*a, get_value_data, collapser, mat);
                 let (b, r_1) = self.get_value_inner(*b, get_value_data, collapser, mat);
+
                 a.union_at_root(&b.nodes, b.root);
+
                 (a, r_0 || r_1)
             },
             VolumeTemplateData::Cut { base, cut } => {
-                let (mut base, r_0) = self.get_value_inner(*base, get_value_data, collapser, mat);
-                let (cut, r_1) = self.get_value_inner(*cut, get_value_data, collapser, mat);
-                base.cut_at_root(&cut.nodes, cut.root);
-                (base, r_0 || r_1)
+                let (mut a, r_0) = self.get_value_inner(*base, get_value_data, collapser, mat);
+                let (b, r_1) = self.get_value_inner(*cut, get_value_data, collapser, mat);
+                
+                a.cut_at_root(&b.nodes, b.root);
+
+                (a, r_0 || r_1)
             },
             VolumeTemplateData::SphereUnion { position_set, size } => {
 
                 let (radius, r_0) = size.get_value(get_value_data, collapser);
-                let radius = radius.to_f32();
-
-                let mut csg = CSGTree::default();
                 let (set, r_1) = position_set.get_value::<V, B, D>(get_value_data, collapser);
+                
+                let mut csg = CSGTree::default();
 
+                let radius = radius.into_iter().map(|r| r.to_f32()).collect::<SmallVec<[_; 1]>>();
                 for pos in set {
                     let pos = pos.to_vecf();
-                    csg.union_sphere(pos, radius, mat);
-                }
 
+                    for radius in radius.iter() {
+                        csg.union_sphere(pos, *radius, mat);
+                    }
+                }
+               
                 (csg, r_0 || r_1)
             },
         }

@@ -6,7 +6,7 @@ use octa_force::{anyhow::bail, glam::{Mat4, Vec3, Vec3A}, OctaResult};
 use slotmap::{new_key_type, SecondaryMap, SlotMap};
 use smallvec::SmallVec;
 
-use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::ComposeNodeType, template::{ComposeTemplate, MakeTemplateData, TemplateIndex}, ModelComposer}, data_types::data_type::ComposeDataType}, util::{aabb::AABB, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
+use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::ComposeNodeType, template::{ComposeTemplate, MakeTemplateData, TemplateIndex}, ModelComposer}, data_types::data_type::ComposeDataType}, util::{aabb::AABB, iter_merger::IM3, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
 
 use super::{number::NumberTemplate, position::PositionTemplate, volume::VolumeTemplate};
 
@@ -116,42 +116,53 @@ impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> PositionSpa
         &self,
         get_value_data: GetValueData,
         collapser: &Collapser<V2, V3, T, B>
-    ) -> (impl Iterator<Item = V>, bool) {
+    ) -> (Vec<V>, bool) {
         match &self {
             PositionSpaceTemplate::Grid(template)  => {
                 let (mut volume, r_0) = template.volume.get_value(get_value_data, collapser, ());
-                volume.calculate_bounds();
                 let (spacing, r_1) = template.spacing.get_value(get_value_data, collapser);
-                let pos_iter = volume.get_grid_positions(spacing);
-
-                (Either::Left(Either::Left(pos_iter)), r_0 || r_1 )
+                
+                volume.calculate_bounds();
+                let mut points = vec![];
+                
+                for spacing in spacing {
+                    points.extend(volume.get_grid_positions(spacing))
+                }
+                
+                (points, r_0 || r_1 )
             },
             PositionSpaceTemplate::LeafSpread(template) => {
                 let (mut volume, r_0) = template.volume.get_value(get_value_data, collapser, ());
-                volume.calculate_bounds();
                 let (samples, r_1) = template.samples.get_value(get_value_data, collapser);
 
+                volume.calculate_bounds();
                 let aabb = volume.get_bounds();
-
                 let min: V::VectorF = AABB::min(&aabb).to_vecf();
                 let size: V::VectorF = aabb.size().to_vecf();
+                
+                let mut points = vec![];
+                
+                for samples in samples {
 
-                let samples = samples.to_usize();
-                let tries = samples * LEAF_SPREAD_MAX_SAMPLES_MULTIPLYER;
+                    let samples = samples.to_usize();
+                    let tries = samples * LEAF_SPREAD_MAX_SAMPLES_MULTIPLYER;
 
-                let mut seq = quasi_rd::Sequence::new(D);
-                let mut fi = iter::from_fn(move || Some(seq.next_f32()));
+                    let mut seq = quasi_rd::Sequence::new(D);
+                    let mut fi = iter::from_fn(move || Some(seq.next_f32()));
 
-                let pos_iter = iter::from_fn(move || {
-                    let vf = V::VectorF::from_iter(&mut fi);
-                    let v = V::from_vecf(vf * size + min); 
-                    Some(v)
-                })
-                    .take(tries)
-                    .filter(move |v| volume.is_position_valid(*v))
-                    .take(samples);
+                    let pos_iter = iter::from_fn(move || {
+                        let vf = V::VectorF::from_iter(&mut fi);
+                        let v = V::from_vecf(vf * size + min); 
+                        Some(v)
+                    })
+                        .take(tries)
+                        .filter(|v| volume.is_position_valid(*v))
+                        .take(samples);
 
-                (Either::Left(Either::Right(pos_iter)), r_0 || r_1 )
+                    points.extend(pos_iter);
+                }
+ 
+                (points, r_0 || r_1 )
             },
             PositionSpaceTemplate::Path(template) => {
                 let (spacing, r_0) = template.spacing.get_value(get_value_data, collapser); 
@@ -159,36 +170,45 @@ impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> PositionSpa
                 let (start, r_2) = template.start.get_value(get_value_data, collapser); 
                 let (end, r_3) = template.end.get_value(get_value_data, collapser);
 
-                let end: V::VectorF = end.to_vecf();
-                let side_variance: V::VectorF = side_variance.to_vecf();
-                let spacing = spacing.to_f32();
+                let points = spacing.into_iter()
+                    .cartesian_product(side_variance)
+                    .cartesian_product(start)
+                    .cartesian_product(end)
+                    .map(|(((spacing, side_variance), start), end)| {
 
-                let mut current: V::VectorF = start.to_vecf();
+                        let end: V::VectorF = end.to_vecf();
+                        let side_variance: V::VectorF = side_variance.to_vecf();
+                        let spacing = spacing.to_f32();
 
-                let delta: V::VectorF = end - current;
-                let steps = (delta.length() / spacing) as usize;
-                let tries = steps * PATH_MAX_SAMPLES_MULTIPLYER;
+                        let mut current: V::VectorF = start.to_vecf();
 
-                let pos_iter = iter::once(start).chain(
-                    iter::successors(Some((current)), move |current| {
-                        let delta: V::VectorF = end - *current;
-                        let length = delta.length();
+                        let delta: V::VectorF = end - current;
+                        let steps = (delta.length() / spacing) as usize;
+                        let tries = steps * PATH_MAX_SAMPLES_MULTIPLYER;
 
-                        if length < spacing {
-                            return None;
-                        }
+                        iter::once(start).chain(
+                            iter::successors(Some((current)), move |current| {
+                                let delta: V::VectorF = end - *current;
+                                let length = delta.length();
 
-                        let r = V::VectorF::from_iter(&mut iter::from_fn(|| Some(fastrand::f32()))) * 2.0 - 1.0;
-                        let side = r * side_variance * length;
-                        let dir = (delta + side).normalize();
-                        let pos = *current + dir * spacing;
+                                if length < spacing {
+                                    return None;
+                                }
 
-                        Some(pos)
+                                let r = V::VectorF::from_iter(&mut iter::from_fn(|| Some(fastrand::f32()))) * 2.0 - 1.0;
+                                let side = r * side_variance * length;
+                                let dir = (delta + side).normalize();
+                                let pos = *current + dir * spacing;
+
+                                Some(pos)
+                            })
+                                .map(|v| V::from_vecf(v))
+                        )
                     })
-                    .map(|v| V::from_vecf(v))
-                );
+                    .flatten()
+                    .collect_vec();
 
-                (Either::Right(pos_iter), r_0 || r_1 || r_2 || r_3)
+                (points, r_0 || r_1 || r_2 || r_3)
             } 
         }
     }

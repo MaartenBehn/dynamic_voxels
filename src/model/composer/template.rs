@@ -205,12 +205,20 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                     others: creates,
                 });
             } else {
-                depends.push(0);
-                template.nodes[0].creates.push(Creates {
-                    to_create: i,
-                    t: CreatesType::One,
-                    others: smallvec![],
-                });
+                if depends.is_empty() {
+                    depends.push(0);
+                    template.nodes[0].creates.push(Creates {
+                        to_create: i,
+                        t: CreatesType::One,
+                        others: smallvec![],
+                    });
+                } else {
+                    template.nodes[depends[0]].creates.push(Creates {
+                        to_create: i,
+                        t: CreatesType::One,
+                        others: smallvec![],
+                    });
+                }
             }
             
             let node =  &mut template.nodes[i]; 

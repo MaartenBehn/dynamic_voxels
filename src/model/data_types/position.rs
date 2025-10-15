@@ -4,7 +4,7 @@ use egui_snarl::InPinId;
 use itertools::{Either, Itertools};
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::{ComposeNode, ComposeNodeType}, template::{ComposeTemplate, MakeTemplateData, TemplateIndex}, ModelComposer}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::{ComposeNode, ComposeNodeType}, template::{ComposeTemplate, MakeTemplateData, TemplateIndex}, ModelComposer}}, util::{iter_merger::IM3, number::Nu, vector::Ve}};
 
 use super::{data_type::ComposeDataType, number::{Hook, NumberTemplate}, position_set::PositionSetTemplate};
 
@@ -108,22 +108,31 @@ impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> PositionTem
         &self,
         get_value_data: GetValueData,
         collapser: &Collapser<V2, V3, T, B>
-    ) -> (V, bool) {
+    ) -> (SmallVec<[V; 1]>, bool) {
 
         match self {
-            PositionTemplate::Const(v) => (*v, false),
+            PositionTemplate::Const(v) => (smallvec::smallvec![*v], false),
             PositionTemplate::FromNumbers(n) => {
-                let mut numbers = [T::ZERO; D];
                 let mut r_final = false;
-                for i in 0..D {
-                    let (n, r) = n[i].get_value(get_value_data, collapser);
-                    r_final |= r;
+                
+                let n = n
+                    .into_iter()
+                    .map(|n| {
+                        let (i, r) = n.get_value(get_value_data, collapser);
 
-                    numbers[i] = n;
-                }
-                (V::new(numbers), r_final)
+                        r_final |= r;
+                        i
+                    })
+                    .multi_cartesian_product()
+                    .map(|n| V::from_iter(&mut n.into_iter()));
+                
+                (n.collect(), r_final)
             },
-            PositionTemplate::PerPosition(set) => set.get_child_value(get_value_data, collapser),
+            PositionTemplate::PerPosition(set) => {
+                let (p, r) = set.get_child_value(get_value_data, collapser);
+
+                (p, r)
+            },
         }
     }
 

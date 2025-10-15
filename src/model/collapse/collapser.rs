@@ -2,6 +2,7 @@ use std::{collections::{HashMap, VecDeque}, fmt::{Debug, Octal}, iter, marker::P
 
 use itertools::{Either, Itertools};
 use octa_force::{anyhow::{anyhow, bail, ensure}, glam::{vec3, vec3a, IVec3, Vec3, Vec3Swizzles}, log::{debug, error, info}, vulkan::ash::vk::OpaqueCaptureDescriptorDataCreateInfoEXT, OctaResult};
+use rayon::iter::IntoParallelIterator;
 use slotmap::{new_key_type, Key, SlotMap};
 use crate::{model::{composer::{build::{OnCollapseArgs, BS}, template::{ComposeTemplate, ComposeTemplateValue, TemplateIndex}}}, util::{number::Nu, state_saver, vector::Ve}, volume::VolumeQureyPosValid};
 
@@ -108,12 +109,15 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         let needs_recompute = match &template_node.value {
             ComposeTemplateValue::None => false,
             ComposeTemplateValue::NumberSpace(space) => {
-                let (new_val, r) = space.get_value(get_value_data, &self);
+                let (mut new_val, r) = space.get_value(get_value_data, &self);
+                let new_val = new_val.next().unwrap(); 
  
                 let data = match &mut self.nodes[node_index].data {
                     NodeDataType::NumberSet(space) => space,
                     _ => unreachable!()
                 };
+
+                // TODO random select
                 data.update(new_val); 
 
                 r
@@ -121,7 +125,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
             ComposeTemplateValue::PositionSpace2D(space) => {
                 let (new_positions, r) = space.get_value(get_value_data, &self);
-                let new_positions = new_positions.collect_vec();
 
                 let data = match &mut self.nodes[node_index].data {
                     NodeDataType::PositionSpace2D(space) => space,
@@ -134,7 +137,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
             ComposeTemplateValue::PositionSpace3D(space) => {
                 let (new_positions, r) = space.get_value(get_value_data, &self);
-                let new_positions = new_positions.collect_vec();
 
                 let data = match &mut self.nodes[node_index].data {
                     NodeDataType::PositionSpace3D(space) => space,
@@ -225,26 +227,22 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         }
     }
 
-    pub fn get_number(&self, index: Option<CollapseNodeKey>) -> (T, bool) {
-        if index.is_none() {
-            return (T::ZERO, true);
-        }
-
-        let node = self.nodes.get(index.unwrap())
+    pub fn get_number(&self, index: CollapseNodeKey) -> T {
+        let node = self.nodes.get(index)
             .expect("Number Set by index not found");
-        
+
         let v = match &node.data {
             NodeDataType::NumberSet(d) => d.value,
             _ => panic!("Template Node {:?} is not of Type Number Space", node.template_index)
         };
 
-        (v, false)
+        v
     }
 
-    pub fn get_position<V: Ve<T, D>, const D: usize>(&self, parent_index: CollapseNodeKey, child_index: CollapseChildKey) -> (V, bool) {
+    pub fn get_position<V: Ve<T, D>, const D: usize>(&self, parent_index: CollapseNodeKey, child_index: CollapseChildKey) -> V {
         let parent = &self.nodes[parent_index];
        
-        let v = match D {
+        match D {
             2 => {
                 let v = match &parent.data {
                     NodeDataType::PositionSpace2D(d) => d.get_position(child_index),
@@ -264,19 +262,13 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
                 unsafe { VUnion{ a: v }.b }
             }
             _ => unreachable!()
-        };
-
-        (v, false)
+        }
     }
 
-    pub fn get_position_set<V: Ve<T, D>, const D: usize>(&self, index: Option<CollapseNodeKey>) -> (impl Iterator<Item = V>, bool) {
-        if index.is_none() {
-            return (Either::Left(iter::empty()), true);
-        }
-
-        let node = &self.nodes[index.unwrap()];
+    pub fn get_position_set<V: Ve<T, D>, const D: usize>(&self, index: CollapseNodeKey) -> impl Iterator<Item = V> {
+        let node = &self.nodes[index];
        
-        let set = match D {
+        match D {
             2 => {
                 let i = match &node.data {
                     NodeDataType::PositionSpace2D(d) => d.get_positions(),
@@ -300,9 +292,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
                 }))
             }
             _ => unreachable!()
-        };
-
-        (Either::Right(set), false)
+        }
     }
 
     pub fn get_dependend_new_children(
@@ -324,20 +314,18 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         &self, 
         template_index: TemplateIndex,
         get_value_data: GetValueData,
-    ) -> Option<CollapseNodeKey> {
+    ) -> (impl Iterator<Item = CollapseNodeKey>, bool) {
         if let Some((_, keys)) = get_value_data.depends.iter().find(|(i, _)| *i == template_index) {
-            return Some(keys[0]);
+            return (Either::Left(Either::Left(keys.iter().copied())), false);
         }
 
-        let (_, loop_path) = get_value_data.depends_loop.iter().find(|(i, _)| *i == template_index)
-            .expect(&format!("{template_index} must be in depends or depends_loop"));
-
-        let keys = self.get_depends_from_loop_path(get_value_data, loop_path);
-        if keys.is_empty() {
-            None
+        if let Some((_, loop_path)) = get_value_data.depends_loop.iter().find(|(i, _)| *i == template_index) {
+            let keys = self.get_depends_from_loop_path(get_value_data, loop_path);
+            (Either::Left(Either::Right(keys.into_iter())), false)
         } else {
-            Some(keys[0])
+            (Either::Right(iter::empty()), true)
         }
+
     }
 
     fn get_child_index(
@@ -357,8 +345,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         &self, 
         template_index: TemplateIndex,
         get_value_data: GetValueData,
-    ) -> (T, bool) { 
-        self.get_number(self.get_dependend_index_value_data(template_index, get_value_data))
+    ) -> (impl Iterator<Item = T>, bool) {
+        let (iter, r) = self.get_dependend_index_value_data(template_index, get_value_data);
+        (iter.map(|i| self.get_number(i)), r)
     }
 
     pub fn get_dependend_position_set<V: Ve<T, D>, const D: usize>(
@@ -366,23 +355,23 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         template_index: TemplateIndex,
         get_value_data: GetValueData,
     ) -> (impl Iterator<Item = V>, bool) { 
-        self.get_position_set(self.get_dependend_index_value_data(template_index, get_value_data))
+        let (iter, r) = self.get_dependend_index_value_data(template_index, get_value_data);
+        (iter.map(|i| self.get_position_set(i)).flatten(), r)
     }
  
     pub fn get_dependend_position<V: Ve<T, D>, const D: usize>(
         &self, 
         template_index: TemplateIndex,
         get_value_data: GetValueData,
-    ) -> (V, bool) { 
-        let index = self.get_dependend_index_value_data(template_index, get_value_data);
+    ) -> (impl Iterator<Item = V>, bool) { 
+        let (iter, r) = self.get_dependend_index_value_data(template_index, get_value_data);
         
-        if index.is_none() {
-            return (V::ZERO, true);
-        }
-        let index = index.unwrap();
-        let child_index = self.get_child_index(index, get_value_data);
+        (iter.map(move |i| {
+            let child_index = self.get_child_index(i, get_value_data);
+            self.get_position(i, child_index)
+            }), r)
 
-        self.get_position(index, child_index)
+        
     }
 
     pub fn get_root_key(&self) -> CollapseNodeKey {

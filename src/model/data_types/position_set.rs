@@ -3,7 +3,7 @@ use itertools::{Either, Itertools};
 use octa_force::glam::{ivec2, IVec2, IVec3, Vec2, Vec3A};
 use smallvec::SmallVec;
 
-use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::{GetNewChildrenData, GetValueData}, collapser::{CollapseChildKey, CollapseNodeKey, Collapser}}, composer::{build::BS, nodes::ComposeNodeType, template::{ComposeTemplate, MakeTemplateData, TemplateIndex}, ModelComposer}}, util::{math_config::MC, number::Nu, vector::Ve}};
+use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::{GetNewChildrenData, GetValueData}, collapser::{CollapseChildKey, CollapseNodeKey, Collapser}}, composer::{build::BS, nodes::ComposeNodeType, template::{ComposeTemplate, MakeTemplateData, TemplateIndex}, ModelComposer}}, util::{iter_merger::IM2, math_config::MC, number::Nu, vector::Ve}};
 
 use crate::util::vector;
 use crate::util::math_config;
@@ -83,25 +83,25 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> PositionSetTemplate<V2, V3, T> {
         match self {
             PositionSetTemplate::Hook(hook) => {
                 let (set, r) = collapser.get_dependend_position_set(hook.template_index, get_value_data);
-                (Either::Left(set), r)
+                (IM2::A(set), r)
             },
             PositionSetTemplate::T2Dto3D(template) => {
                 assert_eq!(3, D);
 
                 let (z, r_0) = template.z.get_value(get_value_data, collapser);
-                let (points, r_1) = template.p2d.get_value::<V2, B, 2>(get_value_data, collapser);
+                let (v, r_1) = template.p2d.get_value::<V2, B, 2>(get_value_data, collapser);
+                let v = v.collect_vec();
 
-                // TODO fix allocation
-                let points = points.map(move |v| {
+                let v = v.into_iter().cartesian_product(z)
+                    .map(|(v, z)| {
                         let arr = v.to_array();
-                        
                         // Safety: D is 3
                         let a = [arr[0], arr[1], z];
                         let b = unsafe { ArrayUnion { a }.b };
                         V::new(b)
-                    }).collect_vec();
+                    });
 
-                (Either::Right(points.into_iter()), r_0 || r_1)
+                (IM2::B(v), r_0 || r_1)
             },
         }
     }
@@ -110,26 +110,30 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> PositionSetTemplate<V2, V3, T> {
         &self, 
         get_value_data: GetValueData,
         collapser: &Collapser<V2, V3, T, B>
-    ) -> (V, bool) {
+    ) -> (SmallVec<[V; 1]>, bool) {
         match self {
             PositionSetTemplate::Hook(hook) => {
                 let (v, r) = collapser.get_dependend_position(hook.template_index, get_value_data);
-                (v, r)
+                (v.collect(), r)
             },
             PositionSetTemplate::T2Dto3D(template) => {
                 assert_eq!(3, D);
 
                 let (z, r_0) = template.z.get_value(get_value_data, collapser);
                 let (v, r_1) = template.p2d.get_child_value::<V2, B, 2>(get_value_data, collapser);
-                let arr = v.to_array();
 
-                // Safety: D is 3
-                let a = [arr[0], arr[1], z];
-                let b = unsafe { ArrayUnion { a }.b };
+                let v = v.into_iter().cartesian_product(z)
+                    .map(|(v, z)| {
+                        let arr = v.to_array();
 
-                let v = V::new(b);
+                        // Safety: D is 3
+                        let a = [arr[0], arr[1], z];
+                        let b = unsafe { ArrayUnion { a }.b };
 
-                (v, r_0 || r_1)
+                        V::new(b)
+                    });
+                
+                (v.collect(), r_0 || r_1)
             },
         }
     }

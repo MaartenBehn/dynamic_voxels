@@ -1,4 +1,7 @@
+use std::iter;
+
 use egui_snarl::OutPinId;
+use itertools::Itertools;
 use octa_force::{log::debug, OctaResult};
 use smallvec::SmallVec;
 
@@ -39,16 +42,22 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> NumberSpaceTemplate<V2, V3, T> {
         &self,
         get_value_data: GetValueData,
         collapser: &Collapser<V2, V3, T, B>
-    ) -> (T, bool) {
+    ) -> (impl Iterator<Item = T> + use<B, V2, V3, T>, bool) {
         match &self {
             NumberSpaceTemplate::NumberRange { min, max, step } => {
                 let (min, r_0) = min.get_value(get_value_data, collapser);
                 let (max, r_1) = max.get_value(get_value_data, collapser);
                 let (step, r_2) = step.get_value(get_value_data, collapser);
 
-                let options = ((max - min) / step).to_usize();
-                let i = fastrand::usize(0..options);
-                let v = min + step * T::from_usize(i);
+                let v = min.into_iter()
+                    .cartesian_product(max)
+                    .cartesian_product(step)
+                    .map(|((min, max), step)| {
+                        let options = ((max - min) / step).to_usize();
+                        let i = fastrand::usize(0..options);
+                        let v = min + step * T::from_usize(i);
+                        v
+                    });
 
                 (v, r_0 || r_1 || r_2)
             },

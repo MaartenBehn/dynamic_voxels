@@ -1,9 +1,11 @@
+use std::iter;
+
 use egui_snarl::InPinId;
 use itertools::Itertools;
 use octa_force::log::debug;
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::{ComposeNode, ComposeNodeType}, template::{ComposeTemplate, MakeTemplateData, TemplateIndex}, ModelComposer}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::{ComposeNode, ComposeNodeType}, template::{ComposeTemplate, MakeTemplateData, TemplateIndex}, ModelComposer}}, util::{iter_merger::IM4, number::Nu, vector::Ve}};
 
 use super::{data_type::ComposeDataType, position::PositionTemplate};
 
@@ -78,23 +80,32 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
     }
 }
 
+
+
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> NumberTemplate<V2, V3, T> {
     pub fn get_value<B: BS<V2, V3, T>>(
         &self, 
         get_value_data: GetValueData,
         collapser: &Collapser<V2, V3, T, B>
-    ) -> (T, bool) {
+    ) -> (SmallVec<[T; 1]>, bool) {
 
         match self {
-            NumberTemplate::Const(v) => (*v, false),
-            NumberTemplate::Hook(hook) => collapser.get_dependend_number(hook.template_index, get_value_data),
+            NumberTemplate::Const(v) => (smallvec::smallvec![*v], false),
+            NumberTemplate::Hook(hook) => {
+                let (i, r) = collapser.get_dependend_number(hook.template_index, get_value_data); 
+                (i.collect(), r)
+            }
             NumberTemplate::SplitPosition2D((position_template, i)) => {
                 let (v, r) = position_template.get_value(get_value_data, collapser);
-                (v[*i], r)
+                let v = v.into_iter().map(|v| v[*i]);
+
+                (v.collect(), r)
             },
             NumberTemplate::SplitPosition3D((position_template, i)) => {
                 let (v, r) = position_template.get_value(get_value_data, collapser);
-                (v[*i], r)
+                let v = v.into_iter().map(|v| v[*i]);
+
+                (v.collect(), r)
             },
         }
     }
@@ -114,4 +125,5 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> NumberTemplate<V2, V3, T> {
         }
     }
 }
+
 
