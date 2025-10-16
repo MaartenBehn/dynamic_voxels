@@ -11,9 +11,9 @@ use std::{fs::{self, File}, io::Write, time::Duration};
 use build::{ComposeTypeTrait, BS};
 use egui_snarl::{ui::{NodeLayout, PinPlacement, SnarlStyle, SnarlWidget}, Snarl};
 use nodes::ComposeNode;
-use octa_force::{anyhow::anyhow, egui::{self, Align, CornerRadius, Frame, Id, Layout, Margin}, glam::{uvec2, UVec2}, log::{debug, info, warn}, OctaResult};
+use octa_force::{anyhow::anyhow, egui::{self, Align, CornerRadius, Frame, Id, Layout, Margin}, glam::{uvec2, UVec2, Vec2}, log::{debug, info, warn}, OctaResult};
 use template::ComposeTemplate;
-use viewer::ComposeViewer;
+use viewer::{style, ComposeViewer};
 
 use crate::util::{number::Nu, vector::Ve};
 
@@ -39,36 +39,7 @@ pub struct ModelComposer<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub render_panel_offset: UVec2,
 }
 
-const fn default_style() -> SnarlStyle {
-    SnarlStyle {
-        node_layout: Some(NodeLayout::coil()),
-        pin_placement: Some(PinPlacement::Edge),
-        pin_size: Some(10.0),
-        collapsible: Some(false),
-        node_frame: Some(egui::Frame {
-            inner_margin: egui::Margin::same(8),
-            outer_margin: egui::Margin {
-                left: 0,
-                right: 0,
-                top: 0,
-                bottom: 4,
-            },
-            corner_radius: CornerRadius::same(8),
-            fill: egui::Color32::from_gray(30),
-            stroke: egui::Stroke::NONE,
-            shadow: egui::Shadow::NONE,
-        }),
-        bg_frame: Some(egui::Frame {
-            inner_margin: egui::Margin::ZERO,
-            outer_margin: egui::Margin::same(2),
-            corner_radius: CornerRadius::ZERO,
-            fill: egui::Color32::from_gray(40),
-            stroke: egui::Stroke::NONE,
-            shadow: egui::Shadow::NONE,
-        }),
-        ..SnarlStyle::new()
-    }
-}
+
 
 impl<V2, V3, T, B> ModelComposer<V2, V3, T, B> 
 where 
@@ -80,7 +51,7 @@ where
 {
     pub fn new(state: B) -> Self {
         let mut snarl = load_snarl().unwrap_or(Snarl::new());       
-        let style = default_style();
+        let style = style();
         let mut viewer = ComposeViewer::new();
         let template = ComposeTemplate::empty();
         let (collapser_worker, collapser_reciver) = ComposeCollapseWorker::new(template.clone(), state);
@@ -113,7 +84,8 @@ where
                     .show(&mut self.snarl, &mut self.viewer, ui);
             });
 
-        let max_y = res.response.rect.top();
+        let split_y = res.response.rect.top();
+        self.viewer.offset = Vec2::new(0.0, split_y as f32);
 
         let res = egui::SidePanel::right("Right Side")
             .min_width(500.0)
@@ -142,7 +114,7 @@ where
             });
 
         let max_x = res.response.rect.left();
-        let new_render_panel_size = uvec2(max_x as u32, max_y as u32); 
+        let new_render_panel_size = uvec2(max_x as u32, split_y as u32); 
 
         if new_render_panel_size != self.render_panel_size {
             self.render_panel_size = new_render_panel_size;

@@ -1,36 +1,91 @@
 use std::{marker::PhantomData, time::Duration};
 
 use bitvec::vec::BitVec;
-use egui_snarl::{ui::{AnyPins, PinInfo, SnarlViewer}, InPin, InPinId, NodeId, OutPin, OutPinId, Snarl};
+use egui_snarl::{ui::{AnyPins, NodeLayout, PinInfo, PinPlacement, SnarlStyle, SnarlViewer}, InPin, InPinId, NodeId, OutPin, OutPinId, Snarl};
 use itertools::Itertools;
-use octa_force::{egui::{self, Color32, DragValue, Ui}, glam::{IVec2, IVec3, Vec2, Vec3A}};
+use octa_force::{egui::{self, Color32, CornerRadius, DragValue, Pos2, Ui}, glam::{IVec2, IVec3, Vec2, Vec3A}};
 
 use crate::{model::data_types::data_type::ComposeDataType, util::{number::Nu, vector::Ve}};
 
-use super::{build::{ComposeTypeTrait, BS}, nodes::{get_node_templates, ComposeNode, ComposeNodeInput, ComposeNodeOutput, ComposeNodeType}, pin::{ComposePin}};
+use super::{build::{ComposeTypeTrait, BS}, nodes::{get_node_templates, ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeOutput, ComposeNodeType}, pin::ComposePin};
 
 const NOT_VALID_ANIMATION_TIME: f32 = 1.5;
 
 #[derive(Debug)]
 pub struct ComposeViewer<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub node_templates: Vec<ComposeNode<B::ComposeType>>,
+    pub groupe_templates: Vec<Vec<ComposeNode<B::ComposeType>>>,
     pub invalid_nodes: BitVec,
     pub not_valid_scale: f32,
     pub changed: bool,
+    pub offset: Vec2,
+    pub hovered_menue_groupe: Option<ComposeNodeGroupe>,
     p0: PhantomData<V2>,
     p1: PhantomData<V3>,
     p2: PhantomData<T>,
+}
+
+pub const fn style() -> SnarlStyle {
+    SnarlStyle {
+        node_layout: Some(NodeLayout::coil()),
+        pin_placement: Some(PinPlacement::Edge),
+        pin_size: Some(10.0),
+        collapsible: Some(false),
+        node_frame: Some(egui::Frame {
+            inner_margin: egui::Margin::same(8),
+            outer_margin: egui::Margin {
+                left: 0,
+                right: 0,
+                top: 0,
+                bottom: 4,
+            },
+            corner_radius: CornerRadius::same(8),
+            fill: egui::Color32::from_gray(30),
+            stroke: egui::Stroke::NONE,
+            shadow: egui::Shadow::NONE,
+        }),
+        bg_frame: Some(egui::Frame {
+            inner_margin: egui::Margin::ZERO,
+            outer_margin: egui::Margin::same(2),
+            corner_radius: CornerRadius::ZERO,
+            fill: egui::Color32::from_gray(40),
+            stroke: egui::Stroke::NONE,
+            shadow: egui::Shadow::NONE,
+        }),
+        centering: Some(true),
+        crisp_magnified_text: Some(true),
+        ..SnarlStyle::new()
+    }
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeViewer<V2, V3, T, B> {
     pub fn new() -> Self {
         let mut node_templates = get_node_templates();
         node_templates.append(&mut B::compose_nodes());
+        
+        let mut groupe_templates: Vec<Vec<ComposeNode<B::ComposeType>>> = vec![];
+        for node in node_templates.iter() {
+            let group = groupe_templates.iter_mut()
+                .find(|g|  g[0].group == node.group);
+
+            let group = if group.is_none() {
+                groupe_templates.push(vec![]);
+                groupe_templates.last_mut().unwrap()
+            } else {
+                group.unwrap()
+            };
+
+            group.push(node.clone());
+        }
+
         Self { 
             node_templates,
+            groupe_templates,
             invalid_nodes: BitVec::new(),
             not_valid_scale: 0.0,
             changed: true,
+            offset: Vec2::default(),
+            hovered_menue_groupe: None,
             p0: Default::default(),
             p1: Default::default(),
             p2: Default::default(),
@@ -165,23 +220,42 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<ComposeNod
         }
     }
 
-    fn has_graph_menu(&mut self, _pos: egui::Pos2, _snarl: &mut Snarl<ComposeNode<B::ComposeType>>) -> bool {
+    fn has_graph_menu(&mut self, pos: egui::Pos2, _snarl: &mut Snarl<ComposeNode<B::ComposeType>>) -> bool {
         true
     }
 
     fn show_graph_menu(&mut self, pos: egui::Pos2, ui: &mut Ui, snarl: &mut Snarl<ComposeNode<B::ComposeType>>) {
+
         ui.label("Add node");
-        for node in self.node_templates.iter() {
-            if ui.button(node.title()).clicked() {
-                ui.close();
-                
-                let new_node = snarl.insert_node(pos, node.to_owned());
-                snarl.get_node_mut(new_node).unwrap().id = new_node;
+        for group in self.groupe_templates.iter() {
+            let group_type = group[0].group;
+           
+            let res = egui::CollapsingHeader::new(format!("{:?}", &group_type))
+                .open(Some(self.hovered_menue_groupe == Some(group_type)))
+                .show(ui, |ui| {
+                    for node in group {
+                        if ui.button(node.title()).clicked() {
+                            ui.close();
+
+                            let new_node = snarl.insert_node(pos, node.to_owned());
+                            snarl.get_node_mut(new_node).unwrap().id = new_node;
+                            return Some(new_node);
+                        }
+                    }
+                    return None;
+                });
+
+            if res.header_response.hovered() || (!res.body_response.is_none() && res.body_response.unwrap().hovered()) {
+                self.hovered_menue_groupe = Some(group_type);
+            }
+
+            if let Some(Some(new_node)) = res.body_returned {
                 self.update_node_valid(new_node, snarl);
                 self.changed = true;
                 return;
             }
         }    
+
     }
 
     fn has_dropped_wire_menu(&mut self, _src_pins: AnyPins, _snarl: &mut Snarl<ComposeNode<B::ComposeType>>) -> bool {

@@ -6,7 +6,7 @@ use crate::{model::data_types::data_type::ComposeDataType, util::{number::Nu, ve
 use super::build::ComposeTypeTrait;
 
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub enum ComposeNodeGroupe {
     Const,
 
