@@ -1,4 +1,3 @@
-pub mod ammount;
 pub mod data_type;
 pub mod number;
 pub mod number_space;

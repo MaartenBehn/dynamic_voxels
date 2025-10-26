@@ -1,7 +1,7 @@
 use octa_force::{anyhow::{self, ensure, anyhow}, log::info, OctaResult};
 use slotmap::Key;
 
-use crate::{model::{collapse::collapser::NodeDataType, composer::{build::{OnDeleteArgs, BS}, template::ComposeTemplate}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::collapser::NodeDataType, composer::build::{OnDeleteArgs, BS}, template::ComposeTemplate}, util::{number::Nu, vector::Ve}};
 
 use super::collapser::{CollapseNodeKey, Collapser};
 

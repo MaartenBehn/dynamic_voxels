@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use octa_force::egui;
 
-use crate::{model::composer::{build::BS, dependency_tree::{DependencyPath, DependencyTree}, template::{ComposeTemplate, ComposeTemplateValue, TemplateIndex, TemplateNode}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{composer::build::BS, template::{dependency_tree::{DependencyPath, DependencyTree}, nodes::TemplateNode, value::ComposeTemplateValue, ComposeTemplate, TemplateIndex}}, util::{number::Nu, vector::Ve}};
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3, T, B> { 
     pub fn debug_render(&self, ui: &mut egui::Ui) {

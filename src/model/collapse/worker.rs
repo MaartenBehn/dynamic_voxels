@@ -1,6 +1,6 @@
 use octa_force::{anyhow::Context, camera::Camera, log::{debug, error, trace}, OctaResult};
 
-use crate::{model::composer::{build::BS, template::ComposeTemplate}, scene::worker::SceneWorkerSend, util::{number::Nu, vector::Ve}, voxel::palette::shared::SharedPalette};
+use crate::{model::{composer::build::BS, template::ComposeTemplate}, scene::worker::SceneWorkerSend, util::{number::Nu, vector::Ve}, voxel::palette::shared::SharedPalette};
 
 use super::collapser::Collapser;
 

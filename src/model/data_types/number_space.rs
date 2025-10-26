@@ -5,16 +5,18 @@ use itertools::Itertools;
 use octa_force::{log::debug, OctaResult};
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::ComposeNodeType, template::{ComposeTemplate, MakeTemplateData, TemplateIndex}, ModelComposer}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::ComposeNodeType, ModelComposer}, template::{update::MakeTemplateData, value::ComposeTemplateValue}}, util::{number::Nu, vector::Ve}};
 
 use super::number::NumberTemplate;
 
-#[derive(Debug, Clone)]
-pub enum NumberSpaceTemplate<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
+pub type ValueIndexNumberSpace = usize;
+
+#[derive(Debug, Clone, Copy)]
+pub enum NumberSpaceTemplate {
     NumberRange {
-        min: NumberTemplate<V2, V3, T>,
-        max: NumberTemplate<V2, V3, T>,
-        step: NumberTemplate<V2, V3, T>,
+        min: ValueIndexNumberSpace,
+        max: ValueIndexNumberSpace,
+        step: ValueIndexNumberSpace,
     }
 }
 
@@ -23,9 +25,14 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
         &self, 
         pin: OutPinId, 
         data: &mut MakeTemplateData<V2, V3, T, B>,
-    ) -> NumberSpaceTemplate<V2, V3, T> {
+    ) -> ValueIndexNumberSpace {
+        let value_index = pin.node.0;
+        if data.template.has_value(value_index) {
+            return value_index;   
+        } 
+
         let node = self.snarl.get_node(pin.node).expect("Node of remote not found");
-        match &node.t {
+        let value = match &node.t {
             ComposeNodeType::NumberRange => {
                 let min = self.make_number(node, 0, data);
                 let max = self.make_number(node, 1, data);
@@ -33,11 +40,14 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
                 NumberSpaceTemplate::NumberRange { min, max, step }
             },
             _ => unreachable!(),
-        }
+        };
+
+        data.template.set_value(value_index, ComposeTemplateValue::NumberSpace(value));
+        return value_index;
     }
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> NumberSpaceTemplate<V2, V3, T> { 
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> NumberSpaceTemplate { 
     pub fn get_value<B: BS<V2, V3, T>>(
         &self,
         get_value_data: GetValueData,

@@ -1,7 +1,5 @@
 pub mod nodes;
 pub mod viewer;
-pub mod template;
-pub mod dependency_tree;
 pub mod build;
 pub mod validate;
 pub mod pin;
@@ -12,12 +10,11 @@ use build::{ComposeTypeTrait, BS};
 use egui_snarl::{ui::{NodeLayout, PinPlacement, SnarlStyle, SnarlWidget}, Snarl};
 use nodes::ComposeNode;
 use octa_force::{anyhow::anyhow, egui::{self, Align, CornerRadius, Frame, Id, Layout, Margin}, glam::{uvec2, UVec2, Vec2}, log::{debug, info, warn}, OctaResult};
-use template::ComposeTemplate;
 use viewer::{style, ComposeViewer};
 
 use crate::util::{number::Nu, vector::Ve};
 
-use super::collapse::worker::{CollapserChangeReciver, ComposeCollapseWorker};
+use super::{collapse::worker::{CollapserChangeReciver, ComposeCollapseWorker}, template::ComposeTemplate};
 
 const TEMP_SAVE_FILE: &str = "./composer_temp_save.json";
 

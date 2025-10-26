@@ -4,7 +4,7 @@ use itertools::{Either, Itertools};
 use octa_force::{anyhow::bail, glam::{IVec3, Mat4, Vec3, Vec3A}, log::warn, OctaResult};
 use slotmap::{new_key_type, SecondaryMap, SlotMap};
 
-use crate::{csg::csg_tree::tree::CSGTree, model::{composer::{build::BS, template::TemplateIndex}, data_types::{number_space::NumberSpaceTemplate, position_space::PositionSpaceTemplate}}, util::{aabb::AABB, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
+use crate::{csg::csg_tree::tree::CSGTree, model::{composer::{build::BS}, data_types::{number_space::NumberSpaceTemplate, position_space::PositionSpaceTemplate}}, util::{aabb::AABB, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
 
 use super::{add_nodes::GetValueData, collapser::{CollapseChildKey, CollapseNodeKey, Collapser}};
 

@@ -4,7 +4,7 @@ use itertools::{Either, Itertools};
 use octa_force::{anyhow::{anyhow, bail, ensure}, glam::{vec3, vec3a, IVec3, Vec3, Vec3Swizzles}, log::{debug, error, info}, vulkan::ash::vk::OpaqueCaptureDescriptorDataCreateInfoEXT, OctaResult};
 use rayon::iter::IntoParallelIterator;
 use slotmap::{new_key_type, Key, SlotMap};
-use crate::{model::{composer::{build::{OnCollapseArgs, BS}, template::{ComposeTemplate, ComposeTemplateValue, TemplateIndex}}}, util::{number::Nu, state_saver, vector::Ve}, volume::VolumeQureyPosValid};
+use crate::{model::{composer::build::{OnCollapseArgs, BS}, template::{value::ComposeTemplateValue, ComposeTemplate, TemplateIndex}}, util::{number::Nu, state_saver, vector::Ve}, volume::VolumeQureyPosValid};
 
 use super::{add_nodes::{GetNewChildrenData, GetValueData}, number_space::NumberSpace, pending_operations::{PendingOperations, PendingOperationsRes}, position_space::PositionSpace};
 

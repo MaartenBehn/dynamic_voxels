@@ -4,7 +4,7 @@ use octa_force::egui::{self, epaint::{CircleShape, PathShape, PathStroke}, Color
 
 use crate::{model::data_types::data_type::ComposeDataType, util::{number::Nu, vector::Ve}};
 
-use super::{build::BS, nodes::{ComposeNode, ComposeNodeInput, ComposeNodeOutput}, template::ComposeTemplate, viewer::ComposeViewer, ModelComposer};
+use super::{build::BS, nodes::{ComposeNode, ComposeNodeInput, ComposeNodeOutput}, viewer::ComposeViewer, ModelComposer};
 
 
 

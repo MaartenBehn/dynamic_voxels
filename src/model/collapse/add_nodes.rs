@@ -5,7 +5,7 @@ use octa_force::{anyhow::{anyhow, bail}, glam::Vec3, log::{debug, info}, OctaRes
 use slotmap::Key;
 use tree64::Node;
 
-use crate::{model::{collapse::collapser::CollapseNode, composer::{build::BS, dependency_tree::DependencyPath, template::{ComposeTemplate, ComposeTemplateValue, Creates, CreatesType, TemplateIndex}}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::collapser::CollapseNode, composer::build::BS, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::ComposeTemplateValue, ComposeTemplate, TemplateIndex}}, util::{number::Nu, vector::Ve}};
 
 use super::{collapser::{CollapseChildKey, CollapseNodeKey, Collapser, UpdateDefinesOperation, NodeDataType}, number_space::NumberSpace, position_space::PositionSpace};
 

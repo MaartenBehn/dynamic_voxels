@@ -3,23 +3,27 @@ use itertools::{Either, Itertools};
 use octa_force::glam::{ivec2, IVec2, IVec3, Vec2, Vec3A};
 use smallvec::SmallVec;
 
-use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::{GetNewChildrenData, GetValueData}, collapser::{CollapseChildKey, CollapseNodeKey, Collapser}}, composer::{build::BS, nodes::ComposeNodeType, template::{ComposeTemplate, MakeTemplateData, TemplateIndex}, ModelComposer}}, util::{iter_merger::IM2, math_config::MC, number::Nu, vector::Ve}};
+use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::{GetNewChildrenData, GetValueData}, collapser::{CollapseChildKey, CollapseNodeKey, Collapser}}, composer::{build::BS, nodes::ComposeNodeType, ModelComposer}, template::{update::MakeTemplateData, value::ComposeTemplateValue, TemplateIndex}}, util::{iter_merger::IM2, math_config::MC, number::Nu, vector::Ve}};
 
 use crate::util::vector;
 use crate::util::math_config;
 
-use super::{data_type::ComposeDataType, number::{Hook, NumberTemplate}};
+use super::{data_type::ComposeDataType, number::{Hook, NumberTemplate, ValueIndexNumber}};
 
-#[derive(Debug, Clone)]
-pub enum PositionSetTemplate<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
+pub type ValueIndexPositionSet = usize;
+pub type ValueIndexPositionSet2D = usize;
+pub type ValueIndexPositionSet3D = usize;
+
+#[derive(Debug, Clone, Copy)]
+pub enum PositionSetTemplate {
     Hook(Hook),
-    T2Dto3D(PositionSet2DTo3DTemplate<V2, V3, T>),
+    T2Dto3D(PositionSet2DTo3DTemplate),
 }
 
 #[derive(Debug, Clone)]
-pub struct PositionSet2DTo3DTemplate<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> {
-    p2d: Box<PositionSetTemplate<V2, V3, T>>,
-    z: NumberTemplate<V2, V3, T>,
+pub struct PositionSet2DTo3DTemplate {
+    p2d: ValueIndexPositionSet2D,
+    z: ValueIndexNumber,
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> {  
@@ -27,11 +31,15 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
         &self, 
         pin: OutPinId, 
         data: &mut MakeTemplateData<V2, V3, T, B>,
-    ) -> PositionSetTemplate<V2, V3, T> {
+    ) -> ValueIndexPositionSet {
+        let value_index = pin.node.0;
+        if data.template.has_value(value_index) {
+            return value_index;   
+        } 
 
         let node = self.snarl.get_node(pin.node).expect("Node of remote not found");
 
-        match &node.t {
+        let value = match &node.t {
             ComposeNodeType::TemplatePositionSet2D => {
                 let template_index = data.template.get_index_by_out_pin(pin);
                 data.depends.push(template_index);
@@ -52,13 +60,16 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
             },
             ComposeNodeType::PositionSet2DTo3D => {
                 let t2dto3d = PositionSet2DTo3DTemplate {
-                    p2d: Box::new(self.make_position_set(self.get_input_remote_pin_by_type(node, ComposeDataType::PositionSet2D), data)), 
+                    p2d: self.make_position_set(self.get_input_remote_pin_by_type(node, ComposeDataType::PositionSet2D), data), 
                     z: self.make_number(node, self.get_input_pin_index_by_type(node, ComposeDataType::Number(None)), data),                
                 };
                 PositionSetTemplate::T2Dto3D(t2dto3d)
             },
             _ => unreachable!()
-        }
+        };
+
+        data.template.set_value(value_index, ComposeTemplateValue::PositionSet(value));
+        return value_index;
     }
 } 
 

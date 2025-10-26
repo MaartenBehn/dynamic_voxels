@@ -1,24 +1,28 @@
-use std::{iter, mem::ManuallyDrop};
+use std::{iter, marker::PhantomData, mem::ManuallyDrop};
 
 use egui_snarl::InPinId;
 use itertools::{Either, Itertools};
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::{ComposeNode, ComposeNodeType}, template::{ComposeTemplate, MakeTemplateData, TemplateIndex}, ModelComposer}}, util::{iter_merger::IM3, number::Nu, vector::Ve}};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::{ComposeNode, ComposeNodeType},  ModelComposer}, template::{update::MakeTemplateData, value::ComposeTemplateValue}}, util::{iter_merger::IM3, number::Nu, vector::Ve}};
 
-use super::{data_type::ComposeDataType, number::{Hook, NumberTemplate}, position_set::PositionSetTemplate};
+use super::{data_type::ComposeDataType, number::{Hook, NumberTemplate, ValueIndexNumber}, position_set::{PositionSetTemplate, ValueIndexPositionSet}};
 
+pub type ValueIndexPosition = usize;
+pub type ValueIndexPosition2D = usize;
+pub type ValueIndexPosition3D = usize;
 
-#[derive(Debug, Clone)]
-pub enum PositionTemplate<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> {
+#[derive(Debug, Clone, Copy)]
+pub enum PositionTemplate<V: Ve<T, D>, T: Nu, const D: usize> {
     Const(V),
-    FromNumbers([NumberTemplate<V2, V3, T>; D]),
-    PerPosition(PositionSetTemplate<V2, V3, T>),
+    FromNumbers([ValueIndexNumber; D]),
+    PerPosition(ValueIndexPositionSet),
+    PhantomData(PhantomData<T>),
 }
 
-union FromNumbersUnion<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const DA: usize, const DB: usize> {
-    a: ManuallyDrop<[NumberTemplate<V2, V3, T>; DA]>,
-    b: ManuallyDrop<[NumberTemplate<V2, V3, T>; DB]>,
+union NumberArrayUnion<const DA: usize, const DB: usize> {
+    a: [ValueIndexNumber; DA],
+    b: [ValueIndexNumber; DB],
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> { 
@@ -27,7 +31,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
         original_node: &ComposeNode<B::ComposeType>, 
         in_index: usize,
         data: &mut MakeTemplateData<V2, V3, T, B>,
-    ) -> PositionTemplate<V, V2, V3, T, D> {
+    ) -> ValueIndexPosition {
 
         let remotes = self.snarl.in_pin(InPinId{ node: original_node.id, input: in_index }).remotes;
         if remotes.len() >= 2 {
@@ -35,6 +39,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
         }
 
         if remotes.is_empty() {
+            todo!();
+
             match &original_node.inputs[in_index].data_type {
                 ComposeDataType::Position2D(v) => {
                     assert_eq!(D, 2);
@@ -58,19 +64,19 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
             }
         } else {
             let pin = remotes[0];
+            let value_index = pin.node.0;
+
             let remote_node = self.snarl.get_node(pin.node).expect("Node of remote not found");
 
-            match remote_node.t {
+            let value = match remote_node.t {
                 ComposeNodeType::Position2D => {
                     assert_eq!(D, 2);
                     let x = self.make_number(remote_node, 0, data);
                     let y = self.make_number(remote_node, 1, data);
 
-                    // Cast [NumberTemplate; 2] to [NumberTemplate; D] 
+                    // Cast [ValueIndexNumber; 2] to [ValueIndexNumber; D] 
                     // Safety: D is 2
-                    let numbers = ManuallyDrop::into_inner(unsafe {
-                        FromNumbersUnion{ a: ManuallyDrop::new([x, y]) }.b
-                    });
+                    let numbers = unsafe { NumberArrayUnion{ a: [x, y] }.b };
                     PositionTemplate::FromNumbers(numbers)
                 },
                 ComposeNodeType::Position3D => {
@@ -79,11 +85,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
                     let y = self.make_number(remote_node, 1, data);
                     let z = self.make_number(remote_node, 2, data);
 
-                    // Cast [NumberTemplate; 3] to [NumberTemplate; D] 
+                    // Cast [ValueIndexNumber; 3] to [ValueIndexNumber; D] 
                     // Safety: D is 3
-                    let numbers = ManuallyDrop::into_inner(unsafe {
-                        FromNumbersUnion{ a: ManuallyDrop::new([x, y, z]) }.b
-                    });
+                    let numbers = unsafe { NumberArrayUnion{ a: [x, y] }.b };
                     PositionTemplate::FromNumbers(numbers)
                 },
                 ComposeNodeType::PerPosition2D
@@ -96,7 +100,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
                 }
                  
                 _ => unreachable!(),
-            }                                        
+            };
+
+            data.template.set_value(value_index, ComposeTemplateValue::Position(value));
+            return value_index;
         }
     } 
 } 

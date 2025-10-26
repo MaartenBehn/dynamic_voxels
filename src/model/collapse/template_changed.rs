@@ -1,4 +1,4 @@
-use crate::{model::composer::{build::BS, template::ComposeTemplate}, util::{number::Nu, vector::Ve}};
+use crate::{model::{composer::build::BS, template::ComposeTemplate}, util::{number::Nu, vector::Ve}};
 
 use super::{collapser::{CollapseNodeKey, Collapser}, pending_operations::PendingOperations};
 

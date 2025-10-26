@@ -6,38 +6,42 @@ use octa_force::{anyhow::bail, glam::{Mat4, Vec3, Vec3A}, OctaResult};
 use slotmap::{new_key_type, SecondaryMap, SlotMap};
 use smallvec::SmallVec;
 
-use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::ComposeNodeType, template::{ComposeTemplate, MakeTemplateData, TemplateIndex}, ModelComposer}, data_types::data_type::ComposeDataType}, util::{aabb::AABB, iter_merger::IM3, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
+use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::ComposeNodeType, ModelComposer}, data_types::data_type::ComposeDataType, template::{update::MakeTemplateData, value::ComposeTemplateValue}}, util::{aabb::AABB, iter_merger::IM3, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
 
-use super::{number::NumberTemplate, position::PositionTemplate, volume::VolumeTemplate};
+use super::{number::{NumberTemplate, ValueIndexNumber}, position::{PositionTemplate, ValueIndexPosition}, volume::{ValueIndexVolume, VolumeTemplate}};
 
 const LEAF_SPREAD_MAX_SAMPLES_MULTIPLYER: usize = 2;
 const PATH_MAX_SAMPLES_MULTIPLYER: usize = 2;
 
-#[derive(Debug, Clone)]
-pub enum PositionSpaceTemplate<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> {
-    Grid(GridTemplate<V, V2, V3, T, D>),
-    LeafSpread(LeafSpreadTemplate<V, V2, V3, T, D>),
-    Path(PathTemplate<V, V2, V3, T, D>)
+pub type ValueIndexPositionSpace = usize;
+pub type ValueIndexPositionSpace2D = usize;
+pub type ValueIndexPositionSpace3D = usize;
+
+#[derive(Debug, Clone, Copy)]
+pub enum PositionSpaceTemplate {
+    Grid(GridTemplate),
+    LeafSpread(LeafSpreadTemplate),
+    Path(PathTemplate)
 }
 
-#[derive(Debug, Clone)]
-pub struct GridTemplate<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> {
-    pub volume: VolumeTemplate<V, V2, V3, T, D>,
-    pub spacing: NumberTemplate<V2, V3, T>,
+#[derive(Debug, Clone, Copy)]
+pub struct GridTemplate {
+    pub volume: ValueIndexVolume,
+    pub spacing: ValueIndexNumber,
 }
 
-#[derive(Debug, Clone)]
-pub struct LeafSpreadTemplate<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> {
-    pub volume: VolumeTemplate<V, V2, V3, T, D>,
-    pub samples: NumberTemplate<V2, V3, T>,
+#[derive(Debug, Clone, Copy)]
+pub struct LeafSpreadTemplate {
+    pub volume: ValueIndexVolume,
+    pub samples: ValueIndexNumber,
 }
 
-#[derive(Debug, Clone)]
-pub struct PathTemplate<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> {
-    pub spacing: NumberTemplate<V2, V3, T>,
-    pub side_variance: PositionTemplate<V, V2, V3, T, D>,
-    pub start: PositionTemplate<V, V2, V3, T, D>,
-    pub end: PositionTemplate<V, V2, V3, T, D>,
+#[derive(Debug, Clone, Copy)]
+pub struct PathTemplate {
+    pub spacing: ValueIndexNumber,
+    pub side_variance: ValueIndexPosition,
+    pub start: ValueIndexPosition,
+    pub end: ValueIndexPosition,
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> {
@@ -45,10 +49,14 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
         &self, 
         pin: OutPinId,
         data: &mut MakeTemplateData<V2, V3, T, B>,
-    ) -> PositionSpaceTemplate<V, V2, V3, T, D> {
+    ) -> ValueIndexPositionSpace {
+        let value_index = pin.node.0;
+        if data.template.has_value(value_index) {
+            return value_index;   
+        } 
 
         let node = self.snarl.get_node(pin.node).expect("Node of remote not found");
-        match &node.t {
+        let value = match &node.t {
             ComposeNodeType::Grid3D => {
                 assert_eq!(D, 3);
                 
@@ -107,7 +115,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
             },
 
             _ => unreachable!(),
-        }
+        };
+
+        data.template.set_value(value_index, ComposeTemplateValue::PositionSpace(value));
+        return value_index;
     }
 }
 

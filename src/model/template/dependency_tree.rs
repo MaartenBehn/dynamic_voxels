@@ -4,9 +4,9 @@ use std::{collections::VecDeque, usize};
 use itertools::Itertools;
 use smallvec::{SmallVec, smallvec};
 
-use crate::{util::{number::Nu, vector::Ve}};
+use crate::{model::composer::build::BS, util::{number::Nu, vector::Ve}};
 
-use super::{build::BS, template::{ComposeTemplate, TemplateIndex, TemplateNode}};
+use super::{nodes::TemplateNode, ComposeTemplate, TemplateIndex};
 
 #[derive(Debug, Clone, Default)]
 pub struct DependencyPath {
@@ -40,8 +40,8 @@ pub fn get_dependency_tree_and_loop_paths<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: 
     depends_loop: &[(TemplateIndex, DependencyPath)], 
 ) -> (DependencyTree, SmallVec<[(TemplateIndex, DependencyPath); 4]>) {
     
-    let mut open_child_paths: VecDeque<(&TemplateNode<V2, V3, T, B>, DependencyPath)> = VecDeque::new();
-    let mut open_parent_paths: VecDeque<(&TemplateNode<V2, V3, T, B>, DependencyPath)> = VecDeque::new();
+    let mut open_child_paths: VecDeque<(&TemplateNode, DependencyPath)> = VecDeque::new();
+    let mut open_parent_paths: VecDeque<(&TemplateNode, DependencyPath)> = VecDeque::new();
 
     for dependend_child in dependend {
         open_child_paths.push_back((
@@ -129,8 +129,8 @@ pub fn get_dependency_tree_and_loop_paths<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: 
     (path_tree, loop_paths)
 }
 
-pub fn check_hit<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>>(
-    node: &TemplateNode<V2, V3, T, B>, 
+pub fn check_hit(
+    node: &TemplateNode, 
     path: &DependencyPath,
     depends: &mut Vec<(usize, usize)>,
     depends_loop: &mut Vec<usize>,
@@ -159,9 +159,9 @@ pub fn check_hit<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>>(
 }
 
 impl DependencyTree {
-    fn copy_path<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>>(
+    fn copy_path(
         &mut self, 
-        node: &TemplateNode<V2, V3, T, B>, 
+        node: &TemplateNode, 
         path: &DependencyPath,
         depends_index: usize,
     ) {

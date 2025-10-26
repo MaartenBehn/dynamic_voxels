@@ -3,7 +3,7 @@ use std::iter;
 use itertools::Itertools;
 use slotmap::Key;
 
-use crate::{model::composer::{build::BS, dependency_tree::{DependencyPath, DependencyTree}, template::{ComposeTemplate, TemplateIndex, TemplateNode}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{composer::build::BS, template::{dependency_tree::DependencyPath, nodes::TemplateNode, ComposeTemplate, TemplateIndex}}, util::{number::Nu, vector::Ve}};
 
 use super::{add_nodes::GetValueData, collapser::{CollapseNode, CollapseNodeKey, Collapser}};
 

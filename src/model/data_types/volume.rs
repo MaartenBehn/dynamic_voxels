@@ -2,38 +2,36 @@ use egui_snarl::OutPinId;
 use itertools::Itertools;
 use smallvec::SmallVec;
 
-use crate::{csg::{csg_tree::tree::CSGTree, Base}, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::ComposeNodeType, template::{ComposeTemplate, MakeTemplateData, TemplateIndex}, ModelComposer}}, util::{iter_merger::IM5, number::Nu, vector::Ve}};
+use crate::{csg::{csg_tree::tree::CSGTree, Base}, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::ComposeNodeType, ModelComposer}, template::{update::MakeTemplateData, value::ComposeTemplateValue}}, util::{iter_merger::IM5, number::Nu, vector::Ve}};
 
-use super::{data_type::ComposeDataType, number::NumberTemplate, position::PositionTemplate, position_set::PositionSetTemplate};
+use super::{data_type::ComposeDataType, number::{NumberTemplate, ValueIndexNumber}, position::{PositionTemplate, ValueIndexPosition}, position_set::{PositionSetTemplate, ValueIndexPositionSet}};
 
-#[derive(Debug, Clone)]
-pub enum VolumeTemplateData<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> {
+pub type ValueIndexVolume = usize;
+pub type ValueIndexVolume2D = usize;
+pub type ValueIndexVolume3D = usize;
+
+#[derive(Debug, Clone, Copy)]
+pub enum VolumeTemplate {
     Sphere {
-        pos: PositionTemplate<V, V2, V3, T, D>,
-        size: NumberTemplate<V2, V3, T>
+        pos: ValueIndexPosition,
+        size: ValueIndexNumber,
     },
     Box {
-        pos: PositionTemplate<V, V2, V3, T, D>,
-        size: PositionTemplate<V, V2, V3, T, D>,
+        pos: ValueIndexPosition,
+        size: ValueIndexNumber,
     },
     Union {
-        a: usize,
-        b: usize,
+        a: ValueIndexVolume,
+        b: ValueIndexVolume,
     },
     Cut {
-        base: usize,
-        cut: usize,
+        base: ValueIndexVolume,
+        cut: ValueIndexVolume,
     },
     SphereUnion {
-        position_set: PositionSetTemplate<V2, V3, T>,
-        size: NumberTemplate<V2, V3, T>,
+        position_set: ValueIndexPositionSet,
+        size: ValueIndexNumber,
     },
-}
-
-#[derive(Debug, Clone)]
-pub struct VolumeTemplate<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> {
-    pub nodes: Vec<VolumeTemplateData<V, V2, V3, T, D>>,
-    pub root: usize,
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> {
@@ -41,117 +39,50 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
         &self, 
         pin: OutPinId,
         data: &mut MakeTemplateData<V2, V3, T, B>,
-    ) -> VolumeTemplate<V, V2, V3, T, D> {
+    ) -> ValueIndexVolume {
+        let value_index = pin.node.0;
+        if data.template.has_value(value_index) {
+            return value_index;   
+        } 
 
         let node = self.snarl.get_node(pin.node).expect("Node of remote not found");
-        match &node.t {
-            ComposeNodeType::Sphere => VolumeTemplate {
-                nodes: vec![VolumeTemplateData::Sphere { 
-                    pos: self.make_position(node, self.get_input_pin_index_by_type(node, match D {
-                        2 => ComposeDataType::Position2D(None), 
-                        3 => ComposeDataType::Position3D(None),
-                        _ => unreachable!(),
-                    }), data),
-                    size: self.make_number(node, self.get_input_pin_index_by_type(node, ComposeDataType::Number(None)), data) 
-                }],
-                root: 0,
+        let value = match &node.t {
+            ComposeNodeType::Sphere => VolumeTemplate::Sphere { 
+                pos: self.make_position(node, 0, data),
+                size: self.make_number(node, 1, data),
             },
-            ComposeNodeType::Box2D => VolumeTemplate {
-                nodes: vec![VolumeTemplateData::Box { 
-                    pos: self.make_position(node, 0, data),
-                    size: self.make_position(node, 1, data),
-                }],
-                root: 0,
-            },
-            ComposeNodeType::Box3D => VolumeTemplate {
-                nodes: vec![VolumeTemplateData::Box { 
-                    pos: self.make_position(node, 0, data),
-                    size: self.make_position(node, 1, data),
-                }],
-                root: 0,
+            ComposeNodeType::Box2D
+            | ComposeNodeType::Box3D => VolumeTemplate::Box { 
+                pos: self.make_position(node, 0, data),
+                size: self.make_position(node, 1, data),
             },
             ComposeNodeType::UnionVolume2D
-            | ComposeNodeType::UnionVolume3D => {
-                let mut a = self.make_volume(self.get_input_remote_pin_by_index(node, 0), data);
-                let mut b = self.make_volume(self.get_input_remote_pin_by_index(node, 1), data);
-
-                let mut nodes = vec![];
- 
-                let a_root = a.root + nodes.len();
-                a.shift_ptrs(nodes.len());
-                nodes.append(&mut a.nodes);
-
-                let b_root = b.root + nodes.len();
-                b.shift_ptrs(nodes.len());
-                nodes.append(&mut b.nodes);
-
-                let root = nodes.len();
-                nodes.push(VolumeTemplateData::Union { a: a_root, b: b_root });
-
-                VolumeTemplate {
-                    nodes,
-                    root,
-                }
+            | ComposeNodeType::UnionVolume3D => VolumeTemplate::Union {
+                a: self.make_volume(self.get_input_remote_pin_by_index(node, 0), data),
+                b: self.make_volume(self.get_input_remote_pin_by_index(node, 1), data),
             },
             ComposeNodeType::CutVolume2D
-            | ComposeNodeType::CutVolume3D => {
-                let mut base = self.make_volume(self.get_input_remote_pin_by_index(node, 0), data);
-                let mut cut = self.make_volume(self.get_input_remote_pin_by_index(node, 1), data);
-
-                let mut nodes = vec![];
-
-                let base_root = base.root + nodes.len();
-                base.shift_ptrs(nodes.len());
-                nodes.append(&mut base.nodes);
-
-                let cut_root = cut.root + nodes.len();
-                cut.shift_ptrs(nodes.len());
-                nodes.append(&mut cut.nodes);
-
-                let root = nodes.len();
-                nodes.push(VolumeTemplateData::Cut { base: base_root, cut: cut_root });
-
-                VolumeTemplate {
-                    nodes,
-                    root,
-                }
+            | ComposeNodeType::CutVolume3D => VolumeTemplate::Cut {
+                base: self.make_volume(self.get_input_remote_pin_by_index(node, 0), data),
+                cut: self.make_volume(self.get_input_remote_pin_by_index(node, 1), data),
             },
-            ComposeNodeType::CircleUnion => VolumeTemplate {
-                nodes: vec![VolumeTemplateData::SphereUnion { 
-                    position_set: self.make_position_set(self.get_input_remote_pin_by_type(node, ComposeDataType::PositionSet2D), data), 
-                    size: self.make_number(node, self.get_input_pin_index_by_type(node, ComposeDataType::Number(None)), data) 
-                }],
-                root: 0,
+            ComposeNodeType::CircleUnion => VolumeTemplate::SphereUnion { 
+                position_set: self.make_position_set(self.get_input_remote_pin_by_type(node, ComposeDataType::PositionSet2D), data), 
+                size: self.make_number(node, self.get_input_pin_index_by_type(node, ComposeDataType::Number(None)), data) 
             },
-            ComposeNodeType::SphereUnion => VolumeTemplate {
-                nodes: vec![VolumeTemplateData::SphereUnion { 
-                    position_set: self.make_position_set(self.get_input_remote_pin_by_type(node, ComposeDataType::PositionSet3D), data), 
-                    size: self.make_number(node, self.get_input_pin_index_by_type(node, ComposeDataType::Number(None)), data) 
-                }],
-                root: 0,
+            ComposeNodeType::SphereUnion => VolumeTemplate::SphereUnion { 
+                position_set: self.make_position_set(self.get_input_remote_pin_by_type(node, ComposeDataType::PositionSet3D), data), 
+                size: self.make_number(node, self.get_input_pin_index_by_type(node, ComposeDataType::Number(None)), data) 
             },
             _ => unreachable!(),
-        }
+        };
+
+        data.template.set_value(value_index, ComposeTemplateValue::Volume(value));
+        return value_index;
     }
 }
 
-impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> VolumeTemplate<V, V2, V3, T, D> {
-    fn shift_ptrs(&mut self, ammount: usize) {
-        for node in &mut self.nodes {
-            match node {
-                VolumeTemplateData::Union { a, b } => {
-                    *(a) += ammount;
-                    *(b) += ammount;
-                },
-                VolumeTemplateData::Cut { base, cut } => {
-                    *(base) += ammount;
-                    *(cut) += ammount;
-                },
-                _ => {}
-            }
-        }
-    }
-
+impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> VolumeTemplate<V, V2, V3, T, D> { 
     pub fn get_value<B: BS<V2, V3, T>, M: Base>(
         &self,
         get_value_data: GetValueData,
