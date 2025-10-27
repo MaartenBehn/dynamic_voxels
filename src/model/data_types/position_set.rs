@@ -100,7 +100,7 @@ impl PositionSetTemplate {
                 assert_eq!(3, D);
 
                 let (v, r_0) = template.get_position_set_value(set.p2d)
-                    .get_value::<V, V2, V3, T, B, D>(get_value_data, collapser, template);
+                    .get_value::<V2, V2, V3, T, B, 2>(get_value_data, collapser, template);
 
                 let (z, r_1) = template.get_number_value(set.z)
                     .get_value(get_value_data, collapser, template);

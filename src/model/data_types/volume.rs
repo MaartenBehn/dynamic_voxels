@@ -99,7 +99,14 @@ impl VolumeTemplate {
     ) -> (CSGTree<M, V, T, D>, bool) {
         let mut tree = CSGTree::default();
 
-        let (root, r) = self.get_value_inner(get_value_data, collapser, template, mat, &mut tree);
+        let (roots, r) = self.get_value_inner(get_value_data, collapser, template, mat, &mut tree);
+        
+        if roots.len() == 1 {
+            tree.set_root(roots[0]);
+        } else {
+            let root = tree.add_union_node(roots); 
+            tree.set_root(root);
+        };
 
         (tree, r)
     }

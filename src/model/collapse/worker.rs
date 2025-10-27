@@ -1,4 +1,6 @@
-use octa_force::{anyhow::Context, camera::Camera, log::{debug, error, trace}, OctaResult};
+use std::time::Instant;
+
+use octa_force::{anyhow::Context, camera::Camera, log::{debug, error, info, trace}, OctaResult};
 
 use crate::{model::{composer::build::BS, template::ComposeTemplate}, scene::worker::SceneWorkerSend, util::{number::Nu, vector::Ve}, voxel::palette::shared::SharedPalette};
 
@@ -53,15 +55,26 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeCollapseWorker<
         mut collapser: Collapser<V2, V3, T, B>,
         mut state: B, 
     ) {
+        let now = Instant::now();
+
         collapser.run(&template, &mut state).await;
+
+        let elapsed = now.elapsed();
+        info!("Collapse took: {:?}", elapsed);
 
         let _ = collapser_s.force_send(collapser.clone());
 
         loop {
             match update_r.recv().await {
                 Ok(template) => {
+                    let now = Instant::now();
+
                     collapser.template_changed(&template, &mut state);
                     collapser.run(&template, &mut state).await;
+
+                    let elapsed = now.elapsed();
+                    info!("Collapse took: {:?}", elapsed);
+
                     let _ = collapser_s.force_send(collapser.clone());
                 },
                 Err(e) => break,

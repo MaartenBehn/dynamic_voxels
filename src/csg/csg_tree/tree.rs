@@ -54,21 +54,33 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
     }
         
     pub fn add_node(&mut self, node: CSGTreeNode<M, V, T, D>) -> usize {
+        self.changed = true;
+
         let i = self.nodes.len();
         self.nodes.push(node); 
         i
     }
 
     pub fn add_union_node(&mut self, indecies: Vec<usize>) -> usize {
+        self.changed = true;
+
         let i = self.nodes.len();
         self.nodes.push(CSGTreeNode::new_union(indecies)); 
         i
     }
 
     pub fn add_cut_node(&mut self, base: usize, cut: usize) -> usize {
+        self.changed = true;
+
         let i = self.nodes.len();
         self.nodes.push(CSGTreeNode::new_cut(base, cut)); 
         i
+    }
+
+    pub fn set_root(&mut self, root: usize) {
+        self.changed = true;
+
+        self.root = root;
     }
 
     pub fn union_at_root(&mut self, other: &[CSGTreeNode<M, V, T, D>], other_root: usize) -> UnionResult {   

@@ -4,7 +4,7 @@ pub mod build;
 pub mod validate;
 pub mod pin;
 
-use std::{fs::{self, File}, io::Write, time::Duration};
+use std::{fs::{self, File}, io::Write, time::{Duration, Instant}};
 
 use build::{ComposeTypeTrait, BS};
 use egui_snarl::{ui::{NodeLayout, PinPlacement, SnarlStyle, SnarlWidget}, Snarl};
@@ -128,9 +128,15 @@ where
 
             if !self.viewer.invalid_nodes.any() {
                 debug!("Rebuilding Template");
+                
+                let now = Instant::now();
 
                 self.template = ComposeTemplate::new(self);
                 self.collapser_worker.template_changed(self.template.clone());
+
+                let elapsed = now.elapsed();
+                info!("Template took: {:?}", elapsed);
+
             } else {
                 warn!("Cant Rebuild error in graph!");
             }

@@ -1,11 +1,11 @@
-use std::{marker::PhantomData, sync::Arc, time::Duration};
+use std::{marker::PhantomData, sync::Arc, time::{Duration, Instant}};
 
 use egui_snarl::{NodeId, OutPinId};
-use octa_force::{egui, glam::{EulerRot, IVec2, IVec3, Mat4, Quat, Vec3}, OctaResult};
+use octa_force::{egui, glam::{EulerRot, IVec2, IVec3, Mat4, Quat, Vec3}, log::info, OctaResult};
 use slotmap::Key;
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::collapser::{CollapseNode, NodeDataType}, composer::{build::{CollapseValueTrait, ComposeTypeTrait, GetTemplateValueArgs, OnCollapseArgs, OnDeleteArgs, TemplateValueTrait, BS}, nodes::{ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeType}, ModelComposer}, data_types::{data_type::ComposeDataType, position::{PositionTemplate, ValueIndexPosition}, volume::{ValueIndexVolume, VolumeTemplate}}, template::update::MakeTemplateData}, scene::{dag_store::SceneDAGKey, worker::SceneWorkerSend, SceneObjectKey}, util::{number::Nu, vector::Ve}, volume::VolumeBounds, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, palette::palette::MATERIAL_ID_BASE}, METERS_PER_SHADER_UNIT, VOXELS_PER_SHADER_UNIT};
+use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::collapser::{CollapseNode, NodeDataType}, composer::{build::{CollapseValueTrait, ComposeTypeTrait, GetTemplateValueArgs, OnCollapseArgs, OnDeleteArgs, TemplateValueTrait, BS}, nodes::{ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeType}, ModelComposer}, data_types::{data_type::ComposeDataType, position::{PositionTemplate, ValueIndexPosition}, volume::{ValueIndexVolume, VolumeTemplate}}, template::update::MakeTemplateData}, scene::{dag_store::SceneDAGKey, worker::SceneWorkerSend, SceneObjectKey}, util::{number::Nu, vector::Ve}, volume::VolumeBounds, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, palette::palette::MATERIAL_ID_BASE}, METERS_PER_SHADER_UNIT, VOXELS_PER_SHADER_UNIT};
 
 // Compose Type
 #[derive(Debug)]
@@ -116,14 +116,20 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
                 let (mut volume, r_0) = args.template.get_volume_value(object_template.volume)
                     .get_value::<V3, V2, V3, T, Self, u8, 3>(args.get_value_data, args.collapser, args.template, MATERIAL_ID_BASE);
 
-                let (mut pos, r_1) = args.template.get_position3d_value(object_template.volume)
+                let (mut pos, r_1) = args.template.get_position3d_value(object_template.pos)
                     .get_value(args.get_value_data, args.collapser, args.template);
 
                 let pos = pos[0];
 
+                volume = CSGTree::default();
+
                 volume.calculate_bounds();
 
+                let now = Instant::now();
                 let dag_key = args.state.dag.add_pos_query_volume(&volume).expect("Could not add DAG Entry!");
+                let elapsed = now.elapsed();
+                info!("Voxel DAG Build took: {:?}", elapsed);
+
                 let scene_key = args.state.scene.add_dag_object(
                     Mat4::from_scale_rotation_translation(
                         Vec3::ONE,

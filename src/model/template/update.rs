@@ -106,6 +106,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                 depends: SmallVec::new(),
             };
 
+            let mut only_one = false;
             let value_index = match &composer_node.t { 
                 ComposeNodeType::TemplatePositionSet2D
                 | ComposeNodeType::TemplatePositionSet3D => {
@@ -123,6 +124,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                         composer: &composer, 
                     }, &mut data);
 
+                    only_one = true;
                     data.set_value(node_id, ComposeTemplateValue::Build(value))
                 },
                 _ => unreachable!()
@@ -145,7 +147,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                     others: creates,
                 });
             } else {
-                if depends.is_empty() {
+                if depends.is_empty() || only_one {
                     depends.push(0);
                     template.nodes[0].creates.push(Creates {
                         to_create: i,
@@ -197,7 +199,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
             }
         }
 
-        dbg!(&template);
+        //dbg!(&template);
 
         template
     }

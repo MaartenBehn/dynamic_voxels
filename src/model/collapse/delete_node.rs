@@ -15,6 +15,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         let node = node.unwrap();
         assert!(!node.defined_by.is_null(), "Trying to delete root node!");
 
+        #[cfg(debug_assertions)]
         info!("{:?} Delete node", node_index);
 
         let template_node = &template.nodes[node.template_index];

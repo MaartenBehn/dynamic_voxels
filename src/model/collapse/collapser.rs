@@ -86,6 +86,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
                 PendingOperationsRes::CreateDefined(operation) => self.upadte_defined(
                     operation, template, state).await,
                 PendingOperationsRes::Retry => {
+                    #[cfg(debug_assertions)]
                     info!("Swaped Next Collapse");
                 },
                 PendingOperationsRes::Empty => break,
@@ -98,6 +99,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         let template_node = &template.nodes[node.template_index]; 
         let value = &template.values[template_node.value_index];
 
+        #[cfg(debug_assertions)]
         info!("{:?} Collapse", node_index);
 
         let get_value_data = GetValueData { 
@@ -289,7 +291,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             3 => {
                 let i = match &node.data {
                     NodeDataType::PositionSpace3D(d) => d.get_positions(),
-                    _ => panic!("Template Node {:?} is not of Type Position Space Set 3D", node.template_index)
+                    _ => panic!("Template Node {:?} is not of Type Position Space Set 3D, Template", node.template_index)
                 };
 
                 Either::Right(i.map(|v| {

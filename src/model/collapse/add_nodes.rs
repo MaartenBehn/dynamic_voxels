@@ -212,6 +212,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             }
         }
 
+        #[cfg(debug_assertions)]
         info!("{:?} Node added {:?}", index, new_node_template.node_id);
                 
         self.pending.push_collpase(new_node_template.level, index);

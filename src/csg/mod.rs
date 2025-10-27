@@ -1,3 +1,4 @@
+use core::fmt;
 use std::fmt::Debug;
 use crate::voxel::palette::palette::MATERIAL_ID_BASE;
 
@@ -7,7 +8,7 @@ pub mod sphere;
 pub mod r#box;
 pub mod all;
 
-pub trait Base: Copy + Default {
+pub trait Base: Copy + Default + fmt::Debug {
     fn base() -> Self;
 }
 
