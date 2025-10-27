@@ -9,6 +9,7 @@ use super::{dependency_tree::{DependencyPath, DependencyTree}, value::{ComposeTe
 pub struct TemplateNode {
     pub index: TemplateIndex,
     pub value_index: ValueIndex,
+    pub node_id: NodeId,
 
     pub level: usize,
     pub creates: SmallVec<[Creates; 4]>,

@@ -15,7 +15,7 @@ impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
         match &node.data {
             CSGTreeNodeData::None => false,
             CSGTreeNodeData::Union(d) => self.is_position_valid_union(d, pos),
-            CSGTreeNodeData::Remove(d) => self.is_position_valid_remove(d, pos),
+            CSGTreeNodeData::Cut(d) => self.is_position_valid_remove(d, pos),
             
             CSGTreeNodeData::Box(d) => d.is_position_valid(pos),
             CSGTreeNodeData::Sphere(d) => d.is_position_valid(pos),

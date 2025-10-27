@@ -15,7 +15,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> CSGTree<u8, V, T, D> {
         match &node.data {
             CSGTreeNodeData::None => 0,
             CSGTreeNodeData::Union(d) => self.get_value_union(d, pos),
-            CSGTreeNodeData::Remove(d) => self.get_value_remove(d, pos),
+            CSGTreeNodeData::Cut(d) => self.get_value_remove(d, pos),
             
             CSGTreeNodeData::Box(d) => d.get_value(pos),
             CSGTreeNodeData::Sphere(d) => d.get_value(pos),

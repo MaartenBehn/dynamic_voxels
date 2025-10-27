@@ -43,7 +43,7 @@ impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
                 self.calculate_bounds_union(&mut union);
                 self.nodes[index].data = CSGTreeNodeData::Union(union);
             },
-            CSGTreeNodeData::Remove(csgtree_remove) => {
+            CSGTreeNodeData::Cut(csgtree_remove) => {
                 let base = csgtree_remove.base;
                 let remove = csgtree_remove.remove;
                 self.calculate_bounds_index(base);
@@ -64,7 +64,7 @@ impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
         match &node.data {
             CSGTreeNodeData::None => AABB::default(),
             CSGTreeNodeData::Union(d) => d.get_bounds(),
-            CSGTreeNodeData::Remove(csgtree_remove) => {
+            CSGTreeNodeData::Cut(csgtree_remove) => {
                 let base = csgtree_remove.base;
                 self.get_bounds_index(base)
             },

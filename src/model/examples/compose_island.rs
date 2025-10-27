@@ -5,7 +5,7 @@ use octa_force::{egui, glam::{EulerRot, IVec2, IVec3, Mat4, Quat, Vec3}, OctaRes
 use slotmap::Key;
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::collapser::{CollapseNode, NodeDataType}, composer::{build::{CollapseValueTrait, ComposeTypeTrait, GetTemplateValueArgs, OnCollapseArgs, OnDeleteArgs, TemplateValueTrait, BS}, nodes::{ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeType}, ModelComposer}, data_types::{data_type::ComposeDataType, position::PositionTemplate, volume::VolumeTemplate}, template::update::MakeTemplateData}, scene::{dag_store::SceneDAGKey, worker::SceneWorkerSend, SceneObjectKey}, util::{number::Nu, vector::Ve}, volume::VolumeBounds, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, palette::palette::MATERIAL_ID_BASE}, METERS_PER_SHADER_UNIT, VOXELS_PER_SHADER_UNIT};
+use crate::{model::{collapse::collapser::{CollapseNode, NodeDataType}, composer::{build::{CollapseValueTrait, ComposeTypeTrait, GetTemplateValueArgs, OnCollapseArgs, OnDeleteArgs, TemplateValueTrait, BS}, nodes::{ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeType}, ModelComposer}, data_types::{data_type::ComposeDataType, position::{PositionTemplate, ValueIndexPosition}, volume::{ValueIndexVolume, VolumeTemplate}}, template::update::MakeTemplateData}, scene::{dag_store::SceneDAGKey, worker::SceneWorkerSend, SceneObjectKey}, util::{number::Nu, vector::Ve}, volume::VolumeBounds, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, palette::palette::MATERIAL_ID_BASE}, METERS_PER_SHADER_UNIT, VOXELS_PER_SHADER_UNIT};
 
 // Compose Type
 #[derive(Debug)]
@@ -22,18 +22,17 @@ impl ComposeTypeTrait for ComposeType {}
 
 // Template Value
 #[derive(Debug, Clone)]
-pub enum TemplateValue<V3: Ve<T, 3>, V2: Ve<T, 2>, T: Nu> {
-    Object(ObjectTemplate<V3, V2, T>)
+pub enum TemplateValue {
+    Object(ObjectTemplate)
 }
 
 #[derive(Debug, Clone)]
-pub struct ObjectTemplate<V3: Ve<T, 3>, V2: Ve<T, 2>, T: Nu> {
-    pos: PositionTemplate<V3, V2, V3, T, 3>,
-    volume: VolumeTemplate<V3, V2, V3, T, 3>,
+pub struct ObjectTemplate {
+    pos: ValueIndexPosition,
+    volume: ValueIndexVolume,
 }
 
-impl<V3: Ve<T, 3>, V2: Ve<T, 2>, T: Nu> TemplateValueTrait for TemplateValue<V3, V2, T> {
-}
+impl TemplateValueTrait for TemplateValue {}
 
 // Collapse Value
 #[derive(Debug, Clone, Default)]
@@ -61,7 +60,7 @@ pub struct ComposeIslandState {
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
     type ComposeType = ComposeType;
-    type TemplateValue = TemplateValue<V3, V2, T>;
+    type TemplateValue = TemplateValue;
     type CollapseValue = CollapseValue; 
 
     fn compose_nodes() -> Vec<ComposeNode<Self::ComposeType>> {
@@ -95,12 +94,12 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
         match args.compose_type {
             ComposeType::Object => {
                 let volume = args.composer.make_volume(
-                    args.composer.get_input_remote_pin_by_type(args.composer_node, ComposeDataType::Volume3D),
+                    args.composer.get_input_remote_pin_by_index(args.composer_node, 0),
                     data);
 
                 let pos = args.composer.make_position(
                     args.composer_node,
-                    args.composer.get_input_pin_index_by_type(args.composer_node, ComposeDataType::Position3D(None)),
+                    1,
                     data);
  
                 TemplateValue::Object(ObjectTemplate { volume, pos }) 
@@ -114,8 +113,12 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
         match args.template_value {
             TemplateValue::Object(object_template) => {
 
-                let (mut volume, r_0) = object_template.volume.get_value(args.get_value_data, args.collapser, MATERIAL_ID_BASE);
-                let (mut pos, r_1) = object_template.pos.get_value(args.get_value_data, args.collapser);
+                let (mut volume, r_0) = args.template.get_volume_value(object_template.volume)
+                    .get_value::<V3, V2, V3, T, Self, u8, 3>(args.get_value_data, args.collapser, args.template, MATERIAL_ID_BASE);
+
+                let (mut pos, r_1) = args.template.get_position3d_value(object_template.volume)
+                    .get_value(args.get_value_data, args.collapser, args.template);
+
                 let pos = pos[0];
 
                 volume.calculate_bounds();

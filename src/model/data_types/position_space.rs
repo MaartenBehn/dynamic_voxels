@@ -1,12 +1,12 @@
 use std::iter;
 
 use egui_snarl::OutPinId;
-use itertools::{Either, Itertools};
+use itertools::{iproduct, Either, Itertools};
 use octa_force::{anyhow::bail, glam::{Mat4, Vec3, Vec3A}, OctaResult};
 use slotmap::{new_key_type, SecondaryMap, SlotMap};
 use smallvec::SmallVec;
 
-use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::ComposeNodeType, ModelComposer}, data_types::data_type::ComposeDataType, template::{update::MakeTemplateData, value::ComposeTemplateValue}}, util::{aabb::AABB, iter_merger::IM3, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
+use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::ComposeNodeType, ModelComposer}, data_types::data_type::ComposeDataType, template::{update::MakeTemplateData, value::ComposeTemplateValue, ComposeTemplate}}, util::{aabb::AABB, iter_merger::IM3, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
 
 use super::{number::{NumberTemplate, ValueIndexNumber}, position::{PositionTemplate, ValueIndexPosition}, volume::{ValueIndexVolume, VolumeTemplate}};
 
@@ -45,93 +45,89 @@ pub struct PathTemplate {
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> {
-    pub fn make_pos_space<V: Ve<T, D>, const D: usize>(
+    pub fn make_pos_space(
         &self, 
         pin: OutPinId,
         data: &mut MakeTemplateData<V2, V3, T, B>,
     ) -> ValueIndexPositionSpace {
-        let value_index = pin.node.0;
-        if data.template.has_value(value_index) {
-            return value_index;   
-        } 
+        if let Some(value_index) = data.value_per_node_id.get_value(pin.node) {
+            return value_index;
+        }
 
         let node = self.snarl.get_node(pin.node).expect("Node of remote not found");
         let value = match &node.t {
-            ComposeNodeType::Grid3D => {
-                assert_eq!(D, 3);
-                
-                let grid = GridTemplate {
-                    volume: self.make_volume(self.get_input_remote_pin_by_type(node, ComposeDataType::Volume3D), data),
-                    spacing: self.make_number(node, self.get_input_pin_index_by_type(node, ComposeDataType::Number(None)), data),
-                };
-                PositionSpaceTemplate::Grid(grid)
-            },
             ComposeNodeType::Grid2D => {
-                assert_eq!(D, 2);
                 
                 let grid = GridTemplate {
-                    volume: self.make_volume(self.get_input_remote_pin_by_type(node, ComposeDataType::Volume2D), data),
-                    spacing: self.make_number(node, self.get_input_pin_index_by_type(node, ComposeDataType::Number(None)), data),                
+                    volume: self.make_volume(self.get_input_remote_pin_by_index(node, 0), data),
+                    spacing: self.make_number(node, 1, data),
                 };
-                PositionSpaceTemplate::Grid(grid)
+                ComposeTemplateValue::PositionSpace2D(PositionSpaceTemplate::Grid(grid))
             },
-            ComposeNodeType::LeafSpread3D => {
-                assert_eq!(D, 3);
+            ComposeNodeType::Grid3D => {
                 
-                let leaf_spread = LeafSpreadTemplate {
-                    volume: self.make_volume(self.get_input_remote_pin_by_type(node, ComposeDataType::Volume3D), data),
-                    samples: self.make_number(node, self.get_input_pin_index_by_type(node, ComposeDataType::Number(None)),data),                
+                let grid = GridTemplate {
+                    volume: self.make_volume(self.get_input_remote_pin_by_index(node, 0), data),
+                    spacing: self.make_number(node, 1, data),
                 };
-                PositionSpaceTemplate::LeafSpread(leaf_spread)
+                ComposeTemplateValue::PositionSpace3D(PositionSpaceTemplate::Grid(grid))
             },
             ComposeNodeType::LeafSpread2D => {
-                assert_eq!(D, 2);
-                
                 let leaf_spread = LeafSpreadTemplate {
-                    volume: self.make_volume(self.get_input_remote_pin_by_type(node, ComposeDataType::Volume2D), data),
-                    samples: self.make_number(node, self.get_input_pin_index_by_type(node, ComposeDataType::Number(None)), data),                
+                    volume: self.make_volume(self.get_input_remote_pin_by_index(node, 0), data),
+                    samples: self.make_number(node, 1,data),                
                 };
-                PositionSpaceTemplate::LeafSpread(leaf_spread)
+                ComposeTemplateValue::PositionSpace2D(PositionSpaceTemplate::LeafSpread(leaf_spread))
             },
-            ComposeNodeType::Path3D => {
-                
-                let path = PathTemplate {
-                    start: self.make_position(node, 0, data),
-                    end: self.make_position(node, 1, data),
-                    spacing: self.make_number(node, self.get_input_pin_index_by_type(node, ComposeDataType::Number(None)), data),
-                    side_variance: self.make_position(node, 3, data),
+            ComposeNodeType::LeafSpread3D => {
+                let leaf_spread = LeafSpreadTemplate {
+                    volume: self.make_volume(self.get_input_remote_pin_by_index(node, 0), data),
+                    samples: self.make_number(node, 1,data),                
                 };
-                PositionSpaceTemplate::Path(path)
+                ComposeTemplateValue::PositionSpace3D(PositionSpaceTemplate::LeafSpread(leaf_spread))
             },
             ComposeNodeType::Path2D => {
                 
                 let path = PathTemplate {
                     start: self.make_position(node, 0, data),
                     end: self.make_position(node, 1, data),
-                    spacing: self.make_number(node, self.get_input_pin_index_by_type(node, ComposeDataType::Number(None)),  data),
+                    spacing: self.make_number(node, 2,  data),
                     side_variance: self.make_position(node, 3, data),
                 };
-                PositionSpaceTemplate::Path(path)
+                ComposeTemplateValue::PositionSpace2D(PositionSpaceTemplate::Path(path))
             },
-
+            ComposeNodeType::Path3D => {
+                
+                let path = PathTemplate {
+                    start: self.make_position(node, 0, data),
+                    end: self.make_position(node, 1, data),
+                    spacing: self.make_number(node, 2, data),
+                    side_variance: self.make_position(node, 3, data),
+                };
+                ComposeTemplateValue::PositionSpace3D(PositionSpaceTemplate::Path(path))
+            },
+            
             _ => unreachable!(),
         };
 
-        data.template.set_value(value_index, ComposeTemplateValue::PositionSpace(value));
-        return value_index;
+        data.set_value(pin.node, value)
     }
 }
 
-impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> PositionSpaceTemplate<V, V2, V3, T, D> { 
-    pub fn get_value<B: BS<V2, V3, T>>(
+impl PositionSpaceTemplate { 
+    pub fn get_value<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>, const D: usize>(
         &self,
         get_value_data: GetValueData,
-        collapser: &Collapser<V2, V3, T, B>
+        collapser: &Collapser<V2, V3, T, B>,
+        template: &ComposeTemplate<V2, V3, T, B>
     ) -> (Vec<V>, bool) {
         match &self {
-            PositionSpaceTemplate::Grid(template)  => {
-                let (mut volume, r_0) = template.volume.get_value(get_value_data, collapser, ());
-                let (spacing, r_1) = template.spacing.get_value(get_value_data, collapser);
+            PositionSpaceTemplate::Grid(grid)  => {
+                let (mut volume, r_0) = template.get_volume_value(grid.volume)
+                    .get_value::<V, V2, V3, T, B, (), D>(get_value_data, collapser, template, ());
+
+                let (spacing, r_1) =  template.get_number_value(grid.spacing)
+                    .get_value(get_value_data, collapser, template);
                 
                 volume.calculate_bounds();
                 let mut points = vec![];
@@ -142,12 +138,15 @@ impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> PositionSpa
                 
                 (points, r_0 || r_1 )
             },
-            PositionSpaceTemplate::LeafSpread(template) => {
-                let (mut volume, r_0) = template.volume.get_value(get_value_data, collapser, ());
-                let (samples, r_1) = template.samples.get_value(get_value_data, collapser);
+            PositionSpaceTemplate::LeafSpread(spread) => {
+                let (mut volume, r_0) = template.get_volume_value(spread.volume)
+                    .get_value(get_value_data, collapser, template, ());
+
+                let (samples, r_1) =  template.get_number_value(spread.samples)
+                    .get_value(get_value_data, collapser, template);
 
                 volume.calculate_bounds();
-                let aabb = volume.get_bounds();
+                let aabb: AABB<V, T, D> = volume.get_bounds();
                 let min: V::VectorF = AABB::min(&aabb).to_vecf();
                 let size: V::VectorF = aabb.size().to_vecf();
                 
@@ -175,17 +174,22 @@ impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> PositionSpa
  
                 (points, r_0 || r_1 )
             },
-            PositionSpaceTemplate::Path(template) => {
-                let (spacing, r_0) = template.spacing.get_value(get_value_data, collapser); 
-                let (side_variance, r_1) = template.side_variance.get_value(get_value_data, collapser); 
-                let (start, r_2) = template.start.get_value(get_value_data, collapser); 
-                let (end, r_3) = template.end.get_value(get_value_data, collapser);
+            PositionSpaceTemplate::Path(path) => {
+                 let (start, r_0) =  template.get_position_value::<V, D>(path.start)
+                    .get_value(get_value_data, collapser, template);
 
-                let points = spacing.into_iter()
-                    .cartesian_product(side_variance)
-                    .cartesian_product(start)
-                    .cartesian_product(end)
-                    .map(|(((spacing, side_variance), start), end)| {
+                let (end, r_1) =  template.get_position_value::<V, D>(path.end)
+                    .get_value(get_value_data, collapser, template);
+
+                let (spacing, r_2) =  template.get_number_value(path.spacing)
+                    .get_value(get_value_data, collapser, template);
+
+                let (side_variance, r_3) =  template.get_position_value::<V, D>(path.side_variance)
+                    .get_value(get_value_data, collapser, template);
+
+
+                let points = iproduct!(start, end, spacing, side_variance)
+                    .map(|(start, end, spacing, side_variance)| {
 
                         let end: V::VectorF = end.to_vecf();
                         let side_variance: V::VectorF = side_variance.to_vecf();
@@ -223,25 +227,5 @@ impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> PositionSpa
             } 
         }
     }
-
-    pub fn cut_loop(&mut self, to_index: usize) {
-        match self {
-            PositionSpaceTemplate::Grid(grid_template) => {
-                grid_template.volume.cut_loop(to_index);
-                grid_template.spacing.cut_loop(to_index);
-            },
-            PositionSpaceTemplate::LeafSpread(leaf_spread_template) => {
-                leaf_spread_template.volume.cut_loop(to_index);
-                leaf_spread_template.samples.cut_loop(to_index);
-            },
-            PositionSpaceTemplate::Path(path_template) => {
-                path_template.spacing.cut_loop(to_index);
-                path_template.start.cut_loop(to_index);
-                path_template.end.cut_loop(to_index);
-                path_template.side_variance.cut_loop(to_index);
-            },
-        }
-    }
-
 }
 

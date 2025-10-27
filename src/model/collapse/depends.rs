@@ -12,8 +12,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         &self, 
         parent_index: CollapseNodeKey,
         template: &'a ComposeTemplate<V2, V3, T, B>,
-        template_node: &'a TemplateNode<V2, V3, T, B>,
-        new_node_template: &'a TemplateNode<V2, V3, T, B>,
+        template_node: &'a TemplateNode,
+        new_node_template: &'a TemplateNode,
     ) -> Vec<(TemplateIndex, Vec<CollapseNodeKey>)> {
 
         // Contains a list of node indecies matching the template dependency

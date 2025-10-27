@@ -21,13 +21,14 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
             .id_salt(format!("template node: {node_counter}"))
             .show(ui, |ui| {
 
+            /*
             ui.label(format!("Value: {}", match &node.value {
                 ComposeTemplateValue::NumberSpace(space) => format!("Number Space: {:#?}",space),
-                ComposeTemplateValue::PositionSpace2D(space) => format!("Position Space 2D: {:#?}",space),
-                ComposeTemplateValue::PositionSpace3D(space) => format!("Position Space 3D: {:#?}",space),
+                ComposeTemplateValue::PositionSpace(space) => format!("Position Space 2D: {:#?}",space),
                 ComposeTemplateValue::None => "None".to_string(),
                 ComposeTemplateValue::Build(t) => format!("Build: {:#?}", t),
             }));
+            */
 
             ui.label(format!("Level: {}", node.level));
 
@@ -79,7 +80,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
     fn dependecy_tree(
         &self, 
         tree: &DependencyTree, 
-        inital_node: &TemplateNode<V2, V3, T, B>, 
+        inital_node: &TemplateNode, 
         ui: &mut egui::Ui, 
         index: usize
     ) {

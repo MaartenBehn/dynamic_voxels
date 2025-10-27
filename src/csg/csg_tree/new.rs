@@ -35,6 +35,10 @@ impl<M: Base, V: Ve<T, 3>, T: Nu> CSGTree<M, V, T, 3> {
 }
 
 impl <M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTreeNode<M, V, T, D> {
+    pub fn new_none() -> Self {
+        CSGTreeNode::new(CSGTreeNodeData::None, CSG_TREE_INDEX_INVALID)
+    }
+
     pub fn new_sphere(center: V::VectorF, radius: f32, mat: M) -> Self {
         CSGTreeNode::new(CSGTreeNodeData::Sphere(CSGSphere::new_sphere(center, radius, mat)), CSG_TREE_INDEX_INVALID)
     }
@@ -47,8 +51,8 @@ impl <M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTreeNode<M, V, T, D> {
         CSGTreeNode::new(CSGTreeNodeData::Union(CSGTreeUnion::new(nodes)), CSG_TREE_INDEX_INVALID)
     }
     
-    pub fn new_remove(base: CSGTreeIndex, remove: CSGTreeIndex) -> Self {
-        CSGTreeNode::new(CSGTreeNodeData::Remove(CSGTreeRemove::new(base, remove)), CSG_TREE_INDEX_INVALID)
+    pub fn new_cut(base: CSGTreeIndex, cut: CSGTreeIndex) -> Self {
+        CSGTreeNode::new(CSGTreeNodeData::Cut(CSGTreeRemove::new(base, cut)), CSG_TREE_INDEX_INVALID)
     }
 }
 

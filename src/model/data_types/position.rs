@@ -4,7 +4,7 @@ use egui_snarl::InPinId;
 use itertools::{Either, Itertools};
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::{ComposeNode, ComposeNodeType},  ModelComposer}, template::{update::MakeTemplateData, value::ComposeTemplateValue}}, util::{iter_merger::IM3, number::Nu, vector::Ve}};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::{ComposeNode, ComposeNodeType},  ModelComposer}, template::{update::MakeTemplateData, value::{ComposeTemplateValue, ValueIndex}, ComposeTemplate}}, util::{iter_merger::IM3, number::Nu, vector::Ve}};
 
 use super::{data_type::ComposeDataType, number::{Hook, NumberTemplate, ValueIndexNumber}, position_set::{PositionSetTemplate, ValueIndexPositionSet}};
 
@@ -26,7 +26,7 @@ union NumberArrayUnion<const DA: usize, const DB: usize> {
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> { 
-    pub fn make_position<V: Ve<T, D>, const D: usize>(
+    pub fn make_position(
         &self, 
         original_node: &ComposeNode<B::ComposeType>, 
         in_index: usize,
@@ -39,120 +39,113 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
         }
 
         if remotes.is_empty() {
-            todo!();
-
             match &original_node.inputs[in_index].data_type {
                 ComposeDataType::Position2D(v) => {
-                    assert_eq!(D, 2);
 
-                    if let Some(v) = v {
-                        PositionTemplate::Const(V::from_ivec2(*v) )
+                    let value = if let Some(v) = v {
+                        PositionTemplate::Const(V2::from_ivec2(*v))
                     } else {
-                        PositionTemplate::Const(V::ZERO)
-                    }
+                        PositionTemplate::Const(V2::ZERO)
+                    };
+
+                    data.add_value(ComposeTemplateValue::Position2D(value)) 
                 },
                 ComposeDataType::Position3D(v) => {
-                    assert_eq!(D, 3);
                     
-                    if let Some(v) = v {
-                        PositionTemplate::Const(V::from_ivec3(*v) )
+                    let value = if let Some(v) = v {
+                        PositionTemplate::Const(V3::from_ivec3(*v) )
                     } else {
-                        PositionTemplate::Const(V::ZERO)
-                    }
+                        PositionTemplate::Const(V3::ZERO)
+                    };
+
+                    data.add_value(ComposeTemplateValue::Position3D(value)) 
                 },
                 _ => unreachable!()
             }
         } else {
             let pin = remotes[0];
-            let value_index = pin.node.0;
+            if let Some(value_index) = data.value_per_node_id.get_value(pin.node) {
+                return value_index;
+            }
 
             let remote_node = self.snarl.get_node(pin.node).expect("Node of remote not found");
 
             let value = match remote_node.t {
                 ComposeNodeType::Position2D => {
-                    assert_eq!(D, 2);
                     let x = self.make_number(remote_node, 0, data);
                     let y = self.make_number(remote_node, 1, data);
 
-                    // Cast [ValueIndexNumber; 2] to [ValueIndexNumber; D] 
-                    // Safety: D is 2
-                    let numbers = unsafe { NumberArrayUnion{ a: [x, y] }.b };
-                    PositionTemplate::FromNumbers(numbers)
+                    ComposeTemplateValue::Position2D(PositionTemplate::FromNumbers([x, y]))
                 },
                 ComposeNodeType::Position3D => {
-                    assert_eq!(D, 3);
                     let x = self.make_number(remote_node, 0, data);
                     let y = self.make_number(remote_node, 1, data);
                     let z = self.make_number(remote_node, 2, data);
 
-                    // Cast [ValueIndexNumber; 3] to [ValueIndexNumber; D] 
-                    // Safety: D is 3
-                    let numbers = unsafe { NumberArrayUnion{ a: [x, y] }.b };
-                    PositionTemplate::FromNumbers(numbers)
+                    ComposeTemplateValue::Position3D(PositionTemplate::FromNumbers([x, y, z]))
                 },
-                ComposeNodeType::PerPosition2D
-                | ComposeNodeType::PerPosition3D => {
-                    let set = self.make_position_set(
+                ComposeNodeType::PerPosition2D => {
+                    let i = self.make_position_set(
                         self.get_input_remote_pin_by_index(remote_node, 0), data);
 
-                    data.creates.push(set.get_ammount_hook());
-                    PositionTemplate::PerPosition(set)
-                }
-                 
+                    data.creates.push(data.template.get_position_set_value(i).get_ammount_hook(data.template));
+                    ComposeTemplateValue::Position2D(PositionTemplate::PerPosition(i))
+                } 
+                ComposeNodeType::PerPosition3D => {
+                    let i = self.make_position_set(
+                        self.get_input_remote_pin_by_index(remote_node, 0), data);
+
+                    data.creates.push(data.template.get_position_set_value(i).get_ammount_hook(data.template));
+                    ComposeTemplateValue::Position3D(PositionTemplate::PerPosition(i))
+                } 
                 _ => unreachable!(),
             };
-
-            data.template.set_value(value_index, ComposeTemplateValue::Position(value));
-            return value_index;
+                    
+            data.set_value(pin.node, value)
         }
     } 
 } 
 
 
 
-impl<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, const D: usize> PositionTemplate<V, V2, V3, T, D> {
-    pub fn get_value<B: BS<V2, V3, T>>(
+impl<V: Ve<T, D>, T: Nu, const D: usize> PositionTemplate<V, T, D> {
+    pub fn get_value<V2: Ve<T, 2>, V3: Ve<T, 3>, B: BS<V2, V3, T>>(
         &self,
         get_value_data: GetValueData,
-        collapser: &Collapser<V2, V3, T, B>
+        collapser: &Collapser<V2, V3, T, B>,
+        template: &ComposeTemplate<V2, V3, T, B>
     ) -> (SmallVec<[V; 1]>, bool) {
 
         match self {
             PositionTemplate::Const(v) => (smallvec::smallvec![*v], false),
             PositionTemplate::FromNumbers(n) => {
                 let mut r_final = false;
-                
+
                 let n = n
                     .into_iter()
                     .map(|n| {
-                        let (i, r) = n.get_value(get_value_data, collapser);
+                        let (i, r) =  template
+                            .get_number_value(*n)
+                            .get_value(get_value_data, collapser, template);
 
                         r_final |= r;
                         i
                     })
                     .multi_cartesian_product()
                     .map(|n| V::from_iter(&mut n.into_iter()));
-                
+
                 (n.collect(), r_final)
             },
             PositionTemplate::PerPosition(set) => {
-                let (p, r) = set.get_child_value(get_value_data, collapser);
+                let (p, r) =  template
+                    .get_position_set_value(*set)
+                    .get_value(get_value_data, collapser, template);
 
-                (p, r)
+                (p.collect(), r)
             },
-        }
-    }
-
-    pub fn cut_loop(&mut self, to_index: usize) {
-        match self {
-            PositionTemplate::Const(_) => {},
-            PositionTemplate::FromNumbers(numbers) => {
-                for number in numbers {
-                    number.cut_loop(to_index);
-                }
-            },
-            PositionTemplate::PerPosition(set) => set.cut_loop(to_index),
+            PositionTemplate::PhantomData(_) => unreachable!(),
         }
     }
 }
+
 

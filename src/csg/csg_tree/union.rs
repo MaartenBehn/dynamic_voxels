@@ -54,7 +54,7 @@ impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> BHShape<V::VectorF, f32
         match &self.data {
             CSGTreeNodeData::None => AABB::default(),
             CSGTreeNodeData::Union(d) => d.get_bounds().to_f(),
-            CSGTreeNodeData::Remove(csgtree_remove) => {
+            CSGTreeNodeData::Cut(csgtree_remove) => {
                 let base = csgtree_remove.base;
                 shapes.aabb(base)
             },

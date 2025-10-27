@@ -170,12 +170,20 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         state: &mut B,
     ) {
         let new_node_template = &template.nodes[new_node_template_index];
-       
-        let data = match new_node_template.value {
+      
+        let value = &template.values[new_node_template.value_index];
+        let data = match value {
             ComposeTemplateValue::None => NodeDataType::None,
+            ComposeTemplateValue::Number(number_template) => todo!(),
             ComposeTemplateValue::NumberSpace(_) => NodeDataType::NumberSet(Default::default()),
-            ComposeTemplateValue::PositionSpace2D(_) => NodeDataType::PositionSpace2D(Default::default()),
-            ComposeTemplateValue::PositionSpace3D(_) =>  NodeDataType::PositionSpace3D(Default::default()),
+            ComposeTemplateValue::Position2D(position_template) => todo!(),
+            ComposeTemplateValue::Position3D(position_template) => todo!(),
+            ComposeTemplateValue::PositionSet2D(position_set_template) => todo!(),
+            ComposeTemplateValue::PositionSet3D(position_set_template) => todo!(),
+            ComposeTemplateValue::PositionSpace2D(position_space_template) => NodeDataType::PositionSpace2D(Default::default()),
+            ComposeTemplateValue::PositionSpace3D(position_space_template) => NodeDataType::PositionSpace3D(Default::default()),
+            ComposeTemplateValue::Volume2D(volume_template) => todo!(),
+            ComposeTemplateValue::Volume3D(volume_template) => todo!(),
             ComposeTemplateValue::Build(_) => NodeDataType::Build(B::CollapseValue::default()),
         };
 

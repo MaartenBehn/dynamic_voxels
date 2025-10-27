@@ -96,6 +96,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
     async fn collapse_node(&mut self, node_index: CollapseNodeKey, template: &ComposeTemplate<V2, V3, T, B>, state: &mut B) {
         let node = &self.nodes[node_index];
         let template_node = &template.nodes[node.template_index]; 
+        let value = &template.values[template_node.value_index];
+
         info!("{:?} Collapse", node_index);
 
         let get_value_data = GetValueData { 
@@ -106,12 +108,13 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             index: node_index,
         }; 
 
-        let needs_recompute = match &template_node.value {
+        let needs_recompute = match value {
             ComposeTemplateValue::None => false,
+            ComposeTemplateValue::Number(number_template) => todo!(),
             ComposeTemplateValue::NumberSpace(space) => {
-                let (mut new_val, r) = space.get_value(get_value_data, &self);
+                let (mut new_val, r) = space.get_value(get_value_data, &self, template);
                 let new_val = new_val.next().unwrap(); 
- 
+
                 let data = match &mut self.nodes[node_index].data {
                     NodeDataType::NumberSet(space) => space,
                     _ => unreachable!()
@@ -122,9 +125,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
                 r
             },
-
             ComposeTemplateValue::PositionSpace2D(space) => {
-                let (new_positions, r) = space.get_value(get_value_data, &self);
+                let (new_positions, r) = space.get_value(get_value_data, &self, template);
 
                 let data = match &mut self.nodes[node_index].data {
                     NodeDataType::PositionSpace2D(space) => space,
@@ -134,9 +136,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
                 r
             },
-
             ComposeTemplateValue::PositionSpace3D(space) => {
-                let (new_positions, r) = space.get_value(get_value_data, &self);
+                let (new_positions, r) = space.get_value(get_value_data, &self, template);
 
                 let data = match &mut self.nodes[node_index].data {
                     NodeDataType::PositionSpace3D(space) => space,
@@ -146,7 +147,12 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
                 r
             },
-
+            ComposeTemplateValue::Position2D(position_template) => todo!(),
+            ComposeTemplateValue::Position3D(position_template) => todo!(),
+            ComposeTemplateValue::PositionSet2D(position_set_template) => todo!(),
+            ComposeTemplateValue::PositionSet3D(position_set_template) => todo!(),
+            ComposeTemplateValue::Volume2D(volume_template) => todo!(),
+            ComposeTemplateValue::Volume3D(volume_template) => todo!(),
             ComposeTemplateValue::Build(t) => {
                 let data = match &node.data {
                     NodeDataType::Build(build) => build,

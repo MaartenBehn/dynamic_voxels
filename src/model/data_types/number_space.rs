@@ -1,13 +1,13 @@
 use std::iter;
 
 use egui_snarl::OutPinId;
-use itertools::Itertools;
+use itertools::{iproduct, Itertools};
 use octa_force::{log::debug, OctaResult};
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::ComposeNodeType, ModelComposer}, template::{update::MakeTemplateData, value::ComposeTemplateValue}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::ComposeNodeType, ModelComposer}, template::{self, update::MakeTemplateData, value::{ComposeTemplateValue, ValueIndex}, ComposeTemplate}}, util::{number::Nu, vector::Ve}};
 
-use super::number::NumberTemplate;
+use super::{number::NumberTemplate};
 
 pub type ValueIndexNumberSpace = usize;
 
@@ -26,10 +26,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
         pin: OutPinId, 
         data: &mut MakeTemplateData<V2, V3, T, B>,
     ) -> ValueIndexNumberSpace {
-        let value_index = pin.node.0;
-        if data.template.has_value(value_index) {
-            return value_index;   
-        } 
+        if let Some(value_index) = data.value_per_node_id.get_value(pin.node) {
+            return value_index;
+        }
 
         let node = self.snarl.get_node(pin.node).expect("Node of remote not found");
         let value = match &node.t {
@@ -42,27 +41,33 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
             _ => unreachable!(),
         };
 
-        data.template.set_value(value_index, ComposeTemplateValue::NumberSpace(value));
-        return value_index;
+        data.set_value(pin.node, ComposeTemplateValue::NumberSpace(value))
     }
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> NumberSpaceTemplate { 
-    pub fn get_value<B: BS<V2, V3, T>>(
+impl NumberSpaceTemplate { 
+    pub fn get_value<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>>(
         &self,
         get_value_data: GetValueData,
-        collapser: &Collapser<V2, V3, T, B>
+        collapser: &Collapser<V2, V3, T, B>,
+        template: &ComposeTemplate<V2, V3, T, B>
     ) -> (impl Iterator<Item = T> + use<B, V2, V3, T>, bool) {
         match &self {
             NumberSpaceTemplate::NumberRange { min, max, step } => {
-                let (min, r_0) = min.get_value(get_value_data, collapser);
-                let (max, r_1) = max.get_value(get_value_data, collapser);
-                let (step, r_2) = step.get_value(get_value_data, collapser);
+                let (min, r_0) =  template
+                    .get_number_value(*min)
+                    .get_value(get_value_data, collapser, template);
 
-                let v = min.into_iter()
-                    .cartesian_product(max)
-                    .cartesian_product(step)
-                    .map(|((min, max), step)| {
+                let (max, r_1) =  template
+                    .get_number_value(*max)
+                    .get_value(get_value_data, collapser, template);
+
+                let (step, r_2) =  template
+                    .get_number_value(*step)
+                    .get_value(get_value_data, collapser, template);
+
+                let v = iproduct!(min, max, step)
+                    .map(|(min, max, step)| {
                         let options = ((max - min) / step).to_usize();
                         let i = fastrand::usize(0..options);
                         let v = min + step * T::from_usize(i);
@@ -73,16 +78,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> NumberSpaceTemplate {
             },
         }
     }
-
-    
-
-    pub fn cut_loop(&mut self, to_index: usize) {
-        match self {
-            NumberSpaceTemplate::NumberRange { min, max, step } => {
-                min.cut_loop(to_index);
-                max.cut_loop(to_index);
-                step.cut_loop(to_index);
-            },
-        }
-    }
 }
+
+

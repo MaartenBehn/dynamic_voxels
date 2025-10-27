@@ -1,15 +1,18 @@
+use std::usize;
+
 use egui_snarl::{InPinId, NodeId, OutPinId};
 use octa_force::log::trace;
 use smallvec::{SmallVec, smallvec};
 
-use crate::{model::{composer::{build::{GetTemplateValueArgs, BS}, nodes::{ComposeNode, ComposeNodeType}, ModelComposer}, data_types::data_type::ComposeDataType, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::VALUE_INDEX_NODE}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{composer::{build::{GetTemplateValueArgs, BS}, nodes::{ComposeNode, ComposeNodeType}, ModelComposer}, data_types::{data_type::ComposeDataType, number::NumberTemplate, number_space::NumberSpaceTemplate, position::PositionTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::{ValuePerNodeId, VALUE_INDEX_NODE}}}, util::{number::Nu, vector::Ve}};
 
 use super::{dependency_tree::get_dependency_tree_and_loop_paths, nodes::TemplateNode, value::{ComposeTemplateValue, ValueIndex}, ComposeTemplate, TemplateIndex};
 
 
 pub struct MakeTemplateData<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub building_template_index: TemplateIndex,
-    pub template: &'a ComposeTemplate<V2, V3, T, B>,
+    pub template: &'a mut ComposeTemplate<V2, V3, T, B>,
+    pub value_per_node_id: &'a mut ValuePerNodeId,
     pub creates: SmallVec<[TemplateIndex; 2]>, 
     pub depends: SmallVec<[TemplateIndex; 4]>,
 }
@@ -19,7 +22,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
         Self {
             nodes: vec![TemplateNode {
                 index: 0,
-                value_index: VALUE_INDEX_NODE,
+                value_index: 0,
+                node_id: NodeId(usize::MAX),
                 depends_loop: smallvec![],
                 depends: smallvec![],
                 dependend: smallvec![],
@@ -27,6 +31,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                 creates: smallvec![],
                 dependecy_tree: Default::default(),
             }],
+            values: vec![ComposeTemplateValue::None],
             max_level: 1,
         }
     }
@@ -35,7 +40,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
         let mut nodes = vec![
             TemplateNode {
                 index: 0,
-                value_index: VALUE_INDEX_NODE,
+                value_index: 0,
+                node_id: NodeId(usize::MAX),
                 depends_loop: smallvec![],
                 depends: smallvec![],
                 dependend: smallvec![],
@@ -45,10 +51,14 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
             }
         ];
 
+        let mut value_per_node_id = ValuePerNodeId::new();
+
+
         for composer_node in composer.snarl.nodes() {
             let node_id = composer_node.id;
-            let value_index: ValueIndex = node_id.0;
- 
+
+            value_per_node_id.enshure_size(node_id);
+             
             let is_template_node = match &composer_node.t {
                 ComposeNodeType::TemplateNumberSet 
                 | ComposeNodeType::TemplatePositionSet2D
@@ -62,7 +72,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                 nodes.push(
                     TemplateNode {
                         index: i,
-                        value_index,
+                        value_index: VALUE_INDEX_NODE,
+                        node_id,
                         depends_loop: smallvec![],
                         depends: smallvec![],
                         dependend: smallvec![],
@@ -76,33 +87,34 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
 
         let mut template = ComposeTemplate {
             nodes,
-            values: vec![],
+            values: vec![ComposeTemplateValue::None],
             max_level: 1,
         };
 
         // value, depends, defined
         for i in 1..template.nodes.len() {
-            let value_index = template.nodes[i].value_index; 
-            let composer_node = composer.snarl.get_node(NodeId(value_index))
+            let node_id = template.nodes[i].node_id;
+            let composer_node = composer.snarl.get_node(node_id)
                 .expect("Composer Node for Template not found");
 
 
             let mut data = MakeTemplateData {
                 building_template_index: i,
                 template: &mut template,
+                value_per_node_id: &mut value_per_node_id,
                 creates: SmallVec::new(),
                 depends: SmallVec::new(),
             };
 
-            match &composer_node.t { 
+            let value_index = match &composer_node.t { 
                 ComposeNodeType::TemplatePositionSet2D
                 | ComposeNodeType::TemplatePositionSet3D => {
                     composer.make_pos_space(
-                        composer.get_input_remote_pin_by_type(composer_node, ComposeDataType::PositionSpace2D), &mut data);
+                        composer.get_input_remote_pin_by_index(composer_node, 0), &mut data)
                 },
                 ComposeNodeType::TemplateNumberSet => {
                     composer.make_number_space(
-                        composer.get_input_remote_pin_by_type(composer_node, ComposeDataType::NumberSpace), &mut data);
+                        composer.get_input_remote_pin_by_index(composer_node, 0), &mut data)
                 },
                 ComposeNodeType::Build(t) => {
                     let value = B::get_template_value(GetTemplateValueArgs { 
@@ -111,7 +123,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                         composer: &composer, 
                     }, &mut data);
 
-                    template.set_value(value_index, ComposeTemplateValue::Build(value));
+                    data.set_value(node_id, ComposeTemplateValue::Build(value))
                 },
                 _ => unreachable!()
             };
@@ -151,6 +163,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
             
             let node =  &mut template.nodes[i]; 
             node.depends = depends;
+            node.value_index = value_index;
         }
 
         // Levels, cut loops and dependend
@@ -194,30 +207,19 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
 
         trace!("Set level of node {}, index_seen: {:?}", index, &index_seen);
 
-        let node: &mut TemplateNode<V2, V3, T, B> = &mut self.nodes[index];
+        let node: &mut TemplateNode = &mut self.nodes[index];
         
         let mut max_level = 0;
         for (i, depends_index) in node.depends.to_owned().iter().enumerate().rev() {
             trace!("Node {}, depends on {}", index, *depends_index);
 
             if let Some(_) = index_seen.iter().find(|p| **p == *depends_index) {
-                let node: &mut TemplateNode<V2, V3, T, B> = &mut self.nodes[index];
-
                 trace!("Loop found from {} to {:?}", index, depends_index);
+                
+                let value_index = self.nodes[index].value_index;
+                self.cut_loop_inner(value_index, *depends_index);
 
-                match &mut node.value_index {
-                    ComposeTemplateValue::NumberSpace(number_space_template) => {
-                        number_space_template.cut_loop(*depends_index);
-                    },
-                    ComposeTemplateValue::PositionSpace2D(position_space_template) => {
-                        position_space_template.cut_loop(*depends_index)
-                    },
-                    ComposeTemplateValue::PositionSpace3D(position_space_template) => {
-                        position_space_template.cut_loop(*depends_index);
-                    },
-                    _ => {} 
-                }
-
+                let node = &mut self.nodes[index];
                 node.depends.swap_remove(i);
                 node.depends_loop.push((*depends_index, DependencyPath::default()));
  
@@ -239,6 +241,153 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
         node_level
     }
 
+    pub fn cut_loop_inner(
+        &mut self,
+        value_index: ValueIndex,
+        to_index: usize, 
+    ) {
+        let value = &mut self.values[value_index];
+
+        match value {
+            ComposeTemplateValue::None => {},
+            ComposeTemplateValue::Number(number_template) => {
+                match number_template {
+                    NumberTemplate::Const(_) => {},
+                    NumberTemplate::Hook(hook) => {
+                        hook.loop_cut |= hook.template_index == to_index;
+                    },
+                    NumberTemplate::SplitPosition2D((p, _)) => {
+                        let p = *p;
+                        self.cut_loop_inner(p, to_index);
+                    },
+                    NumberTemplate::SplitPosition3D((p, _)) => {
+                        let p = *p;
+                        self.cut_loop_inner(p, to_index);
+                    },
+                }
+            },
+            ComposeTemplateValue::NumberSpace(number_space_template) => {
+                match number_space_template {
+                    NumberSpaceTemplate::NumberRange { min, max, step } => {
+                        let min = *min;
+                        let max = *max;
+                        let step = *step;
+
+                        self.cut_loop_inner(min, to_index);
+                        self.cut_loop_inner(max, to_index);
+                        self.cut_loop_inner(step, to_index);
+                    },
+                }
+            },
+            ComposeTemplateValue::PositionSpace2D(position_space_template)
+            | ComposeTemplateValue::PositionSpace3D(position_space_template)=> {
+                match position_space_template {
+                    PositionSpaceTemplate::Grid(grid_template) => {
+                        let volume = grid_template.volume;
+                        let spacing = grid_template.spacing;
+
+                        self.cut_loop_inner(volume, to_index);
+                        self.cut_loop_inner(spacing, to_index);
+                    },
+                    PositionSpaceTemplate::LeafSpread(leaf_spread_template) => {
+                        let volume = leaf_spread_template.volume;
+                        let samples = leaf_spread_template.samples;
+
+                        self.cut_loop_inner(volume, to_index);
+                        self.cut_loop_inner(samples, to_index);
+                    },
+                    PositionSpaceTemplate::Path(path_template) => {
+                        let start = path_template.start;
+                        let end = path_template.end;
+                        let spacing = path_template.spacing;
+                        let side_variance = path_template.side_variance;
+
+                        self.cut_loop_inner(start, to_index);
+                        self.cut_loop_inner(end, to_index);
+                        self.cut_loop_inner(spacing, to_index);
+                        self.cut_loop_inner(side_variance, to_index);
+                    },
+                }
+            },
+            ComposeTemplateValue::Position2D(position_template) => {
+                match position_template {
+                    PositionTemplate::Const(_) => {},
+                    PositionTemplate::FromNumbers(n) => {
+                        let n = *n;
+                        self.cut_loop_inner(n[0], to_index);
+                        self.cut_loop_inner(n[1], to_index);
+                    },
+                    PositionTemplate::PerPosition(n) => {
+                        let n = *n;
+                        self.cut_loop_inner(n, to_index);
+                    },
+                    PositionTemplate::PhantomData(phantom_data) => unreachable!(),
+                }
+            },
+            ComposeTemplateValue::Position3D(position_template) => {
+                match position_template {
+                    PositionTemplate::Const(_) => {},
+                    PositionTemplate::FromNumbers(n) => {
+                        let n = *n;
+                        self.cut_loop_inner(n[0], to_index);
+                        self.cut_loop_inner(n[1], to_index);
+                        self.cut_loop_inner(n[2], to_index);
+                    },
+                    PositionTemplate::PerPosition(n) => {
+                        let n = *n;
+                        self.cut_loop_inner(n, to_index);
+                    },
+                    PositionTemplate::PhantomData(phantom_data) => unreachable!(),
+                }
+            },
+            ComposeTemplateValue::PositionSet2D(position_set_template)
+            | ComposeTemplateValue::PositionSet3D(position_set_template)=> {
+                match position_set_template {
+                    PositionSetTemplate::Hook(hook) => {
+                        hook.loop_cut |= hook.template_index == to_index;
+                    },
+                    PositionSetTemplate::T2Dto3D(position_set2_dto3_dtemplate) => todo!(),
+                }
+            },
+            ComposeTemplateValue::Volume2D(volume_template)
+            | ComposeTemplateValue::Volume3D(volume_template)=> {
+                match volume_template {
+                    VolumeTemplate::Sphere { pos, size } => {
+                        let pos = *pos;
+                        let size = *size;
+                        self.cut_loop_inner(pos, to_index);
+                        self.cut_loop_inner(size, to_index);
+                    },
+                    VolumeTemplate::Box { pos, size } => {
+                        let pos = *pos;
+                        let size = *size;
+                        self.cut_loop_inner(pos, to_index);
+                        self.cut_loop_inner(size, to_index);
+                    },
+                    VolumeTemplate::Union { a, b } => {
+                        let a = *a;
+                        let b = *b;
+                        self.cut_loop_inner(a, to_index);
+                        self.cut_loop_inner(b, to_index);
+                    },
+                    VolumeTemplate::Cut { base, cut } => {
+                        let base = *base;
+                        let cut = *cut;
+                        self.cut_loop_inner(base, to_index);
+                        self.cut_loop_inner(cut, to_index);
+                    },
+                    VolumeTemplate::SphereUnion { position_set, size } => {
+                        let position_set = *position_set;
+                        let size = *size;
+                        self.cut_loop_inner(position_set, to_index);
+                        self.cut_loop_inner(size, to_index);
+                    },
+                }
+            },
+            ComposeTemplateValue::Build(_) => todo!(),
+        }
+    }
+
     pub fn get_index_by_out_pin(&self, pin: OutPinId) -> TemplateIndex {
         self.nodes.iter()
             .position(|n| n.node_id == pin.node)
@@ -252,17 +401,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
     }
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> {
-    pub fn get_input_pin_index_by_type(&self, node: &ComposeNode<B::ComposeType>, t: ComposeDataType) -> usize {
-        node.inputs.iter()
-            .position(|i|  i.data_type == t)
-            .expect(&format!("No Node {:?} input of type {:?}", node.t, t))
-    }
- 
-    pub fn get_input_remote_pin_by_type(&self, node: &ComposeNode<B::ComposeType>, t: ComposeDataType) -> OutPinId {
-        self.get_input_remote_pin_by_index(node, self.get_input_pin_index_by_type(node, t))
-    }
-
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> { 
     pub fn get_input_remote_pin_by_index(&self, node: &ComposeNode<B::ComposeType>, index: usize) -> OutPinId {
         let remotes = self.snarl.in_pin(InPinId{ node: node.id, input: index }).remotes;
         if remotes.is_empty() {
@@ -275,17 +414,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
 
         remotes[0]
     }
-
-    pub fn get_output_pin_index_by_type(&self, node: &ComposeNode<B::ComposeType>, t: ComposeDataType) -> usize {
-        node.outputs.iter()
-            .position(|i|  i.data_type == t)
-            .expect(&format!("No Node {:?} output of type {:?}", node.t, t))
-    }
-
-    pub fn get_output_first_remote_pin_by_type(&self, node: &ComposeNode<B::ComposeType>, t: ComposeDataType) -> InPinId {
-        self.get_output_first_remote_pin_by_index(node, self.get_output_pin_index_by_type(node, t))
-    }
-
+ 
     pub fn get_output_first_remote_pin_by_index(&self, node: &ComposeNode<B::ComposeType>, index: usize) -> InPinId {
         let remotes = self.snarl.out_pin(OutPinId{ node: node.id, output: index }).remotes;
         if remotes.is_empty() {
@@ -293,5 +422,20 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
         }
 
         remotes[0]
+    }
+}
+
+impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> MakeTemplateData<'a, V2, V3, T, B> {
+    pub fn set_value(&mut self, node_id: NodeId, value: ComposeTemplateValue<V2, V3, T, B>) -> ValueIndex {
+        let value_index = self.template.values.len(); 
+        self.template.values.push(value);
+        self.value_per_node_id.set_value(node_id, value_index);
+        value_index
+    }
+
+    pub fn add_value(&mut self, value: ComposeTemplateValue<V2, V3, T, B>) -> ValueIndex {
+        let value_index = self.template.values.len(); 
+        self.template.values.push(value);
+        value_index
     }
 }
