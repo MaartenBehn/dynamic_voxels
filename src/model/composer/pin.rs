@@ -59,10 +59,6 @@ impl egui_snarl::ui::SnarlPin for ComposePin {
             ComposeDataType::Position3D(..) => PinInfo::circle().with_fill(Color32::BLUE),
             ComposeDataType::PositionSpace2D => PinInfo::triangle().with_fill(Color32::LIGHT_BLUE),
             ComposeDataType::PositionSpace3D => PinInfo::triangle().with_fill(Color32::BLUE),
-            ComposeDataType::PositionSet2D => PinInfo::square().with_fill(Color32::LIGHT_BLUE),
-            ComposeDataType::PositionSet3D => PinInfo::square().with_fill(Color32::BLUE),
-            ComposeDataType::PositionPairSet2D => PinInfo::square().with_fill(Color32::CYAN),
-            ComposeDataType::PositionPairSet3D => PinInfo::square().with_fill(Color32::CYAN),
 
             ComposeDataType::Volume2D => PinInfo::square().with_fill(Color32::LIGHT_RED),
             ComposeDataType::Volume3D => PinInfo::square().with_fill(Color32::RED),

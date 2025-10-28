@@ -10,39 +10,39 @@ use super::{add_nodes::GetValueData, collapser::{CollapseChildKey, CollapseNodeK
 
 
 #[derive(Debug, Clone, Default)]
-pub struct PositionSet<V: Ve<T, D>, T: Nu, const D: usize> {
-    positions: SlotMap<CollapseChildKey, V>,
+pub struct PositionPairSet<V: Ve<T, D>, T: Nu, const D: usize> {
+    positions: SlotMap<CollapseChildKey, (V, V)>,
     new_children: Vec<CollapseChildKey>,
     p: PhantomData<T>,
 }
 
-impl<V: Ve<T, D>,  T: Nu, const D: usize> PositionSet<V, T, D> { 
-    pub fn get_position(&self, index: CollapseChildKey) -> V {
+impl<V: Ve<T, D>,  T: Nu, const D: usize> PositionPairSet<V, T, D> { 
+    pub fn get_position_pair(&self, index: CollapseChildKey) -> (V, V) {
         self.positions[index]    
     }
 
-    pub fn get_positions(&self) -> impl Iterator<Item = V> {
+    pub fn get_position_pairs(&self) -> impl Iterator<Item = (V, V)> {
         self.positions.values().into_iter().map(|v| *v)
     }
- 
+    
     pub fn is_child_valid(&self, index: CollapseChildKey) -> bool {
         self.positions.contains_key(index)    
     }
 
     pub fn update(
         &mut self,
-        mut new_positions: Vec<V>,
+        mut new_pairs: Vec<(V, V)>,
     ) {
         self.positions.retain(|_, p| {
-            if let Some(i) = new_positions.iter().position(|t| *t == *p) {
-                new_positions.swap_remove(i);
+            if let Some(i) = new_pairs.iter().position(|t| *t == *p) {
+                new_pairs.swap_remove(i);
                 true
             } else {
                 false
             }
         });
 
-        let new_children = new_positions.iter()
+        let new_children = new_pairs.iter()
             .map(|p| self.positions.insert(*p))
             .collect_vec();
 

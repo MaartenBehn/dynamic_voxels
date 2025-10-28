@@ -94,7 +94,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
             "".to_string()
         };
 
-        ui.collapsing(format!("{} {:?} {}", up_text, node.node_id, leaf_text), |ui| {
+        ui.collapsing(format!("{} {:?} {}", up_text, node.index, leaf_text), |ui| {
             for i in step.children.iter() {
                 self.dependecy_tree(tree, inital_node, ui, *i);
             }

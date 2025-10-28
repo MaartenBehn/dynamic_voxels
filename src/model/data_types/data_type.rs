@@ -9,12 +9,6 @@ pub enum ComposeDataType {
     Position2D(Option<IVec2>), 
     Position3D(Option<IVec3>), 
     
-    PositionSet2D,
-    PositionSet3D,
-
-    PositionPairSet2D,
-    PositionPairSet3D,
-
     PositionSpace2D,
     PositionSpace3D,
 

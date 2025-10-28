@@ -4,9 +4,9 @@ use itertools::{Either, Itertools};
 use octa_force::{anyhow::{anyhow, bail, ensure}, glam::{vec3, vec3a, IVec3, Vec3, Vec3Swizzles}, log::{debug, error, info}, vulkan::ash::vk::OpaqueCaptureDescriptorDataCreateInfoEXT, OctaResult};
 use rayon::iter::IntoParallelIterator;
 use slotmap::{new_key_type, Key, SlotMap};
-use crate::{model::{composer::build::{OnCollapseArgs, BS}, template::{value::ComposeTemplateValue, ComposeTemplate, TemplateIndex}}, util::{iter_merger::IM3, number::Nu, state_saver, vector::Ve}, volume::VolumeQureyPosValid};
+use crate::{model::{composer::build::{OnCollapseArgs, BS}, template::{value::ComposeTemplateValue, ComposeTemplate, TemplateIndex}}, util::{iter_merger::{IM2, IM3}, number::Nu, state_saver, vector::Ve}, volume::VolumeQureyPosValid};
 
-use super::{add_nodes::{GetNewChildrenData, GetValueData}, number_set::NumberSet, pending_operations::{PendingOperations, PendingOperationsRes}, position_set::PositionSet};
+use super::{add_nodes::{GetNewChildrenData, GetValueData}, number_set::NumberSet, pending_operations::{PendingOperations, PendingOperationsRes}, position_pair_set::PositionPairSet, position_set::PositionSet};
 
 new_key_type! { pub struct CollapseNodeKey; }
 new_key_type! { pub struct CollapseChildKey; }
@@ -43,6 +43,12 @@ pub enum NodeDataType<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
 union VUnion<VA: Ve<T, DA>, VB: Ve<T, DB>, T: Nu, const DA: usize, const DB: usize> {
     a: VA,
     b: VB,
+    p: PhantomData<T>,
+}
+
+union PairUnion<VA: Ve<T, DA>, VB: Ve<T, DB>, T: Nu, const DA: usize, const DB: usize> {
+    a: (VA, VA),
+    b: (VB, VB),
     p: PhantomData<T>,
 }
 
@@ -151,6 +157,28 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
                 r
             },
+            ComposeTemplateValue::PositionPairSet2D(position_set_template) => {
+                let (new_positions, r) = position_set_template.get_value(get_value_data, &self, template);
+
+                let data = match &mut self.nodes[node_index].data {
+                    NodeDataType::PositionPairSet2D(space) => space,
+                    _ => unreachable!()
+                };
+                data.update(new_positions); 
+
+                r
+            },
+            ComposeTemplateValue::PositionPairSet3D(position_set_template) => {
+                let (new_positions, r) = position_set_template.get_value(get_value_data, &self, template);
+
+                let data = match &mut self.nodes[node_index].data {
+                    NodeDataType::PositionPairSet3D(space) => space,
+                    _ => unreachable!()
+                };
+                data.update(new_positions); 
+
+                r
+            },
             ComposeTemplateValue::Build(t) => {
                 let data = match &node.data {
                     NodeDataType::Build(build) => build,
@@ -203,13 +231,13 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             NodeDataType::NumberSet(number_space) => {
                 todo!()
             },
-            NodeDataType::PositionSet2D(position_space) => position_space.get_new_children(),
-            NodeDataType::PositionSet3D(position_space) => position_space.get_new_children(),
+            NodeDataType::PositionSet2D(s) => s.get_new_children(),
+            NodeDataType::PositionSet3D(s) => s.get_new_children(),
+            NodeDataType::PositionPairSet2D(s) => s.get_new_children(),
+            NodeDataType::PositionPairSet3D(s) => s.get_new_children(),
             NodeDataType::Build(_) 
             | NodeDataType::None 
             => panic!("Called get new children on node that has no children"),
-            NodeDataType::PositionPairSet2D(_) => todo!(),
-            NodeDataType::PositionPairSet3D(_) => todo!(),
         };
 
         keys.iter()
@@ -227,10 +255,12 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         match &node.data {
             NodeDataType::PositionSet2D(position_space) => position_space.is_child_valid(child_index),
             NodeDataType::PositionSet3D(position_space) => position_space.is_child_valid(child_index),
+            NodeDataType::PositionPairSet2D(position_pair_set) => position_pair_set.is_child_valid(child_index),
+            NodeDataType::PositionPairSet3D(position_pair_set) => position_pair_set.is_child_valid(child_index),
             NodeDataType::NumberSet(_)
             | NodeDataType::Build(_) 
             | NodeDataType::None 
-                => panic!("Called is child valid on node that has no children"),
+            => panic!("Called is child valid on node that has no children"),
         }
     }
 
@@ -253,7 +283,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             2 => {
                 let v = match &parent.data {
                     NodeDataType::PositionSet2D(d) => d.get_position(child_index),
-                    _ => panic!("Template Node {:?} is not of Type Position Space 2D Set", parent.template_index)
+                    _ => panic!("Template Node {:?} is not of Type Position Set 2D Set", parent.template_index)
                 };
 
                 // Safety V2 and V are the same Type bause D == 2
@@ -262,7 +292,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             3 => {
                 let v = match &parent.data {
                     NodeDataType::PositionSet3D(d) => d.get_position(child_index),
-                    _ => panic!("Template Node {:?} is not of Type Position Space 3D Set", parent.template_index)
+                    _ => panic!("Template Node {:?} is not of Type Position Set 3D Set", parent.template_index)
                 };
 
                 // Safety V3 and V are the same Type bause D == 3
@@ -272,36 +302,88 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         }
     }
 
-    pub fn get_position_set<V: Ve<T, D>, const D: usize>(&self, index: CollapseNodeKey) -> impl Iterator<Item = V> {
-        let node = &self.nodes[index];
+    pub fn get_positions<V: Ve<T, D>, const D: usize>(
+        &self,
+        parent_index: CollapseNodeKey, 
+    ) -> impl Iterator<Item = V> {
+
+        let parent = &self.nodes[parent_index];
        
         match D {
             2 => {
-                let i = match &node.data {
+                let v = match &parent.data {
                     NodeDataType::PositionSet2D(d) => d.get_positions(),
-                    _ => panic!("Template Node {:?} is not of Type Position Space Set 2D", node.template_index)
-                };
-                
-                Either::Left(i.map(|v|  {
-                    // Safety V2 and V are the same Type bause D == 2
-                    unsafe { VUnion{ a: v }.b }
-                }))
-            }
-            3 => {
-                let i = match &node.data {
-                    NodeDataType::PositionSet3D(d) => d.get_positions(),
-                    _ => panic!("Template Node {:?} is not of Type Position Space Set 3D, Template", node.template_index)
+                    _ => panic!("Template Node {:?} is not of Type Position Set 2D Set", parent.template_index)
                 };
 
-                Either::Right(i.map(|v| {
-                    // Safety V3 and V are the same Type bause D == 3
-                    unsafe { VUnion{ a: v }.b }
-                }))
+                // Safety V2 and V are the same Type bause D == 2
+                IM2::A(v.map(|v| unsafe { VUnion{ a: v }.b }))
+            }
+            3 => {
+                let v = match &parent.data {
+                    NodeDataType::PositionSet3D(d) => d.get_positions(),
+                    _ => panic!("Template Node {:?} is not of Type Position Set 3D Set", parent.template_index)
+                };
+
+                // Safety V3 and V are the same Type bause D == 3
+                IM2::B(v.map(|v| unsafe { VUnion{ a: v }.b }))
             }
             _ => unreachable!()
         }
     }
 
+    pub fn get_position_pair<V: Ve<T, D>, const D: usize>(&self, parent_index: CollapseNodeKey, child_index: CollapseChildKey) -> (V, V) {
+        let parent = &self.nodes[parent_index];
+       
+        match D {
+            2 => {
+                let v = match &parent.data {
+                    NodeDataType::PositionPairSet2D(d) => d.get_position_pair(child_index),
+                    _ => panic!("Template Node {:?} is not of Type Position Pair Set 2D Set", parent.template_index)
+                };
+
+                // Safety V2 and V are the same Type bause D == 2
+                unsafe { PairUnion{ a: v }.b }
+            }
+            3 => {
+                let v = match &parent.data {
+                    NodeDataType::PositionPairSet3D(d) => d.get_position_pair(child_index),
+                    _ => panic!("Template Node {:?} is not of Type Position Pair Set 3D Set", parent.template_index)
+                };
+
+                // Safety V3 and V are the same Type bause D == 3
+                unsafe { PairUnion{ a: v }.b }
+            }
+            _ => unreachable!()
+        }
+    }
+
+    pub fn get_position_pairs<V: Ve<T, D>, const D: usize>(&self, parent_index: CollapseNodeKey) -> impl Iterator<Item = (V, V)> {
+        let parent = &self.nodes[parent_index];
+       
+        match D {
+            2 => {
+                let v = match &parent.data {
+                    NodeDataType::PositionPairSet2D(d) => d.get_position_pairs(),
+                    _ => panic!("Template Node {:?} is not of Type Position Pair Set 2D Set", parent.template_index)
+                };
+
+                // Safety V2 and V are the same Type bause D == 2
+                IM2::A(v.map(|v| unsafe { PairUnion{ a: v }.b }))
+            }
+            3 => {
+                let v = match &parent.data {
+                    NodeDataType::PositionPairSet3D(d) => d.get_position_pairs(),
+                    _ => panic!("Template Node {:?} is not of Type Position Pair Set 3D Set", parent.template_index)
+                };
+
+                // Safety V3 and V are the same Type bause D == 3
+                IM2::B(v.map(|v| unsafe { PairUnion{ a: v }.b }))
+            }
+            _ => unreachable!()
+        }
+    }
+ 
     pub fn get_dependend_new_children(
         &self, 
         template_index: TemplateIndex,
@@ -339,12 +421,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         &self, 
         index: CollapseNodeKey,
         get_value_data: GetValueData,
-    ) -> CollapseChildKey {
-        let (_, ci) = get_value_data.child_indexs.iter()
-            .find(|(i, _)| *i == index) 
-            .expect("Could not find child index");
-
-        *ci
+    ) -> Option<CollapseChildKey> {
+        get_value_data.child_indexs.iter()
+            .find(|(i, _)| *i == index)
+            .map(|(_, ci)| *ci)
     }
 
       
@@ -356,28 +436,39 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         let (iter, r) = self.get_dependend_index_value_data(template_index, get_value_data);
         (iter.map(|i| self.get_number(i)), r)
     }
-
-    pub fn get_dependend_position_set<V: Ve<T, D>, const D: usize>(
-        &self, 
-        template_index: TemplateIndex,
-        get_value_data: GetValueData,
-    ) -> (impl Iterator<Item = V>, bool) { 
-        let (iter, r) = self.get_dependend_index_value_data(template_index, get_value_data);
-        (iter.map(|i| self.get_position_set(i)).flatten(), r)
-    }
- 
+     
     pub fn get_dependend_position<V: Ve<T, D>, const D: usize>(
         &self, 
         template_index: TemplateIndex,
         get_value_data: GetValueData,
     ) -> (impl Iterator<Item = V>, bool) { 
         let (iter, r) = self.get_dependend_index_value_data(template_index, get_value_data);
+
+        (iter.map(move |i| {
+            let child_index = self.get_child_index(i, get_value_data);
+            if let Some(child_index) = child_index {
+                IM2::A(iter::once(self.get_position(i, child_index)))
+            } else {
+                IM2::B(self.get_positions(i))
+            }
+        }).flatten(), r)
+    }
+
+    pub fn get_dependend_position_pair<V: Ve<T, D>, const D: usize>(
+        &self, 
+        template_index: TemplateIndex,
+        get_value_data: GetValueData,
+    ) -> (impl Iterator<Item = (V, V)>, bool) { 
+        let (iter, r) = self.get_dependend_index_value_data(template_index, get_value_data);
         
         (iter.map(move |i| {
             let child_index = self.get_child_index(i, get_value_data);
-            self.get_position(i, child_index)
-            }), r)
-
+            if let Some(child_index) = child_index {
+                IM2::A(iter::once(self.get_position_pair(i, child_index)))
+            } else {
+                IM2::B(self.get_position_pairs(i))
+            }
+        }).flatten(), r)
         
     }
 

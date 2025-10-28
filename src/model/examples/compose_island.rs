@@ -121,8 +121,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
 
                 let pos = pos[0];
 
-                //dbg!(&volume);
-
                 volume.calculate_bounds();
 
                 let now = Instant::now();

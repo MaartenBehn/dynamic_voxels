@@ -1,4 +1,4 @@
-use std::{fmt::Debug, iter, ops::{Add, Div, Index, Mul, Neg, Sub}, process::Output};
+use std::{cmp::Ordering, fmt::Debug, iter, ops::{Add, Div, Index, Mul, Neg, Sub}, process::Output};
 
 use octa_force::glam::{vec2, IVec2, IVec3, Mat3, Mat4, UVec3, Vec2, Vec3, Vec3A, Vec3Swizzles, Vec4, Vec4Swizzles};
 
@@ -43,6 +43,8 @@ pub trait Ve<T: Nu, const D: usize>:
     fn max(self, other: Self) -> Self;
     fn lt(self, other: Self) -> Self;
     fn gt(self, other: Self) -> Self;
+
+    fn cmp(self, other: Self) -> Ordering;
 
     fn cmplt_any(self, other: Self) -> bool;
     fn cmpgt_any(self, other: Self) -> bool;
@@ -118,7 +120,9 @@ impl Ve<f32, 2> for Vec2 {
     fn max(self, other: Self) -> Self { Vec2::max(self, other) }
     fn lt(self, other: Self) -> Self { Vec2::from(Vec2::cmplt(self, other)) }
     fn gt(self, other: Self) -> Self { Vec2::from(Vec2::cmpgt(self, other)) }
-    
+
+    fn cmp(self, other: Self) -> Ordering { self.x.total_cmp(&other.x).then(self.y.total_cmp(&other.y)) }
+
     fn cmplt_any(self, other: Self) -> bool { self.cmplt(other).any() }
     fn cmpgt_any(self, other: Self) -> bool { self.cmpgt(other).any() }
     fn cmple_any(self, other: Self) -> bool { self.cmple(other).any() }
@@ -186,6 +190,8 @@ impl Ve<f32, 3> for Vec3 {
     fn max(self, other: Self) -> Self { Vec3::max(self, other) }
     fn lt(self, other: Self) -> Self { Vec3::from(Vec3::cmplt(self, other)) }
     fn gt(self, other: Self) -> Self { Vec3::from(Vec3::cmpgt(self, other)) }
+    
+    fn cmp(self, other: Self) -> Ordering { self.x.total_cmp(&other.x).then(self.y.total_cmp(&other.y)).then(self.z.total_cmp(&other.z)) }
 
     fn cmplt_any(self, other: Self) -> bool { self.cmplt(other).any() }
     fn cmpgt_any(self, other: Self) -> bool { self.cmpgt(other).any() }
@@ -254,6 +260,8 @@ impl Ve<f32, 3> for Vec3A {
     fn max(self, other: Self) -> Self { Vec3A::max(self, other) }
     fn lt(self, other: Self) -> Self { Vec3A::from(Vec3A::cmplt(self, other)) }
     fn gt(self, other: Self) -> Self { Vec3A::from(Vec3A::cmpgt(self, other)) }
+    
+    fn cmp(self, other: Self) -> Ordering { self.x.total_cmp(&other.x).then(self.y.total_cmp(&other.y)).then(self.z.total_cmp(&other.z)) }
 
     fn cmplt_any(self, other: Self) -> bool { self.cmplt(other).any() }
     fn cmpgt_any(self, other: Self) -> bool { self.cmpgt(other).any() }
@@ -323,6 +331,8 @@ impl Ve<i32, 3> for IVec3 {
 
     fn lt(self, other: Self) -> Self { IVec3::from(IVec3::cmplt(self, other)) }
     fn gt(self, other: Self) -> Self { IVec3::from(IVec3::cmpgt(self, other)) }
+    
+    fn cmp(self, other: Self) -> Ordering { self.x.cmp(&other.x).then(self.y.cmp(&other.y)).then(self.z.cmp(&other.z)) }
 
     fn cmplt_any(self, other: Self) -> bool { self.cmplt(other).any() }
     fn cmpgt_any(self, other: Self) -> bool { self.cmpgt(other).any() }
@@ -391,6 +401,8 @@ impl Ve<i32, 2> for IVec2 {
 
     fn lt(self, other: Self) -> Self { IVec2::from(IVec2::cmplt(self, other)) }
     fn gt(self, other: Self) -> Self { IVec2::from(IVec2::cmpgt(self, other)) }
+    
+    fn cmp(self, other: Self) -> Ordering { self.x.cmp(&other.x).then(self.y.cmp(&other.y)) }
 
     fn cmplt_any(self, other: Self) -> bool { self.cmplt(other).any() }
     fn cmpgt_any(self, other: Self) -> bool { self.cmpgt(other).any() }

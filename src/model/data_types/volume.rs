@@ -28,10 +28,6 @@ pub enum VolumeTemplate {
         base: ValueIndexVolume,
         cut: ValueIndexVolume,
     },
-    SphereUnion {
-        position_set: ValueIndexPositionSet,
-        size: ValueIndexNumber,
-    },
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> {
@@ -73,14 +69,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
             ComposeNodeType::CutVolume3D => ComposeTemplateValue::Volume3D(VolumeTemplate::Cut {
                 base: self.make_volume(self.get_input_remote_pin_by_index(node, 0), data),
                 cut: self.make_volume(self.get_input_remote_pin_by_index(node, 1), data),
-            }),
-            ComposeNodeType::CircleUnion => ComposeTemplateValue::Volume3D(VolumeTemplate::SphereUnion { 
-                position_set: self.make_position_set(self.get_input_remote_pin_by_index(node, 0), data), 
-                size: self.make_number(node, 1, data) 
-            }),
-            ComposeNodeType::SphereUnion => ComposeTemplateValue::Volume3D(VolumeTemplate::SphereUnion { 
-                position_set: self.make_position_set(self.get_input_remote_pin_by_index(node, 0), data), 
-                size: self.make_number(node, 1, data) 
             }),
             _ => unreachable!(),
         };
@@ -191,20 +179,6 @@ impl VolumeTemplate {
                 let root = tree.add_cut_node(base, cut);
 
                 (vec![root], r_0 || r_1)
-            },
-            VolumeTemplate::SphereUnion { position_set, size } => {
-
-                let (set, r_1) = template.get_position_set_value(*position_set)
-                    .get_value::<V, V2, V3, T, B, D>(get_value_data, collapser, template);
-                let (size, r_0) = template.get_number_value(*size)
-                    .get_value(get_value_data, collapser, template);
-
-                let mut roots = vec![];
-                for (pos, size) in iproduct!(set, size) {
-                    roots.push(tree.add_sphere(pos.to_vecf(), size.to_f32(), mat));
-                }
-
-                (roots, r_0 || r_1)
             },
         }
     }

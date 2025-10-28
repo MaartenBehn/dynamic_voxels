@@ -61,11 +61,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
 
             let value = match remote_node.t {
                 ComposeNodeType::NumberRange => {
-                    let template_index = data.template.get_index_by_out_pin(pin);
-                    data.depends.push(template_index);
+                    todo!();
 
                     NumberTemplate::Hook(Hook {
-                        template_index,
+                        template_index: 0,
                         loop_cut: false,
                     })
                 },

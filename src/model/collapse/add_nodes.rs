@@ -174,20 +174,14 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         let value = &template.values[new_node_template.value_index];
         let data = match value {
             ComposeTemplateValue::None => NodeDataType::None,
-            ComposeTemplateValue::Number(number_template) => todo!(),
             ComposeTemplateValue::NumberSet(_) => NodeDataType::NumberSet(Default::default()),
-            ComposeTemplateValue::Position2D(position_template) => todo!(),
-            ComposeTemplateValue::Position3D(position_template) => todo!(),
-            ComposeTemplateValue::PositionSet2D(position_set_template) => todo!(),
-            ComposeTemplateValue::PositionSet3D(position_set_template) => todo!(),
-            ComposeTemplateValue::PositionPair2D(position_pair_set_template) => todo!(),
-            ComposeTemplateValue::PositionPair3D(position_pair_set_template) => todo!(),
-            ComposeTemplateValue::PositionSpace2D(position_space_template) => NodeDataType::PositionSet2D(Default::default()),
-            ComposeTemplateValue::PositionSpace3D(position_space_template) => NodeDataType::PositionSet3D(Default::default()),
-            ComposeTemplateValue::Volume2D(volume_template) => todo!(),
-            ComposeTemplateValue::Volume3D(volume_template) => todo!(),
+            ComposeTemplateValue::PositionSet2D(position_set_template) => NodeDataType::PositionSet2D(Default::default()),
+            ComposeTemplateValue::PositionSet3D(position_set_template) => NodeDataType::PositionSet3D(Default::default()),
+            ComposeTemplateValue::PositionPairSet2D(position_pair_set_template) => NodeDataType::PositionPairSet2D(Default::default()),
+            ComposeTemplateValue::PositionPairSet3D(position_pair_set_template) => NodeDataType::PositionPairSet3D(Default::default()),
             ComposeTemplateValue::Build(_) => NodeDataType::Build(B::CollapseValue::default()),
-                    };
+            _ => unreachable!()
+        };
 
         let index = self.nodes.insert(CollapseNode {
             template_index: new_node_template.index,
@@ -215,7 +209,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         }
 
         #[cfg(debug_assertions)]
-        info!("{:?} Node added {:?}", index, new_node_template.node_id);
+        info!("{:?} Node added {:?}", index, new_node_template.index);
                 
         self.pending.push_collpase(new_node_template.level, index);
     }

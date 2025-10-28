@@ -65,7 +65,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
                 let depend_template_node = &template.nodes[*depend_template_node];
                 assert!(nodes.len() > 0, 
                     "No nodes for dependency or knows of node found! \n {:?} tyring to find {:?}", 
-                    new_node_template.node_id, depend_template_node.node_id);
+                    new_node_template.index, depend_template_node.index);
                 (depend_template_node.index, nodes)
             }).collect::<Vec<_>>();
 

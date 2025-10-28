@@ -4,6 +4,7 @@ pub mod add_nodes;
 pub mod delete_node;
 pub mod number_set;
 pub mod position_set;
+pub mod position_pair_set;
 pub mod template_changed;
 pub mod depends;
 pub mod worker;
