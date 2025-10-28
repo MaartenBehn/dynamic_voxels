@@ -24,6 +24,8 @@ pub enum ComposeNodeGroupe {
 
     Split,
 
+    PairSet,
+
     Globals, 
 
     Build
@@ -69,10 +71,19 @@ pub enum ComposeNodeType<CT: ComposeTypeTrait> {
     TemplatePositionSet2D,
     TemplatePositionSet3D,
     TemplateNumberSet,
+    PositionPairSet2D,
+    PositionPairSet3D,
 
     // Split 
     PerPosition2D,
     PerPosition3D,
+
+        
+    PositionPairSetFilterDistance2D,
+    PositionPairSetFilterDistance3D,
+
+    PerPair2D,
+    PerPair3D,
 
     Build(CT)
 }
@@ -298,6 +309,35 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
         ComposeNode::new(ComposeNodeType::PerPosition3D, ComposeNodeGroupe::Split)
             .input(ComposeDataType::PositionSet3D, "positions")
             .output(ComposeDataType::Position3D(None), "position"),
+
+        // Pair Set
+        ComposeNode::new(ComposeNodeType::PositionPairSet2D, ComposeNodeGroupe::PairSet)
+            .input(ComposeDataType::PositionSet2D, "positions")
+            .output(ComposeDataType::PositionPairSet2D, "pairs"),
+
+        ComposeNode::new(ComposeNodeType::PositionPairSet3D, ComposeNodeGroupe::PairSet)
+            .input(ComposeDataType::PositionSet3D, "positions")
+            .output(ComposeDataType::PositionPairSet3D, "pairs"),
+
+        ComposeNode::new(ComposeNodeType::PositionPairSetFilterDistance2D, ComposeNodeGroupe::PairSet)
+            .input(ComposeDataType::PositionPairSet2D, "pairs")
+            .input(ComposeDataType::Number(None), "distance")
+            .output(ComposeDataType::PositionPairSet2D, "pairs"),
+
+        ComposeNode::new(ComposeNodeType::PositionPairSetFilterDistance3D, ComposeNodeGroupe::PairSet)
+            .input(ComposeDataType::PositionPairSet3D, "pairs")
+            .input(ComposeDataType::Number(None), "distance")
+            .output(ComposeDataType::PositionPairSet3D, "pairs"),
+
+        ComposeNode::new(ComposeNodeType::PerPair2D, ComposeNodeGroupe::PairSet)
+            .input(ComposeDataType::PositionPairSet2D, "pairs")
+            .output(ComposeDataType::Position2D(None), "a")
+            .output(ComposeDataType::Position2D(None), "b"),
+
+        ComposeNode::new(ComposeNodeType::PerPair3D, ComposeNodeGroupe::PairSet)
+            .input(ComposeDataType::PositionPairSet3D, "pairs")
+            .output(ComposeDataType::Position3D(None), "a")
+            .output(ComposeDataType::Position3D(None), "b"),
     ]
 }
 

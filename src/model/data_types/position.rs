@@ -6,7 +6,7 @@ use smallvec::SmallVec;
 
 use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::{ComposeNode, ComposeNodeType},  ModelComposer}, template::{update::MakeTemplateData, value::{ComposeTemplateValue, ValueIndex}, ComposeTemplate}}, util::{iter_merger::IM3, number::Nu, vector::Ve}};
 
-use super::{data_type::ComposeDataType, number::{Hook, NumberTemplate, ValueIndexNumber}, position_set::{PositionSetTemplate, ValueIndexPositionSet}};
+use super::{data_type::ComposeDataType, number::{Hook, NumberTemplate, ValueIndexNumber}, position_pair_set::ValueIndexPositionPairSet, position_set::{PositionSetTemplate, ValueIndexPositionSet}};
 
 pub type ValueIndexPosition = usize;
 pub type ValueIndexPosition2D = usize;
@@ -16,7 +16,8 @@ pub type ValueIndexPosition3D = usize;
 pub enum PositionTemplate<V: Ve<T, D>, T: Nu, const D: usize> {
     Const(V),
     FromNumbers([ValueIndexNumber; D]),
-    PerPosition(ValueIndexPositionSet),
+    PerPosition(Hook),
+    PerPair((Hook, bool)),
     PhantomData(PhantomData<T>),
 }
 
@@ -85,18 +86,38 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
                     ComposeTemplateValue::Position3D(PositionTemplate::FromNumbers([x, y, z]))
                 },
                 ComposeNodeType::PerPosition2D => {
-                    let i = self.make_position_set(
-                        self.get_input_remote_pin_by_index(remote_node, 0), data);
+                    let template_index = data.template.get_index_by_out_pin(pin);
+                    data.depends.push(template_index);
+                    data.creates.push(template_index);
 
-                    data.creates.push(data.template.get_position_set_value(i).get_ammount_hook(data.template));
-                    ComposeTemplateValue::Position2D(PositionTemplate::PerPosition(i))
+                    ComposeTemplateValue::Position2D(PositionTemplate::PerPosition(Hook {
+                        template_index,
+                        loop_cut: false,
+                    }))
                 } 
                 ComposeNodeType::PerPosition3D => {
-                    let i = self.make_position_set(
+                    let template_index = data.template.get_index_by_out_pin(pin);
+                    data.depends.push(template_index);
+                    data.creates.push(template_index);
+
+                    ComposeTemplateValue::Position3D(PositionTemplate::PerPosition(Hook {
+                        template_index,
+                        loop_cut: false,
+                    }))
+                }
+                ComposeNodeType::PerPair2D => {
+                    let set = self.make_position_pair_set(
                         self.get_input_remote_pin_by_index(remote_node, 0), data);
 
-                    data.creates.push(data.template.get_position_set_value(i).get_ammount_hook(data.template));
-                    ComposeTemplateValue::Position3D(PositionTemplate::PerPosition(i))
+                    data.creates.push(data.template.get_position_pair_set_value(set).get_ammount_hook(data.template));
+                    ComposeTemplateValue::Position2D(PositionTemplate::PerPair((set, pin.output == 0)))
+                }
+                ComposeNodeType::PerPair3D => {
+                    let set = self.make_position_pair_set(
+                        self.get_input_remote_pin_by_index(remote_node, 0), data);
+
+                    data.creates.push(data.template.get_position_pair_set_value(set).get_ammount_hook(data.template));
+                    ComposeTemplateValue::Position3D(PositionTemplate::PerPair((set, pin.output == 0)))
                 } 
                 _ => unreachable!(),
             };
@@ -141,6 +162,14 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> PositionTemplate<V, T, D> {
                     .get_position_set_value(*set)
                     .get_value(get_value_data, collapser, template);
 
+                (p.collect(), r)
+            },
+            PositionTemplate::PerPair((set, is_a)) => {
+                let (set, r) = template
+                    .get_position_pair_set_value(*set)
+                    .get_value(get_value_data, collapser, template);
+
+                let p = set.map(|(a, b)| if *is_a { a } else { b });
                 (p.collect(), r)
             },
             PositionTemplate::PhantomData(_) => unreachable!(),

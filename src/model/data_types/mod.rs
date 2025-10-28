@@ -5,6 +5,7 @@ pub mod number;
 pub mod number_space;
 pub mod position;
 pub mod position_set;
+pub mod position_pair_set;
 pub mod position_space;
 pub mod volume;
 

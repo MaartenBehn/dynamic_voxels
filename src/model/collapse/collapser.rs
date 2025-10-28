@@ -4,9 +4,9 @@ use itertools::{Either, Itertools};
 use octa_force::{anyhow::{anyhow, bail, ensure}, glam::{vec3, vec3a, IVec3, Vec3, Vec3Swizzles}, log::{debug, error, info}, vulkan::ash::vk::OpaqueCaptureDescriptorDataCreateInfoEXT, OctaResult};
 use rayon::iter::IntoParallelIterator;
 use slotmap::{new_key_type, Key, SlotMap};
-use crate::{model::{composer::build::{OnCollapseArgs, BS}, template::{value::ComposeTemplateValue, ComposeTemplate, TemplateIndex}}, util::{number::Nu, state_saver, vector::Ve}, volume::VolumeQureyPosValid};
+use crate::{model::{composer::build::{OnCollapseArgs, BS}, template::{value::ComposeTemplateValue, ComposeTemplate, TemplateIndex}}, util::{iter_merger::IM3, number::Nu, state_saver, vector::Ve}, volume::VolumeQureyPosValid};
 
-use super::{add_nodes::{GetNewChildrenData, GetValueData}, number_space::NumberSpace, pending_operations::{PendingOperations, PendingOperationsRes}, position_space::PositionSpace};
+use super::{add_nodes::{GetNewChildrenData, GetValueData}, number_set::NumberSet, pending_operations::{PendingOperations, PendingOperationsRes}, position_set::PositionSet};
 
 new_key_type! { pub struct CollapseNodeKey; }
 new_key_type! { pub struct CollapseChildKey; }
@@ -31,9 +31,11 @@ pub struct CollapseNode<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
 
 #[derive(Debug, Clone)]
 pub enum NodeDataType<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
-    NumberSet(NumberSpace<T>),
-    PositionSpace2D(PositionSpace<V2, T, 2>),
-    PositionSpace3D(PositionSpace<V3, T, 3>),
+    NumberSet(NumberSet<T>),
+    PositionSet2D(PositionSet<V2, T, 2>),
+    PositionSet3D(PositionSet<V3, T, 3>),
+    PositionPairSet2D(PositionPairSet<V2, T, 2>),
+    PositionPairSet3D(PositionPairSet<V3, T, 3>),
     None,
     Build(B::CollapseValue)
 }
@@ -112,8 +114,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
         let needs_recompute = match value {
             ComposeTemplateValue::None => false,
-            ComposeTemplateValue::Number(number_template) => todo!(),
-            ComposeTemplateValue::NumberSpace(space) => {
+            ComposeTemplateValue::NumberSet(space) => {
+                todo!();
                 let (mut new_val, r) = space.get_value(get_value_data, &self, template);
                 let new_val = new_val.next().unwrap(); 
 
@@ -127,34 +129,28 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
                 r
             },
-            ComposeTemplateValue::PositionSpace2D(space) => {
-                let (new_positions, r) = space.get_value(get_value_data, &self, template);
+            ComposeTemplateValue::PositionSet2D(position_set_template) => {
+                let (new_positions, r) = position_set_template.get_value(get_value_data, &self, template);
 
                 let data = match &mut self.nodes[node_index].data {
-                    NodeDataType::PositionSpace2D(space) => space,
+                    NodeDataType::PositionSet2D(space) => space,
                     _ => unreachable!()
                 };
                 data.update(new_positions); 
 
                 r
             },
-            ComposeTemplateValue::PositionSpace3D(space) => {
-                let (new_positions, r) = space.get_value(get_value_data, &self, template);
+            ComposeTemplateValue::PositionSet3D(position_set_template) => {
+                let (new_positions, r) = position_set_template.get_value(get_value_data, &self, template);
 
                 let data = match &mut self.nodes[node_index].data {
-                    NodeDataType::PositionSpace3D(space) => space,
+                    NodeDataType::PositionSet3D(space) => space,
                     _ => unreachable!()
                 };
                 data.update(new_positions); 
 
                 r
             },
-            ComposeTemplateValue::Position2D(position_template) => todo!(),
-            ComposeTemplateValue::Position3D(position_template) => todo!(),
-            ComposeTemplateValue::PositionSet2D(position_set_template) => todo!(),
-            ComposeTemplateValue::PositionSet3D(position_set_template) => todo!(),
-            ComposeTemplateValue::Volume2D(volume_template) => todo!(),
-            ComposeTemplateValue::Volume3D(volume_template) => todo!(),
             ComposeTemplateValue::Build(t) => {
                 let data = match &node.data {
                     NodeDataType::Build(build) => build,
@@ -175,6 +171,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
                 false
             },
+            _ => unreachable!(),
         };   
 
         if needs_recompute {
@@ -206,11 +203,13 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             NodeDataType::NumberSet(number_space) => {
                 todo!()
             },
-            NodeDataType::PositionSpace2D(position_space) => position_space.get_new_children(),
-            NodeDataType::PositionSpace3D(position_space) => position_space.get_new_children(),
+            NodeDataType::PositionSet2D(position_space) => position_space.get_new_children(),
+            NodeDataType::PositionSet3D(position_space) => position_space.get_new_children(),
             NodeDataType::Build(_) 
             | NodeDataType::None 
-                => panic!("Called get new children on node that has no children"),
+            => panic!("Called get new children on node that has no children"),
+            NodeDataType::PositionPairSet2D(_) => todo!(),
+            NodeDataType::PositionPairSet3D(_) => todo!(),
         };
 
         keys.iter()
@@ -226,8 +225,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             .expect("Is Child Valid Node not found");
 
         match &node.data {
-            NodeDataType::PositionSpace2D(position_space) => position_space.is_child_valid(child_index),
-            NodeDataType::PositionSpace3D(position_space) => position_space.is_child_valid(child_index),
+            NodeDataType::PositionSet2D(position_space) => position_space.is_child_valid(child_index),
+            NodeDataType::PositionSet3D(position_space) => position_space.is_child_valid(child_index),
             NodeDataType::NumberSet(_)
             | NodeDataType::Build(_) 
             | NodeDataType::None 
@@ -253,7 +252,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         match D {
             2 => {
                 let v = match &parent.data {
-                    NodeDataType::PositionSpace2D(d) => d.get_position(child_index),
+                    NodeDataType::PositionSet2D(d) => d.get_position(child_index),
                     _ => panic!("Template Node {:?} is not of Type Position Space 2D Set", parent.template_index)
                 };
 
@@ -262,7 +261,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             }
             3 => {
                 let v = match &parent.data {
-                    NodeDataType::PositionSpace3D(d) => d.get_position(child_index),
+                    NodeDataType::PositionSet3D(d) => d.get_position(child_index),
                     _ => panic!("Template Node {:?} is not of Type Position Space 3D Set", parent.template_index)
                 };
 
@@ -279,7 +278,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         match D {
             2 => {
                 let i = match &node.data {
-                    NodeDataType::PositionSpace2D(d) => d.get_positions(),
+                    NodeDataType::PositionSet2D(d) => d.get_positions(),
                     _ => panic!("Template Node {:?} is not of Type Position Space Set 2D", node.template_index)
                 };
                 
@@ -290,7 +289,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             }
             3 => {
                 let i = match &node.data {
-                    NodeDataType::PositionSpace3D(d) => d.get_positions(),
+                    NodeDataType::PositionSet3D(d) => d.get_positions(),
                     _ => panic!("Template Node {:?} is not of Type Position Space Set 3D, Template", node.template_index)
                 };
 
@@ -324,14 +323,14 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         get_value_data: GetValueData,
     ) -> (impl Iterator<Item = CollapseNodeKey>, bool) {
         if let Some((_, keys)) = get_value_data.depends.iter().find(|(i, _)| *i == template_index) {
-            return (Either::Left(Either::Left(keys.iter().copied())), false);
+            return (IM3::A(keys.iter().copied()), false);
         }
 
         if let Some((_, loop_path)) = get_value_data.depends_loop.iter().find(|(i, _)| *i == template_index) {
             let keys = self.get_depends_from_loop_path(get_value_data, loop_path);
-            (Either::Left(Either::Right(keys.into_iter())), false)
+            (IM3::B(keys.into_iter()), false)
         } else {
-            (Either::Right(iter::empty()), true)
+            (IM3::C(iter::empty()), true)
         }
 
     }

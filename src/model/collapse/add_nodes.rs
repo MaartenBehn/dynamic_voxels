@@ -7,7 +7,7 @@ use tree64::Node;
 
 use crate::{model::{collapse::collapser::CollapseNode, composer::build::BS, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::ComposeTemplateValue, ComposeTemplate, TemplateIndex}}, util::{number::Nu, vector::Ve}};
 
-use super::{collapser::{CollapseChildKey, CollapseNodeKey, Collapser, UpdateDefinesOperation, NodeDataType}, number_space::NumberSpace, position_space::PositionSpace};
+use super::{collapser::{CollapseChildKey, CollapseNodeKey, Collapser, UpdateDefinesOperation, NodeDataType}, number_set::NumberSet};
 
 #[derive(Debug, Clone, Copy)]
 pub struct GetValueData<'a> {
@@ -175,17 +175,19 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         let data = match value {
             ComposeTemplateValue::None => NodeDataType::None,
             ComposeTemplateValue::Number(number_template) => todo!(),
-            ComposeTemplateValue::NumberSpace(_) => NodeDataType::NumberSet(Default::default()),
+            ComposeTemplateValue::NumberSet(_) => NodeDataType::NumberSet(Default::default()),
             ComposeTemplateValue::Position2D(position_template) => todo!(),
             ComposeTemplateValue::Position3D(position_template) => todo!(),
             ComposeTemplateValue::PositionSet2D(position_set_template) => todo!(),
             ComposeTemplateValue::PositionSet3D(position_set_template) => todo!(),
-            ComposeTemplateValue::PositionSpace2D(position_space_template) => NodeDataType::PositionSpace2D(Default::default()),
-            ComposeTemplateValue::PositionSpace3D(position_space_template) => NodeDataType::PositionSpace3D(Default::default()),
+            ComposeTemplateValue::PositionPair2D(position_pair_set_template) => todo!(),
+            ComposeTemplateValue::PositionPair3D(position_pair_set_template) => todo!(),
+            ComposeTemplateValue::PositionSpace2D(position_space_template) => NodeDataType::PositionSet2D(Default::default()),
+            ComposeTemplateValue::PositionSpace3D(position_space_template) => NodeDataType::PositionSet3D(Default::default()),
             ComposeTemplateValue::Volume2D(volume_template) => todo!(),
             ComposeTemplateValue::Volume3D(volume_template) => todo!(),
             ComposeTemplateValue::Build(_) => NodeDataType::Build(B::CollapseValue::default()),
-        };
+                    };
 
         let index = self.nodes.insert(CollapseNode {
             template_index: new_node_template.index,

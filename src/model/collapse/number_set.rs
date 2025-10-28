@@ -5,11 +5,11 @@ use crate::{model::{composer::{build::BS}, data_types::number_space::NumberSpace
 use super::{add_nodes::GetValueData, collapser::{CollapseNode, CollapseNodeKey, Collapser}};
 
 #[derive(Debug, Clone, Default)]
-pub struct NumberSpace<T: Nu> {
+pub struct NumberSet<T: Nu> {
     pub value: T,
 }
 
-impl<T: Nu> NumberSpace<T> { 
+impl<T: Nu> NumberSet<T> { 
     pub fn update(&mut self, new_value: T) { 
         self.value = new_value;
     }

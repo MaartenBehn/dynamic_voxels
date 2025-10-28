@@ -18,7 +18,7 @@ pub trait Nu:
     + MulAssign
     + DivAssign
     + PartialEq
-    + PartialOrd 
+    + PartialOrd
     + 'static
 {
     const ZERO: Self;

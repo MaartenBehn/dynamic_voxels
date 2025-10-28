@@ -10,13 +10,13 @@ use super::{add_nodes::GetValueData, collapser::{CollapseChildKey, CollapseNodeK
 
 
 #[derive(Debug, Clone, Default)]
-pub struct PositionSpace<V: Ve<T, D>, T: Nu, const D: usize> {
+pub struct PositionSet<V: Ve<T, D>, T: Nu, const D: usize> {
     positions: SlotMap<CollapseChildKey, V>,
     new_children: Vec<CollapseChildKey>,
     p: PhantomData<T>,
 }
 
-impl<V: Ve<T, D>,  T: Nu, const D: usize> PositionSpace<V, T, D> { 
+impl<V: Ve<T, D>,  T: Nu, const D: usize> PositionSet<V, T, D> { 
     pub fn get_position(&self, index: CollapseChildKey) -> V {
         self.positions[index]    
     }

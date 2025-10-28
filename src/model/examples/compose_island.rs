@@ -121,7 +121,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
 
                 let pos = pos[0];
 
-                volume = CSGTree::default();
+                //dbg!(&volume);
 
                 volume.calculate_bounds();
 

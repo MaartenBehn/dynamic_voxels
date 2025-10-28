@@ -4,7 +4,7 @@ use egui_snarl::{InPinId, NodeId, OutPinId};
 use octa_force::log::trace;
 use smallvec::{SmallVec, smallvec};
 
-use crate::{model::{composer::{build::{GetTemplateValueArgs, BS}, nodes::{ComposeNode, ComposeNodeType}, ModelComposer}, data_types::{data_type::ComposeDataType, number::NumberTemplate, number_space::NumberSpaceTemplate, position::PositionTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::{ValuePerNodeId, VALUE_INDEX_NODE}}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{composer::{build::{GetTemplateValueArgs, BS}, nodes::{ComposeNode, ComposeNodeType}, ModelComposer}, data_types::{data_type::ComposeDataType, number::NumberTemplate, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::{ValuePerNodeId, VALUE_INDEX_NODE}}}, util::{number::Nu, vector::Ve}};
 
 use super::{dependency_tree::get_dependency_tree_and_loop_paths, nodes::TemplateNode, value::{ComposeTemplateValue, ValueIndex}, ComposeTemplate, TemplateIndex};
 
@@ -199,7 +199,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
             }
         }
 
-        //dbg!(&template);
+        dbg!(&template);
 
         template
     }
@@ -323,6 +323,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                         let n = *n;
                         self.cut_loop_inner(n, to_index);
                     },
+                    PositionTemplate::PerPair((pairs, _)) => {
+                        let pairs = *pairs;
+                        self.cut_loop_inner(pairs, to_index);
+                    },
                     PositionTemplate::PhantomData(phantom_data) => unreachable!(),
                 }
             },
@@ -339,6 +343,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                         let n = *n;
                         self.cut_loop_inner(n, to_index);
                     },
+                    PositionTemplate::PerPair((pairs, _)) => {
+                        let pairs = *pairs;
+                        self.cut_loop_inner(pairs, to_index);
+                    },
                     PositionTemplate::PhantomData(phantom_data) => unreachable!(),
                 }
             },
@@ -349,6 +357,22 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                         hook.loop_cut |= hook.template_index == to_index;
                     },
                     PositionSetTemplate::T2Dto3D(position_set2_dto3_dtemplate) => todo!(),
+                }
+            },
+            ComposeTemplateValue::PositionPairSet2D(position_pair_set_template)
+            | ComposeTemplateValue::PositionPairSet3D(position_pair_set_template) => {
+                match position_pair_set_template {
+                    PositionPairSetTemplate::FromSet(set) => {
+                        let set = *set;
+                        self.cut_loop_inner(set, to_index);
+                    },
+                    PositionPairSetTemplate::FilterDistance((pairs, distance)) => {
+                        let pairs = *pairs;
+                        let distance = *distance;
+
+                        self.cut_loop_inner(pairs, to_index);
+                        self.cut_loop_inner(distance, to_index);
+                    },
                 }
             },
             ComposeTemplateValue::Volume2D(volume_template)
@@ -416,7 +440,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
 
         remotes[0]
     }
- 
+
     pub fn get_output_first_remote_pin_by_index(&self, node: &ComposeNode<B::ComposeType>, index: usize) -> InPinId {
         let remotes = self.snarl.out_pin(OutPinId{ node: node.id, output: index }).remotes;
         if remotes.is_empty() {

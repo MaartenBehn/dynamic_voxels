@@ -41,7 +41,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, 
             _ => unreachable!(),
         };
 
-        data.set_value(pin.node, ComposeTemplateValue::NumberSpace(value))
+        data.set_value(pin.node, ComposeTemplateValue::NumberSet(value))
     }
 }
 

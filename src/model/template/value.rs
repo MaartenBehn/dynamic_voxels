@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use egui_snarl::NodeId;
 
-use crate::{model::{composer::build::BS, data_types::{number::NumberTemplate, number_space::NumberSpaceTemplate, position::PositionTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{composer::build::BS, data_types::{number::NumberTemplate, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}}, util::{number::Nu, vector::Ve}};
 
 use super::{nodes, ComposeTemplate};
 
@@ -13,11 +13,13 @@ pub const VALUE_INDEX_NODE: usize = usize::MAX;
 pub enum ComposeTemplateValue<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     None,
     Number(NumberTemplate<T>),
-    NumberSpace(NumberSpaceTemplate),
+    NumberSet(NumberSpaceTemplate),
     Position2D(PositionTemplate<V2, T, 2>),
     Position3D(PositionTemplate<V3, T, 3>),
     PositionSet2D(PositionSetTemplate),
     PositionSet3D(PositionSetTemplate),
+    PositionPairSet2D(PositionPairSetTemplate),
+    PositionPairSet3D(PositionPairSetTemplate),
     PositionSpace2D(PositionSpaceTemplate),
     PositionSpace3D(PositionSpaceTemplate),
     Volume2D(VolumeTemplate),
@@ -70,7 +72,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
 
     pub fn get_number_space_value(&self, value_index: ValueIndex) -> &NumberSpaceTemplate {
         match &self.values[value_index] {
-            ComposeTemplateValue::NumberSpace(v) => v,
+            ComposeTemplateValue::NumberSet(v) => v,
             _ => unreachable!()
         }
     }
@@ -111,6 +113,22 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
         }
     }
 
+    pub fn get_position_pair_set_value(&self, value_index: ValueIndex) -> &PositionPairSetTemplate {
+        match &self.values[value_index] {
+            ComposeTemplateValue::PositionPairSet2D(v)
+            | ComposeTemplateValue::PositionPairSet3D(v) => v,
+            _ => unreachable!()
+        }
+    }
+
+    pub fn get_position_space_value(&self, value_index: ValueIndex) -> &PositionSpaceTemplate {
+        match &self.values[value_index] {
+            ComposeTemplateValue::PositionSpace2D(v)
+            | ComposeTemplateValue::PositionSpace3D(v) => v,
+            _ => unreachable!()
+        }
+    }
+
     pub fn get_volume_value(&self, value_index: ValueIndex) -> &VolumeTemplate {
         match &self.values[value_index] {
             ComposeTemplateValue::Volume2D(v)
@@ -130,7 +148,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
 
     pub fn get_number_space_value_mut(&mut self, value_index: ValueIndex) -> &mut NumberSpaceTemplate {
         match &mut self.values[value_index] {
-            ComposeTemplateValue::NumberSpace(v) => v,
+            ComposeTemplateValue::NumberSet(v) => v,
             _ => unreachable!()
         }
     }

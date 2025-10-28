@@ -103,7 +103,7 @@ impl VolumeTemplate {
         
         if roots.len() == 1 {
             tree.set_root(roots[0]);
-        } else {
+        } else if roots.len() > 1 {
             let root = tree.add_union_node(roots); 
             tree.set_root(root);
         };
