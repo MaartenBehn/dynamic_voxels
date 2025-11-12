@@ -15,14 +15,13 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeViewer<V2, V3, 
         for node in nodes {
             let i = node.id.0;
             if self.invalid_nodes.len() <= i {
+                self.added_nodes.resize(i + 1, false);
+                self.changed_nodes.resize(i + 1, false);
                 self.invalid_nodes.resize(i + 1, false);
             }
 
-            if self.validate_node(node, snarl) {
-                self.invalid_nodes.set(i, false);
-            } else {
-                self.invalid_nodes.set(i, true);
-            }
+            let valid =  self.validate_node(node, snarl);
+            self.invalid_nodes.set(i, !valid);
         }
     }
 
@@ -45,16 +44,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeViewer<V2, V3, 
             .expect("NodeId was not valid")
             .to_owned();
 
-        if self.invalid_nodes.len() <= node_id.0 {
-            self.invalid_nodes.resize( node_id.0 + 1, false);
-        }
-
-
-        if self.validate_node(node, snarl) {
-            self.invalid_nodes.set(node_id.0, false);
-        } else {
-            self.invalid_nodes.set(node_id.0, true);
-        }
+        let valid =  self.validate_node(node, snarl);
+        self.invalid_nodes.set(node_id.0, !valid);
     }
 
     fn validate_node(&self, node: ComposeNode<B::ComposeType>, snarl: &mut Snarl<ComposeNode<B::ComposeType>>) -> bool {

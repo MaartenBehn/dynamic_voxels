@@ -3,6 +3,7 @@ pub mod viewer;
 pub mod build;
 pub mod validate;
 pub mod pin;
+pub mod changed;
 
 use std::{fs::{self, File}, io::Write, time::{Duration, Instant}};
 
@@ -36,8 +37,6 @@ pub struct ModelComposer<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub render_panel_offset: UVec2,
 }
 
-
-
 impl<V2, V3, T, B> ModelComposer<V2, V3, T, B> 
 where 
     V2: Ve<T, 2>, 
@@ -47,6 +46,7 @@ where
     B::ComposeType: serde::Serialize + serde::de::DeserializeOwned,
 {
     pub fn new(state: B) -> Self {
+
         let mut snarl = load_snarl().unwrap_or(Snarl::new());       
         let style = style();
         let mut viewer = ComposeViewer::new();
@@ -71,7 +71,9 @@ where
         }
     }
 
-    pub fn render(&mut self, ctx: &egui::Context) {  
+    pub fn render(&mut self, ctx: &egui::Context) { 
+        egui_extras::install_image_loaders(ctx);
+
         let res = egui::TopBottomPanel::bottom("Bottom")
             .default_height(500.0)
             .show(ctx, |ui| {
@@ -122,8 +124,7 @@ where
     pub fn update(&mut self, time: Duration) -> OctaResult<()> {
         self.viewer.update(time);
 
-        if (self.viewer.changed && self.auto_rebuild) || self.manual_rebuild {
-            self.viewer.changed = false;
+        if self.manual_rebuild {
             self.manual_rebuild = false;
 
             if !self.viewer.invalid_nodes.any() {

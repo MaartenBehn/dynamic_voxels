@@ -957,6 +957,7 @@ dependencies = [
  "egui-probe",
  "egui-snarl",
  "egui_double_slider",
+ "egui_extras",
  "fastrand",
  "fnv",
  "half",
