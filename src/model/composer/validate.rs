@@ -14,11 +14,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeViewer<V2, V3, 
 
         for node in nodes {
             let i = node.id.0;
-            if self.invalid_nodes.len() <= i {
-                self.added_nodes.resize(i + 1, false);
-                self.changed_nodes.resize(i + 1, false);
-                self.invalid_nodes.resize(i + 1, false);
-            }
+            self.enshure_nodes_list_index(i);
 
             let valid =  self.validate_node(node, snarl);
             self.invalid_nodes.set(i, !valid);

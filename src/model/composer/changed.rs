@@ -1,24 +1,30 @@
 use egui_snarl::{NodeId, OutPinId, Snarl};
-use octa_force::OctaResult;
+use octa_force::{log::debug, OctaResult};
 
 use crate::util::{number::Nu, vector::Ve};
 
 use super::{build::BS, nodes::ComposeNode, viewer::ComposeViewer};
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeViewer<V2, V3, T, B> {
-    pub fn set_added(&mut self, node_id: NodeId, snarl: &mut Snarl<ComposeNode<B::ComposeType>>) {
-        if self.added_nodes.len() <= node_id.0 {
-            self.added_nodes.resize(node_id.0 + 1, false);
-            self.changed_nodes.resize(node_id.0 + 1, false);
-            self.invalid_nodes.resize(node_id.0 + 1, false);
-            self.needs_collapse_nodes.resize(node_id.0 + 1, false);
+    pub fn enshure_nodes_list_index(&mut self, i: usize) {
+        if self.added_nodes.len() <= i {
+            self.added_nodes.resize(i + 1, false);
+            self.changed_nodes.resize(i + 1, false);
+            self.invalid_nodes.resize(i + 1, false);
+            self.needs_collapse_nodes.resize(i + 1, false);
         }
+    }
 
+    pub fn set_added(&mut self, node_id: NodeId, snarl: &mut Snarl<ComposeNode<B::ComposeType>>) {
+        self.enshure_nodes_list_index(node_id.0);
+        
         self.added_nodes.set(node_id.0, true);
         self.set_needs_collapse(node_id, snarl);
     }
 
     pub fn set_changed(&mut self, node_id: NodeId, snarl: &mut Snarl<ComposeNode<B::ComposeType>>) {
+        self.enshure_nodes_list_index(node_id.0);
+
         if self.added_nodes.get(node_id.0).as_deref().copied().unwrap_or(false) {
             return;
         }
@@ -37,13 +43,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeViewer<V2, V3, 
     }
 
     pub fn set_needs_collapse(&mut self, node_id: NodeId, snarl: &mut Snarl<ComposeNode<B::ComposeType>>) {
-       
-        if self.needs_collapse_nodes.len() <= node_id.0 {
-            self.added_nodes.resize(node_id.0 + 1, false);
-            self.changed_nodes.resize(node_id.0 + 1, false);
-            self.invalid_nodes.resize(node_id.0 + 1, false);
-            self.needs_collapse_nodes.resize(node_id.0 + 1, false);
-        } 
+        self.enshure_nodes_list_index(node_id.0);
 
         if *self.needs_collapse_nodes.get(node_id.0).as_deref().unwrap() {
             return;
