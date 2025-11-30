@@ -5,7 +5,7 @@ use itertools::Itertools;
 use octa_force::log::debug;
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::{ComposeNode, ComposeNodeType},  ModelComposer}, template::{update::MakeTemplateData, value::{ComposeTemplateValue, ValueIndex}, ComposeTemplate, TemplateIndex}}, util::{iter_merger::IM4, number::Nu, vector::Ve}};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}, ModelComposer}, template::{update::MakeTemplateData, value::{ComposeTemplateValue, ValueIndex}, ComposeTemplate, TemplateIndex}}, util::{iter_merger::IM4, number::Nu, vector::Ve}};
 
 use super::{data_type::ComposeDataType, position::{PositionTemplate, ValueIndexPosition2D, ValueIndexPosition3D}};
 
@@ -25,7 +25,7 @@ pub enum NumberTemplate<T: Nu> {
     SplitPosition3D((ValueIndexPosition3D, usize)),
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> { 
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, T, B> { 
     pub fn make_number(
         &self, 
         original_node: &ComposeNode<B::ComposeType>, 

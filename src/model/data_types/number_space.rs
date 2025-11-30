@@ -5,7 +5,7 @@ use itertools::{iproduct, Itertools};
 use octa_force::{log::debug, OctaResult};
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::ComposeNodeType, ModelComposer}, template::{self, update::MakeTemplateData, value::{ComposeTemplateValue, ValueIndex}, ComposeTemplate}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, graph::ComposerGraph, nodes::ComposeNodeType, ModelComposer}, template::{self, update::MakeTemplateData, value::{ComposeTemplateValue, ValueIndex}, ComposeTemplate}}, util::{number::Nu, vector::Ve}};
 
 use super::{number::NumberTemplate};
 
@@ -20,7 +20,7 @@ pub enum NumberSpaceTemplate {
     }
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> {
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, T, B> {
     pub fn make_number_space(
         &self, 
         pin: OutPinId, 

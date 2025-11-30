@@ -4,12 +4,12 @@ use octa_force::egui::{self, epaint::{CircleShape, PathShape, PathStroke}, Color
 
 use crate::{model::data_types::data_type::ComposeDataType, util::{number::Nu, vector::Ve}};
 
-use super::{build::BS, nodes::{ComposeNode, ComposeNodeInput, ComposeNodeOutput}, viewer::ComposeViewer, ModelComposer};
+use super::{build::{ComposeTypeTrait, BS}, graph::ComposerNodeFlags, nodes::{ComposeNode, ComposeNodeInput, ComposeNodeOutput}, viewer::ComposeViewer, ModelComposer};
 
 
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeViewer<V2, V3, T, B> {
-    pub fn check_valid_for_all_nodes(&mut self, snarl: &mut Snarl<ComposeNode<B::ComposeType>>) {
+impl ComposerNodeFlags {
+    pub fn check_valid_for_all_nodes<CT: ComposeTypeTrait>(&mut self, snarl: &mut Snarl<ComposeNode<CT>>) {
         let nodes = snarl.nodes().cloned().collect_vec();
 
         for node in nodes {
@@ -21,7 +21,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeViewer<V2, V3, 
         }
     }
 
-    pub fn update_valid_for_all_invalid_nodes(&mut self, snarl: &mut Snarl<ComposeNode<B::ComposeType>>) {
+    pub fn update_valid_for_all_invalid_nodes<CT: ComposeTypeTrait>(&mut self, snarl: &mut Snarl<ComposeNode<CT>>) {
         for i in self.invalid_nodes.iter_ones().collect_vec() {
             if let Some(node) = snarl.get_node(NodeId(i)) {
                 let node = node.to_owned();
@@ -35,7 +35,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeViewer<V2, V3, 
         }
     }
 
-    pub fn update_node_valid(&mut self, node_id: NodeId, snarl: &mut Snarl<ComposeNode<B::ComposeType>>) {
+    pub fn update_node_valid<CT: ComposeTypeTrait>(&mut self, node_id: NodeId, snarl: &mut Snarl<ComposeNode<CT>>) {
         let node = snarl.get_node(node_id)
             .expect("NodeId was not valid")
             .to_owned();
@@ -44,7 +44,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeViewer<V2, V3, 
         self.invalid_nodes.set(node_id.0, !valid);
     }
 
-    fn validate_node(&self, node: ComposeNode<B::ComposeType>, snarl: &mut Snarl<ComposeNode<B::ComposeType>>) -> bool {
+    fn validate_node<CT: ComposeTypeTrait>(&self, node: ComposeNode<CT>, snarl: &mut Snarl<ComposeNode<CT>>) -> bool {
 
         let mut valid = true;
         for (i, input) in node.inputs.iter().enumerate() {

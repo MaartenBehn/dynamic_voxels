@@ -22,6 +22,8 @@
 
         # for hot reloading
         watchexec
+
+        bacon
       ];
 
       # Use faster linker for local build 

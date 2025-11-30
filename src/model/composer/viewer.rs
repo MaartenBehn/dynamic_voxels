@@ -8,26 +8,32 @@ use smallvec::SmallVec;
 
 use crate::{model::data_types::data_type::ComposeDataType, util::{number::Nu, vector::Ve}};
 
-use super::{build::{ComposeTypeTrait, BS}, nodes::{get_node_templates, ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeOutput, ComposeNodeType}, pin::ComposePin};
+use super::{build::{ComposeTypeTrait, BS}, graph::ComposerNodeFlags, nodes::{get_node_templates, ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeOutput, ComposeNodeType}, pin::ComposePin};
 
 const NOT_VALID_ANIMATION_TIME: f32 = 1.5;
 
 #[derive(Debug)]
-pub struct ComposeViewer<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
+pub struct ComposeViewer<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
+    pub templates: &'a ComposeViewerTemplates<V2, V3, T, B>,
+    pub data: &'a mut ComposeViewerData,
+    pub flags: &'a mut ComposerNodeFlags,
+}
+
+#[derive(Debug)]
+pub struct ComposeViewerTemplates<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub node_templates: Vec<ComposeNode<B::ComposeType>>,
     pub groupe_templates: Vec<Vec<ComposeNode<B::ComposeType>>>,
-    pub deleted_nodes: SmallVec<[NodeId; 8]>,
-    pub added_nodes: BitVec,
-    pub changed_nodes: BitVec,
-    pub invalid_nodes: BitVec,
-    pub needs_collapse_nodes: BitVec,
-
-    pub not_valid_scale: f32,
-    pub offset: Vec2,
-    pub hovered_menue_groupe: Option<ComposeNodeGroupe>,
+    
     p0: PhantomData<V2>,
     p1: PhantomData<V3>,
     p2: PhantomData<T>,
+}
+
+#[derive(Debug)]
+pub struct ComposeViewerData {    
+    pub not_valid_scale: f32,
+    pub offset: Vec2,
+    pub hovered_menue_groupe: Option<ComposeNodeGroupe>,
 }
 
 pub const fn style() -> SnarlStyle {
@@ -63,7 +69,7 @@ pub const fn style() -> SnarlStyle {
     }
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeViewer<V2, V3, T, B> {
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeViewerTemplates<V2, V3, T, B> {
     pub fn new() -> Self {
         let mut node_templates = get_node_templates();
         node_templates.append(&mut B::compose_nodes());
@@ -86,18 +92,20 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeViewer<V2, V3, 
         Self { 
             node_templates,
             groupe_templates,
-            invalid_nodes: BitVec::new(),
-            deleted_nodes: SmallVec::new(),
-            added_nodes: BitVec::new(),
-            changed_nodes: BitVec::new(),
-            needs_collapse_nodes: BitVec::new(),
-
-            not_valid_scale: 0.0,
-            offset: Vec2::default(),
-            hovered_menue_groupe: None,
+            
             p0: Default::default(),
             p1: Default::default(),
             p2: Default::default(),
+        }
+    }
+}
+
+impl ComposeViewerData {
+    pub fn new() -> Self {
+        Self {        
+            not_valid_scale: 0.0,
+            offset: Vec2::default(),
+            hovered_menue_groupe: None, 
         }
     }
 
@@ -107,7 +115,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeViewer<V2, V3, 
     }
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<ComposeNode<B::ComposeType>> for ComposeViewer<V2, V3, T, B> {
+
+
+impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<ComposeNode<B::ComposeType>> for ComposeViewer<'a, V2, V3, T, B> {
     fn title(&mut self, node: &ComposeNode<B::ComposeType>) -> String { 
         node.title() 
     }
@@ -124,7 +134,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<ComposeNod
             ui.label(self.title(&snarl[node]));
 
             let size = egui::Vec2::new(30.0, 30.0);
-            if self.added_nodes.get(node.0).as_deref().copied().unwrap_or(false) {
+            if self.flags.added_nodes.get(node.0).as_deref().copied().unwrap_or(false) {
                 ui.add(
                     egui::Image::new(egui::include_image!("../../../assets/plus.svg"))
                         .tint(Color32::GRAY)
@@ -132,7 +142,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<ComposeNod
                 );            
             }
 
-            if self.changed_nodes.get(node.0).as_deref().copied().unwrap_or(false) {
+            if self.flags.changed_nodes.get(node.0).as_deref().copied().unwrap_or(false) {
                 ui.add(
                     egui::Image::new(egui::include_image!("../../../assets/pencil.svg"))
                         .tint(Color32::GRAY)
@@ -140,7 +150,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<ComposeNod
                 );            
             }
 
-            if self.needs_collapse_nodes.get(node.0).as_deref().copied().unwrap_or(false) {
+            if self.flags.needs_collapse_nodes.get(node.0).as_deref().copied().unwrap_or(false) {
                 ui.add(
                     egui::Image::new(egui::include_image!("../../../assets/spin.svg"))
                         .tint(Color32::GRAY)
@@ -222,10 +232,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<ComposeNod
             false
         };
 
-        let compose_pin = ComposePin::new(input.data_type, input.valid, self.not_valid_scale); 
+        let compose_pin = ComposePin::new(input.data_type, input.valid, self.data.not_valid_scale); 
 
         if changed {
-            self.set_changed(pin.id.node, snarl);
+            self.flags.set_changed(pin.id.node, snarl);
         }
 
         compose_pin
@@ -246,7 +256,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<ComposeNod
 
         ui.label(output.name.to_string());
 
-        ComposePin::new(output.data_type, output.valid, self.not_valid_scale) 
+        ComposePin::new(output.data_type, output.valid, self.data.not_valid_scale) 
     }
 
     #[inline]
@@ -258,11 +268,11 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<ComposeNod
 
             snarl.connect(from.id, to.id);
 
-            self.set_changed(from.id.node, snarl);
-            self.set_changed(to.id.node, snarl);
+            self.flags.set_changed(from.id.node, snarl);
+            self.flags.set_changed(to.id.node, snarl);
 
-            self.update_node_valid(from.id.node, snarl);
-            self.update_node_valid(to.id.node, snarl);
+            self.flags.update_node_valid(from.id.node, snarl);
+            self.flags.update_node_valid(to.id.node, snarl);
         }
     }
 
@@ -273,11 +283,11 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<ComposeNod
     fn show_graph_menu(&mut self, pos: egui::Pos2, ui: &mut Ui, snarl: &mut Snarl<ComposeNode<B::ComposeType>>) {
 
         ui.label("Add node");
-        for group in self.groupe_templates.iter() {
+        for group in self.templates.groupe_templates.iter() {
             let group_type = group[0].group;
            
             let res = egui::CollapsingHeader::new(format!("{:?}", &group_type))
-                .open(Some(self.hovered_menue_groupe == Some(group_type)))
+                .open(Some(self.data.hovered_menue_groupe == Some(group_type)))
                 .show(ui, |ui| {
                     for node in group {
                         if ui.button(node.title()).clicked() {
@@ -292,12 +302,12 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<ComposeNod
                 });
 
             if res.header_response.hovered() || (!res.body_response.is_none() && res.body_response.unwrap().hovered()) {
-                self.hovered_menue_groupe = Some(group_type);
+                self.data.hovered_menue_groupe = Some(group_type);
             }
 
             if let Some(Some(new_node)) = res.body_returned {
-                self.set_added(new_node, snarl);
-                self.update_node_valid(new_node, snarl);
+                self.flags.set_added(new_node, snarl);
+                self.flags.update_node_valid(new_node, snarl);
                 return;
             }
         }    
@@ -324,7 +334,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<ComposeNod
                     let src_data = snarl[src_pin.node].outputs[src_pin.output].to_owned();
 
                     let mut src_label = src_pins.len() >= 2;
-                    for node in self.node_templates.iter() {
+                    for node in self.templates.node_templates.iter() {
 
                         let to_pins = node.inputs.iter()
                             .enumerate()
@@ -354,11 +364,11 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<ComposeNod
 
                                     snarl.connect(*src_pin, dst_pin);
                                     
-                                    self.set_added(new_node, snarl);
-                                    self.set_changed(src_pin.node, snarl);
+                                    self.flags.set_added(new_node, snarl);
+                                    self.flags.set_changed(src_pin.node, snarl);
 
-                                    self.update_node_valid(new_node, snarl);
-                                    self.update_node_valid(src_pin.node, snarl);
+                                    self.flags.update_node_valid(new_node, snarl);
+                                    self.flags.update_node_valid(src_pin.node, snarl);
                                     return;
                                 }
 
@@ -374,11 +384,11 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<ComposeNod
 
                                 snarl.connect(*src_pin, dst_pin);
                                                                     
-                                self.set_added(new_node, snarl);
-                                self.set_changed(src_pin.node, snarl);
+                                self.flags.set_added(new_node, snarl);
+                                self.flags.set_changed(src_pin.node, snarl);
 
-                                self.update_node_valid(new_node, snarl);
-                                self.update_node_valid(src_pin.node, snarl);
+                                self.flags.update_node_valid(new_node, snarl);
+                                self.flags.update_node_valid(src_pin.node, snarl);
                                 return;
                             }
 
@@ -394,7 +404,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<ComposeNod
                     
 
                     let mut src_label = src_pins.len() >= 2;
-                    for node in self.node_templates.iter() {
+                    for node in self.templates.node_templates.iter() {
 
                         let to_pins = node.outputs.iter()
                             .enumerate()
@@ -425,11 +435,11 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<ComposeNod
                                     snarl.drop_inputs(*src_pin);
                                     snarl.connect(dst_pin, *src_pin);
                                     
-                                    self.set_added(new_node, snarl);
-                                    self.set_changed(src_pin.node, snarl);
+                                    self.flags.set_added(new_node, snarl);
+                                    self.flags.set_changed(src_pin.node, snarl);
 
-                                    self.update_node_valid(new_node, snarl);
-                                    self.update_node_valid(src_pin.node, snarl);
+                                    self.flags.update_node_valid(new_node, snarl);
+                                    self.flags.update_node_valid(src_pin.node, snarl);
                                     return;
                                 }
 
@@ -446,11 +456,11 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<ComposeNod
                                 snarl.drop_inputs(*src_pin);
                                 snarl.connect(dst_pin, *src_pin);
 
-                                self.set_added(new_node, snarl);
-                                self.set_changed(src_pin.node, snarl);
+                                self.flags.set_added(new_node, snarl);
+                                self.flags.set_changed(src_pin.node, snarl);
 
-                                self.update_node_valid(new_node, snarl);
-                                self.update_node_valid(src_pin.node, snarl);
+                                self.flags.update_node_valid(new_node, snarl);
+                                self.flags.update_node_valid(src_pin.node, snarl);
                                 return;
                             }
 
@@ -479,8 +489,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<ComposeNod
         if ui.button("Remove").clicked() {
             ui.close();
             snarl.remove_node(node);
-            self.set_deleted(node);
-            self.check_valid_for_all_nodes(snarl);
+            self.flags.set_deleted(node);
+            self.flags.check_valid_for_all_nodes(snarl);
         }
     }
 }

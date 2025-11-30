@@ -2,7 +2,7 @@ use egui_snarl::OutPinId;
 use itertools::{iproduct, Itertools};
 use smallvec::SmallVec;
 
-use crate::{csg::{csg_tree::tree::CSGTree, Base}, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::ComposeNodeType, ModelComposer}, template::{update::MakeTemplateData, value::ComposeTemplateValue, ComposeTemplate}}, util::{iter_merger::IM5, number::Nu, vector::Ve}};
+use crate::{csg::{csg_tree::tree::CSGTree, Base}, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, graph::ComposerGraph, nodes::ComposeNodeType, ModelComposer}, template::{update::MakeTemplateData, value::ComposeTemplateValue, ComposeTemplate}}, util::{iter_merger::IM5, number::Nu, vector::Ve}};
 
 use super::{data_type::ComposeDataType, number::{NumberTemplate, ValueIndexNumber}, position::{PositionTemplate, ValueIndexPosition}, position_set::{PositionSetTemplate, ValueIndexPositionSet}};
 
@@ -30,7 +30,7 @@ pub enum VolumeTemplate {
     },
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> {
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, T, B> {
     pub fn make_volume(
         &self, 
         pin: OutPinId,

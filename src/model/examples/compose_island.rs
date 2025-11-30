@@ -93,11 +93,11 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
     fn get_template_value(mut args: GetTemplateValueArgs<V2, V3, T, Self>, data: &mut MakeTemplateData<V2, V3, T, Self>) -> Self::TemplateValue {
         match args.compose_type {
             ComposeType::Object => {
-                let volume = args.composer.make_volume(
-                    args.composer.get_input_remote_pin_by_index(args.composer_node, 0),
+                let volume = args.graph.make_volume(
+                    args.graph.get_input_remote_pin_by_index(args.composer_node, 0),
                     data);
 
-                let pos = args.composer.make_position(
+                let pos = args.graph.make_position(
                     args.composer_node,
                     1,
                     data);

@@ -4,7 +4,7 @@ use egui_snarl::InPinId;
 use itertools::{Either, Itertools};
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::{ComposeNode, ComposeNodeType},  ModelComposer}, template::{update::MakeTemplateData, value::{ComposeTemplateValue, ValueIndex}, ComposeTemplate}}, util::{iter_merger::IM3, number::Nu, vector::Ve}};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}, ModelComposer}, template::{update::MakeTemplateData, value::{ComposeTemplateValue, ValueIndex}, ComposeTemplate}}, util::{iter_merger::IM3, number::Nu, vector::Ve}};
 
 use super::{data_type::ComposeDataType, number::{Hook, NumberTemplate, ValueIndexNumber}, position_pair_set::PositionPairSetTemplate, position_set::{PositionSetTemplate, ValueIndexPositionSet}};
 
@@ -26,7 +26,7 @@ union NumberArrayUnion<const DA: usize, const DB: usize> {
     b: [ValueIndexNumber; DB],
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> { 
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, T, B> { 
     pub fn make_position(
         &self, 
         original_node: &ComposeNode<B::ComposeType>, 

@@ -3,27 +3,29 @@ pub mod viewer;
 pub mod build;
 pub mod validate;
 pub mod pin;
-pub mod changed;
+pub mod graph;
 
 use std::{fs::{self, File}, io::Write, time::{Duration, Instant}};
 
 use build::{ComposeTypeTrait, BS};
 use egui_snarl::{ui::{NodeLayout, PinPlacement, SnarlStyle, SnarlWidget}, Snarl};
+use graph::ComposerGraph;
 use nodes::ComposeNode;
 use octa_force::{anyhow::anyhow, egui::{self, Align, CornerRadius, Frame, Id, Layout, Margin}, glam::{uvec2, UVec2, Vec2}, log::{debug, info, warn}, OctaResult};
-use viewer::{style, ComposeViewer};
+use viewer::{style, ComposeViewer, ComposeViewerData, ComposeViewerTemplates};
 
 use crate::util::{number::Nu, vector::Ve};
 
 use super::{collapse::worker::{CollapserChangeReciver, ComposeCollapseWorker}, template::ComposeTemplate};
 
-const TEMP_SAVE_FILE: &str = "./composer_temp_save.json";
 
 #[derive(Debug)]
 pub struct ModelComposer<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
-    pub snarl: Snarl<ComposeNode<B::ComposeType>>,
+    pub graph: ComposerGraph<V2, V3, T, B>,
+    
     pub style: SnarlStyle,
-    pub viewer: ComposeViewer<V2, V3, T, B>,
+    pub viewer_templates: ComposeViewerTemplates<V2, V3, T, B>,
+    pub viewer_data: ComposeViewerData,
 
     pub template: ComposeTemplate<V2, V3, T, B>,
     pub collapser_worker: ComposeCollapseWorker<V2, V3, T, B>,
@@ -46,19 +48,22 @@ where
     B::ComposeType: serde::Serialize + serde::de::DeserializeOwned,
 {
     pub fn new(state: B) -> Self {
+        let mut graph = ComposerGraph::new();
 
-        let mut snarl = load_snarl().unwrap_or(Snarl::new());       
         let style = style();
-        let mut viewer = ComposeViewer::new();
+        let viewer_templates = ComposeViewerTemplates::new();
+        let viewer_data = ComposeViewerData::new();
+
         let template = ComposeTemplate::empty();
         let (collapser_worker, collapser_reciver) = ComposeCollapseWorker::new(template.clone(), state);
-       
-        viewer.check_valid_for_all_nodes(&mut snarl);
+      
 
         ModelComposer {
-            snarl,
-            style, 
-            viewer,
+            graph,
+            style,
+            viewer_templates,
+            viewer_data,
+
             template,
             collapser_worker,
             collapser_reciver,
@@ -68,7 +73,7 @@ where
             render_panel_changed: false,
             render_panel_size: UVec2::ZERO,
             render_panel_offset: UVec2::ZERO,
-        }
+                    }
     }
 
     pub fn render(&mut self, ctx: &egui::Context) { 
@@ -77,14 +82,21 @@ where
         let res = egui::TopBottomPanel::bottom("Bottom")
             .default_height(500.0)
             .show(ctx, |ui| {
+
+                let mut viewer = ComposeViewer {
+                    templates: &self.viewer_templates,
+                    data: &mut self.viewer_data,
+                    flags: &mut self.graph.flags,
+                };
+
                 SnarlWidget::new()
                     .id(Id::new("snarl-demo"))
                     .style(self.style)
-                    .show(&mut self.snarl, &mut self.viewer, ui);
+                    .show(&mut self.graph.snarl, &mut viewer, ui);
             });
 
         let split_y = res.response.rect.top();
-        self.viewer.offset = Vec2::new(0.0, split_y as f32);
+        self.viewer_data.offset = Vec2::new(0.0, split_y as f32);
 
         let res = egui::SidePanel::right("Right Side")
             .min_width(500.0)
@@ -122,12 +134,12 @@ where
     }
 
     pub fn update(&mut self, time: Duration) -> OctaResult<()> {
-        self.viewer.update(time);
+        self.viewer_data.update(time);
 
         if self.manual_rebuild {
             self.manual_rebuild = false;
 
-            if !self.viewer.invalid_nodes.any() {
+            if !self.graph.flags.invalid_nodes.any() {
                 debug!("Rebuilding Template");
                 
                 let now = Instant::now();
@@ -142,20 +154,14 @@ where
                 warn!("Cant Rebuild error in graph!");
             }
         } 
-
-        let snarl = serde_json::to_string(&self.snarl).unwrap();
-        let mut file = File::create(TEMP_SAVE_FILE)?;
-        file.write_all(snarl.as_bytes())?;
         
+        self.graph.save()?;
+
         Ok(())
     }
 }
 
-pub fn load_snarl<CT: ComposeTypeTrait + serde::de::DeserializeOwned>() -> OctaResult<Snarl<ComposeNode<CT>>> {
-    let content = fs::read_to_string(TEMP_SAVE_FILE)?; 
-    let snarl = serde_json::from_str(&content)?;
-    Ok(snarl)
-}
+
 
 
 fn div(ui: &mut egui::Ui, margin: Margin, add_contents: impl FnOnce(&mut egui::Ui)) {

@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::{model::{collapse::{add_nodes::GetValueData, collapser::{CollapseNode, Collapser}}, template::{update::MakeTemplateData, ComposeTemplate}}, util::{number::Nu, vector::Ve}};
 
-use super::{nodes::ComposeNode, ModelComposer};
+use super::{graph::ComposerGraph, nodes::ComposeNode, ModelComposer};
 
 pub trait BS<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu>: fmt::Debug + Clone + Send + Sync + 'static {
     type ComposeType: ComposeTypeTrait;
@@ -31,7 +31,7 @@ pub trait CollapseValueTrait: fmt::Debug + Clone + Send + Sync + Default {
 pub struct GetTemplateValueArgs<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub compose_type: &'a B::ComposeType, 
     pub composer_node: &'a ComposeNode<B::ComposeType>,
-    pub composer: &'a ModelComposer<V2, V3, T, B>,
+    pub graph: &'a ComposerGraph<V2, V3, T, B>,
 }
 
 pub struct OnCollapseArgs<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {

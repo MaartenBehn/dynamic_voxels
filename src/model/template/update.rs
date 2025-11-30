@@ -4,7 +4,7 @@ use egui_snarl::{InPinId, NodeId, OutPinId};
 use octa_force::log::trace;
 use smallvec::{SmallVec, smallvec};
 
-use crate::{model::{composer::{build::{GetTemplateValueArgs, BS}, nodes::{ComposeNode, ComposeNodeType}, ModelComposer}, data_types::{data_type::ComposeDataType, number::NumberTemplate, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::{ValuePerNodeId, VALUE_INDEX_NODE}}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{composer::{build::{GetTemplateValueArgs, BS}, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}, ModelComposer}, data_types::{data_type::ComposeDataType, number::NumberTemplate, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::{ValuePerNodeId, VALUE_INDEX_NODE}}}, util::{number::Nu, vector::Ve}};
 
 use super::{dependency_tree::get_dependency_tree_and_loop_paths, nodes::TemplateNode, value::{ComposeTemplateValue, ValueIndex}, ComposeTemplate, TemplateIndex};
 
@@ -39,7 +39,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
     pub fn new(composer: &ModelComposer<V2, V3, T, B>) -> Self {
         
         let mut value_per_node_id = ValuePerNodeId::new();
-        for composer_node in composer.snarl.nodes() {
+        for composer_node in composer.graph.snarl.nodes() {
             let node_id = composer_node.id;
             value_per_node_id.enshure_size(node_id);
         }
@@ -61,7 +61,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
             max_level: 1,
         };
 
-        for composer_node in composer.snarl.nodes() {             
+        for composer_node in composer.graph.snarl.nodes() {             
             let node_id = composer_node.id;
             
             match &composer_node.t {
@@ -89,8 +89,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
 
                         let value = B::get_template_value(GetTemplateValueArgs { 
                             compose_type: t, 
-                            composer_node, 
-                            composer: &composer, 
+                            composer_node,
+                            graph: &composer.graph,
                         }, &mut data);
 
                         let value_index = data.set_value(node_id, ComposeTemplateValue::Build(value));
@@ -165,7 +165,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                 let node = &mut self.nodes[index];
                 node.depends.swap_remove(i);
                 node.depends_loop.push((*depends_index, DependencyPath::default()));
- 
+
                 continue;
             }
 
@@ -340,30 +340,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
             },
             ComposeTemplateValue::Build(_) => todo!(),
         }
-    }
-}
-
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> { 
-    pub fn get_input_remote_pin_by_index(&self, node: &ComposeNode<B::ComposeType>, index: usize) -> OutPinId {
-        let remotes = self.snarl.in_pin(InPinId{ node: node.id, input: index }).remotes;
-        if remotes.is_empty() {
-            panic!("No node connected to {:?}", node.t);
-        }
-
-        if remotes.len() >= 2 {
-            panic!("More than one node connected to {:?}", node.t);
-        }
-
-        remotes[0]
-    }
-
-    pub fn get_output_first_remote_pin_by_index(&self, node: &ComposeNode<B::ComposeType>, index: usize) -> InPinId {
-        let remotes = self.snarl.out_pin(OutPinId{ node: node.id, output: index }).remotes;
-        if remotes.is_empty() {
-            panic!("No output node connected to {:?}", node.t);
-        }
-
-        remotes[0]
     }
 }
 

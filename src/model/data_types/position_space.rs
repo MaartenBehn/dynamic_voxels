@@ -6,7 +6,7 @@ use octa_force::{anyhow::bail, glam::{Mat4, Vec3, Vec3A}, OctaResult};
 use slotmap::{new_key_type, SecondaryMap, SlotMap};
 use smallvec::SmallVec;
 
-use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, nodes::ComposeNodeType, ModelComposer}, data_types::data_type::ComposeDataType, template::{update::MakeTemplateData, value::ComposeTemplateValue, ComposeTemplate}}, util::{aabb::AABB, iter_merger::IM3, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
+use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, graph::ComposerGraph, nodes::ComposeNodeType, ModelComposer}, data_types::data_type::ComposeDataType, template::{update::MakeTemplateData, value::ComposeTemplateValue, ComposeTemplate}}, util::{aabb::AABB, iter_merger::IM3, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
 
 use super::{number::{NumberTemplate, ValueIndexNumber}, position::{PositionTemplate, ValueIndexPosition}, volume::{ValueIndexVolume, VolumeTemplate}};
 
@@ -44,7 +44,7 @@ pub struct PathTemplate {
     pub end: ValueIndexPosition,
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ModelComposer<V2, V3, T, B> {
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, T, B> {
     pub fn make_pos_space(
         &self, 
         pin: OutPinId,
