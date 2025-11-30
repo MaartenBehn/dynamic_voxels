@@ -53,7 +53,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
             data.add_value(ComposeTemplateValue::Number(value)) 
         } else {
             let pin = remotes[0];
-            if let Some(value_index) = data.value_per_node_id.get_value(pin.node) {
+            if let Some(value_index) = data.get_value_index_from_node_id(pin.node) {
                 return value_index;
             }
 

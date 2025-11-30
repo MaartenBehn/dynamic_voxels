@@ -12,6 +12,7 @@ pub struct TemplateNode {
 
     pub level: usize,
     pub creates: SmallVec<[Creates; 4]>,
+    pub created_by: (TemplateIndex, usize),
 
     pub depends: SmallVec<[TemplateIndex; 4]>,
     pub dependecy_tree: DependencyTree,

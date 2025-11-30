@@ -4,6 +4,7 @@ use itertools::{Either, Itertools};
 use octa_force::{anyhow::{anyhow, bail, ensure}, glam::{vec3, vec3a, IVec3, Vec3, Vec3Swizzles}, log::{debug, error, info}, vulkan::ash::vk::OpaqueCaptureDescriptorDataCreateInfoEXT, OctaResult};
 use rayon::iter::IntoParallelIterator;
 use slotmap::{new_key_type, Key, SlotMap};
+use smallvec::SmallVec;
 use crate::{model::{composer::build::{OnCollapseArgs, BS}, template::{value::ComposeTemplateValue, ComposeTemplate, TemplateIndex}}, util::{iter_merger::{IM2, IM3}, number::Nu, state_saver, vector::Ve}, volume::VolumeQureyPosValid};
 
 use super::{add_nodes::{GetNewChildrenData, GetValueData}, number_set::NumberSet, pending_operations::{PendingOperations, PendingOperationsRes}, position_pair_set::PositionPairSet, position_set::PositionSet};
@@ -14,6 +15,7 @@ new_key_type! { pub struct CollapseChildKey; }
 #[derive(Debug, Clone, Default)]
 pub struct Collapser<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub nodes: SlotMap<CollapseNodeKey, CollapseNode<V2, V3, T, B>>,
+    pub nodes_per_template_index: Vec<SmallVec<[CollapseNodeKey; 4]>>,
     pub pending: PendingOperations,
 }
 
@@ -53,16 +55,10 @@ union PairUnion<VA: Ve<T, DA>, VB: Ve<T, DB>, T: Nu, const DA: usize, const DB: 
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum UpdateDefinesOperation {
-    One {
-        template_index: TemplateIndex,
-        parent_index: CollapseNodeKey,
-    },
-    Creates {
-        template_index: TemplateIndex,
-        parent_index: CollapseNodeKey,
-        creates_index: usize,
-    }
+pub struct UpdateDefinesOperation { 
+    pub template_index: TemplateIndex,
+    pub parent_index: CollapseNodeKey,
+    pub creates_index: usize,
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B> {
@@ -72,6 +68,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         let mut collapser = Self {
             nodes: SlotMap::with_capacity_and_key(inital_capacity),
             pending: PendingOperations::new(template.max_level),
+            nodes_per_template_index: vec![SmallVec::new(); template.nodes.len()],
         };
 
         collapser.add_node(
@@ -82,7 +79,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             template,
             state).await;
 
-        collapser.template_changed(template, state); 
+        //collapser.template_changed(template, state); 
         collapser
     }
  
@@ -91,7 +88,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         loop {
             match self.pending.pop() {
                 PendingOperationsRes::Collapse(key) => self.collapse_node(key, template, state).await,
-                PendingOperationsRes::CreateDefined(operation) => self.upadte_defined(
+                PendingOperationsRes::CreateDefined(operation) => self.update_defined(
                     operation, template, state).await,
                 PendingOperationsRes::Retry => {
                     #[cfg(debug_assertions)]
@@ -474,14 +471,5 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
     pub fn get_root_key(&self) -> CollapseNodeKey {
         self.nodes.keys().next().unwrap()
-    }
-}
-
-impl UpdateDefinesOperation {
-    pub fn get_parent_index(&self) -> CollapseNodeKey {
-        match self {
-            UpdateDefinesOperation::One { parent_index, .. }
-            | UpdateDefinesOperation::Creates { parent_index, .. } => *parent_index,
-        }
     }
 }

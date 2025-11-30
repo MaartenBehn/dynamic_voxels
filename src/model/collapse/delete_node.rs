@@ -15,6 +15,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         let node = node.unwrap();
         assert!(!node.defined_by.is_null(), "Trying to delete root node!");
 
+        let index_in_template_list = self.nodes_per_template_index[node.template_index].iter().position(|i| *i == node_index).unwrap();
+        self.nodes_per_template_index[node.template_index].swap_remove(index_in_template_list);
+
         #[cfg(debug_assertions)]
         info!("{:?} Delete node", node_index);
 

@@ -68,7 +68,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
             
             let remote_node = self.snarl.get_node(pin.node).expect("Node of remote not found");
 
-            if let Some(value_index) = data.value_per_node_id.get_value(pin.node) {
+            if let Some(value_index) = data.get_value_index_from_node_id(pin.node) {
                 
                 match &remote_node.t { 
                     ComposeNodeType::PerPair2D => {
@@ -113,7 +113,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                     ComposeTemplateValue::Position3D(PositionTemplate::FromNumbers([x, y, z]))
                 },
                 ComposeNodeType::PerPosition2D => {
-                    let inactive = data.start_template_node();
+                    let inactive = data.start_template_node(pin.node);
 
                     let space = self.make_pos_space(self.get_input_remote_pin_by_index(remote_node, 0), data); 
                     let value = ComposeTemplateValue::PositionSet2D(PositionSetTemplate::All(space));
@@ -127,7 +127,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                     }))
                 } 
                 ComposeNodeType::PerPosition3D => {
-                    let inactive = data.start_template_node();
+                    let inactive = data.start_template_node(pin.node);
 
                     let space = self.make_pos_space(self.get_input_remote_pin_by_index(remote_node, 0), data); 
                     let value = ComposeTemplateValue::PositionSet3D(PositionSetTemplate::All(space));
@@ -141,7 +141,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                     }))
                 }
                 ComposeNodeType::PerPair2D => {
-                    let inactive = data.start_template_node();
+                    let inactive = data.start_template_node(pin.node);
 
                     let space = self.make_pos_space(self.get_input_remote_pin_by_index(remote_node, 0), data); 
                     let distance = self.make_number(remote_node, 1, data); 
@@ -157,7 +157,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                     }, pin.output == 0)))
                 }
                 ComposeNodeType::PerPair3D => {
-                    let inactive = data.start_template_node();
+                    let inactive = data.start_template_node(pin.node);
                     
                     let space = self.make_pos_space(self.get_input_remote_pin_by_index(remote_node, 0), data); 
                     let distance = self.make_number(remote_node, 1, data); 

@@ -36,7 +36,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
         pin: OutPinId,
         data: &mut MakeTemplateData<V2, V3, T, B>,
     ) -> ValueIndexVolume {
-        if let Some(value_index) = data.value_per_node_id.get_value(pin.node) {
+        if let Some(value_index) = data.get_value_index_from_node_id(pin.node) {
             return value_index;
         }
 

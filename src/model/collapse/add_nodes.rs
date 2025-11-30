@@ -32,35 +32,42 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
         for (i, creates) in template_node.creates.iter().enumerate() {
             let new_template_node = &template.nodes[creates.to_create];
-           
-            let operation = match &creates.t {
-                CreatesType::One => UpdateDefinesOperation::One { 
-                    template_index: creates.to_create,
-                    parent_index: node_index, 
-                },
-                CreatesType::Children => UpdateDefinesOperation::Creates { 
-                    template_index: creates.to_create,
-                    parent_index: node_index, 
-                    creates_index: i, 
-                },
-            };
-
-            self.pending.push_create_defined(new_template_node.level, operation);
+            
+            self.pending.push_create_defined(new_template_node.level, UpdateDefinesOperation { 
+                template_index: creates.to_create,
+                parent_index: node_index, 
+                creates_index: i,
+            });
         }
     }
 
-    pub async fn upadte_defined(
+    pub async fn update_defined(
         &mut self, 
         opperation: UpdateDefinesOperation, 
         template: &ComposeTemplate<V2, V3, T, B>,
         state: &mut B
     ) {
-        match opperation {
-            UpdateDefinesOperation::One { template_index, parent_index } => {
-                self.update_defined_one(template_index, parent_index, template, state).await;
+        let parent_node = &self.nodes[opperation.parent_index];
+        let parent_template_node = &template.nodes[parent_node.template_index];
+        let creates: &Creates = &parent_template_node.creates[opperation.creates_index];
+
+        match creates.t {
+            CreatesType::One => {
+                self.update_defined_one(
+                    opperation.template_index, 
+                    opperation.parent_index, 
+                    template, 
+                    state
+                ).await;
             },
-            UpdateDefinesOperation::Creates { template_index, parent_index, creates_index: defines_index } => {
-                self.update_defined_by_creates(template_index, parent_index, defines_index, template, state).await;
+            CreatesType::Children => {
+                self.update_defined_by_creates(
+                    opperation.template_index, 
+                    opperation.parent_index, 
+                    opperation.creates_index, 
+                    template, 
+                    state
+                ).await;
             },
         }
     }
@@ -193,6 +200,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             next_reset: CollapseNodeKey::null(),
             child_keys,
         });
+        self.nodes_per_template_index[new_node_template.index].push(index);
 
         for (_, dependend) in depends.iter() {
             for depend in dependend.iter() {

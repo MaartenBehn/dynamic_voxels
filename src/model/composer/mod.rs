@@ -144,8 +144,8 @@ where
                 
                 let now = Instant::now();
 
-                self.template = ComposeTemplate::new(self);
-                self.collapser_worker.template_changed(self.template.clone());
+                let updates = self.template.update(&self.graph);
+                self.collapser_worker.template_changed(self.template.clone(), updates);
 
                 let elapsed = now.elapsed();
                 info!("Template took: {:?}", elapsed);

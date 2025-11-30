@@ -27,35 +27,6 @@ pub enum ComposeTemplateValue<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T
     Build(B::TemplateValue)
 }
 
-pub struct ValuePerNodeId {
-    per: Vec<ValueIndex>,
-} 
-
-impl ValuePerNodeId {
-    pub fn new() -> Self {
-        Self {
-            per: vec![],
-        }
-    }
-
-    pub fn enshure_size(&mut self, node_id: NodeId) {
-        if node_id.0 >= self.per.len() {
-            self.per.resize(node_id.0 + 1, VALUE_INDEX_NODE);
-        }
-    }
-
-    pub fn get_value(&self, node_id: NodeId) -> Option<ValueIndex> { 
-        if self.per[node_id.0] != VALUE_INDEX_NODE {
-            Some(self.per[node_id.0])
-        } else {
-            None
-        }
-    }
-
-    pub fn set_value(&mut self, node_id: NodeId, value_index: ValueIndex) { 
-        self.per[node_id.0] = value_index;
-    } 
-}
 
 pub union PositionTemplateUnion<'a, VA: Ve<T, DA>, VB: Ve<T, DB>, T: Nu, const DA: usize, const DB: usize> {
     a: &'a PositionTemplate<VA, T, DA>,

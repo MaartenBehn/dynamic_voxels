@@ -4,18 +4,25 @@ use egui_snarl::{InPinId, NodeId, OutPinId};
 use octa_force::log::trace;
 use smallvec::{SmallVec, smallvec};
 
-use crate::{model::{composer::{build::{GetTemplateValueArgs, BS}, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}, ModelComposer}, data_types::{data_type::ComposeDataType, number::NumberTemplate, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::{ValuePerNodeId, VALUE_INDEX_NODE}}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{composer::{build::{GetTemplateValueArgs, BS}, graph::{self, ComposerGraph, ComposerNodeFlags}, nodes::{ComposeNode, ComposeNodeType}, ModelComposer}, data_types::{data_type::ComposeDataType, number::NumberTemplate, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::VALUE_INDEX_NODE}}, util::{number::Nu, vector::Ve}};
 
-use super::{dependency_tree::get_dependency_tree_and_loop_paths, nodes::TemplateNode, value::{ComposeTemplateValue, ValueIndex}, ComposeTemplate, TemplateIndex};
+use super::{dependency_tree::get_dependency_tree_and_loop_paths, nodes::TemplateNode, value::{ComposeTemplateValue, ValueIndex}, ComposeTemplate, TemplateIndex, TEMPLATE_INDEX_NONE};
 
 pub struct MakeTemplateData<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub building_template_index: TemplateIndex,
     pub template: &'a mut ComposeTemplate<V2, V3, T, B>,
-    pub value_per_node_id: &'a mut ValuePerNodeId,
 }
 
 pub struct InactiveMakeTemplateData {
     pub building_template_index: TemplateIndex,
+}
+
+#[derive(Debug)]
+pub enum TemplateNodeUpdate {
+    Delete(TemplateIndex),
+    New{ new: TemplateIndex, parent: TemplateIndex, creates_index: usize, new_level: usize },
+    Unchanged{old: TemplateIndex, new: TemplateIndex},
+    Changed{old: TemplateIndex, new: TemplateIndex},
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3, T, B> {
@@ -29,21 +36,17 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                 dependend: smallvec![],
                 level: 1,
                 creates: smallvec![],
+                created_by: (TEMPLATE_INDEX_NONE, 0),
                 dependecy_tree: Default::default(),
             }],
             values: vec![ComposeTemplateValue::None],
             max_level: 1,
+            map_node_id: vec![],
         }
     }
 
-    pub fn new(composer: &ModelComposer<V2, V3, T, B>) -> Self {
+    pub fn update(&mut self, graph: &ComposerGraph<V2, V3, T, B>) -> Vec<TemplateNodeUpdate> {
         
-        let mut value_per_node_id = ValuePerNodeId::new();
-        for composer_node in composer.graph.snarl.nodes() {
-            let node_id = composer_node.id;
-            value_per_node_id.enshure_size(node_id);
-        }
-
         let mut template = ComposeTemplate {
             nodes: vec![
                 TemplateNode {
@@ -54,48 +57,59 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                     dependend: smallvec![],
                     level: 1,
                     creates: smallvec![],
+                    created_by: (TEMPLATE_INDEX_NONE, 0),
                     dependecy_tree: Default::default(),
                 }
             ],
             values: vec![ComposeTemplateValue::None],
             max_level: 1,
-        };
+            map_node_id: vec![],
+        }; 
 
-        for composer_node in composer.graph.snarl.nodes() {             
+        for composer_node in graph.snarl.nodes() {
+            let node_id = composer_node.id;
+            template.enshure_map_size(node_id);
+        }
+        
+        for composer_node in graph.snarl.nodes() {             
             let node_id = composer_node.id;
             
             match &composer_node.t {
                 ComposeNodeType::Build(t) => {
                     if B::is_template_node(t) {
                         let template_index = template.nodes.len();
+ 
                         template.nodes.push(
                             TemplateNode {
                                 index: template_index,
                                 value_index: VALUE_INDEX_NODE,
                                 depends_loop: smallvec![],
-                                depends: smallvec![],
+                                depends: smallvec![0],
                                 dependend: smallvec![],
                                 level: 0,
                                 creates: smallvec![],
+                                created_by: (TEMPLATE_INDEX_NONE, 0),
                                 dependecy_tree: Default::default(),
                             }
                         );
+                        template.map_node_id[node_id.0].0 = template_index;
 
                         let mut data = MakeTemplateData {
                             building_template_index: template_index,
                             template: &mut template,
-                            value_per_node_id: &mut value_per_node_id,
                         };
 
                         let value = B::get_template_value(GetTemplateValueArgs { 
                             compose_type: t, 
                             composer_node,
-                            graph: &composer.graph,
+                            graph,
                         }, &mut data);
 
                         let value_index = data.set_value(node_id, ComposeTemplateValue::Build(value));
                         template.nodes[template_index].value_index = value_index;
-                        template.nodes[template_index].depends.push(0);
+
+                        let creates_index = template.nodes[0].creates.len();
+                        template.nodes[template_index].created_by = (0, creates_index);
 
                         template.nodes[0].creates.push(Creates {
                             to_create: template_index,
@@ -140,9 +154,45 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
             }
         }
 
-        dbg!(&template);
+        let mut needs_update = vec![]; 
+        for composer_node in graph.snarl.nodes() {  
+            let old_index = self.get_template_index_from_node_id(composer_node.id);
+            let new_index = self.get_template_index_from_node_id(composer_node.id);
+            
+            if new_index.is_none() {
+                if old_index.is_some() {
+                    needs_update.push(TemplateNodeUpdate::Delete(old_index.unwrap()));
+                }
+                continue;
+            }
+            let new = new_index.unwrap();
 
-        template
+            if old_index.is_none() {
+                let node: &TemplateNode = &template.nodes[new];
+
+                needs_update.push(TemplateNodeUpdate::New{
+                    new,
+                    parent: node.created_by.0,
+                    creates_index: node.created_by.1,
+                    new_level: node.level,
+                });
+                continue;
+            }
+            let old = old_index.unwrap();
+
+            if graph.flags.needs_collapse_nodes.get(composer_node.id.0).as_deref().copied().unwrap() {
+                needs_update.push(TemplateNodeUpdate::Changed{ new, old });
+            } else if new != old {
+                needs_update.push(TemplateNodeUpdate::Unchanged{ new, old });
+            }
+        }
+ 
+        dbg!(&template);
+        dbg!(&needs_update);
+
+        (*self) = template;
+
+        needs_update
     }
 
     fn cut_loops(&mut self, index: usize, mut index_seen: Vec<usize>) -> usize {
@@ -344,12 +394,13 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
 }
 
 impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> MakeTemplateData<'a, V2, V3, T, B> {
-    pub fn start_template_node(&mut self) -> InactiveMakeTemplateData {
+    pub fn start_template_node(&mut self, node_id: NodeId) -> InactiveMakeTemplateData {
         let inactive = InactiveMakeTemplateData {
             building_template_index: self.building_template_index,
         };
 
         let template_index = self.template.nodes.len();
+ 
         self.template.nodes.push(
             TemplateNode {
                 index: template_index,
@@ -359,18 +410,24 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> MakeTemplateData<'
                 dependend: smallvec![],
                 level: 0,
                 creates: smallvec![],
+                created_by: (TEMPLATE_INDEX_NONE, 0),
                 dependecy_tree: Default::default(),
             }
         );
+        self.template.map_node_id[node_id.0].0 = template_index;
 
         self.building_template_index = template_index;
         inactive
     }
 
+    pub fn get_value_index_from_node_id(&mut self, node_id: NodeId) -> Option<ValueIndex> {
+        self.template.get_value_index_from_node_id(node_id)
+    }
+
     pub fn set_value(&mut self, node_id: NodeId, value: ComposeTemplateValue<V2, V3, T, B>) -> ValueIndex {
         let value_index = self.template.values.len(); 
         self.template.values.push(value);
-        self.value_per_node_id.set_value(node_id, value_index);
+        self.template.map_node_id[node_id.0].1 = value_index;
         value_index
     }
 
@@ -386,11 +443,15 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> MakeTemplateData<'
         value_index: ValueIndex,
         inactive: InactiveMakeTemplateData
     ) -> TemplateIndex {
-        let node = &mut self.template.nodes[self.building_template_index]; 
+        let node: &mut TemplateNode = &mut self.template.nodes[self.building_template_index]; 
         node.value_index = value_index;
 
         if node.depends.is_empty() {
-            self.template.nodes[self.building_template_index].depends.push(0);
+            node.depends.push(0);
+
+            let creates_index = self.template.nodes[0].creates.len();
+            self.template.nodes[self.building_template_index].created_by = (0, creates_index);
+            
             self.template.nodes[0].creates.push(Creates {
                 to_create: self.building_template_index,
                 t: CreatesType::One,
@@ -398,6 +459,10 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> MakeTemplateData<'
             });
         } else {
             let picked_depend = node.depends[0];
+            
+            let creates_index = self.template.nodes[picked_depend].creates.len();
+            self.template.nodes[self.building_template_index].created_by = (picked_depend, creates_index);
+
             self.template.nodes[picked_depend].creates.push(Creates {
                 to_create: self.building_template_index,
                 t: CreatesType::Children,
