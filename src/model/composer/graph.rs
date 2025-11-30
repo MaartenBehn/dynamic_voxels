@@ -102,6 +102,13 @@ impl ComposerNodeFlags {
         }
     }
 
+    pub fn reset_change_flags(&mut self) {
+        self.deleted_nodes.clear();
+        self.added_nodes.clear();
+        self.changed_nodes.clear();
+        self.needs_collapse_nodes.clear();
+    } 
+
     pub fn enshure_nodes_list_index(&mut self, i: usize) {
         if self.added_nodes.len() <= i {
             self.added_nodes.resize(i + 1, false);

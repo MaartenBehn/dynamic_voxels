@@ -187,8 +187,6 @@ impl PositionSpaceTemplate {
                 let (side_variance, r_3) =  template.get_position_value::<V, D>(path.side_variance)
                     .get_value(get_value_data, collapser, template);
 
-                dbg!((&start, &end, &spacing, &side_variance));
-
                 let points = iproduct!(start, end, spacing, side_variance)
                     .map(|(start, end, spacing, side_variance)| {
 

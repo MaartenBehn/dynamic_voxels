@@ -54,7 +54,8 @@ where
         let viewer_templates = ComposeViewerTemplates::new();
         let viewer_data = ComposeViewerData::new();
 
-        let template = ComposeTemplate::empty();
+        let mut template = ComposeTemplate::empty();
+        template.update(&graph);
         let (collapser_worker, collapser_reciver) = ComposeCollapseWorker::new(template.clone(), state);
       
 
@@ -68,7 +69,7 @@ where
             collapser_worker,
             collapser_reciver,
             auto_rebuild: false,
-            manual_rebuild: true,
+            manual_rebuild: false,
 
             render_panel_changed: false,
             render_panel_size: UVec2::ZERO,
@@ -149,6 +150,8 @@ where
 
                 let elapsed = now.elapsed();
                 info!("Template took: {:?}", elapsed);
+                
+                self.graph.flags.reset_change_flags();
 
             } else {
                 warn!("Cant Rebuild error in graph!");

@@ -22,7 +22,6 @@ pub struct Collapser<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
 #[derive(Debug, Clone)]
 pub struct CollapseNode<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub template_index: usize,
-    pub level: usize,
     pub children: Vec<(TemplateIndex, Vec<CollapseNodeKey>)>, 
     pub depends: Vec<(TemplateIndex, Vec<CollapseNodeKey>)>,
     pub defined_by: CollapseNodeKey,
@@ -79,7 +78,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             template,
             state).await;
 
-        //collapser.template_changed(template, state); 
+        collapser.pending.push_collpase(1, collapser.get_root_key());
+
+        dbg!(&collapser);
+        dbg!(&template);
         collapser
     }
  

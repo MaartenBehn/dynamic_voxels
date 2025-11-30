@@ -118,7 +118,7 @@ impl PendingOperations {
         for list in self.pending_create_defined.iter_mut() {
 
             for i in (0..list.len()).rev() {
-                if list[i].get_parent_index() == parent_index {
+                if list[i].parent_index == parent_index {
                     list.swap_remove_back(i);
                 }
             }

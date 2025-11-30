@@ -51,7 +51,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         egui::CollapsingHeader::new(format!("Node: {:?}", node.template_index))
             .id_salt(format!("node: {i}"))
             .show(ui, |ui| {
-            ui.label(format!("Level: {}", node.level));
             ui.label(format!("Template Index: {}", node.template_index));
 
             if !node.defined_by.is_null() {

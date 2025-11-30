@@ -192,7 +192,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
         let index = self.nodes.insert(CollapseNode {
             template_index: new_node_template.index,
-            level: new_node_template.level,
             children: vec![],
             depends: depends.clone(),
             defined_by,

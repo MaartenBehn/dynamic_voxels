@@ -21,8 +21,8 @@ pub struct InactiveMakeTemplateData {
 pub enum TemplateNodeUpdate {
     Delete(TemplateIndex),
     New{ new: TemplateIndex, parent: TemplateIndex, creates_index: usize, new_level: usize },
-    Unchanged{old: TemplateIndex, new: TemplateIndex},
-    Changed{old: TemplateIndex, new: TemplateIndex},
+    Unchanged{ old: TemplateIndex, new: TemplateIndex },
+    Changed{ old: TemplateIndex, new: TemplateIndex, level: usize },
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3, T, B> {
@@ -169,6 +169,11 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
 
             if old_index.is_none() {
                 let node: &TemplateNode = &template.nodes[new];
+                
+                // If the parent is also new skip this one.
+                if graph.flags.added_nodes.get(node.created_by.0).as_deref().copied().unwrap() {
+                    continue;
+                }
 
                 needs_update.push(TemplateNodeUpdate::New{
                     new,
@@ -181,7 +186,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
             let old = old_index.unwrap();
 
             if graph.flags.needs_collapse_nodes.get(composer_node.id.0).as_deref().copied().unwrap() {
-                needs_update.push(TemplateNodeUpdate::Changed{ new, old });
+                let node: &TemplateNode = &template.nodes[new];
+
+                needs_update.push(TemplateNodeUpdate::Changed{ new, old, level: node.level });
             } else if new != old {
                 needs_update.push(TemplateNodeUpdate::Unchanged{ new, old });
             }
