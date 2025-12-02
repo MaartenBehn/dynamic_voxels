@@ -17,7 +17,8 @@ pub struct ComposeIsland {
 pub enum ComposeType {
     Object
 }
-impl ComposeTypeTrait for ComposeType {}
+impl ComposeTypeTrait for ComposeType {
+}
 
 
 // Template Value

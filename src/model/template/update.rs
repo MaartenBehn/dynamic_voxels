@@ -157,7 +157,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
         let mut needs_update = vec![]; 
         for composer_node in graph.snarl.nodes() {  
             let old_index = self.get_template_index_from_node_id(composer_node.id);
-            let new_index = self.get_template_index_from_node_id(composer_node.id);
+            let new_index = template.get_template_index_from_node_id(composer_node.id);
+
+            dbg!(old_index);
+            dbg!(new_index);
             
             if new_index.is_none() {
                 if old_index.is_some() {
@@ -171,9 +174,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                 let node: &TemplateNode = &template.nodes[new];
                 
                 // If the parent is also new skip this one.
-                if graph.flags.added_nodes.get(node.created_by.0).as_deref().copied().unwrap() {
-                    continue;
-                }
+                // if graph.flags.added_nodes.get(node.created_by.0).as_deref().copied().unwrap() {
+                //    continue;
+                // }
 
                 needs_update.push(TemplateNodeUpdate::New{
                     new,
