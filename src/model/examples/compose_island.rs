@@ -1,7 +1,7 @@
 use std::{marker::PhantomData, sync::Arc, time::{Duration, Instant}};
 
 use egui_snarl::{NodeId, OutPinId};
-use octa_force::{egui, glam::{EulerRot, IVec2, IVec3, Mat4, Quat, Vec3}, log::info, OctaResult};
+use octa_force::{camera::Camera, egui, glam::{EulerRot, IVec2, IVec3, Mat4, Quat, Vec3}, log::info, OctaResult};
 use slotmap::Key;
 use smallvec::SmallVec;
 
@@ -162,7 +162,7 @@ fn delete_object(
 }
 
 impl ComposeIsland {
-    pub fn new(scene: SceneWorkerSend) -> Self {
+    pub fn new(scene: SceneWorkerSend, camera: &Camera) -> Self {
         let mut dag = VoxelDAG64::new(1000000, 1000000).parallel();
         let scene_dag_key = scene.add_dag(dag.clone()).result_blocking();
         let mut state =  ComposeIslandState {
@@ -172,12 +172,12 @@ impl ComposeIsland {
         }; 
 
         Self {
-            composer: ModelComposer::new(state),
+            composer: ModelComposer::new(state, camera),
         }
     }
 
-    pub fn update(&mut self, time: Duration) -> OctaResult<()> {
-        self.composer.update(time)
+    pub fn update(&mut self, time: Duration, camera: &Camera) -> OctaResult<()> {
+        self.composer.update(time, camera)
     }
 
     pub fn render(&mut self, ctx: &egui::Context) {

@@ -176,7 +176,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     {
         let palette = SharedPalette::new();
         let scene = Scene::new(&engine.context)?.run_worker(engine.context.get_alloc_context(), 1000); 
-        let islands = ComposeIsland::new(scene.send.to_owned()); 
+        let islands = ComposeIsland::new(scene.send.to_owned(), &logic_state.camera); 
 
         let mut renderer = SceneRenderer::new(
             &engine.context, 
@@ -225,7 +225,7 @@ pub fn update(
 
     
     #[cfg(feature="graph_builder")]
-    render_state.islands.update(time)?;
+    render_state.islands.update(time, &logic_state.camera)?;
 
     if render_state.islands.composer.render_panel_changed {
         render_state.islands.composer.render_panel_changed = false;

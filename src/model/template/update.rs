@@ -188,12 +188,19 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
             }
             let old = old_index.unwrap();
 
-            if graph.flags.needs_collapse_nodes.get(composer_node.id.0).as_deref().copied().unwrap() {
+            if graph.flags.needs_collapse_nodes.get(composer_node.id.0).as_deref().copied().unwrap_or(false) {
                 let node: &TemplateNode = &template.nodes[new];
 
                 needs_update.push(TemplateNodeUpdate::Changed{ new, old, level: node.level });
             } else if new != old {
                 needs_update.push(TemplateNodeUpdate::Unchanged{ new, old });
+            } else {
+                
+                match composer_node.t {
+                    ComposeNodeType::CamPosition => {},
+                    _ => {}
+                }
+
             }
         }
  
@@ -327,6 +334,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                         hook.loop_cut |= hook.template_index == to_index;
                     },
                     PositionTemplate::PhantomData(phantom_data) => unreachable!(),
+                    PositionTemplate::Cam => {},
                 }
             },
             ComposeTemplateValue::Position3D(position_template) => {
@@ -345,6 +353,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                         hook.loop_cut |= hook.template_index == to_index;
                     },
                     PositionTemplate::PhantomData(phantom_data) => unreachable!(),
+                    PositionTemplate::Cam => {},
                 }
             },
             ComposeTemplateValue::PositionSet2D(position_set_template)

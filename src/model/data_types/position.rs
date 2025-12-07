@@ -18,6 +18,7 @@ pub enum PositionTemplate<V: Ve<T, D>, T: Nu, const D: usize> {
     FromNumbers([ValueIndexNumber; D]),
     PerPosition(Hook),
     PerPair((Hook, bool)),
+    Cam,
     PhantomData(PhantomData<T>),
 }
 
@@ -172,6 +173,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                         loop_cut: false,
                     }, pin.output == 0)))
                 }
+                ComposeNodeType::CamPosition => {
+                    ComposeTemplateValue::Position3D(PositionTemplate::Cam)
+                }
                 _ => unreachable!(),
             };
                     
@@ -212,15 +216,19 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> PositionTemplate<V, T, D> {
             },
             PositionTemplate::PerPosition(hook) => {
                 let (p, r) = collapser.get_dependend_position(hook.template_index, get_value_data);
-                
+
                 (p.collect(), r)
             },
             PositionTemplate::PerPair((hook, is_a)) => {
                 let (pair, r) = collapser.get_dependend_position_pair(hook.template_index, get_value_data);
 
                 let p = pair.map(|(a, b)| if *is_a { a } else { b });
-                
+
                 (p.collect(), r)
+            },
+            PositionTemplate::Cam => {
+                let pos = V::from_vec3(get_value_data.engine_data.cam_position);
+                (smallvec::smallvec![pos], false)
             },
             PositionTemplate::PhantomData(_) => unreachable!(),
         }

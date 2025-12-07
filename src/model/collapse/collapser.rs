@@ -7,7 +7,7 @@ use slotmap::{new_key_type, Key, SlotMap};
 use smallvec::SmallVec;
 use crate::{model::{composer::build::{OnCollapseArgs, BS}, template::{value::ComposeTemplateValue, ComposeTemplate, TemplateIndex}}, util::{iter_merger::{IM2, IM3}, number::Nu, state_saver, vector::Ve}, volume::VolumeQureyPosValid};
 
-use super::{add_nodes::{GetNewChildrenData, GetValueData}, number_set::NumberSet, pending_operations::{PendingOperations, PendingOperationsRes}, position_pair_set::PositionPairSet, position_set::PositionSet};
+use super::{add_nodes::{GetNewChildrenData, GetValueData}, engine_data::EngineData, number_set::NumberSet, pending_operations::{PendingOperations, PendingOperationsRes}, position_pair_set::PositionPairSet, position_set::PositionSet};
 
 new_key_type! { pub struct CollapseNodeKey; }
 new_key_type! { pub struct CollapseChildKey; }
@@ -85,13 +85,22 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         collapser
     }
  
-    pub async fn run(&mut self, template: &ComposeTemplate<V2, V3, T, B>, state: &mut B) {
+    pub async fn run(
+        &mut self, 
+        template: &ComposeTemplate<V2, V3, T, B>, 
+        state: &mut B,
+        engine_data: EngineData,
+
+    ) {
 
         loop {
             match self.pending.pop() {
-                PendingOperationsRes::Collapse(key) => self.collapse_node(key, template, state).await,
+                PendingOperationsRes::Collapse(key) => self.collapse_node(
+                    key, template, state, engine_data).await,
+
                 PendingOperationsRes::CreateDefined(operation) => self.update_defined(
                     operation, template, state).await,
+
                 PendingOperationsRes::Retry => {
                     #[cfg(debug_assertions)]
                     info!("Swaped Next Collapse");
@@ -101,7 +110,13 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         }
     }
 
-    async fn collapse_node(&mut self, node_index: CollapseNodeKey, template: &ComposeTemplate<V2, V3, T, B>, state: &mut B) {
+    async fn collapse_node(
+        &mut self, 
+        node_index: CollapseNodeKey, 
+        template: &ComposeTemplate<V2, V3, T, B>, 
+        state: &mut B, 
+        engine_data: EngineData,
+    ) {
         let node = &self.nodes[node_index];
         let template_node = &template.nodes[node.template_index]; 
         let value = &template.values[template_node.value_index];
@@ -115,6 +130,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             depends: &node.depends, 
             depends_loop: &template_node.depends_loop,
             index: node_index,
+            engine_data,
         }; 
 
         let needs_recompute = match value {

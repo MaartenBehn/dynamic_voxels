@@ -7,7 +7,7 @@ use tree64::Node;
 
 use crate::{model::{collapse::collapser::CollapseNode, composer::build::BS, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::ComposeTemplateValue, ComposeTemplate, TemplateIndex}}, util::{number::Nu, vector::Ve}};
 
-use super::{collapser::{CollapseChildKey, CollapseNodeKey, Collapser, UpdateDefinesOperation, NodeDataType}, number_set::NumberSet};
+use super::{collapser::{CollapseChildKey, CollapseNodeKey, Collapser, NodeDataType, UpdateDefinesOperation}, engine_data::EngineData, number_set::NumberSet};
 
 #[derive(Debug, Clone, Copy)]
 pub struct GetValueData<'a> {
@@ -16,6 +16,8 @@ pub struct GetValueData<'a> {
     pub child_indexs: &'a [(CollapseNodeKey, CollapseChildKey)],
     pub depends: &'a [(TemplateIndex, Vec<CollapseNodeKey>)],
     pub depends_loop: &'a [(TemplateIndex, DependencyPath)],
+
+    pub engine_data: EngineData,
 }
 
 #[derive(Debug, Clone, Copy)]

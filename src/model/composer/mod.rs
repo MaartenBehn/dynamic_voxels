@@ -11,10 +11,10 @@ use build::{ComposeTypeTrait, BS};
 use egui_snarl::{ui::{NodeLayout, PinPlacement, SnarlStyle, SnarlWidget}, Snarl};
 use graph::ComposerGraph;
 use nodes::ComposeNode;
-use octa_force::{anyhow::anyhow, egui::{self, Align, CornerRadius, Frame, Id, Layout, Margin}, glam::{uvec2, UVec2, Vec2}, log::{debug, info, warn}, OctaResult};
+use octa_force::{anyhow::anyhow, camera::Camera, egui::{self, Align, CornerRadius, Frame, Id, Layout, Margin}, glam::{uvec2, UVec2, Vec2}, log::{debug, info, warn}, OctaResult};
 use viewer::{style, ComposeViewer, ComposeViewerData, ComposeViewerTemplates};
 
-use crate::util::{number::Nu, vector::Ve};
+use crate::{model::collapse::engine_data::EngineData, util::{number::Nu, vector::Ve}};
 
 use super::{collapse::worker::{CollapserChangeReciver, ComposeCollapseWorker}, template::ComposeTemplate};
 
@@ -37,6 +37,8 @@ pub struct ModelComposer<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub render_panel_changed: bool,
     pub render_panel_size: UVec2,
     pub render_panel_offset: UVec2,
+
+    pub last_engine_data: EngineData,
 }
 
 impl<V2, V3, T, B> ModelComposer<V2, V3, T, B> 
@@ -47,7 +49,7 @@ where
     B: BS<V2, V3, T>,
     B::ComposeType: serde::Serialize + serde::de::DeserializeOwned,
 {
-    pub fn new(state: B) -> Self {
+    pub fn new(state: B, camera: &Camera) -> Self {
         let mut graph = ComposerGraph::new();
 
         let style = style();
@@ -56,7 +58,9 @@ where
 
         let mut template = ComposeTemplate::empty();
         template.update(&graph);
-        let (collapser_worker, collapser_reciver) = ComposeCollapseWorker::new(template.clone(), state);
+
+        let engine_data = EngineData::new(camera);
+        let (collapser_worker, collapser_reciver) = ComposeCollapseWorker::new(template.clone(), state, engine_data);
       
 
         ModelComposer {
@@ -74,7 +78,9 @@ where
             render_panel_changed: false,
             render_panel_size: UVec2::ZERO,
             render_panel_offset: UVec2::ZERO,
-                    }
+
+            last_engine_data: engine_data,
+        }
     }
 
     pub fn render(&mut self, ctx: &egui::Context) { 
@@ -134,7 +140,7 @@ where
         }
     }
 
-    pub fn update(&mut self, time: Duration) -> OctaResult<()> {
+    pub fn update(&mut self, time: Duration, camera: &Camera) -> OctaResult<()> {
         self.viewer_data.update(time);
 
         if self.manual_rebuild {
@@ -146,7 +152,8 @@ where
                 let now = Instant::now();
 
                 let updates = self.template.update(&self.graph);
-                self.collapser_worker.template_changed(self.template.clone(), updates);
+                let engine_data = EngineData::new(camera);
+                self.collapser_worker.template_changed(self.template.clone(), updates, engine_data);
 
                 let elapsed = now.elapsed();
                 info!("Template took: {:?}", elapsed);
@@ -157,7 +164,7 @@ where
                 warn!("Cant Rebuild error in graph!");
             }
         } 
-        
+       
         self.graph.save()?;
 
         Ok(())

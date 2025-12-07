@@ -28,7 +28,9 @@ pub enum ComposeNodeGroupe {
 
     Globals, 
 
-    Build
+    Build,
+
+    Engine,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -68,6 +70,8 @@ pub enum ComposeNodeType<CT: ComposeTypeTrait> {
         
     PerPair2D,
     PerPair3D,
+
+    CamPosition,
 
     Build(CT)
 }
@@ -278,6 +282,9 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
             .input(ComposeDataType::Number(None), "distance")
             .output(ComposeDataType::Position3D(None), "a")
             .output(ComposeDataType::Position3D(None), "b"),
+
+        ComposeNode::new(ComposeNodeType::CamPosition, ComposeNodeGroupe::Engine)
+            .output(ComposeDataType::Position3D(None), "pos"),
     ]
 }
 
