@@ -45,6 +45,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
 
         let node = self.snarl.get_node(pin.node).expect("Node of remote not found");
         let value = match &node.t {
+            ComposeNodeType::Circle => TemplateValue::Volume2D(VolumeTemplate::Sphere { 
+                pos: self.make_position(node, 0, data),
+                size: self.make_number(node, 1, data),
+            }),
             ComposeNodeType::Sphere => TemplateValue::Volume3D(VolumeTemplate::Sphere { 
                 pos: self.make_position(node, 0, data),
                 size: self.make_number(node, 1, data),

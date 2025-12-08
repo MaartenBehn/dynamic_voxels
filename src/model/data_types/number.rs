@@ -53,9 +53,11 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
             data.add_value(TemplateValue::Number(value)) 
         } else {
             let pin = remotes[0];
+            /*
             if let Some(value_index) = data.get_value_index_from_node_id(pin.node) {
                 return value_index;
             }
+            */
 
             let remote_node = self.snarl.get_node(pin.node).expect("Node of remote not found");
 
@@ -78,7 +80,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                     let pos = self.make_position(remote_node, 0, data);
 
                     assert!(pin.output <= 2);
-                    NumberTemplate::SplitPosition2D((pos, pin.output))
+                    NumberTemplate::SplitPosition3D((pos, pin.output))
                 },
                 _ => {
                     dbg!(&remote_node.t);
