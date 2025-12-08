@@ -66,24 +66,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
 
     fn compose_nodes() -> Vec<ComposeNode<Self::ComposeType>> {
         vec![
-            ComposeNode { 
-                t: ComposeNodeType::Build(ComposeType::Object), 
-                id: NodeId(usize::MAX),
-                group: ComposeNodeGroupe::Build, 
-                inputs: vec![
-                    ComposeNodeInput { 
-                        name: "volume".to_string(), 
-                        data_type: ComposeDataType::Volume3D, 
-                        valid: false,
-                    },
-                    ComposeNodeInput { 
-                        name: "pos".to_string(), 
-                        data_type: ComposeDataType::Position3D(None), 
-                        valid: false,
-                    },
-                ], 
-                outputs: vec![], 
-            },
+            ComposeNode::new(ComposeNodeType::Build(ComposeType::Object), ComposeNodeGroupe::Build)
+                .input(ComposeDataType::Volume3D, "volume")
+                .input(ComposeDataType::Position3D(None), "pos")
+                .input(ComposeDataType::Creates, "one per"),
         ]
     }
 
@@ -117,6 +103,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
                 let pos = pos[0];
 
                 volume.calculate_bounds();
+                dbg!(&volume);
 
                 let now = Instant::now();
                 let dag_key = args.state.dag.add_pos_query_volume(&volume).expect("Could not add DAG Entry!");

@@ -19,6 +19,9 @@ pub enum PositionTemplate<V: Ve<T, D>, T: Nu, const D: usize> {
     Sub((ValueIndexPosition, ValueIndexPosition)),
 
     FromNumbers([ValueIndexNumber; D]),
+    Position2DTo3D((ValueIndexPosition2D, ValueIndexNumber)),
+    Position3DTo2D(ValueIndexPosition3D),
+
     PerPosition(Hook),
     PerPair((Hook, bool)),
     Cam,
@@ -28,6 +31,12 @@ pub enum PositionTemplate<V: Ve<T, D>, T: Nu, const D: usize> {
 union NumberArrayUnion<const DA: usize, const DB: usize> {
     a: [ValueIndexNumber; DA],
     b: [ValueIndexNumber; DB],
+}
+
+union PositionUnion<VA: Ve<T, DA>, VB: Ve<T, DB>, T: Nu, const DA: usize, const DB: usize> {
+    a: VA,
+    b: VB,
+    p: PhantomData<T>,
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, T, B> { 
@@ -116,6 +125,16 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
 
                     TemplateValue::Position3D(PositionTemplate::FromNumbers([x, y, z]))
                 },
+                ComposeNodeType::Position3DTo2D => {
+                    TemplateValue::Position2D(PositionTemplate::Position3DTo2D(self.make_position(node, 0, data)))
+                },
+                ComposeNodeType::Position2DTo3D => {
+                    TemplateValue::Position3D(PositionTemplate::Position2DTo3D((
+                        self.make_position(node, 0, data),
+                        self.make_number(node, 1, data),
+                    )))
+                },
+
                 ComposeNodeType::AddPosition2D
                 | ComposeNodeType::AddPosition3D => {
                     let a = self.make_position(node, 0, data);
@@ -215,9 +234,9 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> PositionTemplate<V, T, D> {
             PositionTemplate::Const(v) => (smallvec::smallvec![*v], false),
             PositionTemplate::Add((a, b)) => {
                 let (a, r_0) = 
-                    template.get_position_value::<V, D>(*a).get_value(get_value_data, collapser, template);
+                template.get_position_value::<V, D>(*a).get_value(get_value_data, collapser, template);
                 let (b, r_1) = 
-                    template.get_position_value::<V, D>(*b).get_value(get_value_data, collapser, template);
+                template.get_position_value::<V, D>(*b).get_value(get_value_data, collapser, template);
 
                 let p = a.into_iter()
                     .cartesian_product(b)
@@ -227,9 +246,9 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> PositionTemplate<V, T, D> {
             }
             PositionTemplate::Sub((a, b)) => {
                 let (a, r_0) = 
-                    template.get_position_value::<V, D>(*a).get_value(get_value_data, collapser, template);
+                template.get_position_value::<V, D>(*a).get_value(get_value_data, collapser, template);
                 let (b, r_1) = 
-                    template.get_position_value::<V, D>(*b).get_value(get_value_data, collapser, template);
+                template.get_position_value::<V, D>(*b).get_value(get_value_data, collapser, template);
 
                 let p = a.into_iter()
                     .cartesian_product(b)
@@ -270,6 +289,40 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> PositionTemplate<V, T, D> {
             PositionTemplate::Cam => {
                 let pos = V::from_vec3(get_value_data.external_input.cam_position);
                 (smallvec::smallvec![pos], false)
+            },
+            PositionTemplate::Position2DTo3D((p, n)) => {
+
+                let (p, r_0) = template
+                            .get_position2d_value(*p)
+                            .get_value(get_value_data, collapser, template);
+
+                let (n, r_1) = template
+                            .get_number_value(*n)
+                            .get_value(get_value_data, collapser, template);
+
+                debug_assert!(D == 3);
+                let p = p.into_iter()
+                    .cartesian_product(n)
+                    .map(|(p, n)| {
+                        let a: [T; 2] = p.to_array(); 
+                        unsafe { PositionUnion { a: V3::new([a[0], a[1], n]) }.b }
+                    });
+
+                (p.collect(), r_0 || r_1)
+            },
+            PositionTemplate::Position3DTo2D(p) => {
+                let (p, r) = template
+                    .get_position3d_value(*p)
+                    .get_value(get_value_data, collapser, template);
+
+                debug_assert!(D == 2);
+                let p = p.into_iter()
+                    .map(|p| {
+                        let a: [T; 3] = p.to_array();
+                        unsafe { PositionUnion { a: V2::new([a[0], a[1]]) }.b }
+                    });
+
+                (p.collect(), r)
             },
             PositionTemplate::PhantomData(_) => unreachable!(),
         }

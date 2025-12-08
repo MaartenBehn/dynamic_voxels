@@ -6,8 +6,6 @@ use crate::{model::data_types::data_type::ComposeDataType, util::{number::Nu, ve
 
 use super::{build::{ComposeTypeTrait, BS}, graph::ComposerNodeFlags, nodes::{ComposeNode, ComposeNodeInput, ComposeNodeOutput}, viewer::ComposeViewer, ModelComposer};
 
-
-
 impl ComposerNodeFlags { 
     pub fn check_valid_for_all_nodes<CT: ComposeTypeTrait>(&mut self, snarl: &mut Snarl<ComposeNode<CT>>) {
         let nodes = snarl.nodes().cloned().collect_vec();
@@ -57,7 +55,8 @@ impl ComposerNodeFlags {
                 match &input.data_type {
                     ComposeDataType::Number(_)
                     | ComposeDataType::Position2D(_)
-                    | ComposeDataType::Position3D(_) => {
+                    | ComposeDataType::Position3D(_) 
+                    | ComposeDataType::Creates => {
                         input.valid = true;
                     },
                     _ => {

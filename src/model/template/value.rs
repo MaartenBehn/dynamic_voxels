@@ -62,7 +62,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
     }
 
     pub fn get_position2d_value(&self, value_index: ValueIndex) -> &PositionTemplate<V2, T, 2> {
-        dbg!(&self.values[value_index]);
         match &self.values[value_index] {
             TemplateValue::Position2D(v) => v,
             _ => unreachable!()

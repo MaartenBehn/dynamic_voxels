@@ -63,6 +63,8 @@ pub enum ComposeNodeType<CT: ComposeTypeTrait> {
     // Math
     SplitPosition2D,
     SplitPosition3D,
+    Position2DTo3D,
+    Position3DTo2D,
     AddPosition2D,
     AddPosition3D,
     SubPosition2D,
@@ -269,6 +271,16 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
             .output(ComposeDataType::Number(None), "y")
             .output(ComposeDataType::Number(None), "z"),
 
+        ComposeNode::new(ComposeNodeType::Position2DTo3D, ComposeNodeGroupe::Math)
+            .input(ComposeDataType::Position2D(None), "xy")
+            .input(ComposeDataType::Number(None), "z")
+            .output(ComposeDataType::Position3D(None), "xyz"),
+
+        ComposeNode::new(ComposeNodeType::Position3DTo2D, ComposeNodeGroupe::Math)
+            .input(ComposeDataType::Position3D(None), "xyz")
+            .output(ComposeDataType::Position2D(None), "xy")
+            .output(ComposeDataType::Number(None), "z"),
+
         ComposeNode::new(ComposeNodeType::AddPosition2D, ComposeNodeGroupe::Math)
             .input(ComposeDataType::Position2D(None), "a")
             .input(ComposeDataType::Position2D(None), "b")
@@ -292,24 +304,28 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
         // Set
         ComposeNode::new(ComposeNodeType::PerPosition2D, ComposeNodeGroupe::Split)
             .input(ComposeDataType::PositionSpace2D, "space")
-            .output(ComposeDataType::Position2D(None), "position"),
+            .output(ComposeDataType::Position2D(None), "position")
+            .output(ComposeDataType::Creates, ""),
 
         ComposeNode::new(ComposeNodeType::PerPosition3D, ComposeNodeGroupe::Split)
             .input(ComposeDataType::PositionSpace3D, "space")
-            .output(ComposeDataType::Position3D(None), "position"),
+            .output(ComposeDataType::Position3D(None), "position")
+            .output(ComposeDataType::Creates, ""),
 
         // Pair Set
         ComposeNode::new(ComposeNodeType::PerPair2D, ComposeNodeGroupe::PairSet)
             .input(ComposeDataType::PositionSpace2D, "space")
             .input(ComposeDataType::Number(None), "distance")
             .output(ComposeDataType::Position2D(None), "a")
-            .output(ComposeDataType::Position2D(None), "b"),
+            .output(ComposeDataType::Position2D(None), "b")
+            .output(ComposeDataType::Creates, ""),
 
         ComposeNode::new(ComposeNodeType::PerPair3D, ComposeNodeGroupe::PairSet)
             .input(ComposeDataType::PositionSpace3D, "space")
             .input(ComposeDataType::Number(None), "distance")
             .output(ComposeDataType::Position3D(None), "a")
-            .output(ComposeDataType::Position3D(None), "b"),
+            .output(ComposeDataType::Position3D(None), "b")
+            .output(ComposeDataType::Creates, ""),
 
         ComposeNode::new(ComposeNodeType::CamPosition, ComposeNodeGroupe::Engine)
             .output(ComposeDataType::Position3D(None), "pos"),

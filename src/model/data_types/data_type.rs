@@ -14,6 +14,8 @@ pub enum ComposeDataType {
 
     Volume2D,
     Volume3D,
+
+    Creates,
 }
 
 impl PartialEq for ComposeDataType {

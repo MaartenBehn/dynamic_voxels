@@ -133,6 +133,7 @@ impl PositionSpaceTemplate {
                     .get_value(get_value_data, collapser, template);
                 
                 volume.calculate_bounds();
+                dbg!(&volume);
                 let mut points = vec![];
                 
                 for spacing in spacing {

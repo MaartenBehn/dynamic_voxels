@@ -62,6 +62,7 @@ impl egui_snarl::ui::SnarlPin for ComposePin {
 
             ComposeDataType::Volume2D => PinInfo::square().with_fill(Color32::LIGHT_RED),
             ComposeDataType::Volume3D => PinInfo::square().with_fill(Color32::RED),
+            ComposeDataType::Creates => PinInfo::circle().with_fill(Color32::WHITE),
         };
 
         let wire_info = pin_info.draw(snarl_style, style, rect, painter);

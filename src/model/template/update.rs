@@ -158,9 +158,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
         for composer_node in graph.snarl.nodes() {  
             let old_index = self.get_template_index_from_node_id(composer_node.id);
             let new_index = template.get_template_index_from_node_id(composer_node.id);
-
-            dbg!(old_index);
-            dbg!(new_index);
             
             if new_index.is_none() {
                 if old_index.is_some() {
@@ -274,6 +271,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
                         let p = *p;
                         self.cut_loop_inner(p, to_index);
                     },
+                    NumberTemplate::Position3DTo2D(p) => {
+                        let p = *p;
+                        self.cut_loop_inner(p, to_index);
+                    },
                 }
             },
             TemplateValue::NumberSet(number_space_template) => {
@@ -345,6 +346,15 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
                     },
                     PositionTemplate::PhantomData(phantom_data) => unreachable!(),
                     PositionTemplate::Cam => {},
+                    PositionTemplate::Position2DTo3D((p, n)) => {
+                        let (p, n) = (*p, *n);
+                        self.cut_loop_inner(p, to_index);
+                        self.cut_loop_inner(n, to_index);
+                    },
+                    PositionTemplate::Position3DTo2D(p) => {
+                        let p = *p;
+                        self.cut_loop_inner(p, to_index);
+                    },
                 }
             },
             TemplateValue::Position3D(position_template) => {
@@ -374,6 +384,15 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
                     },
                     PositionTemplate::PhantomData(phantom_data) => unreachable!(),
                     PositionTemplate::Cam => {},
+                    PositionTemplate::Position2DTo3D((p, n)) => {
+                        let (p, n) = (*p, *n);
+                        self.cut_loop_inner(p, to_index);
+                        self.cut_loop_inner(n, to_index);
+                    },
+                    PositionTemplate::Position3DTo2D(p) => {
+                        let p = *p;
+                        self.cut_loop_inner(p, to_index);
+                    },
                 }
             },
             TemplateValue::PositionSet2D(position_set_template)

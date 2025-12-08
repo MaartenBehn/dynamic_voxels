@@ -23,6 +23,7 @@ pub enum NumberTemplate<T: Nu> {
     Hook(Hook),
     SplitPosition2D((ValueIndexPosition2D, usize)),
     SplitPosition3D((ValueIndexPosition3D, usize)),
+    Position3DTo2D(ValueIndexPosition3D),
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, T, B> { 
@@ -82,8 +83,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                     assert!(pin.output <= 2);
                     NumberTemplate::SplitPosition3D((pos, pin.output))
                 },
+                ComposeNodeType::Position3DTo2D => {
+                    NumberTemplate::Position3DTo2D(self.make_position(remote_node, 0, data))
+                },
                 _ => {
-                    dbg!(&remote_node.t);
                     unreachable!()
                 }
             };
@@ -123,6 +126,16 @@ impl<T: Nu> NumberTemplate<T> {
                     .get_value(get_value_data, collapser, template);
                 let v = v.into_iter().map(|v| v[*i]);
 
+                (v.collect(), r)
+            },
+            NumberTemplate::Position3DTo2D(p) => {
+                let (v, r) = template.get_position3d_value(*p)
+                    .get_value(get_value_data, collapser, template);
+                let v = v.into_iter().map(|v| {
+                    let a: [T; 3] = v.to_array();
+                    a[2]
+                });
+                
                 (v.collect(), r)
             },
         }
