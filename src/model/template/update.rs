@@ -327,6 +327,16 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                         self.cut_loop_inner(n[0], to_index);
                         self.cut_loop_inner(n[1], to_index);
                     },
+                    PositionTemplate::Add((a, b)) => {
+                        let (a, b) = (*a, *b);
+                        self.cut_loop_inner(a, to_index);
+                        self.cut_loop_inner(b, to_index);
+                    },
+                    PositionTemplate::Sub((a, b)) => {
+                        let (a, b) = (*a, *b);
+                        self.cut_loop_inner(a, to_index);
+                        self.cut_loop_inner(b, to_index);
+                    },
                     PositionTemplate::PerPosition(hook) => {
                         hook.loop_cut |= hook.template_index == to_index;
                     },
@@ -340,6 +350,16 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
             ComposeTemplateValue::Position3D(position_template) => {
                 match position_template {
                     PositionTemplate::Const(_) => {},
+                    PositionTemplate::Add((a, b)) => {
+                        let (a, b) = (*a, *b);
+                        self.cut_loop_inner(a, to_index);
+                        self.cut_loop_inner(b, to_index);
+                    },
+                    PositionTemplate::Sub((a, b)) => {
+                        let (a, b) = (*a, *b);
+                        self.cut_loop_inner(a, to_index);
+                        self.cut_loop_inner(b, to_index);
+                    },
                     PositionTemplate::FromNumbers(n) => {
                         let n = *n;
                         self.cut_loop_inner(n[0], to_index);

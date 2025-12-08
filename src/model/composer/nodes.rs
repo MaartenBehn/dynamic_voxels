@@ -63,6 +63,10 @@ pub enum ComposeNodeType<CT: ComposeTypeTrait> {
     // Math
     SplitPosition2D,
     SplitPosition3D,
+    AddPosition2D,
+    AddPosition3D,
+    SubPosition2D,
+    SubPosition3D,
 
     // Split 
     PerPosition2D,
@@ -89,6 +93,8 @@ pub struct ComposeNode<CT: ComposeTypeTrait> {
 pub struct ComposeNodeInput {
     pub name: String,
     pub data_type: ComposeDataType,
+
+    #[serde(skip)]
     pub valid: bool,
 }
 
@@ -96,6 +102,8 @@ pub struct ComposeNodeInput {
 pub struct ComposeNodeOutput {
     pub name: String,
     pub data_type: ComposeDataType,
+    
+    #[serde(skip)]
     pub valid: bool,
 }
 
@@ -260,6 +268,26 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
             .output(ComposeDataType::Number(None), "x")
             .output(ComposeDataType::Number(None), "y")
             .output(ComposeDataType::Number(None), "z"),
+
+        ComposeNode::new(ComposeNodeType::AddPosition2D, ComposeNodeGroupe::Math)
+            .input(ComposeDataType::Position2D(None), "a")
+            .input(ComposeDataType::Position2D(None), "b")
+            .output(ComposeDataType::Position2D(None), "out"),
+
+        ComposeNode::new(ComposeNodeType::AddPosition3D, ComposeNodeGroupe::Math)
+            .input(ComposeDataType::Position3D(None), "a")
+            .input(ComposeDataType::Position3D(None), "b")
+            .output(ComposeDataType::Position3D(None), "out"),
+
+        ComposeNode::new(ComposeNodeType::SubPosition2D, ComposeNodeGroupe::Math)
+            .input(ComposeDataType::Position2D(None), "a")
+            .input(ComposeDataType::Position2D(None), "b")
+            .output(ComposeDataType::Position2D(None), "out"),
+
+        ComposeNode::new(ComposeNodeType::SubPosition3D, ComposeNodeGroupe::Math)
+            .input(ComposeDataType::Position3D(None), "a")
+            .input(ComposeDataType::Position3D(None), "b")
+            .output(ComposeDataType::Position3D(None), "out"),
         
         // Set
         ComposeNode::new(ComposeNodeType::PerPosition2D, ComposeNodeGroupe::Split)

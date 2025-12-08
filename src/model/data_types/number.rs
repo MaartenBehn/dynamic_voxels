@@ -80,7 +80,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                     assert!(pin.output <= 2);
                     NumberTemplate::SplitPosition2D((pos, pin.output))
                 },
-                _ => unreachable!()
+                _ => {
+                    dbg!(&remote_node.t);
+                    unreachable!()
+                }
             };
 
             data.set_value(pin.node, ComposeTemplateValue::Number(value))

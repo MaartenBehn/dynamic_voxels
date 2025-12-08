@@ -4,13 +4,13 @@ use octa_force::{anyhow::Context, camera::Camera, log::{debug, error, info, trac
 
 use crate::{model::{composer::build::BS, template::{update::TemplateNodeUpdate, ComposeTemplate}}, scene::worker::SceneWorkerSend, util::{number::Nu, vector::Ve}, voxel::palette::shared::SharedPalette};
 
-use super::{collapser::Collapser, engine_data::{self, EngineData}};
+use super::{collapser::Collapser, external_input::{self, ExternalInput}};
 
 
 #[derive(Debug)]
 pub struct ComposeCollapseWorker<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub task: smol::Task<()>,
-    pub update_s: smol::channel::Sender<(ComposeTemplate<V2, V3, T, B>, Vec<TemplateNodeUpdate>, EngineData)>,
+    pub update_s: smol::channel::Sender<(ComposeTemplate<V2, V3, T, B>, Vec<TemplateNodeUpdate>, ExternalInput)>,
 }
 
 #[derive(Debug)]
@@ -24,7 +24,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeCollapseWorker<
     pub fn new(
         template: ComposeTemplate<V2, V3, T, B>,
         mut state: B, 
-        engine_data: EngineData,
+        engine_data: ExternalInput,
     ) -> (Self, CollapserChangeReciver<V2, V3, T, B>) {
         let collasper = smol::block_on(Collapser::<V2, V3, T, B>::new(&template, &mut state));
 
@@ -56,12 +56,12 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeCollapseWorker<
     }
 
     async fn run(
-        update_r: smol::channel::Receiver<(ComposeTemplate<V2, V3, T, B>, Vec<TemplateNodeUpdate>, EngineData)>,
+        update_r: smol::channel::Receiver<(ComposeTemplate<V2, V3, T, B>, Vec<TemplateNodeUpdate>, ExternalInput)>,
         collapser_s: smol::channel::Sender<Collapser::<V2, V3, T, B>>, 
         mut template: ComposeTemplate<V2, V3, T, B>,
         mut collapser: Collapser<V2, V3, T, B>,
         mut state: B, 
-        engine_data: EngineData,
+        engine_data: ExternalInput,
     ) {
         let now = Instant::now();
 
@@ -74,13 +74,13 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeCollapseWorker<
 
         loop {
             match update_r.recv().await {
-                Ok((new_template, updates, engine_data)) => {
+                Ok((new_template, updates, external_input)) => {
                     let now = Instant::now();
 
                     collapser.template_changed(&new_template, &template, updates, &mut state);
                     template = new_template;
 
-                    collapser.run(&template, &mut state, engine_data).await;
+                    collapser.run(&template, &mut state, external_input).await;
 
                     let elapsed = now.elapsed();
                     info!("Collapse took: {:?}", elapsed);
@@ -92,8 +92,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeCollapseWorker<
         }
     }
 
-    pub fn template_changed(&self, template: ComposeTemplate<V2, V3, T, B>, update: Vec<TemplateNodeUpdate>, engine_data: EngineData) {
-        let _ = self.update_s.force_send((template, update, engine_data));
+    pub fn template_changed(&self, template: ComposeTemplate<V2, V3, T, B>, update: Vec<TemplateNodeUpdate>, external_input: ExternalInput) {
+        let _ = self.update_s.force_send((template, update, external_input));
     }
 }
 

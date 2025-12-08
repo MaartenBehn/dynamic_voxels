@@ -3,7 +3,6 @@ use crate::{bvh::{node::BHNode, shape::{BHShape, Shapes}, Bvh}, util::{aabb::AAB
 use super::tree::{CSGTreeNode, CSGTreeNodeData, CSGTree, CSGTreeIndex};
 
 
-
 #[derive(Debug, Clone, Copy, Default)]
 pub struct BVHNodeV2<V: Ve<T, D>, T: Nu, const D: usize> {
     pub aabb: AABB<V, T, D>,

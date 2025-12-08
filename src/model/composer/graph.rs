@@ -2,12 +2,13 @@ use std::{fs::{self, File}, io::Write};
 
 use bitvec::vec::BitVec;
 use egui_snarl::{InPinId, NodeId, OutPinId, Snarl};
+use itertools::Itertools;
 use octa_force::OctaResult;
 use smallvec::SmallVec;
 
 use crate::util::{number::Nu, vector::Ve};
 
-use super::{build::{ComposeTypeTrait, BS}, nodes::ComposeNode};
+use super::{build::{ComposeTypeTrait, BS}, nodes::{ComposeNode, ComposeNodeType}};
 
 const TEMP_SAVE_FILE: &str = "./composer_temp_save.json";
 
@@ -19,11 +20,12 @@ pub struct ComposerGraph<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
 
 #[derive(Debug)]
 pub struct ComposerNodeFlags { 
-    pub deleted_nodes: SmallVec<[NodeId; 8]>,
+    pub deleted_nodes: SmallVec<[NodeId; 4]>,
     pub added_nodes: BitVec,
     pub changed_nodes: BitVec,
-    pub invalid_nodes: BitVec,
     pub needs_collapse_nodes: BitVec,
+    pub invalid_nodes: BitVec,
+    pub cam_nodes: SmallVec<[NodeId; 4]>,
 }
 
 impl<V2, V3, T, B> ComposerGraph<V2, V3, T, B> 
@@ -36,8 +38,7 @@ where
 {
     pub fn new() -> Self {
         let mut snarl = load_snarl().unwrap_or(Snarl::new());       
-        let mut flags = ComposerNodeFlags::new();
-        flags.check_valid_for_all_nodes(&mut snarl);
+        let mut flags = ComposerNodeFlags::new(&mut snarl);
 
         Self { 
             snarl, 
@@ -92,14 +93,33 @@ pub fn load_snarl<CT: ComposeTypeTrait + serde::de::DeserializeOwned>() -> OctaR
 
 
 impl ComposerNodeFlags {
-    pub fn new() -> Self {
-        Self { 
+    pub fn new<CT: ComposeTypeTrait>(snarl: &mut Snarl<ComposeNode<CT>>) -> Self {
+        let mut flags = Self { 
             deleted_nodes: SmallVec::new(),
             added_nodes: BitVec::new(),
-            invalid_nodes: BitVec::new(),
             changed_nodes: BitVec::new(),
             needs_collapse_nodes: BitVec::new(),
+            invalid_nodes: BitVec::new(),
+            cam_nodes: SmallVec::new(),
+        };
+
+
+        for node in snarl.nodes().cloned().collect_vec() {
+            let node_id = node.id; 
+            flags.enshure_nodes_list_index(node_id.0);
+
+            match node.t {
+                ComposeNodeType::CamPosition => {
+                    flags.cam_nodes.push(node_id);
+                }
+                _ => {}
+            }
+
+            let valid = flags.validate_node(node, snarl);
+            flags.invalid_nodes.set(node_id.0, !valid);
         }
+
+        flags
     }
 
     pub fn reset_change_flags(&mut self) {
@@ -118,14 +138,14 @@ impl ComposerNodeFlags {
         }
     }
 
-    pub fn set_added<CT: ComposeTypeTrait>(&mut self, node_id: NodeId, snarl: &mut Snarl<ComposeNode<CT>>) {
+    pub fn set_added<CT: ComposeTypeTrait>(&mut self, node_id: NodeId, snarl: &Snarl<ComposeNode<CT>>) {
         self.enshure_nodes_list_index(node_id.0);
         
         self.added_nodes.set(node_id.0, true);
         self.set_needs_collapse(node_id, snarl);
     }
 
-    pub fn set_changed<CT: ComposeTypeTrait>(&mut self, node_id: NodeId, snarl: &mut Snarl<ComposeNode<CT>>) {
+    pub fn set_changed<CT: ComposeTypeTrait>(&mut self, node_id: NodeId, snarl: &Snarl<ComposeNode<CT>>) {
         self.enshure_nodes_list_index(node_id.0);
 
         if self.added_nodes.get(node_id.0).as_deref().copied().unwrap_or(false) {
@@ -145,7 +165,7 @@ impl ComposerNodeFlags {
         }
     }
 
-    pub fn set_needs_collapse<CT: ComposeTypeTrait>(&mut self, node_id: NodeId, snarl: &mut Snarl<ComposeNode<CT>>) {
+    pub fn set_needs_collapse<CT: ComposeTypeTrait>(&mut self, node_id: NodeId, snarl: &Snarl<ComposeNode<CT>>) {
         self.enshure_nodes_list_index(node_id.0);
 
         if *self.needs_collapse_nodes.get(node_id.0).as_deref().unwrap() {
@@ -164,6 +184,12 @@ impl ComposerNodeFlags {
             for remote in out_pin.remotes {
                 self.set_needs_collapse(remote.node, snarl);
             }       
+        }
+    }
+
+    pub fn set_cam_notes_as_changed<CT: ComposeTypeTrait>(&mut self, snarl: &Snarl<ComposeNode<CT>>) {
+        for node_id in self.cam_nodes.to_owned() {
+            self.set_changed(node_id, snarl);
         }
     }
 }

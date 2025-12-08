@@ -4,6 +4,7 @@ pub mod build;
 pub mod validate;
 pub mod pin;
 pub mod graph;
+pub mod external_input;
 
 use std::{fs::{self, File}, io::Write, time::{Duration, Instant}};
 
@@ -14,7 +15,7 @@ use nodes::ComposeNode;
 use octa_force::{anyhow::anyhow, camera::Camera, egui::{self, Align, CornerRadius, Frame, Id, Layout, Margin}, glam::{uvec2, UVec2, Vec2}, log::{debug, info, warn}, OctaResult};
 use viewer::{style, ComposeViewer, ComposeViewerData, ComposeViewerTemplates};
 
-use crate::{model::collapse::engine_data::EngineData, util::{number::Nu, vector::Ve}};
+use crate::{model::collapse::external_input::ExternalInput, util::{number::Nu, vector::Ve}};
 
 use super::{collapse::worker::{CollapserChangeReciver, ComposeCollapseWorker}, template::ComposeTemplate};
 
@@ -38,7 +39,7 @@ pub struct ModelComposer<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub render_panel_size: UVec2,
     pub render_panel_offset: UVec2,
 
-    pub last_engine_data: EngineData,
+    pub external_input: ExternalInput,
 }
 
 impl<V2, V3, T, B> ModelComposer<V2, V3, T, B> 
@@ -59,8 +60,8 @@ where
         let mut template = ComposeTemplate::empty();
         template.update(&graph);
 
-        let engine_data = EngineData::new(camera);
-        let (collapser_worker, collapser_reciver) = ComposeCollapseWorker::new(template.clone(), state, engine_data);
+        let external_input = ExternalInput::new(camera);
+        let (collapser_worker, collapser_reciver) = ComposeCollapseWorker::new(template.clone(), state, external_input);
       
 
         ModelComposer {
@@ -79,7 +80,7 @@ where
             render_panel_size: UVec2::ZERO,
             render_panel_offset: UVec2::ZERO,
 
-            last_engine_data: engine_data,
+            external_input,
         }
     }
 
@@ -142,8 +143,9 @@ where
 
     pub fn update(&mut self, time: Duration, camera: &Camera) -> OctaResult<()> {
         self.viewer_data.update(time);
+        self.update_external_input(camera);
 
-        if self.manual_rebuild {
+        if self.manual_rebuild || (self.auto_rebuild && self.graph.flags.needs_collapse_nodes.any())  {
             self.manual_rebuild = false;
 
             if !self.graph.flags.invalid_nodes.any() {
@@ -152,8 +154,7 @@ where
                 let now = Instant::now();
 
                 let updates = self.template.update(&self.graph);
-                let engine_data = EngineData::new(camera);
-                self.collapser_worker.template_changed(self.template.clone(), updates, engine_data);
+                self.collapser_worker.template_changed(self.template.clone(), updates, self.external_input);
 
                 let elapsed = now.elapsed();
                 info!("Template took: {:?}", elapsed);

@@ -293,22 +293,14 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<Compos
                         if ui.button(node.title()).clicked() {
                             ui.close();
 
-                            let new_node = snarl.insert_node(pos, node.to_owned());
-                            snarl.get_node_mut(new_node).unwrap().id = new_node;
-                            return Some(new_node);
+                            self.add_node(pos, node, snarl);
+                            return;
                         }
                     }
-                    return None;
                 });
 
-            if res.header_response.hovered() || (!res.body_response.is_none() && res.body_response.unwrap().hovered()) {
+            if res.header_response.hovered() {
                 self.data.hovered_menue_groupe = Some(group_type);
-            }
-
-            if let Some(Some(new_node)) = res.body_returned {
-                self.flags.set_added(new_node, snarl);
-                self.flags.update_node_valid(new_node, snarl);
-                return;
             }
         }    
 
@@ -355,19 +347,15 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<Compos
 
                             for (i, to_data) in to_pins {
                                 if ui.button(to_data.get_name()).clicked() {
-                                    let new_node = snarl.insert_node(pos, node.to_owned());
-                                    snarl.get_node_mut(new_node).unwrap().id = new_node;
+                                    let node_id = self.add_node(pos, node, snarl);
+
                                     let dst_pin = InPinId {
-                                        node: new_node,
+                                        node: node_id,
                                         input: i,
                                     };
 
                                     snarl.connect(*src_pin, dst_pin);
-                                    
-                                    self.flags.set_added(new_node, snarl);
                                     self.flags.set_changed(src_pin.node, snarl);
-
-                                    self.flags.update_node_valid(new_node, snarl);
                                     self.flags.update_node_valid(src_pin.node, snarl);
                                     return;
                                 }
@@ -375,19 +363,15 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<Compos
                             } 
                         } else if !to_pins.is_empty() {
                             if ui.button(format!("{:?}",  node.t)).clicked() {
-                                let new_node = snarl.insert_node(pos, node.to_owned());
-                                snarl.get_node_mut(new_node).unwrap().id = new_node;
+                                let node_id = self.add_node(pos, node, snarl);
+
                                 let dst_pin = InPinId {
-                                    node: new_node,
+                                    node: node_id,
                                     input: to_pins[0].0,
                                 };
 
                                 snarl.connect(*src_pin, dst_pin);
-                                                                    
-                                self.flags.set_added(new_node, snarl);
                                 self.flags.set_changed(src_pin.node, snarl);
-
-                                self.flags.update_node_valid(new_node, snarl);
                                 self.flags.update_node_valid(src_pin.node, snarl);
                                 return;
                             }
@@ -425,20 +409,16 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<Compos
 
                             for (i, to_data) in to_pins {
                                 if ui.button(to_data.get_name()).clicked() {
-                                    let new_node = snarl.insert_node(pos, node.to_owned());
-                                    snarl.get_node_mut(new_node).unwrap().id = new_node;
+                                    let node_id = self.add_node(pos, node, snarl);
+
                                     let dst_pin = OutPinId {
-                                        node: new_node,
+                                        node: node_id,
                                         output: i,
                                     };
 
                                     snarl.drop_inputs(*src_pin);
                                     snarl.connect(dst_pin, *src_pin);
-                                    
-                                    self.flags.set_added(new_node, snarl);
                                     self.flags.set_changed(src_pin.node, snarl);
-
-                                    self.flags.update_node_valid(new_node, snarl);
                                     self.flags.update_node_valid(src_pin.node, snarl);
                                     return;
                                 }
@@ -446,21 +426,18 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<Compos
                             } 
                         } else if !to_pins.is_empty() {
                             if ui.button(format!("{:?}",  node.t)).clicked() {
-                                let new_node = snarl.insert_node(pos, node.to_owned());
-                                snarl.get_node_mut(new_node).unwrap().id = new_node;
+                                let node_id = self.add_node(pos, node, snarl);
+
                                 let dst_pin = OutPinId {
-                                    node: new_node,
+                                    node: node_id,
                                     output: to_pins[0].0,
                                 };
 
                                 snarl.drop_inputs(*src_pin);
                                 snarl.connect(dst_pin, *src_pin);
-
-                                self.flags.set_added(new_node, snarl);
                                 self.flags.set_changed(src_pin.node, snarl);
-
-                                self.flags.update_node_valid(new_node, snarl);
                                 self.flags.update_node_valid(src_pin.node, snarl);
+
                                 return;
                             }
 
@@ -479,7 +456,7 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<Compos
 
     fn show_node_menu(
         &mut self,
-        node: NodeId,
+        node_id: NodeId,
         _inputs: &[InPin],
         _outputs: &[OutPin],
         ui: &mut Ui,
@@ -488,13 +465,52 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<Compos
         ui.label("Node menu");
         if ui.button("Remove").clicked() {
             ui.close();
-            snarl.remove_node(node);
-            self.flags.set_deleted(node);
+
+            let node = snarl.remove_node(node_id);
+            self.flags.set_deleted(node_id);
             self.flags.check_valid_for_all_nodes(snarl);
+
+            // Mark nodes dependend on external_input
+            match node.t {
+            ComposeNodeType::CamPosition => {
+                    let res = self.flags.cam_nodes.iter().position(|id| *id == node.id);
+                    if let Some(i) = res {
+                        self.flags.cam_nodes.swap_remove(i);
+                    }
+                }
+                _ => {}
+            }
+
         }
     }
 }
 
+
+
+impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeViewer<'a, V2, V3, T, B> {
+    fn add_node(
+        &mut self, 
+        pos: egui::Pos2, 
+        template_node: &ComposeNode<B::ComposeType>, 
+        snarl: &mut Snarl<ComposeNode<B::ComposeType>>
+    ) -> NodeId {
+        let node_id = snarl.insert_node(pos, template_node.to_owned());
+        snarl.get_node_mut(node_id).unwrap().id = node_id;
+
+        // Mark nodes dependend on external_input
+        match template_node.t {
+            ComposeNodeType::CamPosition => {
+                self.flags.cam_nodes.push(node_id);
+            }
+            _ => {}
+        }
+
+        self.flags.set_added(node_id, snarl);
+        self.flags.update_node_valid(node_id, snarl);
+
+        node_id
+    }
+}
 
 
 pub fn to_input<'a, CT: ComposeTypeTrait>(

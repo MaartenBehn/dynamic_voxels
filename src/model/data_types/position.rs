@@ -15,6 +15,9 @@ pub type ValueIndexPosition3D = usize;
 #[derive(Debug, Clone, Copy)]
 pub enum PositionTemplate<V: Ve<T, D>, T: Nu, const D: usize> {
     Const(V),
+    Add((ValueIndexPosition, ValueIndexPosition)),
+    Sub((ValueIndexPosition, ValueIndexPosition)),
+
     FromNumbers([ValueIndexNumber; D]),
     PerPosition(Hook),
     PerPair((Hook, bool)),
@@ -113,6 +116,20 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
 
                     ComposeTemplateValue::Position3D(PositionTemplate::FromNumbers([x, y, z]))
                 },
+                ComposeNodeType::AddPosition2D
+                | ComposeNodeType::AddPosition3D => {
+                    let a = self.make_position(remote_node, 0, data);
+                    let b = self.make_position(remote_node, 1, data);
+
+                    ComposeTemplateValue::Position3D(PositionTemplate::Add((a, b)))
+                }
+                ComposeNodeType::SubPosition2D
+                | ComposeNodeType::SubPosition3D => {
+                    let a = self.make_position(remote_node, 0, data);
+                    let b = self.make_position(remote_node, 1, data);
+
+                    ComposeTemplateValue::Position3D(PositionTemplate::Sub((a, b)))
+                }
                 ComposeNodeType::PerPosition2D => {
                     let inactive = data.start_template_node(pin.node);
 
@@ -196,6 +213,30 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> PositionTemplate<V, T, D> {
 
         match self {
             PositionTemplate::Const(v) => (smallvec::smallvec![*v], false),
+            PositionTemplate::Add((a, b)) => {
+                let (a, r_0) = 
+                    template.get_position_value::<V, D>(*a).get_value(get_value_data, collapser, template);
+                let (b, r_1) = 
+                    template.get_position_value::<V, D>(*b).get_value(get_value_data, collapser, template);
+
+                let p = a.into_iter()
+                    .cartesian_product(b)
+                    .map(|(a, b)| a + b);
+
+                (p.collect(), r_0 || r_1)
+            }
+            PositionTemplate::Sub((a, b)) => {
+                let (a, r_0) = 
+                    template.get_position_value::<V, D>(*a).get_value(get_value_data, collapser, template);
+                let (b, r_1) = 
+                    template.get_position_value::<V, D>(*b).get_value(get_value_data, collapser, template);
+
+                let p = a.into_iter()
+                    .cartesian_product(b)
+                    .map(|(a, b)| a - b);
+
+                (p.collect(), r_0 || r_1)
+            }
             PositionTemplate::FromNumbers(n) => {
                 let mut r_final = false;
 
@@ -227,7 +268,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> PositionTemplate<V, T, D> {
                 (p.collect(), r)
             },
             PositionTemplate::Cam => {
-                let pos = V::from_vec3(get_value_data.engine_data.cam_position);
+                let pos = V::from_vec3(get_value_data.external_input.cam_position);
                 (smallvec::smallvec![pos], false)
             },
             PositionTemplate::PhantomData(_) => unreachable!(),

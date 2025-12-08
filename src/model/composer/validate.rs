@@ -8,7 +8,7 @@ use super::{build::{ComposeTypeTrait, BS}, graph::ComposerNodeFlags, nodes::{Com
 
 
 
-impl ComposerNodeFlags {
+impl ComposerNodeFlags { 
     pub fn check_valid_for_all_nodes<CT: ComposeTypeTrait>(&mut self, snarl: &mut Snarl<ComposeNode<CT>>) {
         let nodes = snarl.nodes().cloned().collect_vec();
 
@@ -44,7 +44,7 @@ impl ComposerNodeFlags {
         self.invalid_nodes.set(node_id.0, !valid);
     }
 
-    fn validate_node<CT: ComposeTypeTrait>(&self, node: ComposeNode<CT>, snarl: &mut Snarl<ComposeNode<CT>>) -> bool {
+    pub fn validate_node<CT: ComposeTypeTrait>(&self, node: ComposeNode<CT>, snarl: &mut Snarl<ComposeNode<CT>>) -> bool {
 
         let mut valid = true;
         for (i, input) in node.inputs.iter().enumerate() {

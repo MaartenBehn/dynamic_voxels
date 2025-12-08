@@ -7,7 +7,7 @@ use slotmap::{new_key_type, Key, SlotMap};
 use smallvec::SmallVec;
 use crate::{model::{composer::build::{OnCollapseArgs, BS}, template::{value::ComposeTemplateValue, ComposeTemplate, TemplateIndex}}, util::{iter_merger::{IM2, IM3}, number::Nu, state_saver, vector::Ve}, volume::VolumeQureyPosValid};
 
-use super::{add_nodes::{GetNewChildrenData, GetValueData}, engine_data::EngineData, number_set::NumberSet, pending_operations::{PendingOperations, PendingOperationsRes}, position_pair_set::PositionPairSet, position_set::PositionSet};
+use super::{add_nodes::{GetNewChildrenData, GetValueData}, external_input::ExternalInput, number_set::NumberSet, pending_operations::{PendingOperations, PendingOperationsRes}, position_pair_set::PositionPairSet, position_set::PositionSet};
 
 new_key_type! { pub struct CollapseNodeKey; }
 new_key_type! { pub struct CollapseChildKey; }
@@ -89,14 +89,14 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         &mut self, 
         template: &ComposeTemplate<V2, V3, T, B>, 
         state: &mut B,
-        engine_data: EngineData,
+        external_input: ExternalInput,
 
     ) {
 
         loop {
             match self.pending.pop() {
                 PendingOperationsRes::Collapse(key) => self.collapse_node(
-                    key, template, state, engine_data).await,
+                    key, template, state, external_input).await,
 
                 PendingOperationsRes::CreateDefined(operation) => self.update_defined(
                     operation, template, state).await,
@@ -115,7 +115,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         node_index: CollapseNodeKey, 
         template: &ComposeTemplate<V2, V3, T, B>, 
         state: &mut B, 
-        engine_data: EngineData,
+        external_input: ExternalInput,
     ) {
         let node = &self.nodes[node_index];
         let template_node = &template.nodes[node.template_index]; 
@@ -130,7 +130,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             depends: &node.depends, 
             depends_loop: &template_node.depends_loop,
             index: node_index,
-            engine_data,
+            external_input,
         }; 
 
         let needs_recompute = match value {

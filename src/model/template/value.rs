@@ -27,7 +27,6 @@ pub enum ComposeTemplateValue<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T
     Build(B::TemplateValue)
 }
 
-
 pub union PositionTemplateUnion<'a, VA: Ve<T, DA>, VB: Ve<T, DB>, T: Nu, const DA: usize, const DB: usize> {
     a: &'a PositionTemplate<VA, T, DA>,
     b: &'a PositionTemplate<VB, T, DB>,
