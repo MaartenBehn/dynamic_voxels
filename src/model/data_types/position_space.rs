@@ -6,7 +6,7 @@ use octa_force::{anyhow::bail, glam::{Mat4, Vec3, Vec3A}, OctaResult};
 use slotmap::{new_key_type, SecondaryMap, SlotMap};
 use smallvec::SmallVec;
 
-use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, graph::ComposerGraph, nodes::ComposeNodeType, ModelComposer}, data_types::data_type::ComposeDataType, template::{update::MakeTemplateData, value::ComposeTemplateValue, ComposeTemplate}}, util::{aabb::AABB, iter_merger::IM3, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
+use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}, ModelComposer}, data_types::data_type::ComposeDataType, template::{update::MakeTemplateData, value::TemplateValue, Template}}, util::{aabb::AABB, iter_merger::IM3, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
 
 use super::{number::{NumberTemplate, ValueIndexNumber}, position::{PositionTemplate, ValueIndexPosition}, volume::{ValueIndexVolume, VolumeTemplate}};
 
@@ -47,9 +47,12 @@ pub struct PathTemplate {
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, T, B> {
     pub fn make_pos_space(
         &self, 
-        pin: OutPinId,
+        original_node: &ComposeNode<B::ComposeType>, 
+        in_index: usize, 
         data: &mut MakeTemplateData<V2, V3, T, B>,
     ) -> ValueIndexPositionSpace {
+        let pin = self.get_input_remote_pin_by_index(original_node, in_index);
+
         if let Some(value_index) = data.get_value_index_from_node_id(pin.node) {
             return value_index;
         }
@@ -59,32 +62,32 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
             ComposeNodeType::Grid2D => {
                 
                 let grid = GridTemplate {
-                    volume: self.make_volume(self.get_input_remote_pin_by_index(node, 0), data),
+                    volume: self.make_volume(node, 0, data),
                     spacing: self.make_number(node, 1, data),
                 };
-                ComposeTemplateValue::PositionSpace2D(PositionSpaceTemplate::Grid(grid))
+                TemplateValue::PositionSpace2D(PositionSpaceTemplate::Grid(grid))
             },
             ComposeNodeType::Grid3D => {
                 
                 let grid = GridTemplate {
-                    volume: self.make_volume(self.get_input_remote_pin_by_index(node, 0), data),
+                    volume: self.make_volume(node, 0, data),
                     spacing: self.make_number(node, 1, data),
                 };
-                ComposeTemplateValue::PositionSpace3D(PositionSpaceTemplate::Grid(grid))
+                TemplateValue::PositionSpace3D(PositionSpaceTemplate::Grid(grid))
             },
             ComposeNodeType::LeafSpread2D => {
                 let leaf_spread = LeafSpreadTemplate {
-                    volume: self.make_volume(self.get_input_remote_pin_by_index(node, 0), data),
+                    volume: self.make_volume(node, 0, data),
                     samples: self.make_number(node, 1,data),                
                 };
-                ComposeTemplateValue::PositionSpace2D(PositionSpaceTemplate::LeafSpread(leaf_spread))
+                TemplateValue::PositionSpace2D(PositionSpaceTemplate::LeafSpread(leaf_spread))
             },
             ComposeNodeType::LeafSpread3D => {
                 let leaf_spread = LeafSpreadTemplate {
-                    volume: self.make_volume(self.get_input_remote_pin_by_index(node, 0), data),
+                    volume: self.make_volume(node, 0, data),
                     samples: self.make_number(node, 1,data),                
                 };
-                ComposeTemplateValue::PositionSpace3D(PositionSpaceTemplate::LeafSpread(leaf_spread))
+                TemplateValue::PositionSpace3D(PositionSpaceTemplate::LeafSpread(leaf_spread))
             },
             ComposeNodeType::Path2D => {
                 
@@ -94,7 +97,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                     spacing: self.make_number(node, 2,  data),
                     side_variance: self.make_position(node, 3, data),
                 };
-                ComposeTemplateValue::PositionSpace2D(PositionSpaceTemplate::Path(path))
+                TemplateValue::PositionSpace2D(PositionSpaceTemplate::Path(path))
             },
             ComposeNodeType::Path3D => {
                 
@@ -104,7 +107,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                     spacing: self.make_number(node, 2, data),
                     side_variance: self.make_position(node, 3, data),
                 };
-                ComposeTemplateValue::PositionSpace3D(PositionSpaceTemplate::Path(path))
+                TemplateValue::PositionSpace3D(PositionSpaceTemplate::Path(path))
             },
             
             _ => unreachable!(),
@@ -119,7 +122,7 @@ impl PositionSpaceTemplate {
         &self,
         get_value_data: GetValueData,
         collapser: &Collapser<V2, V3, T, B>,
-        template: &ComposeTemplate<V2, V3, T, B>
+        template: &Template<V2, V3, T, B>
     ) -> (Vec<V>, bool) {
         match &self {
             PositionSpaceTemplate::Grid(grid)  => {

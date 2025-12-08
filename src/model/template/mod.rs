@@ -11,7 +11,7 @@ use nodes::TemplateNode;
 use octa_force::glam::Vec3;
 use octa_force::log::{self, debug, trace};
 use smallvec::{SmallVec, smallvec};
-use value::{ComposeTemplateValue, ValueIndex, VALUE_INDEX_NODE};
+use value::{TemplateValue, ValueIndex, VALUE_INDEX_NODE};
 use crate::model::data_types::data_type::ComposeDataType;
 use crate::model::data_types::number::NumberTemplate;
 use crate::model::data_types::number_space::NumberSpaceTemplate;
@@ -30,14 +30,14 @@ pub const TEMPLATE_INDEX_NONE: TemplateIndex = TemplateIndex::MAX;
 pub const AMMOUNT_PATH_INDEX: usize = 0;
 
 #[derive(Debug, Clone, Default)]
-pub struct ComposeTemplate<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
+pub struct Template<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub nodes: Vec<TemplateNode>,
-    pub values: Vec<ComposeTemplateValue<V2, V3, T, B>>,
+    pub values: Vec<TemplateValue<V2, V3, T, B>>,
     pub max_level: usize,
     pub map_node_id: Vec<(TemplateIndex, ValueIndex)>,
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3, T, B> {
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B> {
     pub fn enshure_map_size(&mut self, node_id: NodeId) {
         if node_id.0 >= self.map_node_id.len() {
             self.map_node_id.resize(node_id.0 + 1, (TEMPLATE_INDEX_NONE, VALUE_INDEX_NODE));

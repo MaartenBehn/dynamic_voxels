@@ -6,11 +6,11 @@ use smallvec::{SmallVec, smallvec};
 
 use crate::{model::{composer::{build::{GetTemplateValueArgs, BS}, graph::{self, ComposerGraph, ComposerNodeFlags}, nodes::{ComposeNode, ComposeNodeType}, ModelComposer}, data_types::{data_type::ComposeDataType, number::NumberTemplate, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::VALUE_INDEX_NODE}}, util::{number::Nu, vector::Ve}};
 
-use super::{dependency_tree::get_dependency_tree_and_loop_paths, nodes::TemplateNode, value::{ComposeTemplateValue, ValueIndex}, ComposeTemplate, TemplateIndex, TEMPLATE_INDEX_NONE};
+use super::{dependency_tree::get_dependency_tree_and_loop_paths, nodes::TemplateNode, value::{TemplateValue, ValueIndex}, Template, TemplateIndex, TEMPLATE_INDEX_NONE};
 
 pub struct MakeTemplateData<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub building_template_index: TemplateIndex,
-    pub template: &'a mut ComposeTemplate<V2, V3, T, B>,
+    pub template: &'a mut Template<V2, V3, T, B>,
 }
 
 pub struct InactiveMakeTemplateData {
@@ -25,7 +25,7 @@ pub enum TemplateNodeUpdate {
     Changed{ old: TemplateIndex, new: TemplateIndex, level: usize },
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3, T, B> {
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B> {
     pub fn empty() -> Self {
         Self {
             nodes: vec![TemplateNode {
@@ -39,7 +39,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                 created_by: (TEMPLATE_INDEX_NONE, 0),
                 dependecy_tree: Default::default(),
             }],
-            values: vec![ComposeTemplateValue::None],
+            values: vec![TemplateValue::None],
             max_level: 1,
             map_node_id: vec![],
         }
@@ -47,7 +47,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
 
     pub fn update(&mut self, graph: &ComposerGraph<V2, V3, T, B>) -> Vec<TemplateNodeUpdate> {
         
-        let mut template = ComposeTemplate {
+        let mut template = Template {
             nodes: vec![
                 TemplateNode {
                     index: 0,
@@ -61,7 +61,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                     dependecy_tree: Default::default(),
                 }
             ],
-            values: vec![ComposeTemplateValue::None],
+            values: vec![TemplateValue::None],
             max_level: 1,
             map_node_id: vec![],
         }; 
@@ -105,7 +105,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                             graph,
                         }, &mut data);
 
-                        let value_index = data.set_value(node_id, ComposeTemplateValue::Build(value));
+                        let value_index = data.set_value(node_id, TemplateValue::Build(value));
                         template.nodes[template_index].value_index = value_index;
 
                         let creates_index = template.nodes[0].creates.len();
@@ -259,8 +259,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
         let value = &mut self.values[value_index];
 
         match value {
-            ComposeTemplateValue::None => {},
-            ComposeTemplateValue::Number(number_template) => {
+            TemplateValue::None => {},
+            TemplateValue::Number(number_template) => {
                 match number_template {
                     NumberTemplate::Const(_) => {},
                     NumberTemplate::Hook(hook) => {
@@ -276,7 +276,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                     },
                 }
             },
-            ComposeTemplateValue::NumberSet(number_space_template) => {
+            TemplateValue::NumberSet(number_space_template) => {
                 match number_space_template {
                     NumberSpaceTemplate::NumberRange { min, max, step } => {
                         let min = *min;
@@ -289,8 +289,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                     },
                 }
             },
-            ComposeTemplateValue::PositionSpace2D(position_space_template)
-            | ComposeTemplateValue::PositionSpace3D(position_space_template)=> {
+            TemplateValue::PositionSpace2D(position_space_template)
+            | TemplateValue::PositionSpace3D(position_space_template)=> {
                 match position_space_template {
                     PositionSpaceTemplate::Grid(grid_template) => {
                         let volume = grid_template.volume;
@@ -319,7 +319,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                     },
                 }
             },
-            ComposeTemplateValue::Position2D(position_template) => {
+            TemplateValue::Position2D(position_template) => {
                 match position_template {
                     PositionTemplate::Const(_) => {},
                     PositionTemplate::FromNumbers(n) => {
@@ -347,7 +347,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                     PositionTemplate::Cam => {},
                 }
             },
-            ComposeTemplateValue::Position3D(position_template) => {
+            TemplateValue::Position3D(position_template) => {
                 match position_template {
                     PositionTemplate::Const(_) => {},
                     PositionTemplate::Add((a, b)) => {
@@ -376,8 +376,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                     PositionTemplate::Cam => {},
                 }
             },
-            ComposeTemplateValue::PositionSet2D(position_set_template)
-            | ComposeTemplateValue::PositionSet3D(position_set_template)=> {
+            TemplateValue::PositionSet2D(position_set_template)
+            | TemplateValue::PositionSet3D(position_set_template)=> {
                 match position_set_template {
                     PositionSetTemplate::All(space) => {
                         let space = *space;
@@ -386,8 +386,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                     },
                 }
             },
-            ComposeTemplateValue::PositionPairSet2D(position_pair_set_template)
-            | ComposeTemplateValue::PositionPairSet3D(position_pair_set_template) => {
+            TemplateValue::PositionPairSet2D(position_pair_set_template)
+            | TemplateValue::PositionPairSet3D(position_pair_set_template) => {
                 match position_pair_set_template {
                     PositionPairSetTemplate::ByDistance((space, distance)) => {
                         let space = *space;
@@ -398,8 +398,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                     },
                 }
             },
-            ComposeTemplateValue::Volume2D(volume_template)
-            | ComposeTemplateValue::Volume3D(volume_template)=> {
+            TemplateValue::Volume2D(volume_template)
+            | TemplateValue::Volume3D(volume_template)=> {
                 match volume_template {
                     VolumeTemplate::Sphere { pos, size } => {
                         let pos = *pos;
@@ -427,7 +427,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3
                     },
                 }
             },
-            ComposeTemplateValue::Build(_) => todo!(),
+            TemplateValue::Build(_) => todo!(),
         }
     }
 }
@@ -463,7 +463,7 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> MakeTemplateData<'
         self.template.get_value_index_from_node_id(node_id)
     }
 
-    pub fn set_value(&mut self, node_id: NodeId, value: ComposeTemplateValue<V2, V3, T, B>) -> ValueIndex {
+    pub fn set_value(&mut self, node_id: NodeId, value: TemplateValue<V2, V3, T, B>) -> ValueIndex {
         let value_index = self.template.values.len(); 
         self.template.values.push(value);
         self.template.map_node_id[node_id.0].1 = value_index;
@@ -471,7 +471,7 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> MakeTemplateData<'
     }
 
     
-    pub fn add_value(&mut self, value: ComposeTemplateValue<V2, V3, T, B>) -> ValueIndex {
+    pub fn add_value(&mut self, value: TemplateValue<V2, V3, T, B>) -> ValueIndex {
         let value_index = self.template.values.len(); 
         self.template.values.push(value);
         value_index

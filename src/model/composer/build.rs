@@ -2,7 +2,7 @@ use core::fmt;
 
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::{CollapseNode, Collapser}}, template::{update::MakeTemplateData, ComposeTemplate}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::{CollapseNode, Collapser}}, template::{update::MakeTemplateData, Template}}, util::{number::Nu, vector::Ve}};
 
 use super::{graph::ComposerGraph, nodes::ComposeNode, ModelComposer};
 
@@ -41,7 +41,7 @@ pub struct OnCollapseArgs<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T
     pub collapse_node: &'a CollapseNode<V2, V3, T, B>,
 
     pub collapser: &'a Collapser<V2, V3, T, B>,
-    pub template: &'a ComposeTemplate<V2, V3, T, B>,
+    pub template: &'a Template<V2, V3, T, B>,
     pub state: &'a mut B,
 }
 
@@ -50,6 +50,6 @@ pub struct OnDeleteArgs<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>>
     pub collapse_node: &'a CollapseNode<V2, V3, T, B>,
 
     pub collapser: &'a Collapser<V2, V3, T, B>,
-    pub template: &'a ComposeTemplate<V2, V3, T, B>,
+    pub template: &'a Template<V2, V3, T, B>,
     pub state: &'a mut B,
 }

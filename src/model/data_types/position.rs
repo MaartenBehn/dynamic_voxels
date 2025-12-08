@@ -4,7 +4,7 @@ use egui_snarl::InPinId;
 use itertools::{Either, Itertools};
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}, ModelComposer}, template::{update::MakeTemplateData, value::{ComposeTemplateValue, ValueIndex}, ComposeTemplate}}, util::{iter_merger::IM3, number::Nu, vector::Ve}};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}, ModelComposer}, template::{update::MakeTemplateData, value::{TemplateValue, ValueIndex}, Template}}, util::{iter_merger::IM3, number::Nu, vector::Ve}};
 
 use super::{data_type::ComposeDataType, number::{Hook, NumberTemplate, ValueIndexNumber}, position_pair_set::PositionPairSetTemplate, position_set::{PositionSetTemplate, ValueIndexPositionSet}};
 
@@ -53,7 +53,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                         PositionTemplate::Const(V2::ZERO)
                     };
 
-                    data.add_value(ComposeTemplateValue::Position2D(value)) 
+                    data.add_value(TemplateValue::Position2D(value)) 
                 },
                 ComposeDataType::Position3D(v) => {
                     
@@ -63,23 +63,23 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                         PositionTemplate::Const(V3::ZERO)
                     };
 
-                    data.add_value(ComposeTemplateValue::Position3D(value)) 
+                    data.add_value(TemplateValue::Position3D(value)) 
                 },
                 _ => unreachable!()
             }
         } else {
             let pin = remotes[0];
             
-            let remote_node = self.snarl.get_node(pin.node).expect("Node of remote not found");
+            let node = self.snarl.get_node(pin.node).expect("Node of remote not found");
 
             if let Some(value_index) = data.get_value_index_from_node_id(pin.node) {
                 
-                match &remote_node.t { 
+                match &node.t { 
                     ComposeNodeType::PerPair2D => {
                         let value = data.template.get_position3d_value(value_index);
                         match value {
                             PositionTemplate::PerPair((hook, _)) => {
-                                return data.add_value(ComposeTemplateValue::Position2D(
+                                return data.add_value(TemplateValue::Position2D(
                                     PositionTemplate::PerPair((*hook, pin.output == 0))));
                             },
                             _ => unreachable!()
@@ -90,7 +90,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                         let value = data.template.get_position3d_value(value_index);
                         match value {
                             PositionTemplate::PerPair((hook, _)) => {
-                                return data.add_value(ComposeTemplateValue::Position3D(
+                                return data.add_value(TemplateValue::Position3D(
                                     PositionTemplate::PerPair((*hook, pin.output == 0))));
                             },
                             _ => unreachable!()
@@ -102,44 +102,44 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                 return value_index;
             }
 
-            let value = match remote_node.t {
+            let value = match node.t {
                 ComposeNodeType::Position2D => {
-                    let x = self.make_number(remote_node, 0, data);
-                    let y = self.make_number(remote_node, 1, data);
+                    let x = self.make_number(node, 0, data);
+                    let y = self.make_number(node, 1, data);
 
-                    ComposeTemplateValue::Position2D(PositionTemplate::FromNumbers([x, y]))
+                    TemplateValue::Position2D(PositionTemplate::FromNumbers([x, y]))
                 },
                 ComposeNodeType::Position3D => {
-                    let x = self.make_number(remote_node, 0, data);
-                    let y = self.make_number(remote_node, 1, data);
-                    let z = self.make_number(remote_node, 2, data);
+                    let x = self.make_number(node, 0, data);
+                    let y = self.make_number(node, 1, data);
+                    let z = self.make_number(node, 2, data);
 
-                    ComposeTemplateValue::Position3D(PositionTemplate::FromNumbers([x, y, z]))
+                    TemplateValue::Position3D(PositionTemplate::FromNumbers([x, y, z]))
                 },
                 ComposeNodeType::AddPosition2D
                 | ComposeNodeType::AddPosition3D => {
-                    let a = self.make_position(remote_node, 0, data);
-                    let b = self.make_position(remote_node, 1, data);
+                    let a = self.make_position(node, 0, data);
+                    let b = self.make_position(node, 1, data);
 
-                    ComposeTemplateValue::Position3D(PositionTemplate::Add((a, b)))
+                    TemplateValue::Position3D(PositionTemplate::Add((a, b)))
                 }
                 ComposeNodeType::SubPosition2D
                 | ComposeNodeType::SubPosition3D => {
-                    let a = self.make_position(remote_node, 0, data);
-                    let b = self.make_position(remote_node, 1, data);
+                    let a = self.make_position(node, 0, data);
+                    let b = self.make_position(node, 1, data);
 
-                    ComposeTemplateValue::Position3D(PositionTemplate::Sub((a, b)))
+                    TemplateValue::Position3D(PositionTemplate::Sub((a, b)))
                 }
                 ComposeNodeType::PerPosition2D => {
                     let inactive = data.start_template_node(pin.node);
 
-                    let space = self.make_pos_space(self.get_input_remote_pin_by_index(remote_node, 0), data); 
-                    let value = ComposeTemplateValue::PositionSet2D(PositionSetTemplate::All(space));
+                    let space = self.make_pos_space(node, 0, data); 
+                    let value = TemplateValue::PositionSet2D(PositionSetTemplate::All(space));
 
                     let value_index = data.add_value(value);
                     let template_index = data.finish_template_node(value_index, inactive);
 
-                    ComposeTemplateValue::Position2D(PositionTemplate::PerPosition(Hook {
+                    TemplateValue::Position2D(PositionTemplate::PerPosition(Hook {
                         template_index,
                         loop_cut: false,
                     }))
@@ -147,13 +147,13 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                 ComposeNodeType::PerPosition3D => {
                     let inactive = data.start_template_node(pin.node);
 
-                    let space = self.make_pos_space(self.get_input_remote_pin_by_index(remote_node, 0), data); 
-                    let value = ComposeTemplateValue::PositionSet3D(PositionSetTemplate::All(space));
+                    let space = self.make_pos_space(node, 0, data); 
+                    let value = TemplateValue::PositionSet3D(PositionSetTemplate::All(space));
 
                     let value_index = data.add_value(value);
                     let template_index = data.finish_template_node(value_index, inactive);
 
-                    ComposeTemplateValue::Position3D(PositionTemplate::PerPosition(Hook {
+                    TemplateValue::Position3D(PositionTemplate::PerPosition(Hook {
                         template_index,
                         loop_cut: false,
                     }))
@@ -161,15 +161,15 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                 ComposeNodeType::PerPair2D => {
                     let inactive = data.start_template_node(pin.node);
 
-                    let space = self.make_pos_space(self.get_input_remote_pin_by_index(remote_node, 0), data); 
-                    let distance = self.make_number(remote_node, 1, data); 
+                    let space = self.make_pos_space(node, 0, data); 
+                    let distance = self.make_number(node, 1, data); 
 
-                    let value = ComposeTemplateValue::PositionPairSet2D(PositionPairSetTemplate::ByDistance((space, distance)));
+                    let value = TemplateValue::PositionPairSet2D(PositionPairSetTemplate::ByDistance((space, distance)));
 
                     let value_index = data.add_value(value);
                     let template_index = data.finish_template_node(value_index, inactive);
 
-                    ComposeTemplateValue::Position2D(PositionTemplate::PerPair((Hook {
+                    TemplateValue::Position2D(PositionTemplate::PerPair((Hook {
                         template_index,
                         loop_cut: false,
                     }, pin.output == 0)))
@@ -177,21 +177,21 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                 ComposeNodeType::PerPair3D => {
                     let inactive = data.start_template_node(pin.node);
                     
-                    let space = self.make_pos_space(self.get_input_remote_pin_by_index(remote_node, 0), data); 
-                    let distance = self.make_number(remote_node, 1, data); 
+                    let space = self.make_pos_space(node, 0, data); 
+                    let distance = self.make_number(node, 1, data); 
 
-                    let value = ComposeTemplateValue::PositionPairSet3D(PositionPairSetTemplate::ByDistance((space, distance)));
+                    let value = TemplateValue::PositionPairSet3D(PositionPairSetTemplate::ByDistance((space, distance)));
                     
                     let value_index = data.add_value(value);
                     let template_index = data.finish_template_node(value_index, inactive);
 
-                    ComposeTemplateValue::Position3D(PositionTemplate::PerPair((Hook {
+                    TemplateValue::Position3D(PositionTemplate::PerPair((Hook {
                         template_index,
                         loop_cut: false,
                     }, pin.output == 0)))
                 }
                 ComposeNodeType::CamPosition => {
-                    ComposeTemplateValue::Position3D(PositionTemplate::Cam)
+                    TemplateValue::Position3D(PositionTemplate::Cam)
                 }
                 _ => unreachable!(),
             };
@@ -208,7 +208,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> PositionTemplate<V, T, D> {
         &self,
         get_value_data: GetValueData,
         collapser: &Collapser<V2, V3, T, B>,
-        template: &ComposeTemplate<V2, V3, T, B>
+        template: &Template<V2, V3, T, B>
     ) -> (SmallVec<[V; 1]>, bool) {
 
         match self {

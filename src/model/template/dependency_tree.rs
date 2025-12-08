@@ -6,7 +6,7 @@ use smallvec::{SmallVec, smallvec};
 
 use crate::{model::composer::build::BS, util::{number::Nu, vector::Ve}};
 
-use super::{nodes::TemplateNode, ComposeTemplate, TemplateIndex};
+use super::{nodes::TemplateNode, Template, TemplateIndex};
 
 #[derive(Debug, Clone, Default)]
 pub struct DependencyPath {
@@ -33,7 +33,7 @@ pub struct DependencyTreeStep {
 }
 
 pub fn get_dependency_tree_and_loop_paths<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>>(
-    template: &ComposeTemplate<V2, V3, T, B>, 
+    template: &Template<V2, V3, T, B>, 
     parent_index: TemplateIndex, 
     depends: &[TemplateIndex],
     dependend: &[TemplateIndex], 

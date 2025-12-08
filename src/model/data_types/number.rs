@@ -5,7 +5,7 @@ use itertools::Itertools;
 use octa_force::log::debug;
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}, ModelComposer}, template::{update::MakeTemplateData, value::{ComposeTemplateValue, ValueIndex}, ComposeTemplate, TemplateIndex}}, util::{iter_merger::IM4, number::Nu, vector::Ve}};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}, ModelComposer}, template::{update::MakeTemplateData, value::{TemplateValue, ValueIndex}, Template, TemplateIndex}}, util::{iter_merger::IM4, number::Nu, vector::Ve}};
 
 use super::{data_type::ComposeDataType, position::{PositionTemplate, ValueIndexPosition2D, ValueIndexPosition3D}};
 
@@ -50,7 +50,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                 _ => unreachable!()
             };
             
-            data.add_value(ComposeTemplateValue::Number(value)) 
+            data.add_value(TemplateValue::Number(value)) 
         } else {
             let pin = remotes[0];
             if let Some(value_index) = data.get_value_index_from_node_id(pin.node) {
@@ -86,7 +86,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                 }
             };
 
-            data.set_value(pin.node, ComposeTemplateValue::Number(value))
+            data.set_value(pin.node, TemplateValue::Number(value))
         }
     }
 }
@@ -98,7 +98,7 @@ impl<T: Nu> NumberTemplate<T> {
         &self, 
         get_value_data: GetValueData,
         collapser: &Collapser<V2, V3, T, B>,
-        template: &ComposeTemplate<V2, V3, T, B>
+        template: &Template<V2, V3, T, B>
     ) -> (SmallVec<[T; 1]>, bool) {
 
         match self {

@@ -5,7 +5,7 @@ use itertools::{iproduct, Itertools};
 use octa_force::{log::debug, OctaResult};
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, graph::ComposerGraph, nodes::ComposeNodeType, ModelComposer}, template::{self, update::MakeTemplateData, value::{ComposeTemplateValue, ValueIndex}, ComposeTemplate}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}, ModelComposer}, template::{self, update::MakeTemplateData, value::{TemplateValue, ValueIndex}, Template}}, util::{number::Nu, vector::Ve}};
 
 use super::{number::NumberTemplate};
 
@@ -23,9 +23,12 @@ pub enum NumberSpaceTemplate {
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, T, B> {
     pub fn make_number_space(
         &self, 
-        pin: OutPinId, 
+        original_node: &ComposeNode<B::ComposeType>, 
+        in_index: usize, 
         data: &mut MakeTemplateData<V2, V3, T, B>,
     ) -> ValueIndexNumberSpace {
+        let pin = self.get_input_remote_pin_by_index(original_node, in_index);
+
         if let Some(value_index) = data.get_value_index_from_node_id(pin.node) {
             return value_index;
         }
@@ -41,7 +44,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
             _ => unreachable!(),
         };
 
-        data.set_value(pin.node, ComposeTemplateValue::NumberSet(value))
+        data.set_value(pin.node, TemplateValue::NumberSet(value))
     }
 }
 
@@ -50,7 +53,7 @@ impl NumberSpaceTemplate {
         &self,
         get_value_data: GetValueData,
         collapser: &Collapser<V2, V3, T, B>,
-        template: &ComposeTemplate<V2, V3, T, B>
+        template: &Template<V2, V3, T, B>
     ) -> (impl Iterator<Item = T> + use<B, V2, V3, T>, bool) {
         match &self {
             NumberSpaceTemplate::NumberRange { min, max, step } => {

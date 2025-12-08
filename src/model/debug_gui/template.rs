@@ -1,9 +1,9 @@
 use itertools::Itertools;
 use octa_force::egui;
 
-use crate::{model::{composer::build::BS, template::{dependency_tree::{DependencyPath, DependencyTree}, nodes::TemplateNode, value::ComposeTemplateValue, ComposeTemplate, TemplateIndex}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{composer::build::BS, template::{dependency_tree::{DependencyPath, DependencyTree}, nodes::TemplateNode, value::TemplateValue, Template, TemplateIndex}}, util::{number::Nu, vector::Ve}};
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeTemplate<V2, V3, T, B> { 
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B> { 
     pub fn debug_render(&self, ui: &mut egui::Ui) {
         if self.nodes.is_empty() {
             ui.label("Template empty");

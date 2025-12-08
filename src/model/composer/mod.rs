@@ -17,7 +17,7 @@ use viewer::{style, ComposeViewer, ComposeViewerData, ComposeViewerTemplates};
 
 use crate::{model::collapse::external_input::ExternalInput, util::{number::Nu, vector::Ve}};
 
-use super::{collapse::worker::{CollapserChangeReciver, ComposeCollapseWorker}, template::ComposeTemplate};
+use super::{collapse::worker::{CollapserChangeReciver, ComposeCollapseWorker}, template::Template};
 
 
 #[derive(Debug)]
@@ -28,7 +28,7 @@ pub struct ModelComposer<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub viewer_templates: ComposeViewerTemplates<V2, V3, T, B>,
     pub viewer_data: ComposeViewerData,
 
-    pub template: ComposeTemplate<V2, V3, T, B>,
+    pub template: Template<V2, V3, T, B>,
     pub collapser_worker: ComposeCollapseWorker<V2, V3, T, B>,
     pub collapser_reciver: CollapserChangeReciver<V2, V3, T, B>,
 
@@ -57,7 +57,7 @@ where
         let viewer_templates = ComposeViewerTemplates::new();
         let viewer_data = ComposeViewerData::new();
 
-        let mut template = ComposeTemplate::empty();
+        let mut template = Template::empty();
         template.update(&graph);
 
         let external_input = ExternalInput::new(camera);

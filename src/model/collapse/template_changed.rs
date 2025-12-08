@@ -2,7 +2,7 @@ use std::mem;
 
 use smallvec::SmallVec;
 
-use crate::{model::{composer::{build::BS, graph::ComposerNodeFlags}, template::{nodes::{TemplateNode}, update::TemplateNodeUpdate, ComposeTemplate}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{composer::{build::BS, graph::ComposerNodeFlags}, template::{nodes::{TemplateNode}, update::TemplateNodeUpdate, Template}}, util::{number::Nu, vector::Ve}};
 
 use super::{collapser::{CollapseNodeKey, Collapser, UpdateDefinesOperation}, pending_operations::PendingOperations};
 
@@ -11,8 +11,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
     
     pub fn template_changed(
         &mut self, 
-        template: &ComposeTemplate<V2, V3, T, B>,
-        old_template: &ComposeTemplate<V2, V3, T, B>,
+        template: &Template<V2, V3, T, B>,
+        old_template: &Template<V2, V3, T, B>,
         updates: Vec<TemplateNodeUpdate>,
         state: &mut B
     ) {

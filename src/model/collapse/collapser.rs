@@ -5,7 +5,7 @@ use octa_force::{anyhow::{anyhow, bail, ensure}, glam::{vec3, vec3a, IVec3, Vec3
 use rayon::iter::IntoParallelIterator;
 use slotmap::{new_key_type, Key, SlotMap};
 use smallvec::SmallVec;
-use crate::{model::{composer::build::{OnCollapseArgs, BS}, template::{value::ComposeTemplateValue, ComposeTemplate, TemplateIndex}}, util::{iter_merger::{IM2, IM3}, number::Nu, state_saver, vector::Ve}, volume::VolumeQureyPosValid};
+use crate::{model::{composer::build::{OnCollapseArgs, BS}, template::{value::TemplateValue, Template, TemplateIndex}}, util::{iter_merger::{IM2, IM3}, number::Nu, state_saver, vector::Ve}, volume::VolumeQureyPosValid};
 
 use super::{add_nodes::{GetNewChildrenData, GetValueData}, external_input::ExternalInput, number_set::NumberSet, pending_operations::{PendingOperations, PendingOperationsRes}, position_pair_set::PositionPairSet, position_set::PositionSet};
 
@@ -61,7 +61,7 @@ pub struct UpdateDefinesOperation {
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B> {
-    pub async fn new(template: &ComposeTemplate<V2, V3, T, B>, state: &mut B) -> Self {
+    pub async fn new(template: &Template<V2, V3, T, B>, state: &mut B) -> Self {
         let inital_capacity = 1000;
 
         let mut collapser = Self {
@@ -87,7 +87,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
  
     pub async fn run(
         &mut self, 
-        template: &ComposeTemplate<V2, V3, T, B>, 
+        template: &Template<V2, V3, T, B>, 
         state: &mut B,
         external_input: ExternalInput,
 
@@ -113,7 +113,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
     async fn collapse_node(
         &mut self, 
         node_index: CollapseNodeKey, 
-        template: &ComposeTemplate<V2, V3, T, B>, 
+        template: &Template<V2, V3, T, B>, 
         state: &mut B, 
         external_input: ExternalInput,
     ) {
@@ -134,8 +134,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         }; 
 
         let needs_recompute = match value {
-            ComposeTemplateValue::None => false,
-            ComposeTemplateValue::NumberSet(space) => {
+            TemplateValue::None => false,
+            TemplateValue::NumberSet(space) => {
                 todo!();
                 let (mut new_val, r) = space.get_value(get_value_data, &self, template);
                 let new_val = new_val.next().unwrap(); 
@@ -150,7 +150,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
                 r
             },
-            ComposeTemplateValue::PositionSet2D(position_set_template) => {
+            TemplateValue::PositionSet2D(position_set_template) => {
                 let (new_positions, r) = position_set_template.get_value(get_value_data, &self, template);
 
                 let data = match &mut self.nodes[node_index].data {
@@ -161,7 +161,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
                 r
             },
-            ComposeTemplateValue::PositionSet3D(position_set_template) => {
+            TemplateValue::PositionSet3D(position_set_template) => {
                 let (new_positions, r) = position_set_template.get_value(get_value_data, &self, template);
 
                 let data = match &mut self.nodes[node_index].data {
@@ -172,7 +172,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
                 r
             },
-            ComposeTemplateValue::PositionPairSet2D(position_set_template) => {
+            TemplateValue::PositionPairSet2D(position_set_template) => {
                 let (new_positions, r) = position_set_template.get_value(get_value_data, &self, template);
 
                 let data = match &mut self.nodes[node_index].data {
@@ -183,7 +183,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
                 r
             },
-            ComposeTemplateValue::PositionPairSet3D(position_set_template) => {
+            TemplateValue::PositionPairSet3D(position_set_template) => {
                 let (new_positions, r) = position_set_template.get_value(get_value_data, &self, template);
 
                 let data = match &mut self.nodes[node_index].data {
@@ -194,7 +194,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
                 r
             },
-            ComposeTemplateValue::Build(t) => {
+            TemplateValue::Build(t) => {
                 let data = match &node.data {
                     NodeDataType::Build(build) => build,
                     _ => unreachable!()
@@ -225,7 +225,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         self.collapse_all_childeren(node_index, template);
     }
 
-    fn collapse_all_childeren(&mut self, node_index: CollapseNodeKey, template: &ComposeTemplate<V2, V3, T, B>) {
+    fn collapse_all_childeren(&mut self, node_index: CollapseNodeKey, template: &Template<V2, V3, T, B>) {
         let node = &self.nodes[node_index];
 
         for (_, list) in node.children.iter() {

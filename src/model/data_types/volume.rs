@@ -2,7 +2,7 @@ use egui_snarl::OutPinId;
 use itertools::{iproduct, Itertools};
 use smallvec::SmallVec;
 
-use crate::{csg::{csg_tree::tree::CSGTree, Base}, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, graph::ComposerGraph, nodes::ComposeNodeType, ModelComposer}, template::{update::MakeTemplateData, value::ComposeTemplateValue, ComposeTemplate}}, util::{iter_merger::IM5, number::Nu, vector::Ve}};
+use crate::{csg::{csg_tree::tree::CSGTree, Base}, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}, ModelComposer}, template::{update::MakeTemplateData, value::TemplateValue, Template}}, util::{iter_merger::IM5, number::Nu, vector::Ve}};
 
 use super::{data_type::ComposeDataType, number::{NumberTemplate, ValueIndexNumber}, position::{PositionTemplate, ValueIndexPosition}, position_set::{PositionSetTemplate, ValueIndexPositionSet}};
 
@@ -33,42 +33,45 @@ pub enum VolumeTemplate {
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, T, B> {
     pub fn make_volume(
         &self, 
-        pin: OutPinId,
+        original_node: &ComposeNode<B::ComposeType>, 
+        in_index: usize, 
         data: &mut MakeTemplateData<V2, V3, T, B>,
     ) -> ValueIndexVolume {
+        let pin = self.get_input_remote_pin_by_index(original_node, in_index);
+        
         if let Some(value_index) = data.get_value_index_from_node_id(pin.node) {
             return value_index;
         }
 
         let node = self.snarl.get_node(pin.node).expect("Node of remote not found");
         let value = match &node.t {
-            ComposeNodeType::Sphere => ComposeTemplateValue::Volume3D(VolumeTemplate::Sphere { 
+            ComposeNodeType::Sphere => TemplateValue::Volume3D(VolumeTemplate::Sphere { 
                 pos: self.make_position(node, 0, data),
                 size: self.make_number(node, 1, data),
             }),
-            ComposeNodeType::Box2D => ComposeTemplateValue::Volume2D(VolumeTemplate::Box { 
+            ComposeNodeType::Box2D => TemplateValue::Volume2D(VolumeTemplate::Box { 
                 pos: self.make_position(node, 0, data),
                 size: self.make_position(node, 1, data),
             }),
-            ComposeNodeType::Box3D => ComposeTemplateValue::Volume3D(VolumeTemplate::Box { 
+            ComposeNodeType::Box3D => TemplateValue::Volume3D(VolumeTemplate::Box { 
                 pos: self.make_position(node, 0, data),
                 size: self.make_position(node, 1, data),
             }),
-            ComposeNodeType::UnionVolume2D => ComposeTemplateValue::Volume2D(VolumeTemplate::Union {
-                a: self.make_volume(self.get_input_remote_pin_by_index(node, 0), data),
-                b: self.make_volume(self.get_input_remote_pin_by_index(node, 1), data),
+            ComposeNodeType::UnionVolume2D => TemplateValue::Volume2D(VolumeTemplate::Union {
+                a: self.make_volume(node, 0, data),
+                b: self.make_volume(node, 1, data),
             }),
-            ComposeNodeType::UnionVolume3D => ComposeTemplateValue::Volume3D(VolumeTemplate::Union {
-                a: self.make_volume(self.get_input_remote_pin_by_index(node, 0), data),
-                b: self.make_volume(self.get_input_remote_pin_by_index(node, 1), data),
+            ComposeNodeType::UnionVolume3D => TemplateValue::Volume3D(VolumeTemplate::Union {
+                a: self.make_volume(node, 0, data),
+                b: self.make_volume(node, 1, data),
             }),
-            ComposeNodeType::CutVolume2D => ComposeTemplateValue::Volume2D(VolumeTemplate::Cut {
-                base: self.make_volume(self.get_input_remote_pin_by_index(node, 0), data),
-                cut: self.make_volume(self.get_input_remote_pin_by_index(node, 1), data),
+            ComposeNodeType::CutVolume2D => TemplateValue::Volume2D(VolumeTemplate::Cut {
+                base: self.make_volume(node, 0, data),
+                cut: self.make_volume(node, 1, data),
             }),
-            ComposeNodeType::CutVolume3D => ComposeTemplateValue::Volume3D(VolumeTemplate::Cut {
-                base: self.make_volume(self.get_input_remote_pin_by_index(node, 0), data),
-                cut: self.make_volume(self.get_input_remote_pin_by_index(node, 1), data),
+            ComposeNodeType::CutVolume3D => TemplateValue::Volume3D(VolumeTemplate::Cut {
+                base: self.make_volume(node, 0, data),
+                cut: self.make_volume(node, 1, data),
             }),
             _ => unreachable!(),
         };
@@ -82,7 +85,7 @@ impl VolumeTemplate {
         &self, 
         get_value_data: GetValueData,
         collapser: &Collapser<V2, V3, T, B>,
-        template: &ComposeTemplate<V2, V3, T, B>,
+        template: &Template<V2, V3, T, B>,
         mat: M,
     ) -> (CSGTree<M, V, T, D>, bool) {
         let mut tree = CSGTree::default();
@@ -103,7 +106,7 @@ impl VolumeTemplate {
         &self, 
         get_value_data: GetValueData,
         collapser: &Collapser<V2, V3, T, B>,
-        template: &ComposeTemplate<V2, V3, T, B>,
+        template: &Template<V2, V3, T, B>,
         mat: M,
         tree: &mut CSGTree<M, V, T, D>,
     ) -> (Vec<usize>, bool) {

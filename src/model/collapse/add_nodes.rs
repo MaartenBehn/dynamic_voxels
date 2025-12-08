@@ -5,7 +5,7 @@ use octa_force::{anyhow::{anyhow, bail}, glam::Vec3, log::{debug, info}, OctaRes
 use slotmap::Key;
 use tree64::Node;
 
-use crate::{model::{collapse::collapser::CollapseNode, composer::build::BS, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::ComposeTemplateValue, ComposeTemplate, TemplateIndex}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::collapser::CollapseNode, composer::build::BS, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::TemplateValue, Template, TemplateIndex}}, util::{number::Nu, vector::Ve}};
 
 use super::{collapser::{CollapseChildKey, CollapseNodeKey, Collapser, NodeDataType, UpdateDefinesOperation}, external_input::ExternalInput, number_set::NumberSet};
 
@@ -28,7 +28,7 @@ pub struct GetNewChildrenData<'a> {
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B> {
-    pub fn push_defined(&mut self, node_index: CollapseNodeKey, template: &ComposeTemplate<V2, V3, T, B>) {
+    pub fn push_defined(&mut self, node_index: CollapseNodeKey, template: &Template<V2, V3, T, B>) {
         let node = &self.nodes[node_index];
         let template_node = &template.nodes[node.template_index];
 
@@ -46,7 +46,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
     pub async fn update_defined(
         &mut self, 
         opperation: UpdateDefinesOperation, 
-        template: &ComposeTemplate<V2, V3, T, B>,
+        template: &Template<V2, V3, T, B>,
         state: &mut B
     ) {
         let parent_node = &self.nodes[opperation.parent_index];
@@ -78,7 +78,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         &mut self, 
         template_index: TemplateIndex,
         parent_index: CollapseNodeKey, 
-        template: &ComposeTemplate<V2, V3, T, B>,
+        template: &Template<V2, V3, T, B>,
         state: &mut B,
     ) {
         let template_node = &template.nodes[template_index];
@@ -110,7 +110,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         template_index: TemplateIndex,
         parent_index: CollapseNodeKey, 
         creates_index: usize, 
-        template: &ComposeTemplate<V2, V3, T, B>, 
+        template: &Template<V2, V3, T, B>, 
         state: &mut B,
     ) {
         let parent_node = &self.nodes[parent_index];
@@ -175,20 +175,20 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         depends: Vec<(TemplateIndex, Vec<CollapseNodeKey>)>, 
         defined_by: CollapseNodeKey,
         child_keys: Vec<(CollapseNodeKey, CollapseChildKey)>,
-        template: &ComposeTemplate<V2, V3, T, B>,
+        template: &Template<V2, V3, T, B>,
         state: &mut B,
     ) {
         let new_node_template = &template.nodes[new_node_template_index];
       
         let value = &template.values[new_node_template.value_index];
         let data = match value {
-            ComposeTemplateValue::None => NodeDataType::None,
-            ComposeTemplateValue::NumberSet(_) => NodeDataType::NumberSet(Default::default()),
-            ComposeTemplateValue::PositionSet2D(position_set_template) => NodeDataType::PositionSet2D(Default::default()),
-            ComposeTemplateValue::PositionSet3D(position_set_template) => NodeDataType::PositionSet3D(Default::default()),
-            ComposeTemplateValue::PositionPairSet2D(position_pair_set_template) => NodeDataType::PositionPairSet2D(Default::default()),
-            ComposeTemplateValue::PositionPairSet3D(position_pair_set_template) => NodeDataType::PositionPairSet3D(Default::default()),
-            ComposeTemplateValue::Build(_) => NodeDataType::Build(B::CollapseValue::default()),
+            TemplateValue::None => NodeDataType::None,
+            TemplateValue::NumberSet(_) => NodeDataType::NumberSet(Default::default()),
+            TemplateValue::PositionSet2D(position_set_template) => NodeDataType::PositionSet2D(Default::default()),
+            TemplateValue::PositionSet3D(position_set_template) => NodeDataType::PositionSet3D(Default::default()),
+            TemplateValue::PositionPairSet2D(position_pair_set_template) => NodeDataType::PositionPairSet2D(Default::default()),
+            TemplateValue::PositionPairSet3D(position_pair_set_template) => NodeDataType::PositionPairSet3D(Default::default()),
+            TemplateValue::Build(_) => NodeDataType::Build(B::CollapseValue::default()),
             _ => unreachable!()
         };
 
