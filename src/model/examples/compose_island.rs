@@ -89,7 +89,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
     }
 
     async fn on_collapse<'a>(args: OnCollapseArgs<'a, V2, V3, T, Self>) -> Self::CollapseValue {
-        delete_object(args.collapse_value, args.state);
 
         match args.template_value {
             TemplateValue::Object(object_template) => {
@@ -103,13 +102,13 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
                 let pos = pos[0];
 
                 volume.calculate_bounds();
-                dbg!(&volume);
 
                 let now = Instant::now();
                 let dag_key = args.state.dag.add_pos_query_volume(&volume).expect("Could not add DAG Entry!");
                 let elapsed = now.elapsed();
                 info!("Voxel DAG Build took: {:?}", elapsed);
 
+                delete_object(args.collapse_value, args.state);
                 let scene_key = args.state.scene.add_dag_object(
                     Mat4::from_scale_rotation_translation(
                         Vec3::ONE,

@@ -51,13 +51,13 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
         in_index: usize, 
         data: &mut MakeTemplateData<V2, V3, T, B>,
     ) -> ValueIndexPositionSpace {
-        let pin = self.get_input_remote_pin_by_index(original_node, in_index);
+        let node_id = self.get_input_remote_node_id(original_node, in_index);
 
-        if let Some(value_index) = data.get_value_index_from_node_id(pin.node) {
+        if let Some(value_index) = data.get_value_index_from_node_id(node_id) {
             return value_index;
         }
 
-        let node = self.snarl.get_node(pin.node).expect("Node of remote not found");
+        let node = self.snarl.get_node(node_id).expect("Node of remote not found");
         let value = match &node.t {
             ComposeNodeType::Grid2D => {
                 
@@ -113,7 +113,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
             _ => unreachable!(),
         };
 
-        data.set_value(pin.node, value)
+        data.set_value(node_id, value)
     }
 }
 
@@ -133,7 +133,6 @@ impl PositionSpaceTemplate {
                     .get_value(get_value_data, collapser, template);
                 
                 volume.calculate_bounds();
-                dbg!(&volume);
                 let mut points = vec![];
                 
                 for spacing in spacing {

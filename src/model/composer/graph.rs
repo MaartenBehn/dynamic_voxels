@@ -1,12 +1,12 @@
 use std::{fs::{self, File}, io::Write};
 
 use bitvec::vec::BitVec;
-use egui_snarl::{InPinId, NodeId, OutPinId, Snarl};
+use egui_snarl::{InPinId, Node, NodeId, OutPinId, Snarl};
 use itertools::Itertools;
 use octa_force::OctaResult;
 use smallvec::SmallVec;
 
-use crate::util::{number::Nu, vector::Ve};
+use crate::{model::data_types::data_type::ComposeDataType, util::{number::Nu, vector::Ve}};
 
 use super::{build::{ComposeTypeTrait, BS}, nodes::{ComposeNode, ComposeNodeType}};
 
@@ -62,7 +62,7 @@ where
     T: Nu, 
     B: BS<V2, V3, T>,
 {
-    pub fn get_input_remote_pin_by_index(&self, node: &ComposeNode<B::ComposeType>, index: usize) -> OutPinId {
+    pub fn get_input_remote_node_id(&self, node: &ComposeNode<B::ComposeType>, index: usize) -> NodeId {
         let remotes = self.snarl.in_pin(InPinId{ node: node.id, input: index }).remotes;
         if remotes.is_empty() {
             panic!("No node connected to {:?}", node.t);
@@ -72,7 +72,17 @@ where
             panic!("More than one node connected to {:?}", node.t);
         }
 
-        remotes[0]
+        remotes[0].node
+    }
+
+    pub fn get_creates_input_remote_pin(&self, node: &ComposeNode<B::ComposeType>) -> Option<NodeId> {
+        let i = node.inputs.iter()
+            .position(|i| i.data_type == ComposeDataType::Creates)
+            .expect(&format!("{:?} does not have a creates input pin!", node.t));
+
+        let remotes = self.snarl.in_pin(InPinId{ node: node.id, input: i }).remotes;
+        remotes.first()
+            .map(|pin| pin.node)
     }
 
     pub fn get_output_first_remote_pin_by_index(&self, node: &ComposeNode<B::ComposeType>, index: usize) -> InPinId {

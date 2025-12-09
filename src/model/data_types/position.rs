@@ -156,6 +156,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                     let value = TemplateValue::PositionSet2D(PositionSetTemplate::All(space));
 
                     let value_index = data.add_value(value);
+
                     let template_index = data.finish_template_node(value_index, inactive);
 
                     TemplateValue::Position2D(PositionTemplate::PerPosition(Hook {

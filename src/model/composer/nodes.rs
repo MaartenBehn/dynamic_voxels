@@ -305,11 +305,13 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
         ComposeNode::new(ComposeNodeType::PerPosition2D, ComposeNodeGroupe::Split)
             .input(ComposeDataType::PositionSpace2D, "space")
             .output(ComposeDataType::Position2D(None), "position")
+            .input(ComposeDataType::Creates, "one set per")
             .output(ComposeDataType::Creates, ""),
 
         ComposeNode::new(ComposeNodeType::PerPosition3D, ComposeNodeGroupe::Split)
             .input(ComposeDataType::PositionSpace3D, "space")
             .output(ComposeDataType::Position3D(None), "position")
+            .input(ComposeDataType::Creates, "one set per")
             .output(ComposeDataType::Creates, ""),
 
         // Pair Set
@@ -318,6 +320,7 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
             .input(ComposeDataType::Number(None), "distance")
             .output(ComposeDataType::Position2D(None), "a")
             .output(ComposeDataType::Position2D(None), "b")
+            .input(ComposeDataType::Creates, "one set per")
             .output(ComposeDataType::Creates, ""),
 
         ComposeNode::new(ComposeNodeType::PerPair3D, ComposeNodeGroupe::PairSet)
@@ -325,6 +328,7 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
             .input(ComposeDataType::Number(None), "distance")
             .output(ComposeDataType::Position3D(None), "a")
             .output(ComposeDataType::Position3D(None), "b")
+            .input(ComposeDataType::Creates, "one set per")
             .output(ComposeDataType::Creates, ""),
 
         ComposeNode::new(ComposeNodeType::CamPosition, ComposeNodeGroupe::Engine)

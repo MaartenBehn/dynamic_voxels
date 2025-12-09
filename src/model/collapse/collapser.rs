@@ -80,8 +80,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
         collapser.pending.push_collpase(1, collapser.get_root_key());
 
-        dbg!(&collapser);
-        dbg!(&template);
         collapser
     }
  

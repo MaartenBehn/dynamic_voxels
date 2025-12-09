@@ -15,6 +15,7 @@ pub struct MakeTemplateData<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3,
 
 pub struct InactiveMakeTemplateData {
     pub building_template_index: TemplateIndex,
+    pub created_by_node_id: Option<NodeId>,
 }
 
 #[derive(Debug)]
@@ -200,10 +201,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
 
             }
         }
- 
-        dbg!(&template);
-        dbg!(&needs_update);
 
+        dbg!(&template);
+ 
         (*self) = template;
 
         needs_update
@@ -453,8 +453,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
 
 impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> MakeTemplateData<'a, V2, V3, T, B> {
     pub fn start_template_node(&mut self, node_id: NodeId) -> InactiveMakeTemplateData {
+        
         let inactive = InactiveMakeTemplateData {
             building_template_index: self.building_template_index,
+            created_by_node_id: self.template.get_,
         };
 
         let template_index = self.template.nodes.len();
