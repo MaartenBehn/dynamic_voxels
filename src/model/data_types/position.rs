@@ -150,14 +150,14 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                     TemplateValue::Position3D(PositionTemplate::Sub((a, b)))
                 }
                 ComposeNodeType::PerPosition2D => {
-                    let inactive = data.start_template_node(pin.node);
+                    let node_data = self.start_template_node(node, data);
 
                     let space = self.make_pos_space(node, 0, data); 
                     let value = TemplateValue::PositionSet2D(PositionSetTemplate::All(space));
 
                     let value_index = data.add_value(value);
 
-                    let template_index = data.finish_template_node(value_index, inactive);
+                    let template_index = node_data.finish_template_node(value_index, data);
 
                     TemplateValue::Position2D(PositionTemplate::PerPosition(Hook {
                         template_index,
@@ -165,13 +165,13 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                     }))
                 } 
                 ComposeNodeType::PerPosition3D => {
-                    let inactive = data.start_template_node(pin.node);
+                    let node_data = self.start_template_node(node, data);
 
                     let space = self.make_pos_space(node, 0, data); 
                     let value = TemplateValue::PositionSet3D(PositionSetTemplate::All(space));
 
                     let value_index = data.add_value(value);
-                    let template_index = data.finish_template_node(value_index, inactive);
+                    let template_index = node_data.finish_template_node(value_index, data);
 
                     TemplateValue::Position3D(PositionTemplate::PerPosition(Hook {
                         template_index,
@@ -179,7 +179,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                     }))
                 }
                 ComposeNodeType::PerPair2D => {
-                    let inactive = data.start_template_node(pin.node);
+                    let node_data = self.start_template_node(node, data);
 
                     let space = self.make_pos_space(node, 0, data); 
                     let distance = self.make_number(node, 1, data); 
@@ -187,7 +187,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                     let value = TemplateValue::PositionPairSet2D(PositionPairSetTemplate::ByDistance((space, distance)));
 
                     let value_index = data.add_value(value);
-                    let template_index = data.finish_template_node(value_index, inactive);
+                    let template_index = node_data.finish_template_node(value_index, data);
 
                     TemplateValue::Position2D(PositionTemplate::PerPair((Hook {
                         template_index,
@@ -195,7 +195,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                     }, pin.output == 0)))
                 }
                 ComposeNodeType::PerPair3D => {
-                    let inactive = data.start_template_node(pin.node);
+                    let node_data = self.start_template_node(node, data);
                     
                     let space = self.make_pos_space(node, 0, data); 
                     let distance = self.make_number(node, 1, data); 
@@ -203,7 +203,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                     let value = TemplateValue::PositionPairSet3D(PositionPairSetTemplate::ByDistance((space, distance)));
                     
                     let value_index = data.add_value(value);
-                    let template_index = data.finish_template_node(value_index, inactive);
+                    let template_index = node_data.finish_template_node(value_index, data);
 
                     TemplateValue::Position3D(PositionTemplate::PerPair((Hook {
                         template_index,

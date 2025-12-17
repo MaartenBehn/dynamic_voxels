@@ -25,7 +25,7 @@ pub struct TemplateNode {
 pub struct Creates {
     pub to_create: TemplateIndex,
     pub t: CreatesType,
-    pub others: SmallVec<[TemplateIndex; 2]>
+    pub others: SmallVec<[TemplateIndex; 4]>
 }
 
 #[derive(Debug, Clone, Copy)]

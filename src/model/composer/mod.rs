@@ -173,8 +173,6 @@ where
 }
 
 
-
-
 fn div(ui: &mut egui::Ui, margin: Margin, add_contents: impl FnOnce(&mut egui::Ui)) {
     Frame::NONE
         .outer_margin(margin)

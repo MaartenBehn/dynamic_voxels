@@ -13,7 +13,7 @@ pub struct MakeTemplateData<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3,
     pub template: &'a mut Template<V2, V3, T, B>,
 }
 
-pub struct InactiveMakeTemplateData {
+pub struct MakeTemplateNodeData {
     pub building_template_index: TemplateIndex,
     pub created_by_node_id: Option<NodeId>,
 }
@@ -78,51 +78,27 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
             match &composer_node.t {
                 ComposeNodeType::Build(t) => {
                     if B::is_template_node(t) {
-                        let template_index = template.nodes.len();
- 
-                        template.nodes.push(
-                            TemplateNode {
-                                index: template_index,
-                                value_index: VALUE_INDEX_NODE,
-                                depends_loop: smallvec![],
-                                depends: smallvec![0],
-                                dependend: smallvec![],
-                                level: 0,
-                                creates: smallvec![],
-                                created_by: (TEMPLATE_INDEX_NONE, 0),
-                                dependecy_tree: Default::default(),
-                            }
-                        );
-                        template.map_node_id[node_id.0].0 = template_index;
-
                         let mut data = MakeTemplateData {
-                            building_template_index: template_index,
+                            building_template_index: TEMPLATE_INDEX_NONE,
                             template: &mut template,
                         };
 
-                        let value = B::get_template_value(GetTemplateValueArgs { 
+                        let node_data = graph.start_template_node(composer_node, &mut data);
+
+                        let value = TemplateValue::Build(B::get_template_value(GetTemplateValueArgs { 
                             compose_type: t, 
                             composer_node,
                             graph,
-                        }, &mut data);
+                        }, &mut data));
 
-                        let value_index = data.set_value(node_id, TemplateValue::Build(value));
-                        template.nodes[template_index].value_index = value_index;
-
-                        let creates_index = template.nodes[0].creates.len();
-                        template.nodes[template_index].created_by = (0, creates_index);
-
-                        template.nodes[0].creates.push(Creates {
-                            to_create: template_index,
-                            t: CreatesType::One,
-                            others: smallvec![],
-                        });
-
+                        let value_index = data.add_value(value);
+                        node_data.finish_template_node(value_index, &mut data);
                     }
                 }
                 _ => {}
             };
         }
+
         
         // Levels, cut loops and dependend
         for i in 0..template.nodes.len() {
@@ -201,8 +177,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
 
             }
         }
-
-        dbg!(&template);
  
         (*self) = template;
 
@@ -451,17 +425,21 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
     }
 }
 
-impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> MakeTemplateData<'a, V2, V3, T, B> {
-    pub fn start_template_node(&mut self, node_id: NodeId) -> InactiveMakeTemplateData {
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, T, B> {
+    pub fn start_template_node<'a>(
+        &self, 
+        node: &ComposeNode<B::ComposeType>, 
+        data: &mut MakeTemplateData<'a, V2, V3, T, B>
+    ) -> MakeTemplateNodeData {
         
-        let inactive = InactiveMakeTemplateData {
-            building_template_index: self.building_template_index,
-            created_by_node_id: self.template.get_,
+        let inactive = MakeTemplateNodeData {
+            building_template_index: data.building_template_index,
+            created_by_node_id: self.get_creates_input_remote_pin(node),
         };
 
-        let template_index = self.template.nodes.len();
+        let template_index = data.template.nodes.len();
  
-        self.template.nodes.push(
+        data.template.nodes.push(
             TemplateNode {
                 index: template_index,
                 value_index: VALUE_INDEX_NODE,
@@ -474,12 +452,63 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> MakeTemplateData<'
                 dependecy_tree: Default::default(),
             }
         );
-        self.template.map_node_id[node_id.0].0 = template_index;
+        data.template.map_node_id[node.id.0].0 = template_index;
 
-        self.building_template_index = template_index;
+        data.building_template_index = template_index;
         inactive
     }
+}
 
+impl MakeTemplateNodeData{
+    pub fn finish_template_node<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>>(
+        self,
+        value_index: ValueIndex,
+        data: &mut MakeTemplateData<'a, V2, V3, T, B>
+    ) -> TemplateIndex {
+        let node: &mut TemplateNode = &mut data.template.nodes[data.building_template_index]; 
+        node.value_index = value_index;
+
+        if let Some(create_by_node_id) = self.created_by_node_id {
+            let create_by_template_index = data.template.map_node_id[create_by_node_id.0].0;
+            
+            let others = node.depends.iter()
+                .filter(|i| **i != create_by_template_index)
+                .copied()
+                .collect();
+            
+            let creates_index = data.template.nodes[create_by_template_index].creates.len();
+            data.template.nodes[data.building_template_index].created_by = (create_by_template_index, creates_index);
+
+            data.template.nodes[create_by_template_index].creates.push(Creates {
+                to_create: data.building_template_index,
+                t: CreatesType::Children,
+                others,
+            });
+        } else {
+            node.depends.push(0);
+
+            let creates_index = data.template.nodes[0].creates.len();
+            data.template.nodes[data.building_template_index].created_by = (0, creates_index);
+            
+            data.template.nodes[0].creates.push(Creates {
+                to_create: data.building_template_index,
+                t: CreatesType::One,
+                others: Default::default(),
+            }); 
+        }
+
+        let template_index = data.building_template_index; 
+        data.building_template_index = self.building_template_index;
+
+        if data.building_template_index != TEMPLATE_INDEX_NONE {
+            data.template.nodes[data.building_template_index].depends.push(template_index);
+        } 
+
+        template_index
+    }
+}
+
+impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> MakeTemplateData<'a, V2, V3, T, B> {
     pub fn get_value_index_from_node_id(&mut self, node_id: NodeId) -> Option<ValueIndex> {
         self.template.get_value_index_from_node_id(node_id)
     }
@@ -498,10 +527,11 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> MakeTemplateData<'
         value_index
     }
 
+
     pub fn finish_template_node(
         &mut self,
         value_index: ValueIndex,
-        inactive: InactiveMakeTemplateData
+        inactive: MakeTemplateNodeData
     ) -> TemplateIndex {
         let node: &mut TemplateNode = &mut self.template.nodes[self.building_template_index]; 
         node.value_index = value_index;

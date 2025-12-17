@@ -12,9 +12,15 @@ public struct Node {
 }
 
 public struct Tree64 {
-  Node* TreeNodes;
-  uint8_t* LeafData;
+  Node* nodes;
+  uint8_t* leaf_data;
   uint start_index;
+
+  public __init(Node* nodes, uint8_t* leaf_data, uint start_index) {
+    this.nodes = nodes;
+    this.leaf_data = leaf_data;
+    this.start_index = start_index;
+  }
 
   public HitInfo RayCast(float3 rayPos, float3 rayDir, bool coarse) {
     HitInfo hit = Traversal(rayPos, rayDir, coarse);
@@ -62,7 +68,7 @@ public struct Tree64 {
     int scaleExp = 21;  // 0.25
 
     uint nodeIdx = start_index; // root
-    Node node = TreeNodes[nodeIdx];
+    Node node = nodes[nodeIdx];
  
     int i;
     for (i = 0; i < 256; i++) {
@@ -78,7 +84,7 @@ public struct Tree64 {
       while ((node.PopMask >> childIdx & 1) != 0 && !node.IsLeaf && scaleExp >= 2) {
         stack[scaleExp >> 1] = nodeIdx;
         nodeIdx = node.ChildPtr + popcnt_var64(node.PopMask, childIdx);
-        node = TreeNodes[nodeIdx];
+        node = nodes[nodeIdx];
         scaleExp -= 2;
         childIdx = GetNodeCellIndex(pos, scaleExp);
       }
@@ -121,7 +127,7 @@ public struct Tree64 {
 
         scaleExp = diffExp;
         nodeIdx = stack[scaleExp >> 1];
-        node = TreeNodes[nodeIdx];
+        node = nodes[nodeIdx];
       }
     }
     add_iter_count(i);
@@ -131,7 +137,7 @@ public struct Tree64 {
     if (node.IsLeaf && scaleExp <= 21) {
 
       int childIdx = GetNodeCellIndex(pos, scaleExp);
-      hit.MaterialId = LeafData[node.ChildPtr + popcnt_var64(node.PopMask, childIdx)];
+      hit.MaterialId = leaf_data[node.ChildPtr + popcnt_var64(node.PopMask, childIdx)];
       hit.Pos = pos;
    
       if (i > 0){
@@ -196,7 +202,7 @@ public struct Tree64 {
     int scaleExp = 21;  // 0.25
 
     uint nodeIdx = start_index; // root
-    Node node = TreeNodes[nodeIdx];
+    Node node = nodes[nodeIdx];
 
     invDir = 1.0f / -abs(dir);
     uint mirrorMask = 0;
@@ -217,7 +223,7 @@ public struct Tree64 {
       while ((node.PopMask >> childIdx & 1) != 0 && !node.IsLeaf) {
         stack[scaleExp >> 1] = nodeIdx;
         nodeIdx = node.ChildPtr + popcnt_var64(node.PopMask, childIdx);
-        node = TreeNodes[nodeIdx];
+        node = nodes[nodeIdx];
 
         scaleExp -= 2;
         childIdx = GetNodeCellIndex(pos, scaleExp) ^ mirrorMask;
@@ -248,7 +254,7 @@ public struct Tree64 {
         if (diffExp > 21) break;  // going out of root?
 
         nodeIdx = stack[scaleExp >> 1];
-        node = TreeNodes[nodeIdx];
+        node = nodes[nodeIdx];
       }
     }
     add_iter_count(i);
@@ -258,7 +264,7 @@ public struct Tree64 {
     if (node.IsLeaf && scaleExp <= 21) {
       pos = GetMirroredPos(pos, dir, false);
 
-      hit.MaterialId = LeafData[node.ChildPtr + popcnt_var64(node.PopMask, childIdx)];
+      hit.MaterialId = leaf_data[node.ChildPtr + popcnt_var64(node.PopMask, childIdx)];
       hit.Pos = pos;
 
       float tmax = min(min(sideDist.x, sideDist.y), sideDist.z);
@@ -282,7 +288,7 @@ public struct Tree64 {
     uint stack[11];
     int scale_exp = 21;  // 0.25
 
-    Node* node = &TreeNodes[0];
+    Node* node = &nodes[0];
     stack[scale_exp >> 1] = 0;
 
     if (abs(dir.x) < 0.0001) dir.x = 0.0001;
@@ -362,10 +368,10 @@ public struct Tree64 {
 
         pos = asfloat(subPos);
 
-        stack[scale_exp >> 1] = uint(uint64_t(node) - uint64_t(&TreeNodes[0])); // push
+        stack[scale_exp >> 1] = uint(uint64_t(node) - uint64_t(&nodes[0])); // push
         scale_exp = child_scale_exp;
 
-        node = &TreeNodes[node->ChildPtr + popcnt_var64(node->PopMask, currIdx)];
+        node = &nodes[node->ChildPtr + popcnt_var64(node->PopMask, currIdx)];
       } else {
         uint3 parentPos = asuint(pos);
 
@@ -393,7 +399,7 @@ public struct Tree64 {
 
         pos = asfloat(parentPos);
 
-        node = (Node*)(uint64_t(&TreeNodes[0]) + stack[scale_exp >> 1]); // pop
+        node = (Node*)(uint64_t(&nodes[0]) + stack[scale_exp >> 1]); // pop
       }
 
     }
@@ -403,7 +409,7 @@ public struct Tree64 {
     hit.MaterialId = 0;
 
     if (node->IsLeaf) {
-      hit.MaterialId = LeafData[node->ChildPtr + popcnt_var64(node->PopMask, currIdx)];
+      hit.MaterialId = leaf_data[node->ChildPtr + popcnt_var64(node->PopMask, currIdx)];
       hit.Pos = origin + tmin * dir;
 
       bool3 sideMask = stepIdx == int3(1, 16, 4);

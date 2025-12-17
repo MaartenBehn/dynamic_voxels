@@ -1,16 +1,43 @@
+// Based on https://github.com/dubiousconst282/VoxelRT/blob/e605812840a9f6abbadf84a436f8602e2972ee43/src/VoxelRT/Shaders/Havk/Core.slang
+
 [vk::binding(0, 0)] __DynamicResource TextureHeap[];
 [vk::binding(1, 0)] __DynamicResource RWTextureHeap[];
 
-public struct ImageHandle<T> {
+interface IImageDescriptor {
+    static const bool isWriteable;
+};
+
+__generic<E : ITexelElement, Shape : __ITextureShape, int isArray, int isMS, int sampleCount, int access, int isShadow, int format>
+extension _Texture<E, Shape, isArray, isMS, sampleCount, access, isShadow, 0, format> : IImageDescriptor {
+    static const bool isWriteable = access == 1;
+};
+
+public struct ImageHandle<T : IImageDescriptor & __IDynamicResourceCastable> {
     uint DescriptorIndex;
+
+    public property bool IsNull { get { return DescriptorIndex == ~0; } }
+
+    public property T Instance {
+        [ForceInline]
+        get { return (T.isWriteable ? RWTextureHeap : TextureHeap)[DescriptorIndex].as<T>(); }
+    }
+    public property T NonUniformInstance {
+        [ForceInline]
+        get { return (T.isWriteable ? RWTextureHeap : TextureHeap)[NonUniformResourceIndex(DescriptorIndex)].as<T>(); }
+    }
 }
 
-__generic<T: ITexelElement, Shape: __ITextureShape, let isArray: int, let isMS: int, let sampleCount: int, let access: int, let isShadow: int, let isCombined: int, let format: int>
-public extension ImageHandle<_Texture<T, Shape, isArray, isMS, sampleCount, access, isShadow, isCombined, format>> {
-    typealias TextureType = _Texture<T, Shape, isArray, isMS, sampleCount, access, isShadow, isCombined, format>;
+__generic<E : ITexelElement, Shape : __ITextureShape, let format : int>
+public extension ImageHandle<_Texture<E, Shape, 0, 0, 0, 1, 0, 0, format>> {
+    typealias TextureType = _Texture<E, Shape, 0, 0, 0, 1, 0, 0, format>;
 
-    public property TextureType Instance {
-        get { return (access != 0 ? RWTextureHeap : TextureHeap)[DescriptorIndex].as<TextureType>(); }
+    [ForceInline]
+    public E Load(vector<uint, Shape.dimensions> pos) {
+        return Instance[pos];
+    }
+    [ForceInline]
+    public void Store(vector<uint, Shape.dimensions> pos, E value) {
+        Instance[pos] = value;
     }
 }
 

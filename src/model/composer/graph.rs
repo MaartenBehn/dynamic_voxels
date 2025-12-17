@@ -167,6 +167,7 @@ impl ComposerNodeFlags {
     }
 
     pub fn set_deleted(&mut self, node_id: NodeId) {
+        self.enshure_nodes_list_index(node_id.0);
         self.added_nodes.set(node_id.0, false);
         self.changed_nodes.set(node_id.0, false);
 

@@ -127,7 +127,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         let mut to_create_children_list = vec![];
         let own_to_create_children= self.get_new_children(parent_index); 
         to_create_children_list.push(own_to_create_children.collect_vec());
-        
+
         for other_template_index in creates.others.iter() {
             let other_to_create_children = self.get_dependend_new_children(
                 *other_template_index, &depends);
@@ -146,8 +146,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
                 child.child_keys.iter()
                     .enumerate()
-                    .all(|(i, (index, child_key))| 
-                        self.is_child_valid(*index, *child_key))
+                    .any(|(i, (index, child_key))| 
+                        !self.is_child_valid(*index, *child_key))
                 })
             .map(|(key, _)| key )
             .collect::<Vec<_>>();
