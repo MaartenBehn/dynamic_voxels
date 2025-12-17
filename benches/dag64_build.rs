@@ -1,7 +1,7 @@
 use std::hint::black_box;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use octa_force::glam::{IVec3, UVec3, Vec3, Vec3A};
-use reload::{csg::{csg_tree::tree::CSGTree, sphere::CSGSphere}, multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, util::{math_config::{Float3D, Int3D}, number::Nu, vector::Ve}, volume::{VolumeQureyAABB, VolumeQureyPosValue}, voxel::{dag64::VoxelDAG64, grid::{shared::SharedVoxelGrid, VoxelGrid}, static_dag64::StaticVoxelDAG64}};
+use reload::{csg::{csg_tree::tree::CSGTree, sphere::CSGSphere}, util::{number::Nu, vector::Ve}, volume::{VolumeQureyAABB, VolumeQureyPosValue}, voxel::{dag64::VoxelDAG64, grid::VoxelGrid, static_dag64::StaticVoxelDAG64}};
 
 fn build_from_pos_query<V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3>>(model: &M) -> VoxelDAG64 {
     let mut dag = VoxelDAG64::new(100000, 64);
@@ -47,7 +47,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         |b, grid| b.iter(|| build_from_grid(black_box(grid))));
     
 
-    let sphere = CSGSphere::<u8, Int3D, 3>::new_sphere(Vec3A::ZERO, 100.0);
+    let sphere = CSGSphere::<u8, IVec3, i32, 3>::new_sphere(Vec3A::ZERO, 100.0, 1);
 
     group.bench_with_input(
         BenchmarkId::new("dag 64 from sphere", "pos int"), 
@@ -74,7 +74,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         b.iter(|| build_from_aabb_query_par(sphere)));
 
 
-    let sphere = CSGSphere::<u8, Float3D, 3>::new_sphere(Vec3A::ZERO, 100.0);
+    let sphere = CSGSphere::<u8, Vec3A, f32, 3>::new_sphere(Vec3A::ZERO, 100.0, 1);
 
     group.bench_with_input(
         BenchmarkId::new("dag 64 from sphere", "pos float"), 
@@ -121,7 +121,7 @@ fn criterion_benchmark(c: &mut Criterion) {
  
 
 
-    let mut csg = CSGTree::<u8, Int3D, 3>::new_sphere(Vec3A::ZERO, 100.0);
+    let mut csg = CSGTree::<u8, IVec3, i32, 3>::new_sphere_float(Vec3A::ZERO, 100.0, 1);
 
     group.bench_with_input(
         BenchmarkId::new("dag 64 from csg", "pos int"), 
@@ -148,7 +148,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         b.iter(|| build_from_aabb_query_par(csg)));
 
 
-    let mut csg = CSGTree::<u8, Float3D, 3>::new_sphere(Vec3A::ZERO, 100.0);
+    let mut csg = CSGTree::<u8, Vec3A, f32, 3>::new_sphere(Vec3A::ZERO, 100.0, 1);
 
     group.bench_with_input(
         BenchmarkId::new("dag 64 from csg", "pos float"), 

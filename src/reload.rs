@@ -227,6 +227,7 @@ pub fn update(
     #[cfg(feature="graph_builder")]
     render_state.islands.update(time, &logic_state.camera)?;
 
+    #[cfg(feature="graph_builder")]
     if render_state.islands.composer.render_panel_changed {
         render_state.islands.composer.render_panel_changed = false;
 

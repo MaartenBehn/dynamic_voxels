@@ -104,7 +104,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
                 volume.calculate_bounds();
 
                 let now = Instant::now();
-                let dag_key = args.state.dag.add_pos_query_volume(&volume).expect("Could not add DAG Entry!");
+                let dag_key = args.state.dag.add_aabb_query_volume(&volume).expect("Could not add DAG Entry!");
                 let elapsed = now.elapsed();
                 info!("Voxel DAG Build took: {:?}", elapsed);
 
