@@ -1,3 +1,5 @@
+use std::{marker::PhantomData, mem::ManuallyDrop};
+
 use egui_snarl::OutPinId;
 use itertools::{iproduct, Itertools};
 use smallvec::SmallVec;
@@ -16,6 +18,11 @@ pub enum VolumeTemplate {
         pos: ValueIndexPosition,
         size: ValueIndexNumber,
     },
+    Disk {
+        pos: ValueIndexPosition,
+        size: ValueIndexNumber,
+        height: ValueIndexNumber,
+    },
     Box {
         pos: ValueIndexPosition,
         size: ValueIndexNumber,
@@ -28,6 +35,18 @@ pub enum VolumeTemplate {
         base: ValueIndexVolume,
         cut: ValueIndexVolume,
     },
+}
+
+union TreeUnion<'a, M, VA: Ve<T, DA>, VB: Ve<T, DB>, T: Nu, const DA: usize, const DB: usize> {
+    a: &'a mut CSGTree<M, VA, T, DA>,
+    b: &'a mut CSGTree<M, VB, T, DB>,
+    p: PhantomData<T>,
+}
+
+union PositionUnion<VA: Ve<T, DA>, VB: Ve<T, DB>, T: Nu, const DA: usize, const DB: usize> {
+    a: VA,
+    b: VB,
+    p: PhantomData<T>,
 }
 
 impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, T, B> {
@@ -52,6 +71,11 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
             ComposeNodeType::Sphere => TemplateValue::Volume3D(VolumeTemplate::Sphere { 
                 pos: self.make_position(node, 0, data),
                 size: self.make_number(node, 1, data),
+            }),
+            ComposeNodeType::Disk => TemplateValue::Volume3D(VolumeTemplate::Disk { 
+                pos: self.make_position(node, 0, data),
+                size: self.make_number(node, 1, data),
+                height: self.make_number(node, 2, data),
             }),
             ComposeNodeType::Box2D => TemplateValue::Volume2D(VolumeTemplate::Box { 
                 pos: self.make_position(node, 0, data),
@@ -130,6 +154,27 @@ impl VolumeTemplate {
                 }
 
                 (roots, r_0 || r_1)            
+            },
+            VolumeTemplate::Disk { pos, size, height } => {
+                
+                let (pos, r_0) = template.get_position_value::<V, D>(*pos)
+                    .get_value(get_value_data, collapser, template);
+
+                let (size, r_1) = template.get_number_value(*size)
+                    .get_value(get_value_data, collapser, template);
+
+                let (height, r_2) = template.get_number_value(*height)
+                    .get_value(get_value_data, collapser, template);
+
+                let mut roots = vec![];
+                for (pos, size, height) in iproduct!(pos, size, height) {
+                    let tree: &mut CSGTree<M, V3, T, 3> = unsafe { TreeUnion { a: tree }.b };
+                    let pos: V3 = unsafe { PositionUnion { a: pos }.b };
+
+                    roots.push(tree.add_disk(pos.to_vecf(), size.to_f32(), height.to_f32(), mat));
+                }
+
+                (roots, r_0 || r_1 || r_2)            
             },
             VolumeTemplate::Box { pos, size } => {
                 let (pos, r_0) = template.get_position_value::<V, D>(*pos)

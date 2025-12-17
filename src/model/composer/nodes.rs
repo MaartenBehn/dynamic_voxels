@@ -51,6 +51,7 @@ pub enum ComposeNodeType<CT: ComposeTypeTrait> {
     EmpytVolume2D,
     EmpytVolume3D,
     Sphere,
+    Disk,
     Circle,
     Box2D,
     Box3D,
@@ -225,6 +226,12 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
         ComposeNode::new(ComposeNodeType::Sphere, ComposeNodeGroupe::Volume3D)
             .input(ComposeDataType::Position3D(None), "pos")
             .input(ComposeDataType::Number(Some(10)), "size")
+            .output(ComposeDataType::Volume3D, "v"),
+
+        ComposeNode::new(ComposeNodeType::Disk, ComposeNodeGroupe::Volume3D)
+            .input(ComposeDataType::Position3D(None), "pos")
+            .input(ComposeDataType::Number(Some(20)), "size")
+            .input(ComposeDataType::Number(Some(10)), "height")
             .output(ComposeDataType::Volume3D, "v"),
 
         ComposeNode::new(ComposeNodeType::Box2D, ComposeNodeGroupe::Volume2D)

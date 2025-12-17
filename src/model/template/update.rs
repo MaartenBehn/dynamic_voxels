@@ -400,6 +400,12 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
                         self.cut_loop_inner(pos, to_index);
                         self.cut_loop_inner(size, to_index);
                     },
+                    VolumeTemplate::Disk { pos, size, height } => {
+                        let (pos, size, height) = (*pos, *size, *height);
+                        self.cut_loop_inner(pos, to_index);
+                        self.cut_loop_inner(size, to_index);
+                        self.cut_loop_inner(height, to_index);
+                    },
                     VolumeTemplate::Box { pos, size } => {
                         let pos = *pos;
                         let size = *size;
