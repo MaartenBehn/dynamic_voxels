@@ -176,7 +176,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     {
         let palette = SharedPalette::new();
         let scene = Scene::new(&engine.context)?.run_worker(engine.context.get_alloc_context(), 1000); 
-        let islands = ComposeIsland::new(scene.send.to_owned(), &logic_state.camera); 
+        let islands = ComposeIsland::new(scene.send.to_owned(), &logic_state.camera, palette.clone()); 
 
         let mut renderer = SceneRenderer::new(
             &engine.context, 

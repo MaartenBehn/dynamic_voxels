@@ -5,7 +5,7 @@ use octa_force::{camera::Camera, egui, glam::{EulerRot, IVec2, IVec3, Mat4, Quat
 use slotmap::Key;
 use smallvec::SmallVec;
 
-use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::collapser::{CollapseNode, NodeDataType}, composer::{build::{CollapseValueTrait, ComposeTypeTrait, GetTemplateValueArgs, OnCollapseArgs, OnDeleteArgs, TemplateValueTrait, BS}, nodes::{ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeType}, ModelComposer}, data_types::{data_type::ComposeDataType, position::{PositionTemplate, ValueIndexPosition}, volume::{ValueIndexVolume, VolumeTemplate}}, template::update::MakeTemplateData}, scene::{dag_store::SceneDAGKey, worker::SceneWorkerSend, SceneObjectKey}, util::{number::Nu, vector::Ve}, volume::VolumeBounds, voxel::{dag64::{parallel::ParallelVoxelDAG64, DAG64EntryKey, VoxelDAG64}, palette::palette::MATERIAL_ID_BASE}, METERS_PER_SHADER_UNIT, VOXELS_PER_SHADER_UNIT};
+use crate::{METERS_PER_SHADER_UNIT, VOXELS_PER_SHADER_UNIT, csg::csg_tree::tree::CSGTree, model::{collapse::collapser::{CollapseNode, NodeDataType}, composer::{ModelComposer, build::{BS, CollapseValueTrait, ComposeTypeTrait, GetTemplateValueArgs, OnCollapseArgs, OnDeleteArgs, TemplateValueTrait}, nodes::{ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeType}}, data_types::{data_type::ComposeDataType, position::{PositionTemplate, ValueIndexPosition}, volume::{ValueIndexVolume, VolumeTemplate}}, template::update::MakeTemplateData}, scene::{SceneObjectKey, dag_store::SceneDAGKey, worker::SceneWorkerSend}, util::{number::Nu, vector::Ve}, volume::VolumeBounds, voxel::{dag64::{DAG64EntryKey, VoxelDAG64, parallel::ParallelVoxelDAG64}, palette::{palette::MATERIAL_ID_BASE, shared::SharedPalette}}};
 
 // Compose Type
 #[derive(Debug)]
@@ -94,7 +94,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
             TemplateValue::Object(object_template) => {
 
                 let (mut volume, r_0) = args.template.get_volume_value(object_template.volume)
-                    .get_value::<V3, V2, V3, T, Self, u8, 3>(args.get_value_data, args.collapser, args.template, MATERIAL_ID_BASE);
+                    .get_value::<V3, V2, V3, T, Self, u8, 3>(args.get_value_data, args.collapser, args.template);
 
                 let (mut pos, r_1) = args.template.get_position3d_value(object_template.pos)
                     .get_value(args.get_value_data, args.collapser, args.template);
@@ -142,7 +142,7 @@ fn delete_object(
 }
 
 impl ComposeIsland {
-    pub fn new(scene: SceneWorkerSend, camera: &Camera) -> Self {
+    pub fn new(scene: SceneWorkerSend, camera: &Camera, palette: SharedPalette) -> Self {
         let mut dag = VoxelDAG64::new(1000000, 1000000).parallel();
         let scene_dag_key = scene.add_dag(dag.clone()).result_blocking();
         let mut state =  ComposeIslandState {
@@ -152,7 +152,7 @@ impl ComposeIsland {
         }; 
 
         Self {
-            composer: ModelComposer::new(state, camera),
+            composer: ModelComposer::new(state, camera, palette),
         }
     }
 

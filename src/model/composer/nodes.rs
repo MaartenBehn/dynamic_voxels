@@ -1,7 +1,7 @@
 use egui_snarl::NodeId;
 use octa_force::egui::Ui;
 
-use crate::{model::data_types::data_type::ComposeDataType, util::{number::Nu, vector::Ve}};
+use crate::{model::data_types::data_type::ComposeDataType, util::{number::Nu, vector::Ve}, voxel::palette::palette::{MATERIAL_ID_BASE, MATERIAL_ID_NONE}};
 
 use super::build::ComposeTypeTrait;
 
@@ -55,6 +55,8 @@ pub enum ComposeNodeType<CT: ComposeTypeTrait> {
     Circle,
     Box2D,
     Box3D,
+    VolumeMaterial2D,
+    VolumeMaterial3D,
 
     UnionVolume2D,
     UnionVolume3D,
@@ -242,8 +244,7 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
         ComposeNode::new(ComposeNodeType::Box3D, ComposeNodeGroupe::Volume3D)
             .input(ComposeDataType::Position3D(None), "pos")
             .input(ComposeDataType::Position3D(None), "size")
-            .output(ComposeDataType::Volume3D, "v"),
-
+            .output(ComposeDataType::Volume3D, "v"), 
 
         // CSG Operations
         ComposeNode::new(ComposeNodeType::UnionVolume2D, ComposeNodeGroupe::Volume2D)
@@ -265,6 +266,17 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
             .input(ComposeDataType::Volume3D, "base")
             .input(ComposeDataType::Volume3D, "cut")
             .output(ComposeDataType::Volume3D, "v"),
+
+        ComposeNode::new(ComposeNodeType::VolumeMaterial2D, ComposeNodeGroupe::Volume2D)
+            .input(ComposeDataType::Volume2D, "v")
+            .input(ComposeDataType::Material([255, 255, 255]), "")
+            .output(ComposeDataType::Volume2D, "v"),
+
+        ComposeNode::new(ComposeNodeType::VolumeMaterial3D, ComposeNodeGroupe::Volume3D)
+            .input(ComposeDataType::Volume3D, "v")
+            .input(ComposeDataType::Material([255, 255, 255]), "")
+            .output(ComposeDataType::Volume3D, "v"),
+
  
         // Math
         ComposeNode::new(ComposeNodeType::SplitPosition2D, ComposeNodeGroupe::Math)

@@ -14,6 +14,8 @@ pub enum ComposeDataType {
 
     Volume2D,
     Volume3D,
+    
+    Material([u8; 3]),
 
     Creates,
 }

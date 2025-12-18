@@ -56,7 +56,8 @@ impl ComposerNodeFlags {
                     ComposeDataType::Number(_)
                     | ComposeDataType::Position2D(_)
                     | ComposeDataType::Position3D(_) 
-                    | ComposeDataType::Creates => {
+                    | ComposeDataType::Creates 
+                    | ComposeDataType::Material(_) => {
                         input.valid = true;
                     },
                     _ => {

@@ -127,7 +127,7 @@ impl PositionSpaceTemplate {
         match &self {
             PositionSpaceTemplate::Grid(grid)  => {
                 let (mut volume, r_0) = template.get_volume_value(grid.volume)
-                    .get_value::<V, V2, V3, T, B, (), D>(get_value_data, collapser, template, ());
+                    .get_value::<V, V2, V3, T, B, (), D>(get_value_data, collapser, template);
 
                 let (spacing, r_1) =  template.get_number_value(grid.spacing)
                     .get_value(get_value_data, collapser, template);
@@ -143,7 +143,7 @@ impl PositionSpaceTemplate {
             },
             PositionSpaceTemplate::LeafSpread(spread) => {
                 let (mut volume, r_0) = template.get_volume_value(spread.volume)
-                    .get_value(get_value_data, collapser, template, ());
+                    .get_value::<V, V2, V3, T, B, (), D>(get_value_data, collapser, template);
 
                 let (samples, r_1) =  template.get_number_value(spread.samples)
                     .get_value(get_value_data, collapser, template);

@@ -44,6 +44,17 @@ impl Palette for LocalPalette {
             bail!("Palette full!");
         }
     }
+
+    fn colors(&self) -> Vec<(u8, [u8; 3])> {
+        self.used.iter_ones()
+            .skip(1)
+            .map(|i| (i as u8, self.materials[i].color))
+            .collect() 
+    }
+
+    fn get_color(&self, mat: u8) -> [u8; 3] {
+        self.materials[mat as usize].color
+    }
 }
 
 pub fn get_rgb_color(c: Vec3A) -> [u8; 3] {

@@ -48,6 +48,17 @@ impl Palette for SharedPalette {
             }
         })
     }
+
+    fn colors(&self) -> Vec<(u8, [u8; 3])> {
+        let mut palette = self.palette.read();
+        palette.colors()
+    }
+
+    fn get_color(&self, mat: u8) -> [u8; 3] {
+        let mut palette = self.palette.read();
+        palette.get_color(mat)
+    }
+
 }
 
 

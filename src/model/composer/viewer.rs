@@ -3,10 +3,10 @@ use std::{marker::PhantomData, time::Duration};
 use bitvec::vec::BitVec;
 use egui_snarl::{ui::{AnyPins, NodeLayout, PinInfo, PinPlacement, SnarlStyle, SnarlViewer}, InPin, InPinId, NodeId, OutPin, OutPinId, Snarl};
 use itertools::Itertools;
-use octa_force::{egui::{self, Color32, CornerRadius, DragValue, Pos2, Ui}, glam::{IVec2, IVec3, Vec2, Vec3A}, log::debug};
+use octa_force::{egui::{self, Color32, CornerRadius, DragValue, Pos2, Sense, StrokeKind, Ui, WidgetInfo, WidgetType, color_picker::color_edit_button_rgb}, glam::{IVec2, IVec3, Vec2, Vec3A}, log::debug};
 use smallvec::SmallVec;
 
-use crate::{model::data_types::data_type::ComposeDataType, util::{number::Nu, vector::Ve}};
+use crate::{model::data_types::data_type::ComposeDataType, util::{number::Nu, vector::Ve}, voxel::palette::{Palette, picker::palette_color_picker, shared::SharedPalette}};
 
 use super::{build::{ComposeTypeTrait, BS}, graph::ComposerNodeFlags, nodes::{get_node_templates, ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeOutput, ComposeNodeType}, pin::ComposePin};
 
@@ -17,6 +17,7 @@ pub struct ComposeViewer<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>
     pub templates: &'a ComposeViewerTemplates<V2, V3, T, B>,
     pub data: &'a mut ComposeViewerData,
     pub flags: &'a mut ComposerNodeFlags,
+    pub palette: &'a mut SharedPalette,
 }
 
 #[derive(Debug)]
@@ -226,6 +227,9 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<Compos
 
                     res_0.lost_focus() || res_0.dragged() || res_1.lost_focus() || res_1.dragged() || res_2.lost_focus() || res_2.dragged()
                 },
+                ComposeDataType::Material(color) => {
+                    palette_color_picker(ui, self.palette, color)
+                }
                 _ => false,
             }
         } else {
@@ -526,6 +530,4 @@ pub fn to_output<'a, CT: ComposeTypeTrait>(
 ) -> &'a ComposeNodeOutput {
     &snarl[out_pin.id.node].outputs[out_pin.id.output]
 }
-
-
 

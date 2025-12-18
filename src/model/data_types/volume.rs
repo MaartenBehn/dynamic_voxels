@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, mem::ManuallyDrop};
+use std::{any::TypeId, marker::PhantomData, mem::ManuallyDrop};
 
 use egui_snarl::OutPinId;
 use itertools::{iproduct, Itertools};
@@ -35,11 +35,15 @@ pub enum VolumeTemplate {
         base: ValueIndexVolume,
         cut: ValueIndexVolume,
     },
+    Material {
+        mat: u8,
+        child: ValueIndexVolume,
+    },
 }
 
-union TreeUnion<'a, M, VA: Ve<T, DA>, VB: Ve<T, DB>, T: Nu, const DA: usize, const DB: usize> {
-    a: &'a mut CSGTree<M, VA, T, DA>,
-    b: &'a mut CSGTree<M, VB, T, DB>,
+union TreeUnion<'a, MA, MB, VA: Ve<T, DA>, VB: Ve<T, DB>, T: Nu, const DA: usize, const DB: usize> {
+    a: &'a mut CSGTree<MA, VA, T, DA>,
+    b: &'a mut CSGTree<MB, VB, T, DB>,
     p: PhantomData<T>,
 }
 
@@ -101,6 +105,14 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                 base: self.make_volume(node, 0, data),
                 cut: self.make_volume(node, 1, data),
             }),
+            ComposeNodeType::VolumeMaterial2D => TemplateValue::Volume2D(VolumeTemplate::Material {
+                child: self.make_volume(node, 0, data),
+                mat: self.make_material(node, 1, data),
+            }),
+            ComposeNodeType::VolumeMaterial3D => TemplateValue::Volume3D(VolumeTemplate::Material {
+                child: self.make_volume(node, 0, data),
+                mat: self.make_material(node, 1, data),
+            }),
             _ => unreachable!(),
         };
 
@@ -114,11 +126,10 @@ impl VolumeTemplate {
         get_value_data: GetValueData,
         collapser: &Collapser<V2, V3, T, B>,
         template: &Template<V2, V3, T, B>,
-        mat: M,
     ) -> (CSGTree<M, V, T, D>, bool) {
         let mut tree = CSGTree::default();
 
-        let (roots, r) = self.get_value_inner(get_value_data, collapser, template, mat, &mut tree);
+        let (roots, r) = self.get_value_inner(get_value_data, collapser, template, M::base(), &mut tree);
         
         if roots.len() == 1 {
             tree.set_root(roots[0]);
@@ -141,7 +152,7 @@ impl VolumeTemplate {
 
         match &self {
             VolumeTemplate::Sphere { pos, size } => {
-                
+    
                 let (pos, r_0) = template.get_position_value::<V, D>(*pos)
                     .get_value(get_value_data, collapser, template);
 
@@ -156,7 +167,7 @@ impl VolumeTemplate {
                 (roots, r_0 || r_1)            
             },
             VolumeTemplate::Disk { pos, size, height } => {
-                
+    
                 let (pos, r_0) = template.get_position_value::<V, D>(*pos)
                     .get_value(get_value_data, collapser, template);
 
@@ -221,7 +232,7 @@ impl VolumeTemplate {
                 } else {
                     tree.add_union_node(base)
                 };
-                
+    
                 let cut = if cut.len() == 1 {
                     cut[0]
                 } else {
@@ -231,6 +242,22 @@ impl VolumeTemplate {
                 let root = tree.add_cut_node(base, cut);
 
                 (vec![root], r_0 || r_1)
+            },
+            VolumeTemplate::Material { mat: new_mat, child } => {
+
+                // Compiletime if statement: 
+                // If M is u8 then the child will be created with new_mat as material
+                // otherwise just create the child
+                if TypeId::of::<M>() == TypeId::of::<u8>() {
+                    
+                    let tree: &mut CSGTree<u8, V, T, D> = unsafe { TreeUnion { a: tree }.b };
+
+                    template.get_volume_value(*child)
+                        .get_value_inner(get_value_data, collapser, template, *new_mat, tree)
+                } else {
+                    template.get_volume_value(*child)
+                        .get_value_inner(get_value_data, collapser, template, mat, tree) 
+                }
             },
         }
     }

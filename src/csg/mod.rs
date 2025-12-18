@@ -8,7 +8,7 @@ pub mod sphere;
 pub mod r#box;
 pub mod all;
 
-pub trait Base: Copy + Default + fmt::Debug {
+pub trait Base: Copy + Default + fmt::Debug + 'static {
     fn base() -> Self;
 }
 

@@ -15,7 +15,7 @@ use nodes::ComposeNode;
 use octa_force::{anyhow::anyhow, camera::Camera, egui::{self, Align, CornerRadius, Frame, Id, Layout, Margin}, glam::{uvec2, UVec2, Vec2}, log::{debug, info, warn}, OctaResult};
 use viewer::{style, ComposeViewer, ComposeViewerData, ComposeViewerTemplates};
 
-use crate::{model::collapse::external_input::ExternalInput, util::{number::Nu, vector::Ve}};
+use crate::{model::collapse::external_input::ExternalInput, util::{number::Nu, vector::Ve}, voxel::palette::shared::SharedPalette};
 
 use super::{collapse::worker::{CollapserChangeReciver, ComposeCollapseWorker}, template::Template};
 
@@ -40,6 +40,7 @@ pub struct ModelComposer<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub render_panel_offset: UVec2,
 
     pub external_input: ExternalInput,
+    pub palette: SharedPalette,
 }
 
 impl<V2, V3, T, B> ModelComposer<V2, V3, T, B> 
@@ -50,7 +51,7 @@ where
     B: BS<V2, V3, T>,
     B::ComposeType: serde::Serialize + serde::de::DeserializeOwned,
 {
-    pub fn new(state: B, camera: &Camera) -> Self {
+    pub fn new(state: B, camera: &Camera, mut palette: SharedPalette) -> Self {
         let mut graph = ComposerGraph::new();
 
         let style = style();
@@ -58,7 +59,7 @@ where
         let viewer_data = ComposeViewerData::new();
 
         let mut template = Template::empty();
-        template.update(&graph);
+        template.update(&graph, &mut palette);
 
         let external_input = ExternalInput::new(camera);
         let (collapser_worker, collapser_reciver) = ComposeCollapseWorker::new(template.clone(), state, external_input);
@@ -81,6 +82,7 @@ where
             render_panel_offset: UVec2::ZERO,
 
             external_input,
+            palette,
         }
     }
 
@@ -95,6 +97,7 @@ where
                     templates: &self.viewer_templates,
                     data: &mut self.viewer_data,
                     flags: &mut self.graph.flags,
+                    palette: &mut self.palette,
                 };
 
                 SnarlWidget::new()
@@ -153,7 +156,7 @@ where
                 
                 let now = Instant::now();
 
-                let updates = self.template.update(&self.graph);
+                let updates = self.template.update(&self.graph, &mut self.palette);
                 self.collapser_worker.template_changed(self.template.clone(), updates, self.external_input);
 
                 let elapsed = now.elapsed();

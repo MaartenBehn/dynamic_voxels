@@ -4,13 +4,14 @@ use egui_snarl::{InPinId, NodeId, OutPinId};
 use octa_force::log::trace;
 use smallvec::{SmallVec, smallvec};
 
-use crate::{model::{composer::{build::{GetTemplateValueArgs, BS}, graph::{self, ComposerGraph, ComposerNodeFlags}, nodes::{ComposeNode, ComposeNodeType}, ModelComposer}, data_types::{data_type::ComposeDataType, number::NumberTemplate, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::VALUE_INDEX_NODE}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{composer::{ModelComposer, build::{BS, GetTemplateValueArgs}, graph::{self, ComposerGraph, ComposerNodeFlags}, nodes::{ComposeNode, ComposeNodeType}}, data_types::{data_type::ComposeDataType, number::NumberTemplate, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::VALUE_INDEX_NODE}}, util::{number::Nu, vector::Ve}, voxel::palette::shared::SharedPalette};
 
 use super::{dependency_tree::get_dependency_tree_and_loop_paths, nodes::TemplateNode, value::{TemplateValue, ValueIndex}, Template, TemplateIndex, TEMPLATE_INDEX_NONE};
 
 pub struct MakeTemplateData<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub building_template_index: TemplateIndex,
     pub template: &'a mut Template<V2, V3, T, B>,
+    pub palette: &'a mut SharedPalette,
 }
 
 pub struct MakeTemplateNodeData {
@@ -46,7 +47,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
         }
     }
 
-    pub fn update(&mut self, graph: &ComposerGraph<V2, V3, T, B>) -> Vec<TemplateNodeUpdate> {
+    pub fn update(&mut self, graph: &ComposerGraph<V2, V3, T, B>, palette: &mut SharedPalette) -> Vec<TemplateNodeUpdate> {
         
         let mut template = Template {
             nodes: vec![
@@ -81,6 +82,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
                         let mut data = MakeTemplateData {
                             building_template_index: TEMPLATE_INDEX_NONE,
                             template: &mut template,
+                            palette,
                         };
 
                         let node_data = graph.start_template_node(composer_node, &mut data);
@@ -423,6 +425,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
                         let cut = *cut;
                         self.cut_loop_inner(base, to_index);
                         self.cut_loop_inner(cut, to_index);
+                    },
+                    VolumeTemplate::Material { mat, child } => {
+                        let child = *child;
+                        self.cut_loop_inner(child, to_index);
                     },
                 }
             },
