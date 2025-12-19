@@ -12,9 +12,7 @@ use super::{collapser::{CollapseChildKey, CollapseNodeKey, Collapser, NodeDataTy
 #[derive(Debug, Clone, Copy)]
 pub struct GetValueData<'a> {
     pub defined_by: CollapseNodeKey,
-    pub index: CollapseNodeKey,
-    pub child_indexs: &'a [(CollapseNodeKey, CollapseChildKey)],
-    pub depends: &'a [(TemplateIndex, Vec<CollapseNodeKey>)],
+    pub depends: &'a [(TemplateIndex, Vec<(CollapseNodeKey, CollapseChildKey)>)],
     pub depends_loop: &'a [(TemplateIndex, DependencyPath)],
 
     pub external_input: ExternalInput,
@@ -90,7 +88,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         }
 
         let depends = self.get_depends(
-            parent_index, 
+            parent_index,
+            CollapseChildKey::null(),
             template,
             parent_template_node,
             template_node);
@@ -99,7 +98,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             template_index, 
             depends, 
             parent_index, 
-            vec![], 
+            CollapseChildKey::null(), 
             template, 
             state,
         ).await;    
@@ -117,47 +116,32 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         let parent_template_node = &template.nodes[parent_node.template_index];
         let creates: &Creates = &parent_template_node.creates[creates_index];
         let template_node = &template.nodes[template_index];
-
-        let depends = self.get_depends(
-            parent_index,    
-            template,
-            parent_template_node,
-            template_node);
          
-        let mut to_create_children_list = vec![];
-        let own_to_create_children= self.get_new_children(parent_index); 
-        to_create_children_list.push(own_to_create_children.collect_vec());
-
-        for other_template_index in creates.others.iter() {
-            let other_to_create_children = self.get_dependend_new_children(
-                *other_template_index, &depends);
-            to_create_children_list.push(other_to_create_children.collect_vec());
-        }
-
-        let to_create_children = to_create_children_list.into_iter().multi_cartesian_product();
-
         let to_remove_children = parent_node.children.iter()
             .find(|(template_index, _)| *template_index == creates.to_create)
             .map(|(_, children)| children)
             .unwrap_or(&vec![])
             .iter()
-            .map(|key| (*key, &self.nodes[*key]) )
-            .filter(|(_, child)| {
-
-                child.child_keys.iter()
-                    .enumerate()
-                    .any(|(i, (index, child_key))| 
-                        !self.is_child_valid(*index, *child_key))
-                })
-            .map(|(key, _)| key )
+            .map(|(i, _)| (*i, &self.nodes[*i]) )
+            .filter(|(i, child)| 
+                !self.is_child_valid(*i, child.child_key))  
+            .map(|(i, _)| i )
             .collect::<Vec<_>>();
 
-        for new_children in to_create_children.to_owned() {
+        for child_key in self.get_new_children(parent_index).collect_vec() {
+            let depends = self.get_depends(
+                parent_index,   
+                child_key,
+                template,
+                parent_template_node,
+                template_node);
+
+
             self.add_node(
                 creates.to_create, 
-                depends.clone(), 
+                depends, 
                 parent_index, 
-                new_children, 
+                child_key, 
                 template, 
                 state,
             ).await; 
@@ -172,9 +156,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
     pub async fn add_node(
         &mut self, 
         new_node_template_index: TemplateIndex, 
-        depends: Vec<(TemplateIndex, Vec<CollapseNodeKey>)>, 
+        depends: Vec<(TemplateIndex, Vec<(CollapseNodeKey, CollapseChildKey)>)>, 
         defined_by: CollapseNodeKey,
-        child_keys: Vec<(CollapseNodeKey, CollapseChildKey)>,
+        child_key: CollapseChildKey,
         template: &Template<V2, V3, T, B>,
         state: &mut B,
     ) {
@@ -199,20 +183,20 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             defined_by,
             data,
             next_reset: CollapseNodeKey::null(),
-            child_keys,
+            child_key,
         });
         self.nodes_per_template_index[new_node_template.index].push(index);
 
         for (_, dependend) in depends.iter() {
-            for depend in dependend.iter() {
+            for (depend, depend_child_key) in dependend.iter() {
                 let children_list = self.nodes[*depend].children.iter_mut()
                     .find(|(template_index, _)| *template_index == new_node_template.index)
                     .map(|(_, c)| c);
 
                 if children_list.is_none() {
-                    self.nodes[*depend].children.push((new_node_template.index, vec![index]));
+                    self.nodes[*depend].children.push((new_node_template.index, vec![(index, *depend_child_key)]));
                 } else {
-                    children_list.unwrap().push(index);
+                    children_list.unwrap().push((index, *depend_child_key));
                 };
             }
         }

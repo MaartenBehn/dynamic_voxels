@@ -38,13 +38,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
                     self.node(ui, creates.to_create, node_counter);
 
                     ui.label(format!("Type: {:#?}", creates.t));
-
-                    if !creates.others.is_empty() {
-                        ui.strong("Other Ammounts:");
-                        for other in creates.others.iter() {
-                            self.node(ui, *other, node_counter);
-                        }
-                    }
                 }
             }
 

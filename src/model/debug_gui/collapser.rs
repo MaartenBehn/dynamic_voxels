@@ -61,7 +61,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             if !node.children.is_empty() {
                 ui.strong("Children:");
                 for (_, c) in node.children.iter() {
-                    for key in c {
+                    for (key, _) in c {
                         i = self.node(ui, *key, i+1);
                     }
                 }
@@ -70,7 +70,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             if !node.depends.is_empty() {
                 ui.strong("Depends:");
                 for (_, c) in node.depends.iter() {
-                    for key in c {
+                    for (key, _) in c {
                         i = self.node(ui, *key, i+1);
                     }
                 }

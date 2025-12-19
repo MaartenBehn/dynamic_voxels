@@ -39,7 +39,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         self.pending.delete_collapse(template_node.level, node_index);
 
         for (_, depends) in node.depends.iter() {
-            for depend in depends {
+            for (depend, _) in depends {
                 let Some(depends_node) = self.nodes.get_mut(*depend) else { 
                     continue;
                 };
@@ -51,7 +51,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
                     .expect("When deleting node the template index of the node was not present in the children of a dependency");
 
                 let i = children.iter()
-                    .position(|t| *t == node_index)
+                    .position(|(t, _)| *t == node_index)
                     .expect("When deleting node index of the node was not present in the children of a dependency");
 
                 children.swap_remove(i);
@@ -62,7 +62,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             }
         }
 
-        for child in node.children.iter()
+        for (child, _) in node.children.iter()
             .map(|(_, c)| c) 
             .flatten() {
 

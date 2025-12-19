@@ -165,20 +165,31 @@ impl DependencyTree {
         path: &DependencyPath,
         depends_index: usize,
     ) {
+        dbg!(&node);
+        dbg!(&path);
+
         assert!(path.steps[0].up, "DependencyTree must allways first go into the parent");
 
         if self.steps.is_empty() {
-            for step in path.steps.iter() {
+            for (i, step) in path.steps.iter()
+                .take(path.steps.len() - 1)
+                .enumerate() {
                 self.steps.push(DependencyTreeStep { 
                     into_index: step.into_index, 
-                    children: vec![], 
+                    children: vec![i + 1], 
                     up: step.up, 
                     leaf: None, 
                 });
             }
+
+            let step = path.steps.last().unwrap(); 
+            self.steps.push(DependencyTreeStep { 
+                into_index: step.into_index, 
+                children: vec![], 
+                up: step.up, 
+                leaf: Some(depends_index), 
+            });
             
-            let last_index =  self.steps.len() - 1; 
-            self.steps[last_index].leaf = Some(depends_index);
             return
         } 
         

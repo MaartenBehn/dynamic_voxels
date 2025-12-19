@@ -22,10 +22,10 @@ pub struct Collapser<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
 #[derive(Debug, Clone)]
 pub struct CollapseNode<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub template_index: usize,
-    pub children: Vec<(TemplateIndex, Vec<CollapseNodeKey>)>, 
-    pub depends: Vec<(TemplateIndex, Vec<CollapseNodeKey>)>,
+    pub children: Vec<(TemplateIndex, Vec<(CollapseNodeKey, CollapseChildKey)>)>, 
+    pub depends: Vec<(TemplateIndex, Vec<(CollapseNodeKey, CollapseChildKey)>)>,
     pub defined_by: CollapseNodeKey,
-    pub child_keys: Vec<(CollapseNodeKey, CollapseChildKey)>,
+    pub child_key: CollapseChildKey,
     pub data: NodeDataType<V2, V3, T, B>,
     pub next_reset: CollapseNodeKey,
 }
@@ -74,7 +74,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             0, 
             vec![], 
             CollapseNodeKey::null(), 
-            vec![], 
+            CollapseChildKey::null(), 
             template,
             state).await;
 
@@ -122,12 +122,12 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         #[cfg(debug_assertions)]
         info!("{:?} Collapse", node_index);
 
+        dbg!(&self.nodes);
+
         let get_value_data = GetValueData { 
             defined_by: node.defined_by, 
-            child_indexs: &node.child_keys, 
             depends: &node.depends, 
             depends_loop: &template_node.depends_loop,
-            index: node_index,
             external_input,
         }; 
 
@@ -227,7 +227,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         let node = &self.nodes[node_index];
 
         for (_, list) in node.children.iter() {
-            for child_index in list.iter() {
+            for (child_index, _) in list.iter() {
 
                 let child_node = &self.nodes[*child_index];
                 let template_node = &template.nodes[child_node.template_index]; 
@@ -236,7 +236,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         }
     }
 
-    pub fn get_new_children(&self, index: CollapseNodeKey) -> impl Iterator<Item = (CollapseNodeKey, CollapseChildKey)> {
+    pub fn get_new_children(&self, index: CollapseNodeKey) -> impl Iterator<Item = CollapseChildKey> {
         let node = self.nodes.get(index)
             .expect("New Children Node not found");
 
@@ -253,8 +253,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             => panic!("Called get new children on node that has no children"),
         };
 
-        keys.iter()
-            .map(move |k| (index, *k))
+        keys.into_iter()
+            .copied()
     }
 
     pub fn is_child_valid(
@@ -396,27 +396,12 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             _ => unreachable!()
         }
     }
- 
-    pub fn get_dependend_new_children(
-        &self, 
-        template_index: TemplateIndex,
-        depends: &[(TemplateIndex, Vec<CollapseNodeKey>)],
-    ) -> impl Iterator<Item = (CollapseNodeKey, CollapseChildKey)> {
-
-        let (_, keys) = depends.iter()
-            .find(|(i, _)| *i == template_index)
-            .expect("New Child node not in depends");
-
-        keys.iter()
-            .map(|key| self.get_new_children(*key))
-            .flatten()
-    }
- 
+  
     fn get_dependend_index_value_data(
         &self, 
         template_index: TemplateIndex,
         get_value_data: GetValueData,
-    ) -> (impl Iterator<Item = CollapseNodeKey>, bool) {
+    ) -> (impl Iterator<Item = (CollapseNodeKey, CollapseChildKey)>, bool) {
         if let Some((_, keys)) = get_value_data.depends.iter().find(|(i, _)| *i == template_index) {
             return (IM3::A(keys.iter().copied()), false);
         }
@@ -430,17 +415,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
     }
 
-    fn get_child_index(
-        &self, 
-        index: CollapseNodeKey,
-        get_value_data: GetValueData,
-    ) -> Option<CollapseChildKey> {
-        get_value_data.child_indexs.iter()
-            .find(|(i, _)| *i == index)
-            .map(|(_, ci)| *ci)
-    }
-
-      
+    /*
     pub fn get_dependend_number(
         &self, 
         template_index: TemplateIndex,
@@ -449,18 +424,18 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         let (iter, r) = self.get_dependend_index_value_data(template_index, get_value_data);
         (iter.map(|i| self.get_number(i)), r)
     }
+    */
      
     pub fn get_dependend_position<V: Ve<T, D>, const D: usize>(
         &self, 
         template_index: TemplateIndex,
         get_value_data: GetValueData,
-    ) -> (impl Iterator<Item = V>, bool) { 
+    ) -> (impl Iterator<Item = V>, bool) {
         let (iter, r) = self.get_dependend_index_value_data(template_index, get_value_data);
 
-        (iter.map(move |i| {
-            let child_index = self.get_child_index(i, get_value_data);
-            if let Some(child_index) = child_index {
-                IM2::A(iter::once(self.get_position(i, child_index)))
+        (iter.map(move |(i, child_key)| {
+            if !child_key.is_null() {
+                IM2::A(iter::once(self.get_position(i, child_key)))
             } else {
                 IM2::B(self.get_positions(i))
             }
@@ -474,15 +449,13 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
     ) -> (impl Iterator<Item = (V, V)>, bool) { 
         let (iter, r) = self.get_dependend_index_value_data(template_index, get_value_data);
         
-        (iter.map(move |i| {
-            let child_index = self.get_child_index(i, get_value_data);
-            if let Some(child_index) = child_index {
-                IM2::A(iter::once(self.get_position_pair(i, child_index)))
+        (iter.map(move |(i, child_key)| {
+            if !child_key.is_null() {
+                IM2::A(iter::once(self.get_position_pair(i, child_key)))
             } else {
                 IM2::B(self.get_position_pairs(i))
             }
-        }).flatten(), r)
-        
+        }).flatten(), r)        
     }
 
     pub fn get_root_key(&self) -> CollapseNodeKey {

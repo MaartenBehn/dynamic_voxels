@@ -3,7 +3,7 @@ use std::iter;
 use itertools::Itertools;
 use slotmap::Key;
 
-use crate::{model::{composer::build::BS, template::{dependency_tree::DependencyPath, nodes::TemplateNode, Template, TemplateIndex}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::collapser::CollapseChildKey, composer::build::BS, template::{Template, TemplateIndex, dependency_tree::DependencyPath, nodes::TemplateNode}}, util::{number::Nu, vector::Ve}};
 
 use super::{add_nodes::GetValueData, collapser::{CollapseNode, CollapseNodeKey, Collapser}};
 
@@ -11,10 +11,14 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
     pub fn get_depends<'a>(
         &self, 
         parent_index: CollapseNodeKey,
+        child_key: CollapseChildKey,
         template: &'a Template<V2, V3, T, B>,
         template_node: &'a TemplateNode,
         new_node_template: &'a TemplateNode,
-    ) -> Vec<(TemplateIndex, Vec<CollapseNodeKey>)> {
+    ) -> Vec<(TemplateIndex, Vec<(CollapseNodeKey, CollapseChildKey)>)> {
+
+        dbg!(&self.nodes);
+        dbg!(new_node_template);
 
         // Contains a list of node indecies matching the template dependency
         let mut depends = iter::repeat_with(|| vec![])
@@ -24,36 +28,52 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         if depends.is_empty() {
             return vec![];
         }
-        
-        let mut pending_paths = vec![(&new_node_template.dependecy_tree.steps[0], parent_index)];
-        while let Some((step, index)) = pending_paths.pop() {
+      
+        // If step node is a child with a child index only go into the edge of other
+        // children with the same index.
+
+        let mut pending_paths = vec![(&new_node_template.dependecy_tree.steps[0], parent_index, child_key)];
+        while let Some((step, index, child_key)) = pending_paths.pop() {
+
             let step_node = &self.nodes[index];
 
             if let Some(i) = step.leaf {
-                depends[i].push(index);
+                depends[i].push((index, child_key));
             }
 
             for child_index in step.children.iter() {
                 let child_step = &new_node_template.dependecy_tree.steps[*child_index];
 
-                let edges = if child_step.up { 
-                    step_node.depends.iter()
-                        .filter(|(template_index, _)| *template_index == child_step.into_index)
+                if child_step.up {
+                    for (i, k) in step_node.depends.iter()
+                        .find(|(template_index, _)| *template_index == child_step.into_index)
                         .map(|(_, c)| c)
+                        .into_iter()
                         .flatten()
-                        .copied()
-                        .collect::<Vec<_>>()
+                        .copied() { 
+                        pending_paths.push((child_step, i, k));
+                    }    
                 } else { 
-                    step_node.children.iter()
-                        .filter(|(template_index, _)| *template_index == child_step.into_index)
+                    let mut children_of_step = step_node.children.iter()
+                        .find(|(template_index, _)| *template_index == child_step.into_index)
                         .map(|(_, c)|c)
+                        .into_iter()
                         .flatten()
-                        .copied()
-                        .collect::<Vec<_>>()
-                };
+                        .copied();
 
-                for edge in edges {
-                    pending_paths.push((child_step, edge));
+                    if !child_key.is_null() {
+                        
+                        let child_of_step = children_of_step.find(|(_, k)| *k == child_key);
+
+                        if let Some((i, k)) = child_of_step {
+                            pending_paths.push((child_step, i, CollapseChildKey::null()));
+                            continue;
+                        }
+                    }
+
+                    for (i, k) in children_of_step {
+                        pending_paths.push((child_step, i, CollapseChildKey::null()));
+                    } 
                 }
             }
         }
@@ -69,6 +89,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
                 (depend_template_node.index, nodes)
             }).collect::<Vec<_>>();
 
+        dbg!(&depends);
+
         depends
     }
 
@@ -76,7 +98,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         &self,
         get_value_data: GetValueData,
         path: &'a DependencyPath,
-    ) -> Vec<CollapseNodeKey> {
+    ) -> Vec<(CollapseNodeKey, CollapseChildKey)> {
+        return vec![];
+        /*
+
         assert!(get_value_data.index != CollapseNodeKey::null(), 
             "Tying to calculate loop path but node is not created. This was called to evaluate ammount");
 
@@ -90,7 +115,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
                         let pointer_node = &self.nodes[pointer];
 
                         let (_, is) = pointer_node.depends.iter()
-                            .find(|(t_index, _)| *t_index == step.into_index)
+                            .find(|((t_index, _), _)| *t_index == step.into_index)
                             .expect("Path used step into depends that was not found");
 
                         is.iter()
@@ -115,5 +140,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
         } 
         pointers
+*/
     }
 }

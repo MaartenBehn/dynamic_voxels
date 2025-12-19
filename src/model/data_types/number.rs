@@ -109,8 +109,9 @@ impl<T: Nu> NumberTemplate<T> {
         match self {
             NumberTemplate::Const(v) => (smallvec::smallvec![*v], false),
             NumberTemplate::Hook(hook) => {
-                let (i, r) = collapser.get_dependend_number(hook.template_index, get_value_data); 
-                (i.collect(), r)
+                todo!();
+                //let (i, r) = collapser.get_dependend_number(hook.template_index, get_value_data); 
+                //(i.collect(), r)
             }
             NumberTemplate::SplitPosition2D((position_template, i)) => {
                 let (v, r) = template

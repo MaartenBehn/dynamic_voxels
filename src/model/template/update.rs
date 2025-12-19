@@ -179,7 +179,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
 
             }
         }
- 
+
         (*self) = template;
 
         needs_update
@@ -482,11 +482,10 @@ impl MakeTemplateNodeData{
 
         if let Some(create_by_node_id) = self.created_by_node_id {
             let create_by_template_index = data.template.map_node_id[create_by_node_id.0].0;
-            
-            let others = node.depends.iter()
-                .filter(|i| **i != create_by_template_index)
-                .copied()
-                .collect();
+
+            if !node.depends.contains(&create_by_template_index) {
+                node.depends.push(create_by_template_index);
+            }
             
             let creates_index = data.template.nodes[create_by_template_index].creates.len();
             data.template.nodes[data.building_template_index].created_by = (create_by_template_index, creates_index);
@@ -494,7 +493,6 @@ impl MakeTemplateNodeData{
             data.template.nodes[create_by_template_index].creates.push(Creates {
                 to_create: data.building_template_index,
                 t: CreatesType::Children,
-                others,
             });
         } else {
             node.depends.push(0);
@@ -505,7 +503,6 @@ impl MakeTemplateNodeData{
             data.template.nodes[0].creates.push(Creates {
                 to_create: data.building_template_index,
                 t: CreatesType::One,
-                others: Default::default(),
             }); 
         }
 
@@ -537,46 +534,5 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> MakeTemplateData<'
         let value_index = self.template.values.len(); 
         self.template.values.push(value);
         value_index
-    }
-
-
-    pub fn finish_template_node(
-        &mut self,
-        value_index: ValueIndex,
-        inactive: MakeTemplateNodeData
-    ) -> TemplateIndex {
-        let node: &mut TemplateNode = &mut self.template.nodes[self.building_template_index]; 
-        node.value_index = value_index;
-
-        if node.depends.is_empty() {
-            node.depends.push(0);
-
-            let creates_index = self.template.nodes[0].creates.len();
-            self.template.nodes[self.building_template_index].created_by = (0, creates_index);
-            
-            self.template.nodes[0].creates.push(Creates {
-                to_create: self.building_template_index,
-                t: CreatesType::One,
-                others: smallvec![],
-            });
-        } else {
-            let picked_depend = node.depends[0];
-            
-            let creates_index = self.template.nodes[picked_depend].creates.len();
-            self.template.nodes[self.building_template_index].created_by = (picked_depend, creates_index);
-
-            self.template.nodes[picked_depend].creates.push(Creates {
-                to_create: self.building_template_index,
-                t: CreatesType::Children,
-                others: smallvec![],
-            });
-        }
-
-        let template_index = self.building_template_index; 
-        self.building_template_index = inactive.building_template_index;
-
-        self.template.nodes[self.building_template_index].depends.push(template_index);
-
-        template_index
     }
 }
