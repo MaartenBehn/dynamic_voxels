@@ -4,7 +4,7 @@ use egui_snarl::{InPinId, NodeId, OutPinId};
 use octa_force::log::trace;
 use smallvec::{SmallVec, smallvec};
 
-use crate::{model::{composer::{ModelComposer, build::{BS, GetTemplateValueArgs}, graph::{self, ComposerGraph, ComposerNodeFlags}, nodes::{ComposeNode, ComposeNodeType}}, data_types::{data_type::ComposeDataType, number::NumberTemplate, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::VALUE_INDEX_NODE}}, util::{number::Nu, vector::Ve}, voxel::palette::shared::SharedPalette};
+use crate::{model::{composer::{ModelComposer, build::{BS, GetTemplateValueArgs}, graph::{self, ComposerGraph, ComposerNodeFlags}, nodes::{ComposeNode, ComposeNodeType}}, data_types::{data_type::ComposeDataType, number::NumberTemplate, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::VALUE_INDEX_NODE, value_hook_iterator::ValueHooksIterator}}, util::{number::Nu, vector::Ve}, voxel::palette::shared::SharedPalette};
 
 use super::{dependency_tree::get_dependency_tree_and_loop_paths, nodes::TemplateNode, value::{TemplateValue, ValueIndex}, Template, TemplateIndex, TEMPLATE_INDEX_NONE};
 
@@ -180,6 +180,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
             }
         }
 
+
         (*self) = template;
 
         needs_update
@@ -200,7 +201,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
                 trace!("Loop found from {} to {:?}", index, depends_index);
                 
                 let value_index = self.nodes[index].value_index;
-                self.cut_loop_inner(value_index, *depends_index);
+                for hook in self.iter_hooks(value_index) {
+                    hook.loop_cut |= hook.template_index == *depends_index;
+                }
 
                 let node = &mut self.nodes[index];
                 node.depends.swap_remove(i);
@@ -222,218 +225,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
         self.max_level = self.max_level.max(node_level);
 
         node_level
-    }
-
-    pub fn cut_loop_inner(
-        &mut self,
-        value_index: ValueIndex,
-        to_index: usize, 
-    ) {
-        let value = &mut self.values[value_index];
-
-        match value {
-            TemplateValue::None => {},
-            TemplateValue::Number(number_template) => {
-                match number_template {
-                    NumberTemplate::Const(_) => {},
-                    NumberTemplate::Hook(hook) => {
-                        hook.loop_cut |= hook.template_index == to_index;
-                    },
-                    NumberTemplate::SplitPosition2D((p, _)) => {
-                        let p = *p;
-                        self.cut_loop_inner(p, to_index);
-                    },
-                    NumberTemplate::SplitPosition3D((p, _)) => {
-                        let p = *p;
-                        self.cut_loop_inner(p, to_index);
-                    },
-                    NumberTemplate::Position3DTo2D(p) => {
-                        let p = *p;
-                        self.cut_loop_inner(p, to_index);
-                    },
-                }
-            },
-            TemplateValue::NumberSet(number_space_template) => {
-                match number_space_template {
-                    NumberSpaceTemplate::NumberRange { min, max, step } => {
-                        let min = *min;
-                        let max = *max;
-                        let step = *step;
-
-                        self.cut_loop_inner(min, to_index);
-                        self.cut_loop_inner(max, to_index);
-                        self.cut_loop_inner(step, to_index);
-                    },
-                }
-            },
-            TemplateValue::PositionSpace2D(position_space_template)
-            | TemplateValue::PositionSpace3D(position_space_template)=> {
-                match position_space_template {
-                    PositionSpaceTemplate::Grid(grid_template) => {
-                        let volume = grid_template.volume;
-                        let spacing = grid_template.spacing;
-
-                        self.cut_loop_inner(volume, to_index);
-                        self.cut_loop_inner(spacing, to_index);
-                    },
-                    PositionSpaceTemplate::LeafSpread(leaf_spread_template) => {
-                        let volume = leaf_spread_template.volume;
-                        let samples = leaf_spread_template.samples;
-
-                        self.cut_loop_inner(volume, to_index);
-                        self.cut_loop_inner(samples, to_index);
-                    },
-                    PositionSpaceTemplate::Path(path_template) => {
-                        let start = path_template.start;
-                        let end = path_template.end;
-                        let spacing = path_template.spacing;
-                        let side_variance = path_template.side_variance;
-
-                        self.cut_loop_inner(start, to_index);
-                        self.cut_loop_inner(end, to_index);
-                        self.cut_loop_inner(spacing, to_index);
-                        self.cut_loop_inner(side_variance, to_index);
-                    },
-                }
-            },
-            TemplateValue::Position2D(position_template) => {
-                match position_template {
-                    PositionTemplate::Const(_) => {},
-                    PositionTemplate::FromNumbers(n) => {
-                        let n = *n;
-                        self.cut_loop_inner(n[0], to_index);
-                        self.cut_loop_inner(n[1], to_index);
-                    },
-                    PositionTemplate::Add((a, b)) => {
-                        let (a, b) = (*a, *b);
-                        self.cut_loop_inner(a, to_index);
-                        self.cut_loop_inner(b, to_index);
-                    },
-                    PositionTemplate::Sub((a, b)) => {
-                        let (a, b) = (*a, *b);
-                        self.cut_loop_inner(a, to_index);
-                        self.cut_loop_inner(b, to_index);
-                    },
-                    PositionTemplate::PerPosition(hook) => {
-                        hook.loop_cut |= hook.template_index == to_index;
-                    },
-                    PositionTemplate::PerPair((hook, _)) => {
-                        hook.loop_cut |= hook.template_index == to_index;
-                    },
-                    PositionTemplate::PhantomData(phantom_data) => unreachable!(),
-                    PositionTemplate::Cam => {},
-                    PositionTemplate::Position2DTo3D((p, n)) => {
-                        let (p, n) = (*p, *n);
-                        self.cut_loop_inner(p, to_index);
-                        self.cut_loop_inner(n, to_index);
-                    },
-                    PositionTemplate::Position3DTo2D(p) => {
-                        let p = *p;
-                        self.cut_loop_inner(p, to_index);
-                    },
-                }
-            },
-            TemplateValue::Position3D(position_template) => {
-                match position_template {
-                    PositionTemplate::Const(_) => {},
-                    PositionTemplate::Add((a, b)) => {
-                        let (a, b) = (*a, *b);
-                        self.cut_loop_inner(a, to_index);
-                        self.cut_loop_inner(b, to_index);
-                    },
-                    PositionTemplate::Sub((a, b)) => {
-                        let (a, b) = (*a, *b);
-                        self.cut_loop_inner(a, to_index);
-                        self.cut_loop_inner(b, to_index);
-                    },
-                    PositionTemplate::FromNumbers(n) => {
-                        let n = *n;
-                        self.cut_loop_inner(n[0], to_index);
-                        self.cut_loop_inner(n[1], to_index);
-                        self.cut_loop_inner(n[2], to_index);
-                    },
-                    PositionTemplate::PerPosition(hook) => {
-                        hook.loop_cut |= hook.template_index == to_index;
-                    },
-                    PositionTemplate::PerPair((hook, _)) => {
-                        hook.loop_cut |= hook.template_index == to_index;
-                    },
-                    PositionTemplate::PhantomData(phantom_data) => unreachable!(),
-                    PositionTemplate::Cam => {},
-                    PositionTemplate::Position2DTo3D((p, n)) => {
-                        let (p, n) = (*p, *n);
-                        self.cut_loop_inner(p, to_index);
-                        self.cut_loop_inner(n, to_index);
-                    },
-                    PositionTemplate::Position3DTo2D(p) => {
-                        let p = *p;
-                        self.cut_loop_inner(p, to_index);
-                    },
-                }
-            },
-            TemplateValue::PositionSet2D(position_set_template)
-            | TemplateValue::PositionSet3D(position_set_template)=> {
-                match position_set_template {
-                    PositionSetTemplate::All(space) => {
-                        let space = *space;
-
-                        self.cut_loop_inner(space, to_index);
-                    },
-                }
-            },
-            TemplateValue::PositionPairSet2D(position_pair_set_template)
-            | TemplateValue::PositionPairSet3D(position_pair_set_template) => {
-                match position_pair_set_template {
-                    PositionPairSetTemplate::ByDistance((space, distance)) => {
-                        let space = *space;
-                        let distance = *distance;
-
-                        self.cut_loop_inner(space, to_index);
-                        self.cut_loop_inner(distance, to_index);
-                    },
-                }
-            },
-            TemplateValue::Volume2D(volume_template)
-            | TemplateValue::Volume3D(volume_template)=> {
-                match volume_template {
-                    VolumeTemplate::Sphere { pos, size } => {
-                        let pos = *pos;
-                        let size = *size;
-                        self.cut_loop_inner(pos, to_index);
-                        self.cut_loop_inner(size, to_index);
-                    },
-                    VolumeTemplate::Disk { pos, size, height } => {
-                        let (pos, size, height) = (*pos, *size, *height);
-                        self.cut_loop_inner(pos, to_index);
-                        self.cut_loop_inner(size, to_index);
-                        self.cut_loop_inner(height, to_index);
-                    },
-                    VolumeTemplate::Box { pos, size } => {
-                        let pos = *pos;
-                        let size = *size;
-                        self.cut_loop_inner(pos, to_index);
-                        self.cut_loop_inner(size, to_index);
-                    },
-                    VolumeTemplate::Union { a, b } => {
-                        let a = *a;
-                        let b = *b;
-                        self.cut_loop_inner(a, to_index);
-                        self.cut_loop_inner(b, to_index);
-                    },
-                    VolumeTemplate::Cut { base, cut } => {
-                        let base = *base;
-                        let cut = *cut;
-                        self.cut_loop_inner(base, to_index);
-                        self.cut_loop_inner(cut, to_index);
-                    },
-                    VolumeTemplate::Material { mat, child } => {
-                        let child = *child;
-                        self.cut_loop_inner(child, to_index);
-                    },
-                }
-            },
-            TemplateValue::Build(_) => todo!(),
-        }
     }
 }
 
@@ -510,7 +301,11 @@ impl MakeTemplateNodeData{
         data.building_template_index = self.building_template_index;
 
         if data.building_template_index != TEMPLATE_INDEX_NONE {
-            data.template.nodes[data.building_template_index].depends.push(template_index);
+            let depends = &mut data.template.nodes[data.building_template_index].depends; 
+
+            if !depends.contains(&template_index) {
+                depends.push(template_index);
+            }
         } 
 
         template_index
@@ -534,5 +329,19 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> MakeTemplateData<'
         let value_index = self.template.values.len(); 
         self.template.values.push(value);
         value_index
+    }
+
+    pub fn add_depends_of_value(&mut self, value_index: ValueIndex) {
+        if self.building_template_index == TEMPLATE_INDEX_NONE {
+            return;
+        }
+
+        for hook in ValueHooksIterator::new(&mut self.template.values, value_index) {
+            let depends = &mut self.template.nodes[self.building_template_index].depends; 
+
+            if !depends.contains(&hook.template_index) {
+                depends.push(hook.template_index);
+            }
+        }
     }
 }

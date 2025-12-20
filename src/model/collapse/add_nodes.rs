@@ -51,6 +51,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         let parent_template_node = &template.nodes[parent_node.template_index];
         let creates: &Creates = &parent_template_node.creates[opperation.creates_index];
 
+        #[cfg(debug_assertions)]
+        info!("{:?} Update {:?}", opperation.parent_index, opperation.template_index);
+
         match creates.t {
             CreatesType::One => {
                 self.update_defined_one(

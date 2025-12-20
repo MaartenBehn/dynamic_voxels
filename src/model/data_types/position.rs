@@ -82,6 +82,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
             let node = self.snarl.get_node(pin.node).expect("Node of remote not found");
 
             if let Some(value_index) = data.get_value_index_from_node_id(pin.node) {
+                data.add_depends_of_value(value_index);
                 
                 match &node.t { 
                     ComposeNodeType::PerPair2D => {

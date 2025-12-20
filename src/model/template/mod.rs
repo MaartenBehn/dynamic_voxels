@@ -2,6 +2,7 @@ pub mod dependency_tree;
 pub mod nodes;
 pub mod value;
 pub mod update;
+pub mod value_hook_iterator;
 
 use std::{iter, ops::RangeBounds};
 

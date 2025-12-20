@@ -432,6 +432,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         let (iter, r) = self.get_dependend_index_value_data(template_index, get_value_data);
 
         (iter.map(move |(i, child_key)| {
+
             if !child_key.is_null() {
                 IM2::A(iter::once(self.get_position(i, child_key)))
             } else {

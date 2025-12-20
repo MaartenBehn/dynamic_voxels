@@ -44,9 +44,17 @@ impl PendingOperations {
 
     pub fn template_changed(&mut self, max_level: usize) {
         
-        self.pending_create_defined.clear();
-        self.pending_collapse.clear();
-        self.pending_next_collapse.clear();
+        for list in self.pending_create_defined.iter_mut() {
+            list.clear();
+        }
+
+        for list in self.pending_collapse.iter_mut() {
+            list.clear();
+        }
+
+        for list in self.pending_next_collapse.iter_mut() {
+            list.clear();
+        }
         
         let new_min_with_value = max_level -1; 
         if self.min_with_value != new_min_with_value {
@@ -59,16 +67,28 @@ impl PendingOperations {
     }
 
     pub fn push_collpase(&mut self, level: usize, value: CollapseNodeKey) {
+        if self.pending_collapse[level - 1].contains(&value) {
+            return;
+        }   
+
         self.pending_collapse[level - 1].push_back(value);
         self.min_with_value = self.min_with_value.min(level - 1);
     }
 
     pub fn push_later_collpase(&mut self, level: usize, value: CollapseNodeKey) {
+        if self.pending_next_collapse[level - 1].contains(&value) {
+            return;
+        }
+
         self.pending_next_collapse[level - 1].push_back(value);
         self.next_min_with_value = self.next_min_with_value.min(level - 1);
     }
 
     pub fn push_create_defined(&mut self, level: usize, value: UpdateDefinesOperation) {
+        if self.pending_create_defined[level - 1].contains(&value) {
+            return;
+        }
+
         self.pending_create_defined[level - 1].push_back(value);
         self.min_with_value = self.min_with_value.min(level - 1);
     }

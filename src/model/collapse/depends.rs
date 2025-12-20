@@ -16,7 +16,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         template_node: &'a TemplateNode,
         new_node_template: &'a TemplateNode,
     ) -> Vec<(TemplateIndex, Vec<(CollapseNodeKey, CollapseChildKey)>)> {
-
         // Contains a list of node indecies matching the template dependency
         let mut depends = iter::repeat_with(|| vec![])
             .take(new_node_template.depends.len())
@@ -80,9 +79,12 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             .map(|(depend_template_node, nodes)| {
 
                 let depend_template_node = &template.nodes[*depend_template_node];
-                assert!(nodes.len() > 0, 
-                    "No nodes for dependency or knows of node found! \n {:?} tyring to find {:?}", 
+
+                #[cfg(debug_assertions)]
+                if nodes.is_empty() {
+                    octa_force::log::warn!("No nodes for dependency or knows of node found! \n {:?} tyring to find {:?}", 
                     new_node_template.index, depend_template_node.index);
+                } 
                 (depend_template_node.index, nodes)
             }).collect::<Vec<_>>();
 

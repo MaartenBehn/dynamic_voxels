@@ -22,6 +22,7 @@ impl<V: Ve<T, D>,  T: Nu, const D: usize> PositionSet<V, T, D> {
     }
 
     pub fn get_positions(&self) -> impl Iterator<Item = V> {
+
         self.positions.values().into_iter().map(|v| *v)
     }
  
