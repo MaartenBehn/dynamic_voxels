@@ -85,7 +85,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                 
                 match &node.t { 
                     ComposeNodeType::PerPair2D => {
-                        let value = data.template.get_position3d_value(value_index);
+                        let value = data.template.get_position2d_value(value_index);
                         match value {
                             PositionTemplate::PerPair((hook, _)) => {
                                 return data.add_value(TemplateValue::Position2D(

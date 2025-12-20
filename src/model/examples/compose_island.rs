@@ -5,7 +5,7 @@ use octa_force::{camera::Camera, egui, glam::{EulerRot, IVec2, IVec3, Mat4, Quat
 use slotmap::Key;
 use smallvec::SmallVec;
 
-use crate::{METERS_PER_SHADER_UNIT, VOXELS_PER_SHADER_UNIT, csg::csg_tree::tree::CSGTree, model::{collapse::collapser::{CollapseNode, NodeDataType}, composer::{ModelComposer, build::{BS, CollapseValueTrait, ComposeTypeTrait, GetTemplateValueArgs, OnCollapseArgs, OnDeleteArgs, TemplateValueTrait}, nodes::{ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeType}}, data_types::{data_type::ComposeDataType, position::{PositionTemplate, ValueIndexPosition}, volume::{ValueIndexVolume, VolumeTemplate}}, template::update::MakeTemplateData}, scene::{SceneObjectKey, dag_store::SceneDAGKey, worker::SceneWorkerSend}, util::{number::Nu, vector::Ve}, volume::VolumeBounds, voxel::{dag64::{DAG64EntryKey, VoxelDAG64, parallel::ParallelVoxelDAG64}, palette::{palette::MATERIAL_ID_BASE, shared::SharedPalette}}};
+use crate::{METERS_PER_SHADER_UNIT, VOXELS_PER_SHADER_UNIT, csg::csg_tree::tree::CSGTree, model::{collapse::collapser::{CollapseNode, NodeDataType}, composer::{ModelComposer, build::{BS, CollapseValueTrait, ComposeTypeTrait, GetTemplateValueArgs, OnCollapseArgs, OnDeleteArgs, TemplateValueTrait}, nodes::{ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeType}}, data_types::{data_type::ComposeDataType, position::{PositionTemplate, ValueIndexPosition}, volume::{ValueIndexVolume, VolumeTemplate}}, template::{update::MakeTemplateData, value::ValueIndex}}, scene::{SceneObjectKey, dag_store::SceneDAGKey, worker::SceneWorkerSend}, util::{number::Nu, vector::Ve}, volume::VolumeBounds, voxel::{dag64::{DAG64EntryKey, VoxelDAG64, parallel::ParallelVoxelDAG64}, palette::{palette::MATERIAL_ID_BASE, shared::SharedPalette}}};
 
 // Compose Type
 #[derive(Debug)]
@@ -33,7 +33,18 @@ pub struct ObjectTemplate {
     volume: ValueIndexVolume,
 }
 
-impl TemplateValueTrait for TemplateValue {}
+impl TemplateValueTrait for TemplateValue {
+    fn value_indecies(self) -> Vec<ValueIndex> {
+        match self {
+            TemplateValue::Object(object_template) => {
+                vec![
+                    object_template.pos,
+                    object_template.volume
+                ]
+            },
+        }
+    }
+}
 
 // Collapse Value
 #[derive(Debug, Clone, Default)]

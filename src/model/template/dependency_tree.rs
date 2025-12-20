@@ -165,9 +165,6 @@ impl DependencyTree {
         path: &DependencyPath,
         depends_index: usize,
     ) {
-        dbg!(&node);
-        dbg!(&path);
-
         assert!(path.steps[0].up, "DependencyTree must allways first go into the parent");
 
         if self.steps.is_empty() {

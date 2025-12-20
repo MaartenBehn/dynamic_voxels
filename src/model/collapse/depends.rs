@@ -17,9 +17,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         new_node_template: &'a TemplateNode,
     ) -> Vec<(TemplateIndex, Vec<(CollapseNodeKey, CollapseChildKey)>)> {
 
-        dbg!(&self.nodes);
-        dbg!(new_node_template);
-
         // Contains a list of node indecies matching the template dependency
         let mut depends = iter::repeat_with(|| vec![])
             .take(new_node_template.depends.len())
@@ -89,7 +86,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
                 (depend_template_node.index, nodes)
             }).collect::<Vec<_>>();
 
-        dbg!(&depends);
 
         depends
     }

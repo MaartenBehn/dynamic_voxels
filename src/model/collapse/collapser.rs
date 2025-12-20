@@ -122,8 +122,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         #[cfg(debug_assertions)]
         info!("{:?} Collapse", node_index);
 
-        dbg!(&self.nodes);
-
         let get_value_data = GetValueData { 
             defined_by: node.defined_by, 
             depends: &node.depends, 

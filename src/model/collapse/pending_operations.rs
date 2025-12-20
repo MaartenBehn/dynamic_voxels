@@ -43,8 +43,12 @@ impl PendingOperations {
     }
 
     pub fn template_changed(&mut self, max_level: usize) {
-        let new_min_with_value = max_level -1; 
         
+        self.pending_create_defined.clear();
+        self.pending_collapse.clear();
+        self.pending_next_collapse.clear();
+        
+        let new_min_with_value = max_level -1; 
         if self.min_with_value != new_min_with_value {
             self.pending_collapse.resize(max_level, VecDeque::new());
             self.pending_create_defined.resize(max_level, VecDeque::new());

@@ -2,7 +2,7 @@ use core::fmt;
 
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::{CollapseNode, Collapser}}, template::{update::MakeTemplateData, Template}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::{CollapseNode, Collapser}}, template::{Template, update::MakeTemplateData, value::ValueIndex}}, util::{number::Nu, vector::Ve}};
 
 use super::{graph::ComposerGraph, nodes::ComposeNode, ModelComposer};
 
@@ -23,6 +23,7 @@ pub trait ComposeTypeTrait: fmt::Debug + Clone {
 }
 
 pub trait TemplateValueTrait: fmt::Debug + Clone + Send + Sync {
+    fn value_indecies(self) -> Vec<ValueIndex>;
 }
 
 pub trait CollapseValueTrait: fmt::Debug + Clone + Send + Sync + Default {
