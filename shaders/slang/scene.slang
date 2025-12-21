@@ -63,10 +63,8 @@ public struct Scene {
 
             if (!hit_new.Miss && (hit.t >= hit_new.t)) {
               hit = hit_new;
-            } 
-            else {
-              // For debbuging AABBs
-              // hit.MaterialId = 1;
+            } else {
+              //hit.MaterialId = 1;
             }
 
             break;

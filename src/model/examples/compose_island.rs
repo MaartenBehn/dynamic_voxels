@@ -113,6 +113,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
                 let pos = pos[0];
 
                 volume.calculate_bounds();
+                dbg!(&volume);
+                dbg!(&volume.get_bounds());
 
                 let now = Instant::now();
                 let dag_key = args.state.dag.add_aabb_query_volume(&volume).expect("Could not add DAG Entry!");
@@ -123,7 +125,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
                 let scene_key = args.state.scene.add_dag_object(
                     Mat4::from_scale_rotation_translation(
                         Vec3::ONE,
-                        Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, 0.0),
+                        Quat::IDENTITY,
                         pos.to_vec3() / VOXELS_PER_SHADER_UNIT as f32
                     ), 
                     args.state.scene_dag_key,

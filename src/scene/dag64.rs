@@ -77,12 +77,12 @@ impl SceneDAGObject {
     pub fn push_to_buffer(&mut self, scene_buffer: &mut Buffer, dag_store: &SceneDAGStore) { 
         let dag = &dag_store.dags[self.dag_key];
 
-        let size = self.entry.get_size();
-        let scale = (VOXELS_PER_SHADER_UNIT as u32 / size) as f32; 
+        let size = self.entry.get_size() as f32;
+        let scale = (VOXELS_PER_SHADER_UNIT as f32 / size); 
         let mat = Mat4::from_scale_rotation_translation(
             Vec3::splat(scale), 
             Quat::IDENTITY,
-            Vec3::splat(1.0) - self.entry.offset.as_vec3() / size as f32,
+            Vec3::splat(1.0) - self.entry.offset.as_vec3() / size,
         ).mul_mat4(&self.mat.inverse());
 
         let inv_mat = mat.inverse();
@@ -100,12 +100,18 @@ impl SceneDAGObject {
     }
 
     pub fn get_aabb(&self) -> AABB3 {
+        
+        // Idk why we need this but somehow the AABB is to small sometimes
+        let padding = self.entry.offset.as_vec3a().abs() * 0.2; 
+
         let size = self.entry.get_size();
-        AABB3::from_min_max(
+        let aabb = AABB3::from_min_max(
             &self.mat,
             self.entry.offset.as_vec3a() / VOXELS_PER_SHADER_UNIT as f32, 
             (self.entry.offset.as_vec3a() + Vec3A::splat(size as f32)) / VOXELS_PER_SHADER_UNIT as f32,
-        )
+        );
+
+        aabb
     }
 }
 

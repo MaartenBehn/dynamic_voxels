@@ -12,7 +12,7 @@ impl VoxelDAG64 {
         if levels == 0 {
             return self.empty_entry();
         }
-        
+
         let root = self.add_aabb_query_recursive(model, offset, levels)?;
         let root_index = self.nodes.push(&[root])?;
         let key = self.entry_points.insert(DAG64Entry { 

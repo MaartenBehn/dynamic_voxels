@@ -23,7 +23,9 @@ impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> VolumeBounds<V, T, D> f
             return AABB::default();
         }
 
-        self.get_bounds_index(self.root)
+        let aabb = self.get_bounds_index(self.root);
+
+        aabb
     }
 }
 

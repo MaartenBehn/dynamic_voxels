@@ -98,7 +98,7 @@ impl Scene {
 
     fn update_bvh(&mut self) -> OctaResult<()> {
 
-        let mut objects = self.objects.values_mut().collect::<Vec<_>>(); 
+        let mut objects = self.objects.values_mut().collect::<Vec<_>>();
         self.bvh = Bvh::build_par(&mut objects);
 
         let flat_bvh = self.bvh.flatten_custom(&|aabb, index, exit, shape| {

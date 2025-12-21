@@ -23,7 +23,7 @@ public struct Tree64 {
   }
 
   public HitInfo RayCast(float3 rayPos, float3 rayDir, bool coarse) {
-    HitInfo hit = Traversal(rayPos, rayDir, coarse);
+    HitInfo hit = Traversal_OctMirror(rayPos, rayDir, coarse);
     return hit;
   }
 
