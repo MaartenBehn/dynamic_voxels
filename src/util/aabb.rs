@@ -277,7 +277,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
                 let min = min.to_ivec2();
                 let max = max.to_ivec2();
 
-                Either::Right(Either::Left((min.x..=max.y)
+                Either::Right(Either::Left((min.x..=max.x)
                     .flat_map(move |x| iter::repeat(x).zip(min.y..=max.y))
                     .map(move |(x, y)| V::from_ivec2(ivec2(x, y)) * step)))
             }
@@ -285,7 +285,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
                 let min = min.to_ivec3();
                 let max = max.to_ivec3();
 
-                Either::Right(Either::Right((min.x..=max.y)
+                Either::Right(Either::Right((min.x..=max.x)
                     .flat_map(move |x| iter::repeat(x).zip(min.y..=max.y))
                     .flat_map(move |(x, y)| iter::repeat((x, y)).zip(min.z..=max.z))
                     .map(move |((x, y), z)| V::from_ivec3(ivec3(x, y, z)) * step)))
