@@ -13,6 +13,7 @@ use super::{add_nodes::GetValueData, collapser::{CollapseChildKey, CollapseNodeK
 pub struct PositionSet<V: Ve<T, D>, T: Nu, const D: usize> {
     positions: SlotMap<CollapseChildKey, V>,
     new_children: Vec<CollapseChildKey>,
+    deleted_children: Vec<CollapseChildKey>,
     p: PhantomData<T>,
 }
 

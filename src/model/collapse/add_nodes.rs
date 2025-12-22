@@ -119,18 +119,18 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         let parent_template_node = &template.nodes[parent_node.template_index];
         let creates: &Creates = &parent_template_node.creates[creates_index];
         let template_node = &template.nodes[template_index];
-         
+
         let to_remove_children = parent_node.children.iter()
             .find(|(template_index, _)| *template_index == creates.to_create)
             .map(|(_, children)| children)
             .unwrap_or(&vec![])
             .iter()
             .map(|(i, _)| (*i, &self.nodes[*i]) )
-            .filter(|(i, child)| 
-                !self.is_child_valid(*i, child.child_key))  
+            .filter(|(_, child)| 
+                !self.is_child_valid(parent_index, child.child_key))  
             .map(|(i, _)| i )
             .collect::<Vec<_>>();
-
+        
         for child_key in self.get_new_children(parent_index).collect_vec() {
             let depends = self.get_depends(
                 parent_index,   
