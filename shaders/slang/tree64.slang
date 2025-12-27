@@ -159,6 +159,7 @@ public struct Tree64 {
     float3 invDir = 1.0f / dir;
 
     float3 sideDist, pos;
+    float t_min;
     if (any(origin < 1.0 || origin >= 2.0)) {
       
       float3 is_positive = float3(float(invDir.x > 0), float(invDir.y > 0), float(invDir.z >= 0));     
@@ -173,7 +174,7 @@ public struct Tree64 {
       float3 left_side_times_one_over_dir = (left_side - origin) * invDir;
       float3 right_side_times_one_over_dir = (right_side - origin) * invDir;
 
-      float t_min = max(left_side_times_one_over_dir.x, max(left_side_times_one_over_dir.y, left_side_times_one_over_dir.z));
+      t_min = max(left_side_times_one_over_dir.x, max(left_side_times_one_over_dir.y, left_side_times_one_over_dir.z));
       float t_max = min(right_side_times_one_over_dir.x, min(right_side_times_one_over_dir.y, right_side_times_one_over_dir.z));
  
       if (t_max < t_min) {
@@ -267,10 +268,19 @@ public struct Tree64 {
       hit.MaterialId = leaf_data[node.ChildPtr + popcnt_var64(node.PopMask, childIdx)];
       hit.Pos = pos;
 
-      float tmax = min(min(sideDist.x, sideDist.y), sideDist.z);
-      bool3 sideMask = tmax >= sideDist;
-      hit.Normal = select(sideMask, -sign(dir), 0.0);
+      if (i > 0){
+        float t_max = min(min(sideDist.x, sideDist.y), sideDist.z);
+        hit.t = t_max;
+        bool3 sideMask = t_max >= sideDist;
+        hit.Normal = select(sideMask, -sign(dir), 0.0);
+      } else {
+        // If objects are inside each other but the the loop never ran
+        hit.t = t_min;
+        bool3 sideMask = t_min <= sideDist;
+        hit.Normal = select(sideMask, -sign(dir), 0.0);
+      }
     }
+ 
     return hit;
   }
 
