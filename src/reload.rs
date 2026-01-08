@@ -10,6 +10,7 @@ pub mod util;
 pub mod volume;
 pub mod voxel;
 pub mod bvh;
+pub mod mesh;
 
 use csg::csg_tree::tree::CSGTree;
 use csg::union::tree::{Union, UnionNode};

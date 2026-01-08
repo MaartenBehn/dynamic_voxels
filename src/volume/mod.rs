@@ -1,7 +1,7 @@
 pub mod magica_voxel;
 pub mod remove_trait;
 
-use std::fmt::Debug;
+use std::{fmt::Debug, marker::PhantomData};
 
 use octa_force::glam::{vec4, IVec3, UVec3, Vec2, Vec3, Vec3A, Vec4, Vec4Swizzles};
 
@@ -58,3 +58,7 @@ impl VolumeQureyAABBResult {
         }
     }
 }
+
+
+
+

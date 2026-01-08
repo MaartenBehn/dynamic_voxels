@@ -17,6 +17,11 @@ pub type AABB2 = AABB<Vec2, f32, 2>;
 pub type IAABB3 = AABB<IVec3, i32, 3>;
 pub type IAABB2 = AABB<IVec2, i32, 2>;
 
+union AABBUnion<VA: Ve<T, DA>, VB: Ve<T, DB>, T: Nu, const DA: usize, const DB: usize> {
+    a: AABB<VA, T, DA>,
+    b: AABB<VB, T, DB>,
+}
+
 impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
     pub fn new(min: V, max: V) -> Self {
         Self { min, max, p: Default::default() }
@@ -74,7 +79,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
     }
 
     pub fn largest_axis(self) -> usize {
-        self.size().max_index()
+        self.size().max_value().0
     }
     
     pub fn pos_in_aabb(self, pos: V) -> bool {
@@ -305,7 +310,43 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
 
     pub fn from_f<V2: Ve<f32, D>>(aabb: AABB<V2, f32, D>) -> Self {
         AABB::new(V::from_vecf(aabb.min()), V::from_vecf(aabb.max()))
-    } 
+    }
+
+    pub fn to_f2d(self) -> AABB2 {
+        match D {
+            2 => {
+                AABB::new(self.min().to_vec2(), self.max().to_vec2())
+            }
+            _ => unreachable!()
+        }
+    }
+
+    pub fn to_f3d(self) -> AABB3 {
+        match D {
+            3 => {
+                AABB::new(self.min().to_vec3a(), self.max().to_vec3a())
+            }
+            _ => unreachable!()
+        }
+    }
+
+    pub fn to_i2d(self) -> IAABB2 {
+        match D {
+            2 => {
+                AABB::new(self.min().to_ivec2(), self.max().to_ivec2())
+            }
+            _ => unreachable!()
+        }
+    }
+
+    pub fn to_i3d(self) -> IAABB3 {
+        match D {
+            3 => {
+                AABB::new(self.min().to_ivec3(), self.max().to_ivec3())
+            }
+            _ => unreachable!()
+        }
+    }
 }
 
 impl<V: Ve<T, D>, T: Nu, const D: usize> Default for AABB<V, T, D> {

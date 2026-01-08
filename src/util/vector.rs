@@ -79,7 +79,7 @@ pub trait Ve<T: Nu, const D: usize>:
 
     fn to_array(&self) -> [T; D];
 
-    fn max_index(self) -> usize {
+    fn max_value(self) -> (usize, T) {
 
         let mut e_max = T::ZERO;
         let mut i_max = 0;
@@ -91,9 +91,8 @@ pub trait Ve<T: Nu, const D: usize>:
             }
         }
 
-        i_max
-    }
-
+        (i_max, e_max)
+    } 
 }
 
 impl Ve<f32, 2> for Vec2 {
