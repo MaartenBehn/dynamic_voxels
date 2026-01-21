@@ -6,7 +6,7 @@ use octa_force::{anyhow::bail, glam::{Mat4, Vec3, Vec3A}, OctaResult};
 use slotmap::{new_key_type, SecondaryMap, SlotMap};
 use smallvec::SmallVec;
 
-use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}, ModelComposer}, data_types::data_type::ComposeDataType, template::{update::MakeTemplateData, value::TemplateValue, Template}}, util::{aabb::AABB, iter_merger::IM3, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
+use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{ModelComposer, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}}, data_types::data_type::{ComposeDataType, T}, template::{Template, update::MakeTemplateData, value::TemplateValue}}, util::{aabb::AABB, iter_merger::IM3, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
 
 use super::{number::{NumberTemplate, ValueIndexNumber}, position::{PositionTemplate, ValueIndexPosition}, volume::{ValueIndexVolume, VolumeTemplate}};
 
@@ -44,12 +44,12 @@ pub struct PathTemplate {
     pub end: ValueIndexPosition,
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, T, B> {
+impl ComposerGraph {
     pub fn make_pos_space(
         &self, 
-        original_node: &ComposeNode<B::ComposeType>, 
+        original_node: &ComposeNode, 
         in_index: usize, 
-        data: &mut MakeTemplateData<V2, V3, T, B>,
+        data: &mut MakeTemplateData,
     ) -> ValueIndexPositionSpace {
         let node_id = self.get_input_remote_node_id(original_node, in_index);
 
@@ -119,16 +119,16 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
 }
 
 impl PositionSpaceTemplate { 
-    pub fn get_value<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>, const D: usize>(
+    pub fn get_value<V: Ve<T, D>, const D: usize>(
         &self,
         get_value_data: GetValueData,
-        collapser: &Collapser<V2, V3, T, B>,
-        template: &Template<V2, V3, T, B>
+        collapser: &Collapser,
+        template: &Template
     ) -> (Vec<V>, bool) {
         match &self {
             PositionSpaceTemplate::Grid(grid)  => {
                 let (mut volume, r_0) = template.get_volume_value(grid.volume)
-                    .get_value::<V, V2, V3, T, B, (), D>(get_value_data, collapser, template);
+                    .get_value::<V, (), D>(get_value_data, collapser, template);
 
                 let (spacing, r_1) =  template.get_number_value(grid.spacing)
                     .get_value(get_value_data, collapser, template);
@@ -144,7 +144,7 @@ impl PositionSpaceTemplate {
             },
             PositionSpaceTemplate::LeafSpread(spread) => {
                 let (mut volume, r_0) = template.get_volume_value(spread.volume)
-                    .get_value::<V, V2, V3, T, B, (), D>(get_value_data, collapser, template);
+                    .get_value::<V, (), D>(get_value_data, collapser, template);
 
                 let (samples, r_1) =  template.get_number_value(spread.samples)
                     .get_value(get_value_data, collapser, template);

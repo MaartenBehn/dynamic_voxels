@@ -4,7 +4,7 @@ use egui_snarl::OutPinId;
 use itertools::{iproduct, Itertools};
 use smallvec::SmallVec;
 
-use crate::{csg::{csg_tree::tree::CSGTree, Base}, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}, ModelComposer}, template::{update::MakeTemplateData, value::TemplateValue, Template}}, util::{iter_merger::IM5, number::Nu, vector::Ve}};
+use crate::{csg::{Base, csg_tree::tree::CSGTree}, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{ModelComposer, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}}, data_types::data_type::{T, V3}, template::{Template, update::MakeTemplateData, value::TemplateValue}}, util::{iter_merger::IM5, number::Nu, vector::Ve}};
 
 use super::{data_type::ComposeDataType, number::{NumberTemplate, ValueIndexNumber}, position::{PositionTemplate, ValueIndexPosition}, position_set::{PositionSetTemplate, ValueIndexPositionSet}};
 
@@ -53,12 +53,12 @@ union PositionUnion<VA: Ve<T, DA>, VB: Ve<T, DB>, T: Nu, const DA: usize, const 
     p: PhantomData<T>,
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, T, B> {
+impl ComposerGraph {
     pub fn make_volume(
         &self, 
-        original_node: &ComposeNode<B::ComposeType>, 
+        original_node: &ComposeNode, 
         in_index: usize, 
-        data: &mut MakeTemplateData<V2, V3, T, B>,
+        data: &mut MakeTemplateData,
     ) -> ValueIndexVolume {
         let node_id = self.get_input_remote_node_id(original_node, in_index);
         
@@ -122,11 +122,11 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
 }
 
 impl VolumeTemplate {  
-    pub fn get_value<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>, M: Base, const D: usize>(
+    pub fn get_value<V: Ve<T, D>, M: Base, const D: usize>(
         &self, 
         get_value_data: GetValueData,
-        collapser: &Collapser<V2, V3, T, B>,
-        template: &Template<V2, V3, T, B>,
+        collapser: &Collapser,
+        template: &Template,
     ) -> (CSGTree<M, V, T, D>, bool) {
         let mut tree = CSGTree::default();
 
@@ -142,11 +142,11 @@ impl VolumeTemplate {
         (tree, r)
     }
 
-    pub fn get_value_inner<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>, M: Base, const D: usize>(
+    pub fn get_value_inner<V: Ve<T, D>, M: Base, const D: usize>(
         &self, 
         get_value_data: GetValueData,
-        collapser: &Collapser<V2, V3, T, B>,
-        template: &Template<V2, V3, T, B>,
+        collapser: &Collapser,
+        template: &Template,
         mat: M,
         tree: &mut CSGTree<M, V, T, D>,
     ) -> (Vec<usize>, bool) {

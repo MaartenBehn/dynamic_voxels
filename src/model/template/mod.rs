@@ -18,11 +18,6 @@ use crate::model::data_types::number::NumberTemplate;
 use crate::model::data_types::number_space::NumberSpaceTemplate;
 use crate::model::data_types::position_set::PositionSetTemplate;
 use crate::model::data_types::position_space::PositionSpaceTemplate;
-use crate::util::number::Nu;
-
-use crate::util::vector::Ve;
-
-use super::composer::build::BS;
 
 pub type TemplateIndex = usize;
 pub type OutputIndex = usize;
@@ -31,14 +26,14 @@ pub const TEMPLATE_INDEX_NONE: TemplateIndex = TemplateIndex::MAX;
 pub const AMMOUNT_PATH_INDEX: usize = 0;
 
 #[derive(Debug, Clone, Default)]
-pub struct Template<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
+pub struct Template {
     pub nodes: Vec<TemplateNode>,
-    pub values: Vec<TemplateValue<V2, V3, T, B>>,
+    pub values: Vec<TemplateValue>,
     pub max_level: usize,
     pub map_node_id: Vec<(TemplateIndex, ValueIndex)>,
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B> {
+impl Template {
     pub fn enshure_map_size(&mut self, node_id: NodeId) {
         if node_id.0 >= self.map_node_id.len() {
             self.map_node_id.resize(node_id.0 + 1, (TEMPLATE_INDEX_NONE, VALUE_INDEX_NODE));

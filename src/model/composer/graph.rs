@@ -8,13 +8,13 @@ use smallvec::SmallVec;
 
 use crate::{model::data_types::data_type::ComposeDataType, util::{number::Nu, vector::Ve}};
 
-use super::{build::{ComposeTypeTrait, BS}, nodes::{ComposeNode, ComposeNodeType}};
+use super::{nodes::{ComposeNode, ComposeNodeType}};
 
 const TEMP_SAVE_FILE: &str = "./composer_temp_save.json";
 
 #[derive(Debug)]
-pub struct ComposerGraph<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
-    pub snarl: Snarl<ComposeNode<B::ComposeType>>,
+pub struct ComposerGraph {
+    pub snarl: Snarl<ComposeNode>,
     pub flags: ComposerNodeFlags,
 }
 
@@ -28,13 +28,7 @@ pub struct ComposerNodeFlags {
     pub cam_nodes: SmallVec<[NodeId; 4]>,
 }
 
-impl<V2, V3, T, B> ComposerGraph<V2, V3, T, B> 
-where 
-    V2: Ve<T, 2>, 
-    V3: Ve<T, 3>, 
-    T: Nu, 
-    B: BS<V2, V3, T>,
-    B::ComposeType: serde::Serialize + serde::de::DeserializeOwned,
+impl ComposerGraph 
 {
     pub fn new() -> Self {
         let mut snarl = load_snarl().unwrap_or(Snarl::new());       
@@ -55,14 +49,9 @@ where
     }
 }
 
-impl<V2, V3, T, B> ComposerGraph<V2, V3, T, B> 
-where 
-    V2: Ve<T, 2>, 
-    V3: Ve<T, 3>, 
-    T: Nu, 
-    B: BS<V2, V3, T>,
+impl ComposerGraph 
 {
-    pub fn get_input_remote_node_id(&self, node: &ComposeNode<B::ComposeType>, index: usize) -> NodeId {
+    pub fn get_input_remote_node_id(&self, node: &ComposeNode, index: usize) -> NodeId {
         let remotes = self.snarl.in_pin(InPinId{ node: node.id, input: index }).remotes;
         if remotes.is_empty() {
             panic!("No node connected to {:?}", node.t);
@@ -75,7 +64,7 @@ where
         remotes[0].node
     }
 
-    pub fn get_creates_input_remote_pin(&self, node: &ComposeNode<B::ComposeType>) -> Option<NodeId> {
+    pub fn get_creates_input_remote_pin(&self, node: &ComposeNode) -> Option<NodeId> {
         let i = node.inputs.iter()
             .position(|i| i.data_type == ComposeDataType::Creates)
             .expect(&format!("{:?} does not have a creates input pin!", node.t));
@@ -85,7 +74,7 @@ where
             .map(|pin| pin.node)
     }
 
-    pub fn get_output_first_remote_pin_by_index(&self, node: &ComposeNode<B::ComposeType>, index: usize) -> InPinId {
+    pub fn get_output_first_remote_pin_by_index(&self, node: &ComposeNode, index: usize) -> InPinId {
         let remotes = self.snarl.out_pin(OutPinId{ node: node.id, output: index }).remotes;
         if remotes.is_empty() {
             panic!("No output node connected to {:?}", node.t);
@@ -95,7 +84,7 @@ where
     }
 }
 
-pub fn load_snarl<CT: ComposeTypeTrait + serde::de::DeserializeOwned>() -> OctaResult<Snarl<ComposeNode<CT>>> {
+pub fn load_snarl() -> OctaResult<Snarl<ComposeNode>> {
     let content = fs::read_to_string(TEMP_SAVE_FILE)?; 
     let snarl = serde_json::from_str(&content)?;
     Ok(snarl)
@@ -103,7 +92,7 @@ pub fn load_snarl<CT: ComposeTypeTrait + serde::de::DeserializeOwned>() -> OctaR
 
 
 impl ComposerNodeFlags {
-    pub fn new<CT: ComposeTypeTrait>(snarl: &mut Snarl<ComposeNode<CT>>) -> Self {
+    pub fn new(snarl: &mut Snarl<ComposeNode>) -> Self {
         let mut flags = Self { 
             deleted_nodes: SmallVec::new(),
             added_nodes: BitVec::new(),
@@ -148,14 +137,14 @@ impl ComposerNodeFlags {
         }
     }
 
-    pub fn set_added<CT: ComposeTypeTrait>(&mut self, node_id: NodeId, snarl: &Snarl<ComposeNode<CT>>) {
+    pub fn set_added(&mut self, node_id: NodeId, snarl: &Snarl<ComposeNode>) {
         self.enshure_nodes_list_index(node_id.0);
         
         self.added_nodes.set(node_id.0, true);
         self.set_needs_collapse(node_id, snarl);
     }
 
-    pub fn set_changed<CT: ComposeTypeTrait>(&mut self, node_id: NodeId, snarl: &Snarl<ComposeNode<CT>>) {
+    pub fn set_changed(&mut self, node_id: NodeId, snarl: &Snarl<ComposeNode>) {
         self.enshure_nodes_list_index(node_id.0);
 
         if self.added_nodes.get(node_id.0).as_deref().copied().unwrap_or(false) {
@@ -176,7 +165,7 @@ impl ComposerNodeFlags {
         }
     }
 
-    pub fn set_needs_collapse<CT: ComposeTypeTrait>(&mut self, node_id: NodeId, snarl: &Snarl<ComposeNode<CT>>) {
+    pub fn set_needs_collapse(&mut self, node_id: NodeId, snarl: &Snarl<ComposeNode>) {
         self.enshure_nodes_list_index(node_id.0);
 
         if *self.needs_collapse_nodes.get(node_id.0).as_deref().unwrap() {
@@ -198,7 +187,7 @@ impl ComposerNodeFlags {
         }
     }
 
-    pub fn set_cam_notes_as_changed<CT: ComposeTypeTrait>(&mut self, snarl: &Snarl<ComposeNode<CT>>) {
+    pub fn set_cam_notes_as_changed(&mut self, snarl: &Snarl<ComposeNode>) {
         for node_id in self.cam_nodes.to_owned() {
             self.set_changed(node_id, snarl);
         }

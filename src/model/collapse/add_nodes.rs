@@ -5,7 +5,7 @@ use octa_force::{anyhow::{anyhow, bail}, glam::Vec3, log::{debug, info}, OctaRes
 use slotmap::Key;
 use tree64::Node;
 
-use crate::{model::{collapse::collapser::CollapseNode, composer::build::BS, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::TemplateValue, Template, TemplateIndex}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::collapser::CollapseNode, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::TemplateValue, Template, TemplateIndex}}, util::{number::Nu, vector::Ve}};
 
 use super::{collapser::{CollapseChildKey, CollapseNodeKey, Collapser, NodeDataType, UpdateDefinesOperation}, external_input::ExternalInput, number_set::NumberSet};
 
@@ -25,8 +25,8 @@ pub struct GetNewChildrenData<'a> {
     pub depends: &'a [(TemplateIndex, Vec<CollapseNodeKey>)],
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B> {
-    pub fn push_defined(&mut self, node_index: CollapseNodeKey, template: &Template<V2, V3, T, B>) {
+impl Collapser {
+    pub fn push_defined(&mut self, node_index: CollapseNodeKey, template: &Template) {
         let node = &self.nodes[node_index];
         let template_node = &template.nodes[node.template_index];
 
@@ -44,8 +44,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
     pub async fn update_defined(
         &mut self, 
         opperation: UpdateDefinesOperation, 
-        template: &Template<V2, V3, T, B>,
-        state: &mut B
+        template: &Template,
     ) {
         let parent_node = &self.nodes[opperation.parent_index];
         let parent_template_node = &template.nodes[parent_node.template_index];
@@ -60,7 +59,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
                     opperation.template_index, 
                     opperation.parent_index, 
                     template, 
-                    state
                 ).await;
             },
             CreatesType::Children => {
@@ -69,7 +67,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
                     opperation.parent_index, 
                     opperation.creates_index, 
                     template, 
-                    state
                 ).await;
             },
         }
@@ -79,8 +76,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         &mut self, 
         template_index: TemplateIndex,
         parent_index: CollapseNodeKey, 
-        template: &Template<V2, V3, T, B>,
-        state: &mut B,
+        template: &Template,
     ) {
         let template_node = &template.nodes[template_index];
         let parent = &self.nodes[parent_index];
@@ -102,9 +98,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             depends, 
             parent_index, 
             CollapseChildKey::null(), 
-            template, 
-            state,
-        ).await;    
+            template).await;    
     }
 
     pub async fn update_defined_by_creates(
@@ -112,8 +106,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         template_index: TemplateIndex,
         parent_index: CollapseNodeKey, 
         creates_index: usize, 
-        template: &Template<V2, V3, T, B>, 
-        state: &mut B,
+        template: &Template, 
     ) {
         let parent_node = &self.nodes[parent_index];
         let parent_template_node = &template.nodes[parent_node.template_index];
@@ -146,12 +139,11 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
                 parent_index, 
                 child_key, 
                 template, 
-                state,
             ).await; 
         }
 
         for child_index in to_remove_children {
-            self.delete_node(child_index, template, state);
+            self.delete_node(child_index, template);
         }
     }
   
@@ -162,8 +154,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         depends: Vec<(TemplateIndex, Vec<(CollapseNodeKey, CollapseChildKey)>)>, 
         defined_by: CollapseNodeKey,
         child_key: CollapseChildKey,
-        template: &Template<V2, V3, T, B>,
-        state: &mut B,
+        template: &Template,
     ) {
         let new_node_template = &template.nodes[new_node_template_index];
       
@@ -175,7 +166,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             TemplateValue::PositionSet3D(position_set_template) => NodeDataType::PositionSet3D(Default::default()),
             TemplateValue::PositionPairSet2D(position_pair_set_template) => NodeDataType::PositionPairSet2D(Default::default()),
             TemplateValue::PositionPairSet3D(position_pair_set_template) => NodeDataType::PositionPairSet3D(Default::default()),
-            TemplateValue::Build(_) => NodeDataType::Build(B::CollapseValue::default()),
+            TemplateValue::Voxels(_) => NodeDataType::Voxels(Default::default()), 
+            TemplateValue::Mesh(_) => NodeDataType::Mesh(Default::default()), 
             _ => unreachable!()
         };
 

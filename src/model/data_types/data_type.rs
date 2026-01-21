@@ -1,13 +1,17 @@
 use egui_snarl::ui::PinInfo;
 use octa_force::{egui::Color32, glam::{IVec2, IVec3, Vec2, Vec3A}};
 
+pub type T = f32;
+pub type V2 = Vec2;
+pub type V3 = Vec3A;
+
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum ComposeDataType {
-    Number(Option<i32>), 
+    Number(Option<T>), 
     NumberSpace,
     
-    Position2D(Option<IVec2>), 
-    Position3D(Option<IVec3>), 
+    Position2D(Option<V2>), 
+    Position3D(Option<V3>), 
     
     PositionSpace2D,
     PositionSpace3D,
@@ -25,3 +29,5 @@ impl PartialEq for ComposeDataType {
         core::mem::discriminant(self) == core::mem::discriminant(other)
     }
 }
+
+

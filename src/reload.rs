@@ -15,7 +15,6 @@ pub mod mesh;
 use csg::csg_tree::tree::CSGTree;
 use csg::union::tree::{Union, UnionNode};
 use model::composer::ModelComposer;
-use model::examples::compose_island::{ComposeIsland};
 use octa_force::engine::Engine;
 use parking_lot::Mutex;
 use scene::dag64::SceneAddDAGObject;
@@ -84,7 +83,7 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
         camera.z_near = 0.001;
     }
 
-    #[cfg(feature="graph_builder")]
+    #[cfg(feature="graph")]
     {
         camera.set_meter_per_unit(METERS_PER_SHADER_UNIT as f32);
         camera.set_position_in_meters(Vec3::new(0.0, -200.0, 0.0)); 
@@ -93,7 +92,7 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
         camera.speed = 50.0;
         camera.z_near = 0.001;
     }
-
+ 
     camera.z_far = 100.0;
     camera.up = vec3(0.0, 0.0, 1.0);
 
@@ -106,15 +105,14 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
 
 #[derive(Debug)]
 pub struct RenderState {
-    #[cfg(any(feature="scene", feature="graph_builder"))]
+    #[cfg(any(feature="scene", feature="graph"))]
     pub scene: SceneWorker,
     
-    #[cfg(any(feature="scene", feature="graph_builder"))]
+    #[cfg(any(feature="scene", feature="graph"))]
     pub renderer: SceneRenderer,
     
-
-    #[cfg(feature="graph_builder")]
-    pub islands: ComposeIsland
+    #[cfg(any(feature="graph"))]
+    pub composer: ModelComposer, 
 }
 
 #[unsafe(no_mangle)]
@@ -173,11 +171,11 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         })
     }
 
-    #[cfg(feature="graph_builder")]
+    #[cfg(feature="graph")]
     {
         let palette = SharedPalette::new();
         let scene = Scene::new(&engine.context)?.run_worker(engine.context.get_alloc_context(), 1000); 
-        let islands = ComposeIsland::new(scene.send.to_owned(), &logic_state.camera, palette.clone()); 
+        let composer = ModelComposer::new(&logic_state.camera, palette.clone(), scene.send.to_owned()); 
 
         let mut renderer = SceneRenderer::new(
             &engine.context, 
@@ -191,11 +189,11 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         return Ok(RenderState {
             scene,
             renderer,
-            islands,
+            composer,
         })
     }
 
-    #[cfg(not(any(feature="scene", feature="graph_builder")))]
+    #[cfg(not(any(feature="scene", feature="graph")))]
     {
         Ok(RenderState { })
     }
@@ -225,34 +223,35 @@ pub fn update(
         engine.get_current_frame_index())?;
 
     
-    #[cfg(feature="graph_builder")]
-    render_state.islands.update(time, &logic_state.camera)?;
+    #[cfg(feature="graph")]
+    {
+        render_state.composer.update(time, &logic_state.camera)?;
 
-    #[cfg(feature="graph_builder")]
-    if render_state.islands.composer.render_panel_changed {
-        render_state.islands.composer.render_panel_changed = false;
 
-        debug!("Resize Render Panel");
-        logic_state.camera.set_screen_size(render_state.islands.composer.render_panel_size.as_vec2());
+        if render_state.composer.render_panel_changed {
+            render_state.composer.render_panel_changed = false;
 
-        render_state
-            .renderer
-            .on_size_changed(
-                render_state.islands.composer.render_panel_size,
-                &engine.context,
-                &engine.swapchain,
-            )?;
-    } 
+            debug!("Resize Render Panel");
+            logic_state.camera.set_screen_size(render_state.composer.render_panel_size.as_vec2());
 
-    #[cfg(any(feature="graph_builder"))]
-    render_state.renderer.update(
-        &logic_state.camera, 
-        &engine.context, 
-        render_state.islands.composer.render_panel_size, 
-        engine.get_current_in_flight_frame_index(), 
-        engine.get_current_frame_index())?;
+            render_state
+                .renderer
+                .on_size_changed(
+                    render_state.composer.render_panel_size,
+                    &engine.context,
+                    &engine.swapchain,
+                )?;
+        } 
 
-    
+        render_state.renderer.update(
+            &logic_state.camera, 
+            &engine.context, 
+            render_state.composer.render_panel_size, 
+            engine.get_current_in_flight_frame_index(), 
+            engine.get_current_frame_index())?;
+
+    }
+
     Ok(())
 }
 
@@ -270,10 +269,10 @@ pub fn record_render_commands(
     #[cfg(any(feature="scene"))]
     render_state.renderer.render(UVec2::ZERO, command_buffer, &engine)?;
 
-    #[cfg(any(feature="graph_builder"))]
+    #[cfg(any(feature="graph"))]
     render_state.renderer.render(UVec2::ZERO, command_buffer, &engine)?;
 
-    #[cfg(not(any(feature="scene", feature="graph_builder")))]
+    #[cfg(not(any(feature="scene", feature="graph")))]
     command_buffer.swapchain_image_render_barrier(&engine.get_current_swapchain_image_and_view().image)?;
 
     command_buffer.begin_rendering(
@@ -295,11 +294,11 @@ pub fn record_ui_commands(
     logic_state: &mut LogicState,
     render_state: &mut RenderState,
 ) -> OctaResult<()> {
-    #[cfg(any(feature="scene", feature="graph_builder"))]
+    #[cfg(any(feature="scene", feature="graph", feature="graph"))]
     render_state.renderer.render_ui(ctx);
 
-    #[cfg(any(feature="graph_builder"))]
-    render_state.islands.render(ctx);
+    #[cfg(any(feature="graph"))]
+    render_state.composer.render(ctx);
 
     Ok(())
 }

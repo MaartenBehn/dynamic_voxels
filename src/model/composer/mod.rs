@@ -1,36 +1,35 @@
 pub mod nodes;
 pub mod viewer;
-pub mod build;
 pub mod validate;
 pub mod pin;
 pub mod graph;
 pub mod external_input;
+pub mod output_state;
 
 use std::{fs::{self, File}, io::Write, time::{Duration, Instant}};
 
-use build::{ComposeTypeTrait, BS};
 use egui_snarl::{ui::{NodeLayout, PinPlacement, SnarlStyle, SnarlWidget}, Snarl};
 use graph::ComposerGraph;
 use nodes::ComposeNode;
 use octa_force::{anyhow::anyhow, camera::Camera, egui::{self, Align, CornerRadius, Frame, Id, Layout, Margin}, glam::{uvec2, UVec2, Vec2}, log::{debug, info, warn}, OctaResult};
 use viewer::{style, ComposeViewer, ComposeViewerData, ComposeViewerTemplates};
 
-use crate::{model::collapse::external_input::ExternalInput, util::{number::Nu, vector::Ve}, voxel::palette::shared::SharedPalette};
+use crate::{model::{collapse::external_input::ExternalInput, composer::output_state::OutputState}, scene::worker::SceneWorkerSend, util::{number::Nu, vector::Ve}, voxel::palette::shared::SharedPalette};
 
 use super::{collapse::worker::{CollapserChangeReciver, ComposeCollapseWorker}, template::Template};
 
 
 #[derive(Debug)]
-pub struct ModelComposer<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
-    pub graph: ComposerGraph<V2, V3, T, B>,
+pub struct ModelComposer {
+    pub graph: ComposerGraph,
     
     pub style: SnarlStyle,
-    pub viewer_templates: ComposeViewerTemplates<V2, V3, T, B>,
+    pub viewer_templates: ComposeViewerTemplates,
     pub viewer_data: ComposeViewerData,
 
-    pub template: Template<V2, V3, T, B>,
-    pub collapser_worker: ComposeCollapseWorker<V2, V3, T, B>,
-    pub collapser_reciver: CollapserChangeReciver<V2, V3, T, B>,
+    pub template: Template,
+    pub collapser_worker: ComposeCollapseWorker,
+    pub collapser_reciver: CollapserChangeReciver,
 
     pub auto_rebuild: bool,
     pub manual_rebuild: bool,
@@ -43,15 +42,8 @@ pub struct ModelComposer<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     pub palette: SharedPalette,
 }
 
-impl<V2, V3, T, B> ModelComposer<V2, V3, T, B> 
-where 
-    V2: Ve<T, 2>, 
-    V3: Ve<T, 3>, 
-    T: Nu, 
-    B: BS<V2, V3, T>,
-    B::ComposeType: serde::Serialize + serde::de::DeserializeOwned,
-{
-    pub fn new(state: B, camera: &Camera, mut palette: SharedPalette) -> Self {
+impl ModelComposer {
+    pub fn new(camera: &Camera, mut palette: SharedPalette, scene: SceneWorkerSend) -> Self {
         let mut graph = ComposerGraph::new();
 
         let style = style();
@@ -61,9 +53,10 @@ where
         let mut template = Template::empty();
         template.update(&graph, &mut palette);
 
+        let state = OutputState::new(scene, camera, palette.clone());
+        
         let external_input = ExternalInput::new(camera);
-        let (collapser_worker, collapser_reciver) = ComposeCollapseWorker::new(template.clone(), state, external_input);
-      
+        let (collapser_worker, collapser_reciver) = ComposeCollapseWorker::new(template.clone(), external_input, state); 
 
         ModelComposer {
             graph,

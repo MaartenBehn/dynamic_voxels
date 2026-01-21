@@ -5,7 +5,7 @@ use itertools::{iproduct, Itertools};
 use octa_force::{log::debug, OctaResult};
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}, ModelComposer}, template::{self, update::MakeTemplateData, value::{TemplateValue, ValueIndex}, Template}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{ModelComposer, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}}, data_types::data_type::T, template::{self, Template, update::MakeTemplateData, value::{TemplateValue, ValueIndex}}}, util::{number::Nu, vector::Ve}};
 
 use super::{number::NumberTemplate};
 
@@ -20,12 +20,12 @@ pub enum NumberSpaceTemplate {
     }
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, T, B> {
+impl ComposerGraph {
     pub fn make_number_space(
         &self, 
-        original_node: &ComposeNode<B::ComposeType>, 
+        original_node: &ComposeNode, 
         in_index: usize, 
-        data: &mut MakeTemplateData<V2, V3, T, B>,
+        data: &mut MakeTemplateData,
     ) -> ValueIndexNumberSpace {
         let node_id = self.get_input_remote_node_id(original_node, in_index);
 
@@ -50,12 +50,12 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
 }
 
 impl NumberSpaceTemplate { 
-    pub fn get_value<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>>(
+    pub fn get_value(
         &self,
         get_value_data: GetValueData,
-        collapser: &Collapser<V2, V3, T, B>,
-        template: &Template<V2, V3, T, B>
-    ) -> (impl Iterator<Item = T> + use<B, V2, V3, T>, bool) {
+        collapser: &Collapser,
+        template: &Template
+    ) -> (impl Iterator<Item = T>, bool) {
         match &self {
             NumberSpaceTemplate::NumberRange { min, max, step } => {
                 let (min, r_0) =  template

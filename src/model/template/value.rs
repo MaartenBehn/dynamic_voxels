@@ -1,8 +1,9 @@
 use std::marker::PhantomData;
 
 use egui_snarl::NodeId;
+use octa_force::{egui::Vec2, glam::Vec3A};
 
-use crate::{model::{composer::build::BS, data_types::{number::{Hook, NumberTemplate}, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}}, util::{number::Nu, vector::Ve}};
+use crate::{model::data_types::{data_type::{T, V2, V3}, mesh::MeshTemplate, number::{Hook, NumberTemplate}, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate, voxels::VoxelTemplate}, util::{number::Nu, vector::Ve}};
 
 use super::{nodes, Template};
 
@@ -10,12 +11,12 @@ pub type ValueIndex = usize;
 pub const VALUE_INDEX_NODE: usize = usize::MAX;
 
 #[derive(Debug, Clone, Copy)]
-pub enum TemplateValue<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
+pub enum TemplateValue {
     None,
-    Number(NumberTemplate<T>),
+    Number(NumberTemplate),
     NumberSet(NumberSpaceTemplate),
-    Position2D(PositionTemplate<V2, T, 2>),
-    Position3D(PositionTemplate<V3, T, 3>),
+    Position2D(PositionTemplate<V2, 2>),
+    Position3D(PositionTemplate<V3, 3>),
     PositionSet2D(PositionSetTemplate),
     PositionSet3D(PositionSetTemplate),
     PositionPairSet2D(PositionPairSetTemplate),
@@ -24,16 +25,17 @@ pub enum TemplateValue<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
     PositionSpace3D(PositionSpaceTemplate),
     Volume2D(VolumeTemplate),
     Volume3D(VolumeTemplate),
-    Build(B::TemplateValue)
+    Voxels(VoxelTemplate),
+    Mesh(MeshTemplate),
 }
 
-pub union PositionTemplateUnion<'a, VA: Ve<T, DA>, VB: Ve<T, DB>, T: Nu, const DA: usize, const DB: usize> {
-    a: &'a PositionTemplate<VA, T, DA>,
-    b: &'a PositionTemplate<VB, T, DB>,
+pub union PositionTemplateUnion<'a, VA: Ve<T, DA>, VB: Ve<T, DB>, const DA: usize, const DB: usize> {
+    a: &'a PositionTemplate<VA, DA>,
+    b: &'a PositionTemplate<VB, DB>,
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B> {
-    pub fn get_number_value(&self, value_index: ValueIndex) -> &NumberTemplate<T> {
+impl Template {
+    pub fn get_number_value(&self, value_index: ValueIndex) -> &NumberTemplate {
         match &self.values[value_index] {
             TemplateValue::Number(v) => v,
             _ => unreachable!()
@@ -47,7 +49,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
         }
     }
 
-    pub fn get_position_value<V: Ve<T, D>, const D: usize>(&self, value_index: ValueIndex) -> &PositionTemplate<V, T, D> {
+    pub fn get_position_value<V: Ve<T, D>, const D: usize>(&self, value_index: ValueIndex) -> &PositionTemplate<V, D> {
         match &self.values[value_index] {
             TemplateValue::Position2D(v) => {
                 debug_assert!(D == 2);
@@ -61,14 +63,14 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
         }
     }
 
-    pub fn get_position2d_value(&self, value_index: ValueIndex) -> &PositionTemplate<V2, T, 2> {
+    pub fn get_position2d_value(&self, value_index: ValueIndex) -> &PositionTemplate<V2, 2> {
         match &self.values[value_index] {
             TemplateValue::Position2D(v) => v,
             _ => unreachable!()
         }
     }
 
-    pub fn get_position3d_value(&self, value_index: ValueIndex) -> &PositionTemplate<V3, T, 3> {
+    pub fn get_position3d_value(&self, value_index: ValueIndex) -> &PositionTemplate<V3, 3> {
         match &self.values[value_index] {
             TemplateValue::Position3D(v) => v,
             _ => unreachable!()
@@ -109,7 +111,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
 
 
 
-    pub fn get_number_value_mut(&mut self, value_index: ValueIndex) -> &mut NumberTemplate<T> {
+    pub fn get_number_value_mut(&mut self, value_index: ValueIndex) -> &mut NumberTemplate {
         match &mut self.values[value_index] {
             TemplateValue::Number(v) => v,
             _ => unreachable!()
@@ -123,14 +125,14 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
         }
     }
 
-    pub fn get_position2d_value_mut(&mut self, value_index: ValueIndex) -> &mut PositionTemplate<V2, T, 2> {
+    pub fn get_position2d_value_mut(&mut self, value_index: ValueIndex) -> &mut PositionTemplate<V2, 2> {
         match &mut self.values[value_index] {
             TemplateValue::Position2D(v) => v,
             _ => unreachable!()
         }
     }
 
-    pub fn get_position3d_value_mut(&mut self, value_index: ValueIndex) -> &mut PositionTemplate<V3, T, 3> {
+    pub fn get_position3d_value_mut(&mut self, value_index: ValueIndex) -> &mut PositionTemplate<V3, 3> {
         match &mut self.values[value_index] {
             TemplateValue::Position3D(v) => v,
             _ => unreachable!()

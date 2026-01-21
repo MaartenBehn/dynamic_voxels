@@ -5,7 +5,7 @@ use octa_force::{anyhow::{anyhow, bail, ensure}, glam::{vec3, vec3a, IVec3, Vec3
 use rayon::iter::IntoParallelIterator;
 use slotmap::{new_key_type, Key, SlotMap};
 use smallvec::SmallVec;
-use crate::{model::{composer::build::{OnCollapseArgs, BS}, template::{value::TemplateValue, Template, TemplateIndex}}, util::{iter_merger::{IM2, IM3}, number::Nu, state_saver, vector::Ve}, volume::VolumeQureyPosValid};
+use crate::{model::{composer::output_state::OutputState, data_types::{data_type::{T, V2, V3}, mesh::MeshCollapserData, voxels::VoxelCollapserData}, template::{Template, TemplateIndex, value::TemplateValue}}, util::{iter_merger::{IM2, IM3}, number::Nu, state_saver, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
 
 use super::{add_nodes::{GetNewChildrenData, GetValueData}, external_input::ExternalInput, number_set::NumberSet, pending_operations::{PendingOperations, PendingOperationsRes}, position_pair_set::PositionPairSet, position_set::PositionSet};
 
@@ -13,32 +13,33 @@ new_key_type! { pub struct CollapseNodeKey; }
 new_key_type! { pub struct CollapseChildKey; }
 
 #[derive(Debug, Clone, Default)]
-pub struct Collapser<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
-    pub nodes: SlotMap<CollapseNodeKey, CollapseNode<V2, V3, T, B>>,
+pub struct Collapser {
+    pub nodes: SlotMap<CollapseNodeKey, CollapseNode>,
     pub nodes_per_template_index: Vec<SmallVec<[CollapseNodeKey; 4]>>,
     pub pending: PendingOperations,
 }
 
 #[derive(Debug, Clone)]
-pub struct CollapseNode<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
+pub struct CollapseNode {
     pub template_index: usize,
     pub children: Vec<(TemplateIndex, Vec<(CollapseNodeKey, CollapseChildKey)>)>, 
     pub depends: Vec<(TemplateIndex, Vec<(CollapseNodeKey, CollapseChildKey)>)>,
     pub defined_by: CollapseNodeKey,
     pub child_key: CollapseChildKey,
-    pub data: NodeDataType<V2, V3, T, B>,
+    pub data: NodeDataType,
     pub next_reset: CollapseNodeKey,
 }
 
 #[derive(Debug, Clone)]
-pub enum NodeDataType<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
-    NumberSet(NumberSet<T>),
+pub enum NodeDataType {
+    NumberSet(NumberSet),
     PositionSet2D(PositionSet<V2, T, 2>),
     PositionSet3D(PositionSet<V3, T, 3>),
     PositionPairSet2D(PositionPairSet<V2, T, 2>),
     PositionPairSet3D(PositionPairSet<V3, T, 3>),
+    Voxels(VoxelCollapserData),
+    Mesh(MeshCollapserData),
     None,
-    Build(B::CollapseValue)
 }
 
 union VUnion<VA: Ve<T, DA>, VB: Ve<T, DB>, T: Nu, const DA: usize, const DB: usize> {
@@ -60,8 +61,8 @@ pub struct UpdateDefinesOperation {
     pub creates_index: usize,
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B> {
-    pub async fn new(template: &Template<V2, V3, T, B>, state: &mut B) -> Self {
+impl Collapser {
+    pub async fn new(template: &Template) -> Self {
         let inital_capacity = 1000;
 
         let mut collapser = Self {
@@ -75,8 +76,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             vec![], 
             CollapseNodeKey::null(), 
             CollapseChildKey::null(), 
-            template,
-            state).await;
+            template).await;
 
         collapser.pending.push_collpase(1, collapser.get_root_key());
 
@@ -85,19 +85,18 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
  
     pub async fn run(
         &mut self, 
-        template: &Template<V2, V3, T, B>, 
-        state: &mut B,
+        template: &Template, 
         external_input: ExternalInput,
-
+        state: &mut OutputState,
     ) {
 
         loop {
             match self.pending.pop() {
                 PendingOperationsRes::Collapse(key) => self.collapse_node(
-                    key, template, state, external_input).await,
+                    key, template, external_input, state).await,
 
                 PendingOperationsRes::CreateDefined(operation) => self.update_defined(
-                    operation, template, state).await,
+                    operation, template).await,
 
                 PendingOperationsRes::Retry => {
                     #[cfg(debug_assertions)]
@@ -111,9 +110,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
     async fn collapse_node(
         &mut self, 
         node_index: CollapseNodeKey, 
-        template: &Template<V2, V3, T, B>, 
-        state: &mut B, 
+        template: &Template, 
         external_input: ExternalInput,
+        state: &mut OutputState,
     ) {
         let node = &self.nodes[node_index];
         let template_node = &template.nodes[node.template_index]; 
@@ -190,24 +189,44 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
 
                 r
             },
-            TemplateValue::Build(t) => {
-                let data = match &node.data {
-                    NodeDataType::Build(build) => build,
+            TemplateValue::Voxels(voxel_template) => {
+
+                let (mut volume, r_0) = template.get_volume_value(voxel_template.volume)
+                    .get_value::<V3, u8, 3>(get_value_data, &self, template);
+
+                let (mut pos, r_1) = template.get_position3d_value(voxel_template.pos)
+                    .get_value(get_value_data, &self, template);
+
+                let pos = pos[0];
+
+                volume.calculate_bounds();
+
+                let data = match &mut self.nodes[node_index].data {
+                    NodeDataType::Voxels(voxels) => voxels,
                     _ => unreachable!()
                 };
+                data.update(volume, pos, state).await; 
+ 
+                false
+            },
+            TemplateValue::Mesh(mesh_template) => {
 
-                let build = B::on_collapse(OnCollapseArgs { 
-                    template_value: t,
-                    collapse_node: node,
-                    collapse_value: data,
-                    get_value_data,
-                    collapser: &self, 
-                    template, 
-                    state,
-                }).await;
+                let (mut volume, r_0) = template.get_volume_value(mesh_template.volume)
+                    .get_value::<V3, u8, 3>(get_value_data, &self, template);
 
-                self.nodes[node_index].data = NodeDataType::Build(build);
+                let (mut pos, r_1) = template.get_position3d_value(mesh_template.pos)
+                    .get_value(get_value_data, &self, template);
 
+                let pos = pos[0];
+
+                volume.calculate_bounds();
+
+                let data = match &mut self.nodes[node_index].data {
+                    NodeDataType::Mesh(mesh) => mesh,
+                    _ => unreachable!()
+                };
+                data.update(volume, pos, state).await; 
+ 
                 false
             },
             _ => unreachable!(),
@@ -221,7 +240,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         self.collapse_all_childeren(node_index, template);
     }
 
-    fn collapse_all_childeren(&mut self, node_index: CollapseNodeKey, template: &Template<V2, V3, T, B>) {
+    fn collapse_all_childeren(&mut self, node_index: CollapseNodeKey, template: &Template) {
         let node = &self.nodes[node_index];
 
         for (_, list) in node.children.iter() {
@@ -246,7 +265,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             NodeDataType::PositionSet3D(s) => s.get_new_children(),
             NodeDataType::PositionPairSet2D(s) => s.get_new_children(),
             NodeDataType::PositionPairSet3D(s) => s.get_new_children(),
-            NodeDataType::Build(_) 
+            NodeDataType::Voxels(_)
+            | NodeDataType::Mesh(_)
             | NodeDataType::None 
             => panic!("Called get new children on node that has no children"),
         };
@@ -269,7 +289,8 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             NodeDataType::PositionPairSet2D(position_pair_set) => position_pair_set.is_child_valid(child_index),
             NodeDataType::PositionPairSet3D(position_pair_set) => position_pair_set.is_child_valid(child_index),
             NodeDataType::NumberSet(_)
-            | NodeDataType::Build(_) 
+            | NodeDataType::Voxels(_)
+            | NodeDataType::Mesh(_)
             | NodeDataType::None 
             => panic!("Called is child valid on node that has no children"),
         }

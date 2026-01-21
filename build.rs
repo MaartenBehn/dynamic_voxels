@@ -13,7 +13,7 @@ fn warn_lines(text: String) {
 }
 
 fn main() {
-    println!("cargo::rerun-if-changed=shaders/slang/*");
+    println!("cargo::rerun-if-changed=shaders/*");
     
     compile_shader("_trace_tree64");
     compile_shader("_trace_scene");
@@ -23,8 +23,8 @@ fn main() {
 }
 
 fn compile_shader(name: &str) {
-    let source_path = format!("./shaders/slang/{name}.slang");
-    let spv_path = format!("./shaders/slang/bin/{name}.spv");
+    let source_path = format!("./shaders/{name}.slang");
+    let spv_path = format!("./shaders/bin/{name}.spv");
 
     Command::new("rm")
         .arg(&spv_path)

@@ -5,7 +5,7 @@ use itertools::Itertools;
 use octa_force::log::debug;
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}, ModelComposer}, template::{update::MakeTemplateData, value::{TemplateValue, ValueIndex}, Template, TemplateIndex}}, util::{iter_merger::IM4, number::Nu, vector::Ve}};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{ModelComposer, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}}, data_types::data_type::T, template::{Template, TemplateIndex, update::MakeTemplateData, value::{TemplateValue, ValueIndex}}}, util::{iter_merger::IM4}};
 
 use super::{data_type::ComposeDataType, position::{PositionTemplate, ValueIndexPosition2D, ValueIndexPosition3D}};
 
@@ -18,7 +18,7 @@ pub struct Hook {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum NumberTemplate<T: Nu> {
+pub enum NumberTemplate {
     Const(T),
     Hook(Hook),
     SplitPosition2D((ValueIndexPosition2D, usize)),
@@ -26,12 +26,12 @@ pub enum NumberTemplate<T: Nu> {
     Position3DTo2D(ValueIndexPosition3D),
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, T, B> { 
+impl ComposerGraph { 
     pub fn make_number(
         &self, 
-        original_node: &ComposeNode<B::ComposeType>, 
+        original_node: &ComposeNode, 
         in_index: usize, 
-        data: &mut MakeTemplateData<V2, V3, T, B>,
+        data: &mut MakeTemplateData,
     ) -> ValueIndexNumber {
         let remotes = self.snarl.in_pin(InPinId{ node: original_node.id, input: in_index }).remotes;
         if remotes.len() >= 2 {
@@ -43,9 +43,9 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
             let value = match &original_node.inputs[in_index].data_type {
                 ComposeDataType::Number(v) => {
                     if let Some(v) = v {
-                        NumberTemplate::Const(T::from_i32(*v))
+                        NumberTemplate::Const(*v)
                     } else {
-                        NumberTemplate::Const(T::ZERO)
+                        NumberTemplate::Const(0.0)
                     }
                 },
                 _ => unreachable!()
@@ -97,12 +97,12 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
 
 
 
-impl<T: Nu> NumberTemplate<T> {
-    pub fn get_value<V2: Ve<T, 2>, V3: Ve<T, 3>, B: BS<V2, V3, T>>(
+impl NumberTemplate {
+    pub fn get_value(
         &self, 
         get_value_data: GetValueData,
-        collapser: &Collapser<V2, V3, T, B>,
-        template: &Template<V2, V3, T, B>
+        collapser: &Collapser,
+        template: &Template
     ) -> (SmallVec<[T; 1]>, bool) {
 
         match self {

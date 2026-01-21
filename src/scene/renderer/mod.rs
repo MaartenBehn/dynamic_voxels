@@ -31,7 +31,7 @@ impl SceneRenderer {
             swapchain, 
             camera,
             palette,
-            include_bytes!("../../../shaders/slang/bin/_trace_scene.spv"),
+            include_bytes!("../../../shaders/bin/_trace_scene.spv"),
             allways_fullscreen,
         )?;
 

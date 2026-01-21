@@ -2,19 +2,18 @@ use std::mem;
 
 use smallvec::SmallVec;
 
-use crate::{model::{composer::{build::BS, graph::ComposerNodeFlags}, template::{nodes::{TemplateNode}, update::TemplateNodeUpdate, Template}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{composer::{graph::ComposerNodeFlags}, template::{nodes::{TemplateNode}, update::TemplateNodeUpdate, Template}}};
 
 use super::{collapser::{CollapseNodeKey, Collapser, UpdateDefinesOperation}, pending_operations::PendingOperations};
 
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B> {
+impl Collapser {
     
     pub fn template_changed(
         &mut self, 
-        template: &Template<V2, V3, T, B>,
-        old_template: &Template<V2, V3, T, B>,
+        template: &Template,
+        old_template: &Template,
         updates: Vec<TemplateNodeUpdate>,
-        state: &mut B
     ) {
         self.pending.template_changed(template.max_level);
 
@@ -26,7 +25,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
                     for key in keys {
                         let node = &self.nodes[key];
                         if node.template_index == template_index {
-                            self.delete_node(key, old_template, state);
+                            self.delete_node(key, old_template);
                         }
                     }
                 },

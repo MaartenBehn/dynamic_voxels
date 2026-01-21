@@ -4,10 +4,10 @@ use octa_force::egui::{self, epaint::{CircleShape, PathShape, PathStroke}, Color
 
 use crate::{model::data_types::data_type::ComposeDataType, util::{number::Nu, vector::Ve}};
 
-use super::{build::{ComposeTypeTrait, BS}, graph::ComposerNodeFlags, nodes::{ComposeNode, ComposeNodeInput, ComposeNodeOutput}, viewer::ComposeViewer, ModelComposer};
+use super::{graph::ComposerNodeFlags, nodes::{ComposeNode, ComposeNodeInput, ComposeNodeOutput}, viewer::ComposeViewer, ModelComposer};
 
 impl ComposerNodeFlags { 
-    pub fn check_valid_for_all_nodes<CT: ComposeTypeTrait>(&mut self, snarl: &mut Snarl<ComposeNode<CT>>) {
+    pub fn check_valid_for_all_nodes(&mut self, snarl: &mut Snarl<ComposeNode>) {
         let nodes = snarl.nodes().cloned().collect_vec();
 
         for node in nodes {
@@ -19,7 +19,7 @@ impl ComposerNodeFlags {
         }
     }
 
-    pub fn update_valid_for_all_invalid_nodes<CT: ComposeTypeTrait>(&mut self, snarl: &mut Snarl<ComposeNode<CT>>) {
+    pub fn update_valid_for_all_invalid_nodes(&mut self, snarl: &mut Snarl<ComposeNode>) {
         for i in self.invalid_nodes.iter_ones().collect_vec() {
             if let Some(node) = snarl.get_node(NodeId(i)) {
                 let node = node.to_owned();
@@ -33,7 +33,7 @@ impl ComposerNodeFlags {
         }
     }
 
-    pub fn update_node_valid<CT: ComposeTypeTrait>(&mut self, node_id: NodeId, snarl: &mut Snarl<ComposeNode<CT>>) {
+    pub fn update_node_valid(&mut self, node_id: NodeId, snarl: &mut Snarl<ComposeNode>) {
         let node = snarl.get_node(node_id)
             .expect("NodeId was not valid")
             .to_owned();
@@ -42,7 +42,7 @@ impl ComposerNodeFlags {
         self.invalid_nodes.set(node_id.0, !valid);
     }
 
-    pub fn validate_node<CT: ComposeTypeTrait>(&self, node: ComposeNode<CT>, snarl: &mut Snarl<ComposeNode<CT>>) -> bool {
+    pub fn validate_node(&self, node: ComposeNode, snarl: &mut Snarl<ComposeNode>) -> bool {
 
         let mut valid = true;
         for (i, input) in node.inputs.iter().enumerate() {

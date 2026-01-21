@@ -1,10 +1,10 @@
 use octa_force::egui;
 use slotmap::Key;
 
-use crate::{model::{collapse::collapser::{CollapseNodeKey, Collapser}, composer::build::BS}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::collapser::{CollapseNodeKey, Collapser}}, util::{number::Nu, vector::Ve}};
 
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B> { 
+impl Collapser { 
     pub fn debug_render(&self, ui: &mut egui::Ui) {
         ui.strong("Pending");
         ui.label(format!("Min Level: {}", self.pending.min_with_value));

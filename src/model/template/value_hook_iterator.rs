@@ -1,18 +1,18 @@
-use crate::{model::{composer::build::BS, data_types::{number::{Hook, NumberTemplate}, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}, template::{Template, value::{TemplateValue, ValueIndex}}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{data_types::{number::{Hook, NumberTemplate}, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}, template::{Template, value::{TemplateValue, ValueIndex}}}, util::{number::Nu, vector::Ve}};
 
-pub struct ValueHooksIterator<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
-    values: &'a mut [TemplateValue<V2, V3, T, B>],
+pub struct ValueHooksIterator<'a> {
+    values: &'a mut [TemplateValue],
     pointers: Vec<ValueIndex>,
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B> {
-    pub fn iter_hooks<'a>(&'a mut self, value_index: ValueIndex) -> ValueHooksIterator<'a, V2, V3, T, B> {
+impl Template {
+    pub fn iter_hooks<'a>(&'a mut self, value_index: ValueIndex) -> ValueHooksIterator<'a> {
         ValueHooksIterator::new(&mut self.values, value_index)
     }
 }
 
-impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ValueHooksIterator<'a, V2, V3, T, B> {
-    pub fn new(values: &'a mut [TemplateValue<V2, V3, T, B>], value_index: ValueIndex) -> Self {
+impl<'a> ValueHooksIterator<'a> {
+    pub fn new(values: &'a mut [TemplateValue], value_index: ValueIndex) -> Self {
         ValueHooksIterator {
             values,
             pointers: vec![value_index],
@@ -20,14 +20,14 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ValueHooksIterator
     }
 }
 
-impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Iterator for ValueHooksIterator<'a, V2, V3, T, B> {
+impl<'a> Iterator for ValueHooksIterator<'a> {
     type Item = &'a mut Hook;
 
     fn next(&mut self) -> Option<Self::Item> {
 
         while let Some(i) = self.pointers.pop() {
 
-            let value: *mut TemplateValue<V2, V3, T, B> = &mut self.values[i];
+            let value: *mut TemplateValue = &mut self.values[i];
             let value = unsafe { &mut *value };
 
             match value {
@@ -188,7 +188,8 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Iterator for Value
                         },
                     }
                 },
-                TemplateValue::Build(_) => todo!(),
+                TemplateValue::Voxels(voxel_template) => todo!(),
+                TemplateValue::Mesh(mesh_template) => todo!(),
             }
         }
 

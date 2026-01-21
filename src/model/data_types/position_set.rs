@@ -3,7 +3,7 @@ use itertools::{iproduct, Either, Itertools};
 use octa_force::glam::{ivec2, IVec2, IVec3, Vec2, Vec3A};
 use smallvec::SmallVec;
 
-use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::{GetNewChildrenData, GetValueData}, collapser::{CollapseChildKey, CollapseNodeKey, Collapser}}, composer::{build::BS, nodes::{ComposeNode, ComposeNodeType}, ModelComposer}, template::{self, update::MakeTemplateData, value::TemplateValue, Template, TemplateIndex}}, util::{iter_merger::IM2, math_config::MC, number::Nu, vector::Ve}};
+use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::{GetNewChildrenData, GetValueData}, collapser::{CollapseChildKey, CollapseNodeKey, Collapser}}, composer::{ModelComposer, nodes::{ComposeNode, ComposeNodeType}}, data_types::data_type::T, template::{self, Template, TemplateIndex, update::MakeTemplateData, value::TemplateValue}}, util::{iter_merger::IM2, math_config::MC, number::Nu, vector::Ve}};
 
 use crate::util::vector;
 use crate::util::math_config;
@@ -20,11 +20,11 @@ pub enum PositionSetTemplate {
 }
  
 impl PositionSetTemplate { 
-    pub fn get_value<V: Ve<T, D>, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>, const D: usize>(
+    pub fn get_value<V: Ve<T, D>, const D: usize>(
         &self, 
         get_value_data: GetValueData,
-        collapser: &Collapser<V2, V3, T, B>,
-        template: &Template<V2, V3, T, B>
+        collapser: &Collapser,
+        template: &Template
     ) -> (Vec<V>, bool) {
         match self {
             PositionSetTemplate::All(space) => {

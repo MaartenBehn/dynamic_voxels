@@ -9,8 +9,8 @@ use crate::{METERS_PER_SHADER_UNIT, VOXELS_PER_SHADER_UNIT, csg::csg_tree::tree:
 
 // Compose Type
 #[derive(Debug)]
-pub struct ComposeIsland {
-    pub composer: ModelComposer<IVec2, IVec3, i32, ComposeIslandState>,
+pub struct ComposeVoxels {
+    pub composer: ModelComposer<IVec2, IVec3, i32, ComposeVoxelState>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -64,13 +64,13 @@ impl CollapseValueTrait for CollapseValue {}
 
 
 #[derive(Debug, Clone)]
-pub struct ComposeIslandState {
+pub struct ComposeVoxelState {
     pub dag: ParallelVoxelDAG64,
     pub scene: SceneWorkerSend,
     pub scene_dag_key: SceneDAGKey,
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
+impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeVoxelState {
     type ComposeType = ComposeType;
     type TemplateValue = TemplateValue;
     type CollapseValue = CollapseValue; 
@@ -142,7 +142,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeIslandState {
 
 fn delete_object(
     collapse_value: &CollapseValue, 
-    state: &mut ComposeIslandState
+    state: &mut ComposeVoxelState
 ) {
     match collapse_value {
         CollapseValue::Object(object) => {
@@ -152,11 +152,11 @@ fn delete_object(
     }
 }
 
-impl ComposeIsland {
+impl ComposeVoxels {
     pub fn new(scene: SceneWorkerSend, camera: &Camera, palette: SharedPalette) -> Self {
         let mut dag = VoxelDAG64::new(1000000, 1000000).parallel();
         let scene_dag_key = scene.add_dag(dag.clone()).result_blocking();
-        let mut state =  ComposeIslandState {
+        let mut state =  ComposeVoxelState {
             dag,
             scene,
             scene_dag_key,

@@ -4,13 +4,13 @@ use egui_snarl::{InPinId, NodeId, OutPinId};
 use octa_force::log::trace;
 use smallvec::{SmallVec, smallvec};
 
-use crate::{model::{composer::{ModelComposer, build::{BS, GetTemplateValueArgs}, graph::{self, ComposerGraph, ComposerNodeFlags}, nodes::{ComposeNode, ComposeNodeType}}, data_types::{data_type::ComposeDataType, number::NumberTemplate, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::VALUE_INDEX_NODE, value_hook_iterator::ValueHooksIterator}}, util::{number::Nu, vector::Ve}, voxel::palette::shared::SharedPalette};
+use crate::{model::{composer::{ModelComposer, graph::{self, ComposerGraph, ComposerNodeFlags}, nodes::{ComposeNode, ComposeNodeType}}, data_types::{data_type::ComposeDataType, number::NumberTemplate, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::VALUE_INDEX_NODE, value_hook_iterator::ValueHooksIterator}}, util::{number::Nu, vector::Ve}, voxel::palette::shared::SharedPalette};
 
 use super::{dependency_tree::get_dependency_tree_and_loop_paths, nodes::TemplateNode, value::{TemplateValue, ValueIndex}, Template, TemplateIndex, TEMPLATE_INDEX_NONE};
 
-pub struct MakeTemplateData<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
+pub struct MakeTemplateData<'a> {
     pub building_template_index: TemplateIndex,
-    pub template: &'a mut Template<V2, V3, T, B>,
+    pub template: &'a mut Template,
     pub palette: &'a mut SharedPalette,
 }
 
@@ -27,7 +27,7 @@ pub enum TemplateNodeUpdate {
     Changed{ old: TemplateIndex, new: TemplateIndex, level: usize },
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B> {
+impl Template {
     pub fn empty() -> Self {
         Self {
             nodes: vec![TemplateNode {
@@ -47,7 +47,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
         }
     }
 
-    pub fn update(&mut self, graph: &ComposerGraph<V2, V3, T, B>, palette: &mut SharedPalette) -> Vec<TemplateNodeUpdate> {
+    pub fn update(&mut self, graph: &ComposerGraph, palette: &mut SharedPalette) -> Vec<TemplateNodeUpdate> {
         
         let mut template = Template {
             nodes: vec![
@@ -75,27 +75,19 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
         
         for composer_node in graph.snarl.nodes() {             
             let node_id = composer_node.id;
-            
+
+            let mut data = MakeTemplateData {
+                building_template_index: TEMPLATE_INDEX_NONE,
+                template: &mut template,
+                palette,
+            };
+
             match &composer_node.t {
-                ComposeNodeType::Build(t) => {
-                    if B::is_template_node(t) {
-                        let mut data = MakeTemplateData {
-                            building_template_index: TEMPLATE_INDEX_NONE,
-                            template: &mut template,
-                            palette,
-                        };
-
-                        let node_data = graph.start_template_node(composer_node, &mut data);
-
-                        let value = TemplateValue::Build(B::get_template_value(GetTemplateValueArgs { 
-                            compose_type: t, 
-                            composer_node,
-                            graph,
-                        }, &mut data));
-
-                        let value_index = data.add_value(value);
-                        node_data.finish_template_node(value_index, &mut data);
-                    }
+                ComposeNodeType::Voxels => { 
+                    graph.make_voxels(composer_node, &mut data);                    
+                },
+                ComposeNodeType::Mesh => {
+                    graph.make_mesh(composer_node, &mut data);                    
                 }
                 _ => {}
             };
@@ -228,11 +220,11 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
     }
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, T, B> {
+impl ComposerGraph {
     pub fn start_template_node<'a>(
         &self, 
-        node: &ComposeNode<B::ComposeType>, 
-        data: &mut MakeTemplateData<'a, V2, V3, T, B>
+        node: &ComposeNode, 
+        data: &mut MakeTemplateData<'a>
     ) -> MakeTemplateNodeData {
         
         let inactive = MakeTemplateNodeData {
@@ -263,10 +255,10 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
 }
 
 impl MakeTemplateNodeData{
-    pub fn finish_template_node<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>>(
+    pub fn finish_template_node<'a>(
         self,
         value_index: ValueIndex,
-        data: &mut MakeTemplateData<'a, V2, V3, T, B>
+        data: &mut MakeTemplateData<'a>
     ) -> TemplateIndex {
         let node: &mut TemplateNode = &mut data.template.nodes[data.building_template_index]; 
         node.value_index = value_index;
@@ -312,12 +304,12 @@ impl MakeTemplateNodeData{
     }
 }
 
-impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> MakeTemplateData<'a, V2, V3, T, B> {
+impl<'a> MakeTemplateData<'a> {
     pub fn get_value_index_from_node_id(&mut self, node_id: NodeId) -> Option<ValueIndex> {
         self.template.get_value_index_from_node_id(node_id)
     }
 
-    pub fn set_value(&mut self, node_id: NodeId, value: TemplateValue<V2, V3, T, B>) -> ValueIndex {
+    pub fn set_value(&mut self, node_id: NodeId, value: TemplateValue) -> ValueIndex {
         let value_index = self.template.values.len(); 
         self.template.values.push(value);
         self.template.map_node_id[node_id.0].1 = value_index;
@@ -325,7 +317,7 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> MakeTemplateData<'
     }
 
     
-    pub fn add_value(&mut self, value: TemplateValue<V2, V3, T, B>) -> ValueIndex {
+    pub fn add_value(&mut self, value: TemplateValue) -> ValueIndex {
         let value_index = self.template.values.len(); 
         self.template.values.push(value);
         value_index

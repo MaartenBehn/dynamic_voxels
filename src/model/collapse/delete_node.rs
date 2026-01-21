@@ -1,13 +1,13 @@
 use octa_force::{anyhow::{self, ensure, anyhow}, log::info, OctaResult};
 use slotmap::Key;
 
-use crate::{model::{collapse::collapser::NodeDataType, composer::build::{OnDeleteArgs, BS}, template::Template}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::collapser::NodeDataType, template::Template}};
 
 use super::collapser::{CollapseNodeKey, Collapser};
 
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B> { 
-    pub fn delete_node(&mut self, node_index: CollapseNodeKey, template: &Template<V2, V3, T, B>, state: &mut B) {
+impl Collapser { 
+    pub fn delete_node(&mut self, node_index: CollapseNodeKey, template: &Template) {
         let node = self.nodes.remove(node_index);
         if node.is_none() {
             return;
@@ -22,19 +22,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
         info!("{:?} Delete node", node_index);
 
         let template_node = &template.nodes[node.template_index];
-
-        match &node.data {
-            NodeDataType::Build(t) => {
-                B::on_delete(OnDeleteArgs {
-                    collapse_value: t,
-                    collapse_node: &node,
-                    collapser: &self,
-                    template,
-                    state,
-                })
-            },
-            _ => {}
-        }
 
         self.pending.delete_collapse(template_node.level, node_index);
 
@@ -66,7 +53,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B
             .map(|(_, c)| c) 
             .flatten() {
 
-            self.delete_node(*child, template, state);
+            self.delete_node(*child, template);
         }
     } 
 }

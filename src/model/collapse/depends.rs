@@ -3,16 +3,16 @@ use std::iter;
 use itertools::Itertools;
 use slotmap::Key;
 
-use crate::{model::{collapse::collapser::CollapseChildKey, composer::build::BS, template::{Template, TemplateIndex, dependency_tree::DependencyPath, nodes::TemplateNode}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::collapser::CollapseChildKey, template::{Template, TemplateIndex, dependency_tree::DependencyPath, nodes::TemplateNode}}, util::{number::Nu, vector::Ve}};
 
 use super::{add_nodes::GetValueData, collapser::{CollapseNode, CollapseNodeKey, Collapser}};
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Collapser<V2, V3, T, B> {
+impl Collapser {
     pub fn get_depends<'a>(
         &self, 
         parent_index: CollapseNodeKey,
         child_key: CollapseChildKey,
-        template: &'a Template<V2, V3, T, B>,
+        template: &'a Template,
         template_node: &'a TemplateNode,
         new_node_template: &'a TemplateNode,
     ) -> Vec<(TemplateIndex, Vec<(CollapseNodeKey, CollapseChildKey)>)> {

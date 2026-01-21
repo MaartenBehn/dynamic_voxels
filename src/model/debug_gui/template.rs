@@ -1,9 +1,9 @@
 use itertools::Itertools;
 use octa_force::egui;
 
-use crate::{model::{composer::build::{BS, TemplateValueTrait}, data_types::{number::NumberTemplate, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}, template::{Template, TemplateIndex, dependency_tree::{DependencyPath, DependencyTree}, nodes::TemplateNode, value::{TemplateValue, ValueIndex}}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{ data_types::{number::NumberTemplate, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}, template::{Template, TemplateIndex, dependency_tree::{DependencyPath, DependencyTree}, nodes::TemplateNode, value::{TemplateValue, ValueIndex}}}, util::{number::Nu, vector::Ve}};
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B> { 
+impl Template { 
     pub fn debug_render(&self, ui: &mut egui::Ui) {
         if self.nodes.is_empty() {
             ui.label("Template empty");
@@ -260,10 +260,13 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> Template<V2, V3, T, B>
                         },
                     }
                 },
-                TemplateValue::Build(v) => {
-                    for v in v.to_owned().value_indecies() {
-                        self.value(ui, v);
-                    }
+                TemplateValue::Voxels(voxel_template) => {
+                    self.value(ui, voxel_template.pos);
+                    self.value(ui, voxel_template.volume);
+                },
+                TemplateValue::Mesh(mesh_template) => {
+                    self.value(ui, mesh_template.pos);
+                    self.value(ui, mesh_template.volume);
                 },
             }
         });

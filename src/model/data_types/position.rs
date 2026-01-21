@@ -4,7 +4,7 @@ use egui_snarl::InPinId;
 use itertools::{Either, Itertools};
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{build::BS, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}, ModelComposer}, template::{update::MakeTemplateData, value::{TemplateValue, ValueIndex}, Template}}, util::{iter_merger::IM3, number::Nu, vector::Ve}};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{ModelComposer, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}}, data_types::data_type::{T, V2, V3}, template::{Template, update::MakeTemplateData, value::{TemplateValue, ValueIndex}}}, util::{iter_merger::IM3, number::Nu, vector::Ve}};
 
 use super::{data_type::ComposeDataType, number::{Hook, NumberTemplate, ValueIndexNumber}, position_pair_set::PositionPairSetTemplate, position_set::{PositionSetTemplate, ValueIndexPositionSet}};
 
@@ -13,7 +13,7 @@ pub type ValueIndexPosition2D = usize;
 pub type ValueIndexPosition3D = usize;
 
 #[derive(Debug, Clone, Copy)]
-pub enum PositionTemplate<V: Ve<T, D>, T: Nu, const D: usize> {
+pub enum PositionTemplate<V: Ve<T, D>, const D: usize> {
     Const(V),
     Add((ValueIndexPosition, ValueIndexPosition)),
     Sub((ValueIndexPosition, ValueIndexPosition)),
@@ -39,12 +39,12 @@ union PositionUnion<VA: Ve<T, DA>, VB: Ve<T, DB>, T: Nu, const DA: usize, const 
     p: PhantomData<T>,
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, T, B> { 
+impl ComposerGraph { 
     pub fn make_position(
         &self, 
-        original_node: &ComposeNode<B::ComposeType>, 
+        original_node: &ComposeNode, 
         in_index: usize,
-        data: &mut MakeTemplateData<V2, V3, T, B>,
+        data: &mut MakeTemplateData,
     ) -> ValueIndexPosition {
 
         let remotes = self.snarl.in_pin(InPinId{ node: original_node.id, input: in_index }).remotes;
@@ -57,7 +57,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                 ComposeDataType::Position2D(v) => {
 
                     let value = if let Some(v) = v {
-                        PositionTemplate::Const(V2::from_ivec2(*v))
+                        PositionTemplate::Const(*v)
                     } else {
                         PositionTemplate::Const(V2::ZERO)
                     };
@@ -67,7 +67,7 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
                 ComposeDataType::Position3D(v) => {
                     
                     let value = if let Some(v) = v {
-                        PositionTemplate::Const(V3::from_ivec3(*v) )
+                        PositionTemplate::Const(*v)
                     } else {
                         PositionTemplate::Const(V3::ZERO)
                     };
@@ -224,12 +224,12 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposerGraph<V2, V3, 
 
 
 
-impl<V: Ve<T, D>, T: Nu, const D: usize> PositionTemplate<V, T, D> {
-    pub fn get_value<V2: Ve<T, 2>, V3: Ve<T, 3>, B: BS<V2, V3, T>>(
+impl<V: Ve<T, D>, const D: usize> PositionTemplate<V, D> {
+    pub fn get_value(
         &self,
         get_value_data: GetValueData,
-        collapser: &Collapser<V2, V3, T, B>,
-        template: &Template<V2, V3, T, B>
+        collapser: &Collapser,
+        template: &Template
     ) -> (SmallVec<[V; 1]>, bool) {
 
         match self {
@@ -307,7 +307,8 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> PositionTemplate<V, T, D> {
                     .cartesian_product(n)
                     .map(|(p, n)| {
                         let a: [T; 2] = p.to_array(); 
-                        unsafe { PositionUnion { a: V3::new([a[0], a[1], n]) }.b }
+                        let a = V3::new(a[0], a[1], n);
+                        unsafe { PositionUnion { a }.b }
                     });
 
                 (p.collect(), r_0 || r_1)
@@ -321,7 +322,8 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> PositionTemplate<V, T, D> {
                 let p = p.into_iter()
                     .map(|p| {
                         let a: [T; 3] = p.to_array();
-                        unsafe { PositionUnion { a: V2::new([a[0], a[1]]) }.b }
+                        let a = V2::new(a[0], a[1]);
+                        unsafe { PositionUnion { a }.b }
                     });
 
                 (p.collect(), r)

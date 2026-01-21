@@ -1,9 +1,9 @@
 use std::marker::PhantomData;
 
-use isosurface::marching_cubes::MarchingCubes;
-use octa_force::glam::vec3a;
+use isosurface::{marching_cubes::MarchingCubes};
+use octa_force::glam::{Vec3, vec3a};
 
-use crate::{mesh::Mesh, util::{number::Nu, vector::Ve}, volume::VolumeQureyPosValid};
+use crate::{mesh::{Mesh, Vertex}, util::{number::Nu, vector::Ve}, volume::VolumeQureyPosValid};
 
 
 struct Source<'a, Vol: VolumeQureyPosValid<V, T, D>, V: Ve<T, D>, T: Nu, const D: usize> {
@@ -39,6 +39,12 @@ impl Mesh {
         let mut vertices = vec![];
         let mut indices = vec![];
         marching_cubes.extract(&s, &mut vertices, &mut indices);
+
+        let vertices = vertices.chunks(3)
+            .map(|v| {
+                Vertex { position: Vec3::new(v[0], v[1], v[2]) }
+            })
+            .collect();
 
         let aabb = vol.get_bounds();
         Mesh {

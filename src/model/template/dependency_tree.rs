@@ -4,8 +4,6 @@ use std::{collections::VecDeque, usize};
 use itertools::Itertools;
 use smallvec::{SmallVec, smallvec};
 
-use crate::{model::composer::build::BS, util::{number::Nu, vector::Ve}};
-
 use super::{nodes::TemplateNode, Template, TemplateIndex};
 
 #[derive(Debug, Clone, Default)]
@@ -32,8 +30,8 @@ pub struct DependencyTreeStep {
     pub leaf: Option<usize>,
 }
 
-pub fn get_dependency_tree_and_loop_paths<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>>(
-    template: &Template<V2, V3, T, B>, 
+pub fn get_dependency_tree_and_loop_paths(
+    template: &Template, 
     parent_index: TemplateIndex, 
     depends: &[TemplateIndex],
     dependend: &[TemplateIndex], 

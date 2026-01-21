@@ -39,7 +39,7 @@ harness = false
 
 [features]
 scene = []
-graph_builder = []
+graph = []
 
 [dependencies]
 octa-force = { path = "../octa-force-rs" }

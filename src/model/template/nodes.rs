@@ -1,8 +1,6 @@
 use egui_snarl::NodeId;
 use smallvec::SmallVec;
 
-use crate::{model::composer::build::BS, util::{number::Nu, vector::Ve}};
-
 use super::{dependency_tree::{DependencyPath, DependencyTree}, value::{TemplateValue, ValueIndex}, TemplateIndex};
 
 #[derive(Debug, Clone)]

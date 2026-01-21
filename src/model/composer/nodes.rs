@@ -1,9 +1,7 @@
 use egui_snarl::NodeId;
 use octa_force::egui::Ui;
 
-use crate::{model::data_types::data_type::ComposeDataType, util::{number::Nu, vector::Ve}, voxel::palette::palette::{MATERIAL_ID_BASE, MATERIAL_ID_NONE}};
-
-use super::build::ComposeTypeTrait;
+use crate::{model::data_types::data_type::ComposeDataType, voxel::palette::palette::{MATERIAL_ID_BASE, MATERIAL_ID_NONE}};
 
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -28,13 +26,13 @@ pub enum ComposeNodeGroupe {
 
     Globals, 
 
-    Build,
-
     Engine,
+
+    Output,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum ComposeNodeType<CT: ComposeTypeTrait> {
+pub enum ComposeNodeType {
     Position2D,
     Position3D,
 
@@ -82,12 +80,13 @@ pub enum ComposeNodeType<CT: ComposeTypeTrait> {
 
     CamPosition,
 
-    Build(CT)
+    Voxels,
+    Mesh
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct ComposeNode<CT: ComposeTypeTrait> {
-    pub t: ComposeNodeType<CT>,
+pub struct ComposeNode {
+    pub t: ComposeNodeType,
     pub id: NodeId,
     pub group: ComposeNodeGroupe,
     pub inputs: Vec<ComposeNodeInput>,
@@ -112,8 +111,8 @@ pub struct ComposeNodeOutput {
     pub valid: bool,
 }
 
-impl<CT: ComposeTypeTrait> ComposeNode<CT> { 
-    pub fn new(t: ComposeNodeType<CT>, group: ComposeNodeGroupe) -> Self {
+impl ComposeNode { 
+    pub fn new(t: ComposeNodeType, group: ComposeNodeGroupe) -> Self {
         ComposeNode { 
             t, 
             id: NodeId(usize::MAX),
@@ -159,7 +158,7 @@ impl ComposeNodeOutput {
 }
 
 
-pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
+pub fn get_node_templates() -> Vec<ComposeNode> {
     vec![
         ComposeNode::new(ComposeNodeType::Position2D, ComposeNodeGroupe::Const)
             .input(ComposeDataType::Number(None), "x")
@@ -201,14 +200,14 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
         ComposeNode::new(ComposeNodeType::Path3D, ComposeNodeGroupe::PositionSpace3D)
             .input(ComposeDataType::Position3D(None), "start")
             .input(ComposeDataType::Position3D(None), "end")
-            .input(ComposeDataType::Number(Some(10)), "spacing")
+            .input(ComposeDataType::Number(Some(10.0)), "spacing")
             .input(ComposeDataType::Position3D(None), "side variance")
             .output(ComposeDataType::PositionSpace3D, "s"),
 
         ComposeNode::new(ComposeNodeType::Path2D, ComposeNodeGroupe::PositionSpace2D)
             .input(ComposeDataType::Position2D(None), "start")
             .input(ComposeDataType::Position2D(None), "end")
-            .input(ComposeDataType::Number(Some(10)), "spacing")
+            .input(ComposeDataType::Number(Some(10.0)), "spacing")
             .input(ComposeDataType::Position2D(None), "side variance")
             .output(ComposeDataType::PositionSpace2D, "s"),
 
@@ -222,18 +221,18 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
 
         ComposeNode::new(ComposeNodeType::Circle, ComposeNodeGroupe::Volume2D)
             .input(ComposeDataType::Position2D(None), "pos")
-            .input(ComposeDataType::Number(Some(10)), "size")
+            .input(ComposeDataType::Number(Some(10.0)), "size")
             .output(ComposeDataType::Volume2D, "v"),
 
         ComposeNode::new(ComposeNodeType::Sphere, ComposeNodeGroupe::Volume3D)
             .input(ComposeDataType::Position3D(None), "pos")
-            .input(ComposeDataType::Number(Some(10)), "size")
+            .input(ComposeDataType::Number(Some(10.0)), "size")
             .output(ComposeDataType::Volume3D, "v"),
 
         ComposeNode::new(ComposeNodeType::Disk, ComposeNodeGroupe::Volume3D)
             .input(ComposeDataType::Position3D(None), "pos")
-            .input(ComposeDataType::Number(Some(20)), "size")
-            .input(ComposeDataType::Number(Some(10)), "height")
+            .input(ComposeDataType::Number(Some(20.0)), "size")
+            .input(ComposeDataType::Number(Some(10.0)), "height")
             .output(ComposeDataType::Volume3D, "v"),
 
         ComposeNode::new(ComposeNodeType::Box2D, ComposeNodeGroupe::Volume2D)
@@ -352,6 +351,16 @@ pub fn get_node_templates<CT: ComposeTypeTrait>() -> Vec<ComposeNode<CT>> {
 
         ComposeNode::new(ComposeNodeType::CamPosition, ComposeNodeGroupe::Engine)
             .output(ComposeDataType::Position3D(None), "pos"),
+
+        ComposeNode::new(ComposeNodeType::Voxels, ComposeNodeGroupe::Output)
+                .input(ComposeDataType::Volume3D, "volume")
+                .input(ComposeDataType::Position3D(None), "pos")
+                .input(ComposeDataType::Creates, "one per"),
+
+        ComposeNode::new(ComposeNodeType::Mesh, ComposeNodeGroupe::Output)
+                .input(ComposeDataType::Volume3D, "volume")
+                .input(ComposeDataType::Position3D(None), "pos")
+                .input(ComposeDataType::Creates, "one per"),
     ]
 }
 

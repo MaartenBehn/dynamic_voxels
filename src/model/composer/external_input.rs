@@ -1,17 +1,11 @@
 use itertools::Itertools;
 use octa_force::camera::Camera;
 
-use crate::{model::collapse::external_input::ExternalInput, util::{number::Nu, vector::Ve}};
+use crate::{model::collapse::external_input::ExternalInput};
 
-use super::{build::BS, nodes::ComposeNodeType, ModelComposer};
+use super::{nodes::ComposeNodeType, ModelComposer};
 
-impl<V2, V3, T, B> ModelComposer<V2, V3, T, B> 
-where 
-    V2: Ve<T, 2>, 
-    V3: Ve<T, 3>, 
-    T: Nu, 
-    B: BS<V2, V3, T>,
-{
+impl ModelComposer {
     pub fn update_external_input(&mut self, camera: &Camera) {
         let engine_data = ExternalInput::new(camera);
 

@@ -9,4 +9,6 @@ pub mod position_pair_set;
 pub mod position_space;
 pub mod volume;
 pub mod material;
+pub mod voxels;
+pub mod mesh;
 

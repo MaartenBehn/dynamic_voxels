@@ -6,28 +6,24 @@ use itertools::Itertools;
 use octa_force::{egui::{self, Color32, CornerRadius, DragValue, Pos2, Sense, StrokeKind, Ui, WidgetInfo, WidgetType, color_picker::color_edit_button_rgb}, glam::{IVec2, IVec3, Vec2, Vec3A}, log::debug};
 use smallvec::SmallVec;
 
-use crate::{model::data_types::data_type::ComposeDataType, util::{number::Nu, vector::Ve}, voxel::palette::{Palette, picker::palette_color_picker, shared::SharedPalette}};
+use crate::{model::data_types::data_type::{ComposeDataType, V2, V3}, util::{number::Nu, vector::Ve}, voxel::palette::{Palette, picker::palette_color_picker, shared::SharedPalette}};
 
-use super::{build::{ComposeTypeTrait, BS}, graph::ComposerNodeFlags, nodes::{get_node_templates, ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeOutput, ComposeNodeType}, pin::ComposePin};
+use super::{graph::ComposerNodeFlags, nodes::{get_node_templates, ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeOutput, ComposeNodeType}, pin::ComposePin};
 
 const NOT_VALID_ANIMATION_TIME: f32 = 1.5;
 
 #[derive(Debug)]
-pub struct ComposeViewer<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
-    pub templates: &'a ComposeViewerTemplates<V2, V3, T, B>,
+pub struct ComposeViewer<'a> {
+    pub templates: &'a ComposeViewerTemplates,
     pub data: &'a mut ComposeViewerData,
     pub flags: &'a mut ComposerNodeFlags,
     pub palette: &'a mut SharedPalette,
 }
 
 #[derive(Debug)]
-pub struct ComposeViewerTemplates<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> {
-    pub node_templates: Vec<ComposeNode<B::ComposeType>>,
-    pub groupe_templates: Vec<Vec<ComposeNode<B::ComposeType>>>,
-    
-    p0: PhantomData<V2>,
-    p1: PhantomData<V3>,
-    p2: PhantomData<T>,
+pub struct ComposeViewerTemplates {
+    pub node_templates: Vec<ComposeNode>,
+    pub groupe_templates: Vec<Vec<ComposeNode>>,
 }
 
 #[derive(Debug)]
@@ -70,12 +66,11 @@ pub const fn style() -> SnarlStyle {
     }
 }
 
-impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeViewerTemplates<V2, V3, T, B> {
+impl ComposeViewerTemplates {
     pub fn new() -> Self {
         let mut node_templates = get_node_templates();
-        node_templates.append(&mut B::compose_nodes());
         
-        let mut groupe_templates: Vec<Vec<ComposeNode<B::ComposeType>>> = vec![];
+        let mut groupe_templates: Vec<Vec<ComposeNode>> = vec![];
         for node in node_templates.iter() {
             let group = groupe_templates.iter_mut()
                 .find(|g|  g[0].group == node.group);
@@ -93,10 +88,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeViewerTemplates
         Self { 
             node_templates,
             groupe_templates,
-            
-            p0: Default::default(),
-            p1: Default::default(),
-            p2: Default::default(),
         }
     }
 }
@@ -118,8 +109,8 @@ impl ComposeViewerData {
 
 
 
-impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<ComposeNode<B::ComposeType>> for ComposeViewer<'a, V2, V3, T, B> {
-    fn title(&mut self, node: &ComposeNode<B::ComposeType>) -> String { 
+impl<'a> SnarlViewer<ComposeNode> for ComposeViewer<'a> {
+    fn title(&mut self, node: &ComposeNode) -> String { 
         node.title() 
     }
 
@@ -129,7 +120,7 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<Compos
         inputs: &[InPin],
         outputs: &[OutPin],
         ui: &mut Ui,
-        snarl: &mut Snarl<ComposeNode<B::ComposeType>>,
+        snarl: &mut Snarl<ComposeNode>,
     ) {
         ui.horizontal(|ui| {
             ui.label(self.title(&snarl[node]));
@@ -161,7 +152,7 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<Compos
         });
     }
     
-    fn inputs(&mut self, node: &ComposeNode<B::ComposeType>) -> usize { 
+    fn inputs(&mut self, node: &ComposeNode) -> usize { 
         node.inputs.len() 
     }
 
@@ -169,7 +160,7 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<Compos
         &mut self,
         pin: &egui_snarl::InPin,
         ui: &mut octa_force::egui::Ui,
-        snarl: &mut egui_snarl::Snarl<ComposeNode<B::ComposeType>>,
+        snarl: &mut egui_snarl::Snarl<ComposeNode>,
     ) -> impl egui_snarl::ui::SnarlPin + 'static {
         let input: &mut ComposeNodeInput = &mut snarl[pin.id.node].inputs[pin.id.input];
         
@@ -179,7 +170,7 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<Compos
         let changed = if pin.remotes.is_empty() {
             match &mut input.data_type {
                 ComposeDataType::Number(d) => { 
-                    let mut v = d.unwrap_or(0);
+                    let mut v = d.unwrap_or(0.0);
                     let res = ui.add(DragValue::new(&mut v));
                     if res.changed() {
                         (*d) = Some(v);
@@ -188,7 +179,7 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<Compos
                     res.lost_focus() || res.dragged()
                 },
                 ComposeDataType::Position2D(d) => { 
-                    let mut v = d.unwrap_or(IVec2::ZERO);
+                    let mut v = d.unwrap_or(V2::ZERO);
 
                     ui.label("x:");
                     let res_0 = ui.add(DragValue::new(&mut v.x));
@@ -205,7 +196,7 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<Compos
                     res_0.lost_focus() || res_0.dragged() || res_1.lost_focus() || res_1.dragged()
                 },
                 ComposeDataType::Position3D(d) => {
-                    let mut v = d.unwrap_or(IVec3::ZERO);
+                    let mut v = d.unwrap_or(V3::ZERO);
 
                     ui.label("x:");
                     let res_0 = ui.add(DragValue::new(&mut v.x));
@@ -245,7 +236,7 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<Compos
         compose_pin
     }
 
-    fn outputs(&mut self, node: &ComposeNode<B::ComposeType>) -> usize {
+    fn outputs(&mut self, node: &ComposeNode) -> usize {
         node.outputs.len()
     }
 
@@ -253,7 +244,7 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<Compos
         &mut self,
         pin: &egui_snarl::OutPin,
         ui: &mut octa_force::egui::Ui,
-        snarl: &mut egui_snarl::Snarl<ComposeNode<B::ComposeType>>,
+        snarl: &mut egui_snarl::Snarl<ComposeNode>,
     ) -> impl egui_snarl::ui::SnarlPin + 'static {
         let node = &mut snarl[pin.id.node]; 
         let output: &mut ComposeNodeOutput = &mut node.outputs[pin.id.output];
@@ -264,7 +255,7 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<Compos
     }
 
     #[inline]
-    fn connect(&mut self, from: &OutPin, to: &InPin, snarl: &mut Snarl<ComposeNode<B::ComposeType>>) {
+    fn connect(&mut self, from: &OutPin, to: &InPin, snarl: &mut Snarl<ComposeNode>) {
         if to_input(snarl, to).data_type == to_output(snarl, from).data_type {
             for &remote in &to.remotes {
                 snarl.disconnect(remote, to.id);
@@ -280,11 +271,11 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<Compos
         }
     }
 
-    fn has_graph_menu(&mut self, pos: egui::Pos2, _snarl: &mut Snarl<ComposeNode<B::ComposeType>>) -> bool {
+    fn has_graph_menu(&mut self, pos: egui::Pos2, _snarl: &mut Snarl<ComposeNode>) -> bool {
         true
     }
 
-    fn show_graph_menu(&mut self, pos: egui::Pos2, ui: &mut Ui, snarl: &mut Snarl<ComposeNode<B::ComposeType>>) {
+    fn show_graph_menu(&mut self, pos: egui::Pos2, ui: &mut Ui, snarl: &mut Snarl<ComposeNode>) {
 
         ui.label("Add node");
         for group in self.templates.groupe_templates.iter() {
@@ -310,7 +301,7 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<Compos
 
     }
 
-    fn has_dropped_wire_menu(&mut self, _src_pins: AnyPins, _snarl: &mut Snarl<ComposeNode<B::ComposeType>>) -> bool {
+    fn has_dropped_wire_menu(&mut self, _src_pins: AnyPins, _snarl: &mut Snarl<ComposeNode>) -> bool {
         true
     }
 
@@ -319,7 +310,7 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<Compos
         pos: egui::Pos2,
         ui: &mut Ui,
         src_pins: AnyPins,
-        snarl: &mut Snarl<ComposeNode<B::ComposeType>>,
+        snarl: &mut Snarl<ComposeNode>,
     ) {
 
         ui.label("Add node");
@@ -454,7 +445,7 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<Compos
         };
     }
 
-    fn has_node_menu(&mut self, _node: &ComposeNode<B::ComposeType>) -> bool {
+    fn has_node_menu(&mut self, _node: &ComposeNode) -> bool {
         true
     }
 
@@ -464,7 +455,7 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<Compos
         _inputs: &[InPin],
         _outputs: &[OutPin],
         ui: &mut Ui,
-        snarl: &mut Snarl<ComposeNode<B::ComposeType>>,
+        snarl: &mut Snarl<ComposeNode>,
     ) {
         ui.label("Node menu");
         if ui.button("Remove").clicked() {
@@ -491,12 +482,12 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> SnarlViewer<Compos
 
 
 
-impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeViewer<'a, V2, V3, T, B> {
+impl<'a> ComposeViewer<'a> {
     fn add_node(
         &mut self, 
         pos: egui::Pos2, 
-        template_node: &ComposeNode<B::ComposeType>, 
-        snarl: &mut Snarl<ComposeNode<B::ComposeType>>
+        template_node: &ComposeNode, 
+        snarl: &mut Snarl<ComposeNode>
     ) -> NodeId {
         let node_id = snarl.insert_node(pos, template_node.to_owned());
         snarl.get_node_mut(node_id).unwrap().id = node_id;
@@ -517,15 +508,15 @@ impl<'a, V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu, B: BS<V2, V3, T>> ComposeViewer<'a, 
 }
 
 
-pub fn to_input<'a, CT: ComposeTypeTrait>(
-    snarl: &'a Snarl<ComposeNode<CT>>, 
+pub fn to_input<'a>(
+    snarl: &'a Snarl<ComposeNode>, 
     in_pin: &'a InPin
 ) -> &'a ComposeNodeInput {
     &snarl[in_pin.id.node].inputs[in_pin.id.input]
 }
 
-pub fn to_output<'a, CT: ComposeTypeTrait>(
-    snarl: &'a Snarl<ComposeNode<CT>>, 
+pub fn to_output<'a>(
+    snarl: &'a Snarl<ComposeNode>, 
     out_pin: &'a OutPin
 ) -> &'a ComposeNodeOutput {
     &snarl[out_pin.id.node].outputs[out_pin.id.output]
