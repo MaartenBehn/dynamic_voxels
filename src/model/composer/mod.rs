@@ -14,7 +14,7 @@ use nodes::ComposeNode;
 use octa_force::{anyhow::anyhow, camera::Camera, egui::{self, Align, CornerRadius, Frame, Id, Layout, Margin}, glam::{uvec2, UVec2, Vec2}, log::{debug, info, warn}, OctaResult};
 use viewer::{style, ComposeViewer, ComposeViewerData, ComposeViewerTemplates};
 
-use crate::{model::{collapse::external_input::ExternalInput, composer::output_state::OutputState}, scene::worker::SceneWorkerSend, util::{number::Nu, vector::Ve}, voxel::palette::shared::SharedPalette};
+use crate::{mesh::scene::MeshSceneSend, model::{collapse::external_input::ExternalInput, composer::output_state::OutputState}, scene::worker::SceneWorkerSend, util::{number::Nu, vector::Ve}, voxel::palette::shared::SharedPalette};
 
 use super::{collapse::worker::{CollapserChangeReciver, ComposeCollapseWorker}, template::Template};
 
@@ -43,7 +43,7 @@ pub struct ModelComposer {
 }
 
 impl ModelComposer {
-    pub fn new(camera: &Camera, mut palette: SharedPalette, scene: SceneWorkerSend) -> Self {
+    pub fn new(camera: &Camera, mut palette: SharedPalette, scene: SceneWorkerSend, mesh_scene: MeshSceneSend) -> Self {
         let mut graph = ComposerGraph::new();
 
         let style = style();
@@ -53,7 +53,7 @@ impl ModelComposer {
         let mut template = Template::empty();
         template.update(&graph, &mut palette);
 
-        let state = OutputState::new(scene, camera, palette.clone());
+        let state = OutputState::new(scene, mesh_scene, camera, palette.clone());
         
         let external_input = ExternalInput::new(camera);
         let (collapser_worker, collapser_reciver) = ComposeCollapseWorker::new(template.clone(), external_input, state); 

@@ -15,16 +15,18 @@ fn warn_lines(text: String) {
 fn main() {
     println!("cargo::rerun-if-changed=shaders/*");
     
-    compile_shader("_trace_tree64");
-    compile_shader("_trace_scene");
-    compile_shader("_blit");
-    compile_shader("_temporal_denoise");
-    compile_shader("_a_tours_filter");
+    compile_shader("_trace_tree64", "main");
+    compile_shader("_trace_scene", "main");
+    compile_shader("_blit", "main");
+    compile_shader("_temporal_denoise", "main");
+    compile_shader("_a_tours_filter", "main");
+    compile_shader("mesh", "vertex");
+    compile_shader("mesh", "fragment");
 }
 
-fn compile_shader(name: &str) {
+fn compile_shader(name: &str, entry: &str) {
     let source_path = format!("./shaders/{name}.slang");
-    let spv_path = format!("./shaders/bin/{name}.spv");
+    let spv_path = format!("./shaders/bin/{name}_{entry}.spv");
 
     Command::new("rm")
         .arg(&spv_path)
@@ -41,7 +43,7 @@ fn compile_shader(name: &str) {
         .arg("-o")
         .arg(&spv_path)
         .arg("-entry")
-        .arg("compute_main");
+        .arg(entry);
     
     if cfg!(debug_assertions) {
         command.arg("-g3")

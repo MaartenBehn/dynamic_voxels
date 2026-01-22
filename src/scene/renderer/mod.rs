@@ -1,5 +1,5 @@
-use octa_force::{camera::Camera, egui, engine::Engine, glam::UVec2, vulkan::{CommandBuffer, Context, Swapchain}, OctaResult};
-use crate::voxel::{palette::shared::SharedPalette, renderer::{RayManagerData, VoxelRenderer}};
+use octa_force::{OctaResult, camera::Camera, egui, engine::Engine, glam::UVec2, vulkan::{CommandBuffer, Context, Swapchain, ash::vk::AttachmentLoadOp}};
+use crate::{mesh::renderer::MeshRenderer, voxel::{palette::shared::SharedPalette, renderer::{RayManagerData, VoxelRenderer}}};
 
 use super::{worker::{SceneWorker, SceneWorkerRenderData}, Scene, SceneData};
 
@@ -31,7 +31,7 @@ impl SceneRenderer {
             swapchain, 
             camera,
             palette,
-            include_bytes!("../../../shaders/bin/_trace_scene.spv"),
+            include_bytes!("../../../shaders/bin/_trace_scene_main.spv"),
             allways_fullscreen,
         )?;
 
@@ -56,6 +56,7 @@ impl SceneRenderer {
         offset: UVec2,
         buffer: &CommandBuffer,
         engine: &Engine,
+        camera: &Camera,
     ) -> OctaResult<()> {
         self.voxel_renderer.render(offset, buffer, engine, SceneDispatchParams {
             ray_manager: self.voxel_renderer.get_ray_manager_data(),
@@ -63,6 +64,18 @@ impl SceneRenderer {
             debug: self.debug,
         })?;
         //self.debug = false;
+       
+        buffer.begin_rendering(
+            &engine.get_current_swapchain_image_and_view().view,
+            &engine.get_current_depth_image_and_view().view,
+            engine.swapchain.size,
+            AttachmentLoadOp::DONT_CARE,
+            None,
+        );
+
+        
+        buffer.end_rendering();
+
 
         Ok(())
     }

@@ -15,7 +15,7 @@ public struct DispatchParams {
 // Based on https://github.com/dubiousconst282/VoxelRT
 [shader("compute")]
 [numthreads(8, 8)]
-void compute_main(uint2 pos: SV_DispatchThreadID) {
+void main(uint2 pos: SV_DispatchThreadID) {
   if (pos.x == 500 && pos.y == 500) {
     DEBUG_PRINT = pc.debug;
   }

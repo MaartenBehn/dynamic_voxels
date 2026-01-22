@@ -12,7 +12,7 @@ public struct DispatchParams {
 // Based on https://github.com/dubiousconst282/VoxelRT
 [shader("compute")]
 [numthreads(8, 8)]
-void compute_main(uint2 pos: SV_DispatchThreadID) {
+void main(uint2 pos: SV_DispatchThreadID) {
   RayRunner rr = RayRunner(pos, pc.rm); 
   
   for (int bounce_no = 0; bounce_no <= pc.rm.max_bounces; bounce_no++) {

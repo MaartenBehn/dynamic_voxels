@@ -21,7 +21,7 @@ struct DispatchParams {
 
 [shader("compute")]
 [numthreads(8, 8)]
-void compute_main(uint2 pos: SV_DispatchThreadID) {
+void main(uint2 pos: SV_DispatchThreadID) {
   float4 output;
   switch (pc.Channel) {
     case DebugChannel.None: { output = get_default(pos); break; }

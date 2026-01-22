@@ -1,11 +1,11 @@
 use core::fmt;
 use std::{ops::Deref, sync::Arc};
 
-use octa_force::{glam::Mat4, log::{debug, trace, warn}, vulkan::{AllocContext, Context}};
+use octa_force::{glam::Mat4, log::{debug, trace, warn}, vulkan::{Context}};
 use parking_lot::Mutex;
 use smol::future::FutureExt;
 
-use crate::{util::worker_response::{WithRespose, WorkerRespose}, voxel::dag64::{parallel::ParallelVoxelDAG64, DAG64Entry}};
+use crate::{mesh::Mesh, util::worker_response::{WithRespose, WorkerRespose}, voxel::dag64::{DAG64Entry, parallel::ParallelVoxelDAG64}};
 
 use super::{dag64::{SceneAddDAGObject, SceneSetDAGEntry}, dag_store::SceneDAGKey, Scene, SceneData, SceneObjectKey};
 
@@ -20,6 +20,8 @@ pub enum SceneMessage {
 pub struct SceneWorker {
     pub task: smol::Task<Scene>,
     pub send: SceneWorkerSend,
+
+    // TODO: This makes no sense because two reciver would not work.
     pub render_data: SceneWorkerRenderData,
 }
 
@@ -40,15 +42,15 @@ pub struct SceneWorkerRenderData {
 }
 
 impl Scene {
-    pub fn run_worker(mut self, context: AllocContext, cap: usize) -> SceneWorker {
+    pub fn run_worker(mut self, context: Context, cap: usize) -> SceneWorker {
         let (s, r) = smol::channel::bounded(cap); 
-        let (flush_s, flush_r) = smol::channel::bounded(1); 
+        let (loop_s, loop_r) = smol::channel::bounded(1); 
         let (render_s, render_r) = smol::channel::bounded(1); 
         let data = self.get_data();
 
         let task = smol::spawn(async move {
             loop {
-                match r.recv().or(flush_r.recv()).await {
+                match r.recv().or(loop_r.recv()).await {
                     Ok(m) => {
                         debug!("Scene Worker Message: {m:?}");
 
@@ -68,14 +70,14 @@ impl Scene {
                                     .expect("Failed to add DAG Object");
 
                                 awnser(key);
-                                let _ = flush_s.force_send(SceneMessage::Flush);
+                                let _ = loop_s.force_send(SceneMessage::Flush);
                             },
                             SceneMessage::SetDAGEntry(set) => {
                                 let res = self.set_dag64_entry(set);
                                 if res.is_err() {
                                     warn!("Set Entry for invalid DAG Object -> Ignoring");
                                 }
-                                let _ = flush_s.force_send(SceneMessage::Flush);
+                                let _ = loop_s.force_send(SceneMessage::Flush);
                             },
                             SceneMessage::RemoveObject(key) => {
                                 let res = self.remove_object(key);
@@ -83,13 +85,13 @@ impl Scene {
                                     warn!("Typed to removed Scene Object with invalid Key")
                                 }
 
-                                let _ = flush_s.force_send(SceneMessage::Flush);
+                                let _ = loop_s.force_send(SceneMessage::Flush);
                             },
                             SceneMessage::Flush => {
                                 self.flush().expect("Failed to flush scene");
                                 let scene_data = self.get_data();
                                 render_s.force_send(scene_data).expect("Failed to send Scene Data");
-                            }
+                            },
                         }
                     },
 

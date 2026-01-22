@@ -173,17 +173,17 @@ impl VoxelRenderer {
 
         let denoise_stage = ShaderStage::new(
             context, 
-            include_bytes!("../../../shaders/bin/_temporal_denoise.spv"), 
+            include_bytes!("../../../shaders/bin/_temporal_denoise_main.spv"), 
             sets, push_constant_size)?;
 
         let filter_stage = ShaderStage::new(
             context, 
-            include_bytes!("../../../shaders/bin/_a_tours_filter.spv"), 
+            include_bytes!("../../../shaders/bin/_a_tours_filter_main.spv"), 
             sets, push_constant_size)?;
 
         let blit_stage = ShaderStage::new(
             context, 
-            include_bytes!("../../../shaders/bin/_blit.spv"), 
+            include_bytes!("../../../shaders/bin/_blit_main.spv"), 
             sets, push_constant_size)?;
          
         Ok(VoxelRenderer {

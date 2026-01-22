@@ -45,6 +45,9 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::{default, env};
 
+#[cfg(any(feature="graph"))]
+use crate::mesh::scene::MeshScene;
+
 pub const USE_PROFILE: bool = false;
 pub const NUM_FRAMES_IN_FLIGHT: usize = 2;
 
@@ -86,7 +89,7 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
     #[cfg(feature="graph")]
     {
         camera.set_meter_per_unit(METERS_PER_SHADER_UNIT as f32);
-        camera.set_position_in_meters(Vec3::new(0.0, -200.0, 0.0)); 
+        camera.set_position_in_meters(Vec3::new(0.0, -10.0, 0.0)); 
         camera.direction = Vec3::new(0.0, 1.0, 0.0).normalize();
         
         camera.speed = 50.0;
@@ -113,6 +116,9 @@ pub struct RenderState {
     
     #[cfg(any(feature="graph"))]
     pub composer: ModelComposer, 
+    
+    #[cfg(any(feature="graph"))]
+    pub mesh_scene: MeshScene,
 }
 
 #[unsafe(no_mangle)]
@@ -173,9 +179,17 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
     #[cfg(feature="graph")]
     {
+        use crate::mesh::scene::MeshScene;
+
         let palette = SharedPalette::new();
-        let scene = Scene::new(&engine.context)?.run_worker(engine.context.get_alloc_context(), 1000); 
-        let composer = ModelComposer::new(&logic_state.camera, palette.clone(), scene.send.to_owned()); 
+        let scene = Scene::new(&engine.context)?.run_worker(engine.context.clone(), 1000);
+        let mesh_scene = MeshScene::new(&engine.context, &engine.swapchain);
+
+        let composer = ModelComposer::new(
+            &logic_state.camera, 
+            palette.clone(), 
+            scene.send.to_owned(), 
+            mesh_scene.send.to_owned()); 
 
         let mut renderer = SceneRenderer::new(
             &engine.context, 
@@ -190,6 +204,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
             scene,
             renderer,
             composer,
+            mesh_scene,
         })
     }
 
@@ -241,7 +256,9 @@ pub fn update(
                     &engine.context,
                     &engine.swapchain,
                 )?;
-        } 
+        }
+
+        render_state.mesh_scene.update(&engine.context);
 
         render_state.renderer.update(
             &logic_state.camera, 
@@ -270,20 +287,14 @@ pub fn record_render_commands(
     render_state.renderer.render(UVec2::ZERO, command_buffer, &engine)?;
 
     #[cfg(any(feature="graph"))]
-    render_state.renderer.render(UVec2::ZERO, command_buffer, &engine)?;
+    render_state.renderer.render(UVec2::ZERO, command_buffer, &engine, &logic_state.camera)?;
+    
+    #[cfg(any(feature="graph"))]
+    render_state.mesh_scene.render(command_buffer, &logic_state.camera, engine);
+
 
     #[cfg(not(any(feature="scene", feature="graph")))]
     command_buffer.swapchain_image_render_barrier(&engine.get_current_swapchain_image_and_view().image)?;
-
-    command_buffer.begin_rendering(
-        &engine.get_current_swapchain_image_and_view().view,
-        &engine.get_current_depth_image_and_view().view,
-        engine.swapchain.size,
-        AttachmentLoadOp::DONT_CARE,
-        None,
-    );
-
-    command_buffer.end_rendering();
 
     Ok(())
 }
@@ -294,7 +305,7 @@ pub fn record_ui_commands(
     logic_state: &mut LogicState,
     render_state: &mut RenderState,
 ) -> OctaResult<()> {
-    #[cfg(any(feature="scene", feature="graph", feature="graph"))]
+    #[cfg(any(feature="scene", feature="graph"))]
     render_state.renderer.render_ui(ctx);
 
     #[cfg(any(feature="graph"))]

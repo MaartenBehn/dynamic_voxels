@@ -1,6 +1,7 @@
 use std::time::Instant;
 
 use octa_force::{glam::{Mat4, Quat, Vec3}, log::info};
+use slotmap::Key;
 use smallvec::SmallVec;
 
 use crate::{VOXELS_PER_SHADER_UNIT, csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{graph::ComposerGraph, nodes::ComposeNode, output_state::OutputState}, data_types::{data_type::{T, V3}, position::ValueIndexPosition, volume::ValueIndexVolume}, template::{Template, update::MakeTemplateData, value::TemplateValue}}, scene::SceneObjectKey, volume::VolumeBounds, voxel::dag64::DAG64EntryKey};
@@ -55,7 +56,10 @@ impl VoxelCollapserData {
         let elapsed = now.elapsed();
         info!("Voxel DAG Build took: {:?}", elapsed);
 
-        //delete_object(args.collapse_value, state);
+        if !self.scene_key.is_null() {
+            state.scene.remove_object(self.scene_key);
+        }
+
         let scene_key = state.scene.add_dag_object(
             Mat4::from_scale_rotation_translation(
                 Vec3::ONE,

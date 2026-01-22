@@ -11,7 +11,7 @@ struct DispatchParams {
 
 [shader("compute")]
 [numthreads(8, 8, 1)]
-void compute_main(int2 pos: SV_DispatchThreadID) {
+void main(int2 pos: SV_DispatchThreadID) {
   // If camera is steady, just do basic accumulation so the edge stopping
   // functions won't get in the way to anti-aliasing jitters.
   

@@ -1,10 +1,13 @@
 use isosurface::marching_cubes::MarchingCubes;
 use octa_force::{glam::Vec3, vulkan::ash::vk};
+use spirv_struct_layout::SpirvLayout;
 
 use crate::{util::{aabb::{AABB, AABB3}, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
 
 pub mod from_volume;
 pub mod renderer;
+pub mod gpu_mesh;
+pub mod scene;
 
 #[derive(Debug, Clone, Default)]
 pub struct Mesh {
@@ -15,15 +18,18 @@ pub struct Mesh {
 
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
-struct Vertex {
-    position: Vec3,
+#[repr(C)]
+#[derive(SpirvLayout)]
+pub struct Vertex {
+    pub pos: Vec3,
 }
+
 
 impl octa_force::vulkan::Vertex for Vertex {
     fn bindings() -> Vec<vk::VertexInputBindingDescription> {
         vec![vk::VertexInputBindingDescription {
             binding: 0,
-            stride: 12,
+            stride: size_of::<Vertex>() as _,
             input_rate: vk::VertexInputRate::VERTEX,
         }]
     }
@@ -52,5 +58,8 @@ impl<V: Ve<f32, 3>> VolumeBounds<V, f32, 3> for Mesh {
     }
 }
 
-
-
+impl Vertex {
+    fn new(pos: Vec3) -> Self {
+        Self { pos }
+    }
+}

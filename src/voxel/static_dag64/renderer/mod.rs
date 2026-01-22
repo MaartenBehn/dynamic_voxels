@@ -58,7 +58,7 @@ impl StaticDAG64Renderer {
             swapchain, 
             camera, 
             palette,
-            include_bytes!("../../../../shaders/bin/_trace_tree64.spv"),
+            include_bytes!("../../../../shaders/bin/_trace_tree64_main.spv"),
             true,
         )?;
 

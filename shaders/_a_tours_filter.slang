@@ -16,7 +16,7 @@ struct DispatchParams {
 
 [shader("compute")]
 [numthreads(8, 8, 1)]
-void compute_main(int2 pos: SV_DispatchThreadID) {
+void main(int2 pos: SV_DispatchThreadID) {
   float centerDepth = pc.GBuffer.DepthTex.Instance[pos].r;
   float4 centerIrradiance = pc.InIrradianceTex.Instance[pos];
 
