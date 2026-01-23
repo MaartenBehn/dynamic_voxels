@@ -39,7 +39,7 @@ const RENDER_DISPATCH_GROUP_SIZE_Y: u32 = 8;
 #[derive(Debug)]
 pub struct VoxelRenderer {
     heap: ImageDescriptorHeap,
-    palette_buffer: PaletteBuffer,
+    pub palette_buffer: PaletteBuffer,
     
     g_buffer: GBuffer,
 

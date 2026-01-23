@@ -1,8 +1,10 @@
+import helper_ray;
 
 // Per-vertex attributes to be assembled from bound vertex buffers.
 struct AssembledVertex
 {
-    float3	position : POSITION;
+    float3	position : POSITION; // Material Id
+    uint    material_id;
 };
 
 // Output of the vertex shader, and input to the fragment shader.
@@ -25,6 +27,7 @@ struct VertexStageOutput
 
 public struct RenderData {
   public float4x4 proj_mat;
+  public Material* palette;
 };
 
 [vk::push_constant] RenderData pc;
@@ -35,10 +38,9 @@ VertexStageOutput vertex(
 {
     VertexStageOutput output;
 
-    float3 position = assembledVertex.position;
-    float3 color    = assembledVertex.position;
-
-    output.coarseVertex.color = color;
+    float3 position = assembledVertex.position.xyz;
+    
+    output.coarseVertex.color = pc.palette[assembledVertex.material_id].Color;
     output.sv_position = mul(pc.proj_mat, float4(position, 1.0));
 
     return output;

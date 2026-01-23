@@ -962,7 +962,6 @@ dependencies = [
  "fnv",
  "half",
  "hashbrown",
- "isosurface",
  "itertools 0.14.0",
  "nalgebra",
  "octa-force",
@@ -1753,12 +1752,6 @@ dependencies = [
  "libc",
  "windows-sys 0.59.0",
 ]
-
-[[package]]
-name = "isosurface"
-version = "0.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4caf4535490ed52ef057093edbd2e30440c997ae5e65b95691c694e0321dc54"
 
 [[package]]
 name = "itertools"

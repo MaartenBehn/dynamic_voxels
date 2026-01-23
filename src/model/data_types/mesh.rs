@@ -48,6 +48,7 @@ impl MeshCollapserData {
         state: &mut OutputState,
     ) {
 
+        dbg!(&volume);
 
         let now = Instant::now();
 

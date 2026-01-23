@@ -65,18 +65,6 @@ impl SceneRenderer {
         })?;
         //self.debug = false;
        
-        buffer.begin_rendering(
-            &engine.get_current_swapchain_image_and_view().view,
-            &engine.get_current_depth_image_and_view().view,
-            engine.swapchain.size,
-            AttachmentLoadOp::DONT_CARE,
-            None,
-        );
-
-        
-        buffer.end_rendering();
-
-
         Ok(())
     }
 

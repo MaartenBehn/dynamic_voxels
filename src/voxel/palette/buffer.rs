@@ -16,7 +16,7 @@ impl PaletteBuffer {
         let buffer = context.create_buffer(
             vk::BufferUsageFlags::UNIFORM_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS | vk::BufferUsageFlags::TRANSFER_DST, 
             MemoryLocation::GpuOnly,
-            (size_of::<u64>() * 256) as _)?;
+            (size_of::<u64>() * 256 * 2) as _)?;
 
         Ok(PaletteBuffer {
             buffer,

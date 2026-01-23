@@ -1,7 +1,7 @@
 use octa_force::{camera::Camera, engine::{self, Engine}, glam::{Mat4, Vec2}, vulkan::{CommandBuffer, Context, GraphicsPipeline, GraphicsPipelineCreateInfo, GraphicsShaderCreateInfo, PipelineLayout, ash::vk::{self, AttachmentLoadOp, BlendFactor, BlendOp, ColorComponentFlags, Format, PipelineColorBlendAttachmentState, PushConstantRange, ShaderStageFlags}}};
 use spirv_struct_layout::SpirvLayout;
 
-use crate::mesh::{Mesh, Vertex, gpu_mesh::GPUMesh};
+use crate::{mesh::{Mesh, Vertex, gpu_mesh::GPUMesh}, voxel::palette::{self, buffer::PaletteBuffer}};
 
 
 #[derive(Debug)]
@@ -15,6 +15,7 @@ pub struct MeshRenderer {
 #[derive(SpirvLayout)]
 pub struct MeshDispatchParams {
     proj_mat: Mat4,
+    palette_ptr: u64,
 }
 
 impl MeshRenderer {
@@ -74,6 +75,8 @@ impl MeshRenderer {
         buffer: &CommandBuffer,
         engine: &Engine,
         camera: &Camera,
+        size: Vec2,
+        palette_buffer: &PaletteBuffer,
     ) {
         buffer.begin_rendering(
             &engine.get_current_swapchain_image_and_view().view,
@@ -83,8 +86,8 @@ impl MeshRenderer {
             None,
         );
 
-        buffer.set_viewport_size(engine.swapchain.size.as_vec2());
-        buffer.set_scissor_size(engine.swapchain.size.as_vec2());
+        buffer.set_viewport_size(size);
+        buffer.set_scissor_size(size);
 
         buffer.bind_graphics_pipeline(&self.pipeline);
 
@@ -92,6 +95,7 @@ impl MeshRenderer {
 
         let dispatch_params = MeshDispatchParams {
             proj_mat,
+            palette_ptr: palette_buffer.buffer.get_device_address(),
         };
 
         buffer.push_constant(&self.pipeline_layout, 

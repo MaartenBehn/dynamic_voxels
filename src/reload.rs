@@ -11,6 +11,7 @@ pub mod volume;
 pub mod voxel;
 pub mod bvh;
 pub mod mesh;
+pub mod marching_cubes;
 
 use csg::csg_tree::tree::CSGTree;
 use csg::union::tree::{Union, UnionNode};
@@ -290,7 +291,14 @@ pub fn record_render_commands(
     render_state.renderer.render(UVec2::ZERO, command_buffer, &engine, &logic_state.camera)?;
     
     #[cfg(any(feature="graph"))]
-    render_state.mesh_scene.render(command_buffer, &logic_state.camera, engine);
+    render_state.mesh_scene.render(
+        command_buffer, 
+        &logic_state.camera,
+        engine, 
+        render_state.composer.render_panel_size.as_vec2(),
+        &render_state.renderer.voxel_renderer.palette_buffer,
+    );
+    // TODO: Move Palette Code
 
 
     #[cfg(not(any(feature="scene", feature="graph")))]

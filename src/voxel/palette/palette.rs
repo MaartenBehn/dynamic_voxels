@@ -1,5 +1,5 @@
 use bitvec::{array::BitArray, bitarr, order::Lsb0};
-use octa_force::{anyhow::bail, glam::{vec3, vec4, Vec3A, Vec4}, vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
+use octa_force::{OctaResult, anyhow::bail, glam::{Vec3A, Vec4, uvec3, vec3, vec4}, vulkan::{Buffer, Context, ash::vk, gpu_allocator::MemoryLocation}};
 
 use super::{material::Material, Palette};
 
@@ -61,3 +61,4 @@ pub fn get_rgb_color(c: Vec3A) -> [u8; 3] {
     let value = (c * 255.0).clamp(Vec3A::ZERO, Vec3A::ONE * 255.0).round();
     [value.x as u8, value.y as u8, value.z as u8]
 }
+

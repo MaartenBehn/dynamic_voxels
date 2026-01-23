@@ -1,4 +1,3 @@
-use isosurface::marching_cubes::MarchingCubes;
 use octa_force::{glam::Vec3, vulkan::ash::vk};
 use spirv_struct_layout::SpirvLayout;
 
@@ -22,6 +21,7 @@ pub struct Mesh {
 #[derive(SpirvLayout)]
 pub struct Vertex {
     pub pos: Vec3,
+    pub material_id: u32,
 }
 
 
@@ -42,6 +42,12 @@ impl octa_force::vulkan::Vertex for Vertex {
                 format: vk::Format::R32G32B32_SFLOAT,
                 offset: 0,
             },
+            vk::VertexInputAttributeDescription {
+                binding: 0,
+                location: 1,
+                format: vk::Format::R32_UINT,
+                offset: 12,
+            },
         ]
     }
 }
@@ -59,7 +65,7 @@ impl<V: Ve<f32, 3>> VolumeBounds<V, f32, 3> for Mesh {
 }
 
 impl Vertex {
-    fn new(pos: Vec3) -> Self {
-        Self { pos }
+    pub fn new(pos: Vec3, material_id: u8) -> Self {
+        Self { pos, material_id: material_id as _ }
     }
 }

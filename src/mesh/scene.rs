@@ -1,8 +1,8 @@
-use octa_force::{camera::Camera, engine::Engine, glam::Mat4, vulkan::{CommandBuffer, Context, Swapchain, ash::vk::AttachmentLoadOp}};
+use octa_force::{camera::Camera, engine::Engine, glam::{Mat4, Vec2}, vulkan::{CommandBuffer, Context, Swapchain, ash::vk::AttachmentLoadOp}};
 use slotmap::{SlotMap, new_key_type};
 use smol::channel::Receiver;
 
-use crate::{mesh::{Mesh, gpu_mesh::GPUMesh, renderer::MeshRenderer}, util::worker_response::{WithRespose, WorkerRespose}};
+use crate::{mesh::{Mesh, gpu_mesh::GPUMesh, renderer::MeshRenderer}, util::worker_response::{WithRespose, WorkerRespose}, voxel::palette::buffer::PaletteBuffer};
 
 new_key_type! { pub struct SceneMeshKey; }
 
@@ -68,9 +68,15 @@ impl MeshScene {
         }
     }
 
-    pub fn render(&self, buffer: &CommandBuffer, camera: &Camera, engine: &Engine) {
+    pub fn render(
+        &self, 
+        buffer: &CommandBuffer, 
+        camera: &Camera, 
+        engine: &Engine, 
+        size: Vec2, 
+        palette_buffer: &PaletteBuffer) {
 
-        self.renderer.start_render(buffer, engine, camera);
+        self.renderer.start_render(buffer, engine, camera, size, palette_buffer);
          
         for mesh in self.meshes.values() {
             self.renderer.render(buffer, &mesh.mesh);
