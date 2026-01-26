@@ -22,8 +22,8 @@ pub trait VolumeRandomPos {
     fn get_random_valid_position(&self, search_size: f32) -> Option<Vec3>;
 }
 
-pub trait VolumeGradient {
-    fn get_gradient_at_position(&self, pos: Vec3) -> Vec3;
+pub trait VolumeGradient<V: Ve<f32, D>, const D: usize> {
+    fn get_gradient_at_position(&self, pos: V) -> V;
 }
 
 pub trait VolumeQureyPosValid<V: Ve<T, D>, T: Nu, const D: usize>: VolumeBounds<V, T, D> + Sized {

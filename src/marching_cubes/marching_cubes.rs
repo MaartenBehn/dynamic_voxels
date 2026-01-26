@@ -12,11 +12,17 @@ use super::index_cache::IndexCache;
 use super::marching_cubes_impl::{get_offset, interpolate, march_cube};
 use super::marching_cubes_tables::{CORNERS, EDGE_CONNECTION};
 
-pub fn marching_cubes<S: VolumeQureyPosValue<V, f32, 3>, V: Ve<f32, 3>>(
+pub fn marching_cubes<S, V, FI, FV>(
     source: &S,
-    vertices: &mut Vec<Vertex>, 
-    indices: &mut Vec<u32>
-) {
+    mut push_vertex: FV,
+    mut push_index: FI,
+)
+    where
+        S: VolumeQureyPosValue<V, f32, 3>, 
+        V: Ve<f32, 3>,
+        FV: FnMut(Vec3, u8) -> (),
+        FI: FnMut(u32) -> (),
+{
 
     let aabb = source.get_bounds();
     let min = aabb.min().to_ivec3();
@@ -69,13 +75,15 @@ pub fn marching_cubes<S: VolumeQureyPosValue<V, f32, 3>, V: Ve<f32, 3>>(
                 march_cube(&values, |edge: usize| {
                     let cached_index = index_cache.get(i, j, edge);
                     if cached_index > 0 {
-                        indices.push(cached_index);
+                        push_index(cached_index);
+                        //indices.push(cached_index);
                     } else {
                         let u = EDGE_CONNECTION[edge][0];
                         let v = EDGE_CONNECTION[edge][1];
 
                         index_cache.put(i, j, edge, index);
-                        indices.push(index);
+                        push_index(index);
+                        //indices.push(index);
                         index += 1;
 
                         //let offset = get_offset(values[u], values[v]);
@@ -92,7 +100,9 @@ pub fn marching_cubes<S: VolumeQureyPosValue<V, f32, 3>, V: Ve<f32, 3>>(
                             MATERIAL_ID_NONE
                         };
 
-                        vertices.push(Vertex::new(pos / METERS_PER_SHADER_UNIT as f32, value));
+                        push_vertex(pos, value);
+
+                        //vertices.push(Vertex::new(pos / VOXELS_PER_SHADER_UNIT as f32, value));
                     }
                 });
                 index_cache.advance_cell();

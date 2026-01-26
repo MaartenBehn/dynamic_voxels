@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use octa_force::glam::{vec3, IVec3, Mat4, Quat, UVec3, Vec3, Vec3A, Vec4};
 
-use crate::{util::{aabb::{AABB}, math_config::MC, matrix::Ma, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyAABB, VolumeQureyAABBResult, VolumeQureyPosValid, VolumeQureyPosValue}, voxel::palette::palette::MATERIAL_ID_NONE};
+use crate::{util::{aabb::AABB, math_config::MC, matrix::Ma, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeGradient, VolumeQureyAABB, VolumeQureyAABBResult, VolumeQureyPosValid, VolumeQureyPosValue}, voxel::palette::palette::MATERIAL_ID_NONE};
 
 use super::{Base};
 
@@ -78,5 +78,11 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> VolumeQureyAABB<V, T, D> for CSGSphere<
         } else {
             VolumeQureyAABBResult::Full(MATERIAL_ID_NONE)
         }
+    }
+}
+
+impl<M, V: Ve<T, D>, T: Nu, const D: usize> VolumeGradient<V::VectorF, D> for CSGSphere<M, V, T, D> {
+    fn get_gradient_at_position(&self, pos: V::VectorF) -> V::VectorF {
+        self.mat.mul_vector(pos)
     }
 }

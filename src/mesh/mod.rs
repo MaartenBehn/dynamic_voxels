@@ -22,6 +22,7 @@ pub struct Mesh {
 pub struct Vertex {
     pub pos: Vec3,
     pub material_id: u32,
+    pub normal: Vec3,
 }
 
 
@@ -48,6 +49,12 @@ impl octa_force::vulkan::Vertex for Vertex {
                 format: vk::Format::R32_UINT,
                 offset: 12,
             },
+            vk::VertexInputAttributeDescription {
+                binding: 0,
+                location: 2,
+                format: vk::Format::R32G32B32_SFLOAT,
+                offset: 16,
+            },
         ]
     }
 }
@@ -65,7 +72,11 @@ impl<V: Ve<f32, 3>> VolumeBounds<V, f32, 3> for Mesh {
 }
 
 impl Vertex {
-    pub fn new(pos: Vec3, material_id: u8) -> Self {
-        Self { pos, material_id: material_id as _ }
+    pub fn new(pos: Vec3, material_id: u8, normal: Vec3) -> Self {
+        Self { 
+            pos, 
+            material_id: material_id as _, 
+            normal 
+        }
     }
 }
