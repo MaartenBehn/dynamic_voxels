@@ -123,7 +123,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
        
     #[cfg(feature="scene")]
     {
-        let scene = Scene::new(&engine.context)?.run_worker(engine.context.get_alloc_context(), 10);
+        let scene = Scene::new(&engine.context)?.run_worker(engine.context.clone(), 10);
 
         let palette = SharedPalette::new();
         let renderer = SceneRenderer::new(
@@ -175,7 +175,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     #[cfg(feature="graph_builder")]
     {
         let palette = SharedPalette::new();
-        let scene = Scene::new(&engine.context)?.run_worker(engine.context.get_alloc_context(), 1000); 
+        let scene = Scene::new(&engine.context)?.run_worker(engine.context.clone(), 1000); 
         let islands = ComposeIsland::new(scene.send.to_owned(), &logic_state.camera, palette.clone()); 
 
         let mut renderer = SceneRenderer::new(

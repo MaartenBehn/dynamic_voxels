@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{ops::Deref, sync::Arc};
 
-use octa_force::{glam::Mat4, log::{debug, trace, warn}, vulkan::{AllocContext, Context}};
+use octa_force::{glam::Mat4, log::{debug, trace, warn}, vulkan::{Context}};
 use parking_lot::Mutex;
 use smol::future::FutureExt;
 
@@ -40,7 +40,7 @@ pub struct SceneWorkerRenderData {
 }
 
 impl Scene {
-    pub fn run_worker(mut self, context: AllocContext, cap: usize) -> SceneWorker {
+    pub fn run_worker(mut self, context: Context, cap: usize) -> SceneWorker {
         let (s, r) = smol::channel::bounded(cap); 
         let (flush_s, flush_r) = smol::channel::bounded(1); 
         let (render_s, render_r) = smol::channel::bounded(1); 

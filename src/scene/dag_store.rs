@@ -1,4 +1,4 @@
-use octa_force::{vulkan::{ash::vk, gpu_allocator::MemoryLocation, AllocContext, Buffer, Context}, OctaResult};
+use octa_force::{vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
 use slotmap::{new_key_type, SlotMap};
 
 use crate::voxel::dag64::parallel::ParallelVoxelDAG64;
@@ -25,7 +25,7 @@ impl SceneDAGStore {
         }
     }   
 
-    pub fn add_dag(&mut self, context: &AllocContext, dag: ParallelVoxelDAG64) -> OctaResult<SceneDAGKey> {
+    pub fn add_dag(&mut self, context: &Context, dag: ParallelVoxelDAG64) -> OctaResult<SceneDAGKey> {
         let mut node_buffer = context.create_buffer(
             vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS_KHR,
             MemoryLocation::CpuToGpu,
