@@ -49,8 +49,6 @@ impl VoxelCollapserData {
         state: &mut OutputState,
     ) -> VoxelCollapserData {
 
-        dbg!(&volume);
-
         let now = Instant::now();
         let dag_key = state.dag.add_aabb_query_volume(&volume).expect("Could not add DAG Entry!");
         let elapsed = now.elapsed();

@@ -15,7 +15,7 @@ impl Mesh {
         let mut indices = vec![];
         marching_cubes(vol, |pos, val| {
                 let grad = vol.get_gradient_at_position(V::from_vec3(pos));
-                dbg!(grad);
+                //dbg!(grad);
 
                 vertices.push(Vertex::new(
                 pos.yxz() / VOXELS_PER_SHADER_UNIT as f32, 

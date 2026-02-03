@@ -113,8 +113,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeMeshState {
 
                 volume.calculate_bounds();
 
-                dbg!(&volume);
-
                 let now = Instant::now();
 
                 let mesh = Mesh::from_volume(&volume);
@@ -122,7 +120,6 @@ impl<V2: Ve<T, 2>, V3: Ve<T, 3>, T: Nu> BS<V2, V3, T> for ComposeMeshState {
                 let elapsed = now.elapsed();
                 info!("Mesh Build took: {:?}", elapsed);
 
-                dbg!(&mesh);
                 todo!();
 
                 /*
