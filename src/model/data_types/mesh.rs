@@ -47,6 +47,7 @@ impl MeshCollapserData {
         pos: V3,
         state: &mut OutputState,
     ) {
+        self.on_delete(state);
 
         let now = Instant::now();
 
@@ -54,10 +55,6 @@ impl MeshCollapserData {
 
         let elapsed = now.elapsed();
         info!("Mesh Build took: {:?}", elapsed);
-
-        if !self.mesh_key.is_null() {
-            state.mesh_scene.remove(self.mesh_key);
-        }
 
         let mesh_key = state.mesh_scene.add(
             mesh,

@@ -1,10 +1,10 @@
 pub mod nodes;
 pub mod viewer;
-pub mod validate;
 pub mod pin;
 pub mod graph;
 pub mod external_input;
 pub mod output_state;
+pub mod flags;
 
 use std::{fs::{self, File}, io::Write, time::{Duration, Instant}};
 
@@ -51,7 +51,7 @@ impl ModelComposer {
         let viewer_data = ComposeViewerData::new();
 
         let mut template = Template::empty();
-        if !graph.flags.invalid_nodes.any() {
+        if graph.flags.are_all_valid() {
             template.update(&graph, &mut palette);
         }
 
@@ -143,10 +143,10 @@ impl ModelComposer {
         self.viewer_data.update(time);
         self.update_external_input(camera);
 
-        if self.manual_rebuild || (self.auto_rebuild && self.graph.flags.needs_collapse_nodes.any())  {
+        if self.manual_rebuild || (self.auto_rebuild && self.graph.flags.needs_collapse_any())  {
             self.manual_rebuild = false;
 
-            if !self.graph.flags.invalid_nodes.any() {
+            if self.graph.flags.are_all_valid() {
                 debug!("Rebuilding Template");
                 
                 let now = Instant::now();

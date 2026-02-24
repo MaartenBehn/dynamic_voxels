@@ -6,9 +6,9 @@ use itertools::Itertools;
 use octa_force::{egui::{self, Color32, CornerRadius, DragValue, Pos2, Sense, StrokeKind, Ui, WidgetInfo, WidgetType, color_picker::color_edit_button_rgb}, glam::{IVec2, IVec3, Vec2, Vec3A}, log::debug};
 use smallvec::SmallVec;
 
-use crate::{model::data_types::data_type::{ComposeDataType, V2, V3}, util::{number::Nu, vector::Ve}, voxel::palette::{Palette, picker::palette_color_picker, shared::SharedPalette}};
+use crate::{model::{composer::flags::ComposerNodeFlags, data_types::data_type::{ComposeDataType, V2, V3}}, util::{number::Nu, vector::Ve}, voxel::palette::{Palette, picker::palette_color_picker, shared::SharedPalette}};
 
-use super::{graph::ComposerNodeFlags, nodes::{get_node_templates, ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeOutput, ComposeNodeType}, pin::ComposePin};
+use super::{nodes::{get_node_templates, ComposeNode, ComposeNodeGroupe, ComposeNodeInput, ComposeNodeOutput, ComposeNodeType}, pin::ComposePin};
 
 const NOT_VALID_ANIMATION_TIME: f32 = 1.5;
 
@@ -126,7 +126,7 @@ impl<'a> SnarlViewer<ComposeNode> for ComposeViewer<'a> {
             ui.label(self.title(&snarl[node]));
 
             let size = egui::Vec2::new(30.0, 30.0);
-            if self.flags.added_nodes.get(node.0).as_deref().copied().unwrap_or(false) {
+            if self.flags.is_added(node) {
                 ui.add(
                     egui::Image::new(egui::include_image!("../../../assets/plus.svg"))
                         .tint(Color32::GRAY)
@@ -134,7 +134,7 @@ impl<'a> SnarlViewer<ComposeNode> for ComposeViewer<'a> {
                 );            
             }
 
-            if self.flags.changed_nodes.get(node.0).as_deref().copied().unwrap_or(false) {
+            if self.flags.is_changed(node) {
                 ui.add(
                     egui::Image::new(egui::include_image!("../../../assets/pencil.svg"))
                         .tint(Color32::GRAY)
@@ -142,7 +142,7 @@ impl<'a> SnarlViewer<ComposeNode> for ComposeViewer<'a> {
                 );            
             }
 
-            if self.flags.needs_collapse_nodes.get(node.0).as_deref().copied().unwrap_or(false) {
+            if self.flags.needs_collapse(node) {
                 ui.add(
                     egui::Image::new(egui::include_image!("../../../assets/spin.svg"))
                         .tint(Color32::GRAY)
@@ -352,6 +352,7 @@ impl<'a> SnarlViewer<ComposeNode> for ComposeViewer<'a> {
                                     snarl.connect(*src_pin, dst_pin);
                                     self.flags.set_changed(src_pin.node, snarl);
                                     self.flags.update_node_valid(src_pin.node, snarl);
+                                    self.flags.update_node_valid(dst_pin.node, snarl);
                                     return;
                                 }
 
@@ -368,6 +369,7 @@ impl<'a> SnarlViewer<ComposeNode> for ComposeViewer<'a> {
                                 snarl.connect(*src_pin, dst_pin);
                                 self.flags.set_changed(src_pin.node, snarl);
                                 self.flags.update_node_valid(src_pin.node, snarl);
+                                self.flags.update_node_valid(dst_pin.node, snarl);
                                 return;
                             }
 
@@ -467,12 +469,7 @@ impl<'a> SnarlViewer<ComposeNode> for ComposeViewer<'a> {
 
             // Mark nodes dependend on external_input
             match node.t {
-            ComposeNodeType::CamPosition => {
-                    let res = self.flags.cam_nodes.iter().position(|id| *id == node.id);
-                    if let Some(i) = res {
-                        self.flags.cam_nodes.swap_remove(i);
-                    }
-                }
+            ComposeNodeType::CamPosition => self.flags.remove_cam_note(node_id),
                 _ => {}
             }
 
@@ -494,9 +491,7 @@ impl<'a> ComposeViewer<'a> {
 
         // Mark nodes dependend on external_input
         match template_node.t {
-            ComposeNodeType::CamPosition => {
-                self.flags.cam_nodes.push(node_id);
-            }
+            ComposeNodeType::CamPosition => self.flags.add_cam_note(node_id),
             _ => {}
         }
 

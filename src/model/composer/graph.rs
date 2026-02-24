@@ -6,7 +6,7 @@ use itertools::Itertools;
 use octa_force::OctaResult;
 use smallvec::SmallVec;
 
-use crate::{model::data_types::data_type::ComposeDataType, util::{number::Nu, vector::Ve}};
+use crate::{model::{composer::flags::ComposerNodeFlags, data_types::data_type::ComposeDataType}, util::{number::Nu, vector::Ve}};
 
 use super::{nodes::{ComposeNode, ComposeNodeType}};
 
@@ -18,18 +18,8 @@ pub struct ComposerGraph {
     pub flags: ComposerNodeFlags,
 }
 
-#[derive(Debug)]
-pub struct ComposerNodeFlags { 
-    pub deleted_nodes: SmallVec<[NodeId; 4]>,
-    pub added_nodes: BitVec,
-    pub changed_nodes: BitVec,
-    pub needs_collapse_nodes: BitVec,
-    pub invalid_nodes: BitVec,
-    pub cam_nodes: SmallVec<[NodeId; 4]>,
-}
+impl ComposerGraph {
 
-impl ComposerGraph 
-{
     pub fn new() -> Self {
         let mut snarl = load_snarl().unwrap_or(Snarl::new());       
         let mut flags = ComposerNodeFlags::new(&mut snarl);
@@ -91,111 +81,5 @@ pub fn load_snarl() -> OctaResult<Snarl<ComposeNode>> {
     Ok(snarl)
 }
 
-
-impl ComposerNodeFlags {
-    pub fn new(snarl: &mut Snarl<ComposeNode>) -> Self {
-        let mut flags = Self { 
-            deleted_nodes: SmallVec::new(),
-            added_nodes: BitVec::new(),
-            changed_nodes: BitVec::new(),
-            needs_collapse_nodes: BitVec::new(),
-            invalid_nodes: BitVec::new(),
-            cam_nodes: SmallVec::new(),
-        };
-
-
-        for node in snarl.nodes().cloned().collect_vec() {
-            let node_id = node.id; 
-            flags.enshure_nodes_list_index(node_id.0);
-
-            match node.t {
-                ComposeNodeType::CamPosition => {
-                    flags.cam_nodes.push(node_id);
-                }
-                _ => {}
-            }
-
-            let valid = flags.validate_node(node, snarl);
-            flags.invalid_nodes.set(node_id.0, !valid);
-        }
-
-        flags
-    }
-
-    pub fn reset_change_flags(&mut self) {
-        self.deleted_nodes.clear();
-        self.added_nodes.clear();
-        self.changed_nodes.clear();
-        self.needs_collapse_nodes.clear();
-    } 
-
-    pub fn enshure_nodes_list_index(&mut self, i: usize) {
-        if self.added_nodes.len() <= i {
-            self.added_nodes.resize(i + 1, false);
-            self.changed_nodes.resize(i + 1, false);
-            self.invalid_nodes.resize(i + 1, false);
-            self.needs_collapse_nodes.resize(i + 1, false);
-        }
-    }
-
-    pub fn set_added(&mut self, node_id: NodeId, snarl: &Snarl<ComposeNode>) {
-        self.enshure_nodes_list_index(node_id.0);
-        
-        self.added_nodes.set(node_id.0, true);
-        self.set_needs_collapse(node_id, snarl);
-    }
-
-    pub fn set_changed(&mut self, node_id: NodeId, snarl: &Snarl<ComposeNode>) {
-        self.enshure_nodes_list_index(node_id.0);
-
-        if self.added_nodes.get(node_id.0).as_deref().copied().unwrap_or(false) {
-            return;
-        }
-
-        self.changed_nodes.set(node_id.0, true);
-        self.set_needs_collapse(node_id, snarl);
-    }
-
-    pub fn set_deleted(&mut self, node_id: NodeId) {
-        self.enshure_nodes_list_index(node_id.0);
-        self.added_nodes.set(node_id.0, false);
-        self.changed_nodes.set(node_id.0, false);
-
-        // Removed nodes can not be invalid.
-        self.invalid_nodes.set(node_id.0, false);
-
-        if !self.deleted_nodes.contains(&node_id) {
-            self.deleted_nodes.push(node_id);
-        }
-    }
-
-    pub fn set_needs_collapse(&mut self, node_id: NodeId, snarl: &Snarl<ComposeNode>) {
-        self.enshure_nodes_list_index(node_id.0);
-
-        if *self.needs_collapse_nodes.get(node_id.0).as_deref().unwrap() {
-            return;
-        }
-
-        self.needs_collapse_nodes.set(node_id.0, true);
-        
-        let node = snarl.get_node(node_id)
-            .expect("NodeId was not valid")
-            .to_owned();
-
-        for (i, output) in node.outputs.iter().enumerate() {
-            let out_pin = snarl.out_pin(OutPinId { node: node.id, output: i });
-
-            for remote in out_pin.remotes {
-                self.set_needs_collapse(remote.node, snarl);
-            }       
-        }
-    }
-
-    pub fn set_cam_notes_as_changed(&mut self, snarl: &Snarl<ComposeNode>) {
-        for node_id in self.cam_nodes.to_owned() {
-            self.set_changed(node_id, snarl);
-        }
-    }
-}
 
 

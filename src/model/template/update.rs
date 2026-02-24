@@ -1,10 +1,10 @@
 use std::usize;
 
 use egui_snarl::{InPinId, NodeId, OutPinId};
-use octa_force::log::trace;
+use octa_force::log::{self, trace};
 use smallvec::{SmallVec, smallvec};
 
-use crate::{model::{composer::{ModelComposer, graph::{self, ComposerGraph, ComposerNodeFlags}, nodes::{ComposeNode, ComposeNodeType}}, data_types::{data_type::ComposeDataType, number::NumberTemplate, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::VALUE_INDEX_NODE, value_hook_iterator::ValueHooksIterator}}, util::{number::Nu, vector::Ve}, voxel::palette::shared::SharedPalette};
+use crate::{model::{composer::{ModelComposer, graph::{self, ComposerGraph}, nodes::{ComposeNode, ComposeNodeType}}, data_types::{data_type::ComposeDataType, number::NumberTemplate, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::VALUE_INDEX_NODE, value_hook_iterator::ValueHooksIterator}}, util::{number::Nu, vector::Ve}, voxel::palette::shared::SharedPalette};
 
 use super::{dependency_tree::get_dependency_tree_and_loop_paths, nodes::TemplateNode, value::{TemplateValue, ValueIndex}, Template, TemplateIndex, TEMPLATE_INDEX_NONE};
 
@@ -25,6 +25,7 @@ pub enum TemplateNodeUpdate {
     New{ new: TemplateIndex, parent: TemplateIndex, creates_index: usize, new_level: usize },
     Unchanged{ old: TemplateIndex, new: TemplateIndex },
     Changed{ old: TemplateIndex, new: TemplateIndex, level: usize },
+    None(TemplateIndex),
 }
 
 impl Template {
@@ -125,53 +126,79 @@ impl Template {
             }
         }
 
-        let mut needs_update = vec![]; 
-        for composer_node in graph.snarl.nodes() {  
-            let old_index = self.get_template_index_from_node_id(composer_node.id);
-            let new_index = template.get_template_index_from_node_id(composer_node.id);
+        let mut needs_update = vec![];
+        
+        for id in graph.flags.iter_deleted() {
+            let index = self.get_template_index_from_node_id(id);
             
-            if new_index.is_none() {
-                if old_index.is_some() {
-                    needs_update.push(TemplateNodeUpdate::Delete(old_index.unwrap()));
-                }
+            if index.is_none() {
+                log::error!("Invalid delted flag for {id:?}");
                 continue;
             }
-            let new = new_index.unwrap();
 
-            if old_index.is_none() {
-                let node: &TemplateNode = &template.nodes[new];
-                
-                // If the parent is also new skip this one.
-                // if graph.flags.added_nodes.get(node.created_by.0).as_deref().copied().unwrap() {
-                //    continue;
-                // }
-
-                needs_update.push(TemplateNodeUpdate::New{
-                    new,
-                    parent: node.created_by.0,
-                    creates_index: node.created_by.1,
-                    new_level: node.level,
-                });
-                continue;
-            }
-            let old = old_index.unwrap();
-
-            if graph.flags.needs_collapse_nodes.get(composer_node.id.0).as_deref().copied().unwrap_or(false) {
-                let node: &TemplateNode = &template.nodes[new];
-
-                needs_update.push(TemplateNodeUpdate::Changed{ new, old, level: node.level });
-            } else if new != old {
-                needs_update.push(TemplateNodeUpdate::Unchanged{ new, old });
-            } else {
-                
-                match composer_node.t {
-                    ComposeNodeType::CamPosition => {},
-                    _ => {}
-                }
-
-            }
+            needs_update.push(TemplateNodeUpdate::Delete(index.unwrap()));
         }
 
+        for id in graph.flags.iter_added() {
+            let index = template.get_template_index_from_node_id(id);
+            
+            if index.is_none() {
+                log::error!("Invalid new flag for {id:?}");
+                continue;
+            }
+            let index = index.unwrap();
+
+            let node: &TemplateNode = &template.nodes[index];
+            needs_update.push(TemplateNodeUpdate::New{
+                new: index,
+                parent: node.created_by.0,
+                creates_index: node.created_by.1,
+                new_level: node.level,
+            });
+        }
+
+        for (id, v) in graph.flags.iter_changed_all() {
+            if v {
+
+                let old_index = self.get_template_index_from_node_id(id);
+                let new_index = template.get_template_index_from_node_id(id);
+
+                if old_index.is_none() {
+                    log::error!("Invalid changed flag for old {id:?}");
+                    continue;
+                }
+
+                if new_index.is_none() {
+                    log::error!("Invalid changed flag for new {id:?}");
+                    continue;
+                }
+                let(new, old) = (new_index.unwrap(), old_index.unwrap());
+
+                let node: &TemplateNode = &template.nodes[new];
+                needs_update.push(TemplateNodeUpdate::Changed{ new, old, level: node.level });
+
+            } else if !graph.flags.is_added(id) && !graph.flags.is_deleted(id) {
+
+                let old_index = self.get_template_index_from_node_id(id);
+                let new_index = template.get_template_index_from_node_id(id);
+
+                if old_index.is_none() {
+                    continue;
+                }
+
+                if new_index.is_none() {
+                    log::error!("Invalid unchanged flag for new {id:?}");
+                    continue;
+                }
+                let(new, old) = (new_index.unwrap(), old_index.unwrap()); 
+                
+                if new != old {
+                    needs_update.push(TemplateNodeUpdate::Unchanged{ new, old });
+                } else {
+                    needs_update.push(TemplateNodeUpdate::None(new));
+                }
+            }
+        }
 
         (*self) = template;
 

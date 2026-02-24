@@ -43,38 +43,35 @@ impl ComposerGraph {
 
 impl VoxelCollapserData {
     pub async fn update(
-        &self,
+        &mut self,
         volume: CSGTree<u8, V3, T, 3>,
         pos: V3,
         state: &mut OutputState,
-    ) -> VoxelCollapserData {
+    ) { 
+        self.on_delete(state);
 
         let now = Instant::now();
-        let dag_key = state.dag.add_aabb_query_volume(&volume).expect("Could not add DAG Entry!");
+        self.dag_key = state.dag.add_aabb_query_volume(&volume).expect("Could not add DAG Entry!");
+
         let elapsed = now.elapsed();
         info!("Voxel DAG Build took: {:?}", elapsed);
 
-        if !self.scene_key.is_null() {
-            state.scene.remove_object(self.scene_key);
-        }
-
-        let scene_key = state.scene.add_dag_object(
+        self.scene_key = state.scene.add_dag_object(
             Mat4::from_scale_rotation_translation(
                 Vec3::ONE,
                 Quat::IDENTITY,
                 Vec3::from(pos) / VOXELS_PER_SHADER_UNIT as f32
             ), 
             state.scene_dag_key,
-            state.dag.get_entry(dag_key),
+            state.dag.get_entry(self.dag_key),
         ).result_async().await;
-
-        VoxelCollapserData { 
-            scene_key, 
-            dag_key 
-        }
     }
 
     pub fn on_delete(&self, state: &mut OutputState) {
+        if !self.dag_key.is_null() {
+            state.dag.remove_entry(self.dag_key);
+        }
+
         if !self.scene_key.is_null() {
             state.scene.remove_object(self.scene_key);
         }

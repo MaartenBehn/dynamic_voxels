@@ -1,8 +1,9 @@
 use std::mem;
 
+use itertools::Itertools;
 use smallvec::SmallVec;
 
-use crate::{model::{composer::{graph::ComposerNodeFlags}, template::{nodes::{TemplateNode}, update::TemplateNodeUpdate, Template}}};
+use crate::{model::{template::{nodes::{TemplateNode}, update::TemplateNodeUpdate, Template}}};
 
 use super::{collapser::{CollapseNodeKey, Collapser, UpdateDefinesOperation}, pending_operations::PendingOperations};
 
@@ -17,15 +18,12 @@ impl Collapser {
         self.pending.template_changed(new_template.max_level);
 
         let mut new_nodes_per_template_index = vec![SmallVec::new(); new_template.nodes.len()]; 
+
         for update in updates {
             match update {
                 TemplateNodeUpdate::Delete(template_index) => {
-                    let keys = self.nodes.keys().collect::<Vec<_>>(); 
-                    for key in keys {
-                        let node = &self.nodes[key];
-                        if node.template_index == template_index {
-                            self.delete_node(key);
-                        }
+                    for index in self.nodes_per_template_index[template_index].iter().copied().collect_vec() {
+                        self.delete_node(index);
                     }
                 },
                 TemplateNodeUpdate::New{ new, parent, creates_index, new_level } => { 
@@ -52,15 +50,10 @@ impl Collapser {
 
                     mem::swap(&mut new_nodes_per_template_index[new], &mut self.nodes_per_template_index[old]);
                 },
+                TemplateNodeUpdate::None(template_index) => {
+                    mem::swap(&mut new_nodes_per_template_index[template_index], &mut self.nodes_per_template_index[template_index]);
+                }
             }
-        }
-
-        for (i, per) in self.nodes_per_template_index.iter_mut().enumerate() {
-            let new = &mut new_nodes_per_template_index[i];
-
-            if !per.is_empty() && new.is_empty() {
-                mem::swap(per, new);
-            } 
         }
 
         self.template = new_template;

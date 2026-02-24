@@ -55,4 +55,8 @@ impl ParallelVoxelDAG64 {
     pub fn get_entry(&self, key: DAG64EntryKey) -> DAG64Entry {
         self.entry_points.lock()[key].to_owned()
     }
+
+    pub fn remove_entry(&mut self, key: DAG64EntryKey) {
+        self.entry_points.lock().remove(key);
+    }
 }
