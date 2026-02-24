@@ -23,10 +23,10 @@ pub struct CollapserChangeReciver {
 impl ComposeCollapseWorker {
     pub fn new(
         template: Template,
-        engine_data: ExternalInput,
-        mut state: OutputState,
+        external_input: ExternalInput,
+        state: OutputState,
     ) -> (Self, CollapserChangeReciver) {
-        let collasper = smol::block_on(Collapser::new(&template));
+        let collasper = smol::block_on(Collapser::new(template, external_input, state));
 
         let (update_s, update_r) = 
             smol::channel::bounded(1);
@@ -37,10 +37,7 @@ impl ComposeCollapseWorker {
         let task = smol::spawn(Self::run(
             update_r, 
             collapser_s, 
-            template, 
-            collasper.clone(), 
-            engine_data,
-            state));
+            collasper.clone()));
 
         (
             ComposeCollapseWorker {
@@ -58,14 +55,11 @@ impl ComposeCollapseWorker {
     async fn run(
         update_r: smol::channel::Receiver<(Template, Vec<TemplateNodeUpdate>, ExternalInput)>,
         collapser_s: smol::channel::Sender<Collapser>, 
-        mut template: Template,
         mut collapser: Collapser,
-        engine_data: ExternalInput,
-        mut state: OutputState,
     ) {
         let now = Instant::now();
 
-        collapser.run(&template, engine_data, &mut state).await;
+        collapser.run().await;
 
         let elapsed = now.elapsed();
         info!("Collapse took: {:?}", elapsed);
@@ -77,10 +71,10 @@ impl ComposeCollapseWorker {
                 Ok((new_template, updates, external_input)) => {
                     let now = Instant::now();
 
-                    collapser.template_changed(&new_template, &template, updates);
-                    template = new_template;
+                    collapser.template_changed(new_template, updates);
+                    collapser.external_input = external_input;
 
-                    collapser.run(&template, external_input, &mut state).await;
+                    collapser.run().await;
 
                     let elapsed = now.elapsed();
                     info!("Collapse took: {:?}", elapsed);

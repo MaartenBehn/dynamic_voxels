@@ -54,21 +54,20 @@ impl NumberSpaceTemplate {
         &self,
         get_value_data: GetValueData,
         collapser: &Collapser,
-        template: &Template
     ) -> (impl Iterator<Item = T>, bool) {
         match &self {
             NumberSpaceTemplate::NumberRange { min, max, step } => {
-                let (min, r_0) =  template
+                let (min, r_0) = collapser.template
                     .get_number_value(*min)
-                    .get_value(get_value_data, collapser, template);
+                    .get_value(get_value_data, collapser);
 
-                let (max, r_1) =  template
+                let (max, r_1) =  collapser.template
                     .get_number_value(*max)
-                    .get_value(get_value_data, collapser, template);
+                    .get_value(get_value_data, collapser);
 
-                let (step, r_2) =  template
+                let (step, r_2) =  collapser.template
                     .get_number_value(*step)
-                    .get_value(get_value_data, collapser, template);
+                    .get_value(get_value_data, collapser);
 
                 let v = iproduct!(min, max, step)
                     .map(|(min, max, step)| {

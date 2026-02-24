@@ -73,5 +73,11 @@ impl VoxelCollapserData {
             dag_key 
         }
     }
+
+    pub fn on_delete(&self, state: &mut OutputState) {
+        if !self.scene_key.is_null() {
+            state.scene.remove_object(self.scene_key);
+        }
+    }
 }
 

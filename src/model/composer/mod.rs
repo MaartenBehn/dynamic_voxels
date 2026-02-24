@@ -51,7 +51,9 @@ impl ModelComposer {
         let viewer_data = ComposeViewerData::new();
 
         let mut template = Template::empty();
-        template.update(&graph, &mut palette);
+        if !graph.flags.invalid_nodes.any() {
+            template.update(&graph, &mut palette);
+        }
 
         let state = OutputState::new(scene, mesh_scene, camera, palette.clone());
         

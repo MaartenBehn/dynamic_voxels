@@ -33,6 +33,7 @@ impl ComposerGraph
     pub fn new() -> Self {
         let mut snarl = load_snarl().unwrap_or(Snarl::new());       
         let mut flags = ComposerNodeFlags::new(&mut snarl);
+        flags.check_valid_for_all_nodes(&mut snarl);
 
         Self { 
             snarl, 
@@ -159,6 +160,9 @@ impl ComposerNodeFlags {
         self.enshure_nodes_list_index(node_id.0);
         self.added_nodes.set(node_id.0, false);
         self.changed_nodes.set(node_id.0, false);
+
+        // Removed nodes can not be invalid.
+        self.invalid_nodes.set(node_id.0, false);
 
         if !self.deleted_nodes.contains(&node_id) {
             self.deleted_nodes.push(node_id);

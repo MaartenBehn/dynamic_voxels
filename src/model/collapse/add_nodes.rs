@@ -26,12 +26,12 @@ pub struct GetNewChildrenData<'a> {
 }
 
 impl Collapser {
-    pub fn push_defined(&mut self, node_index: CollapseNodeKey, template: &Template) {
+    pub fn push_defined(&mut self, node_index: CollapseNodeKey) {
         let node = &self.nodes[node_index];
-        let template_node = &template.nodes[node.template_index];
+        let template_node = &self.template.nodes[node.template_index];
 
         for (i, creates) in template_node.creates.iter().enumerate() {
-            let new_template_node = &template.nodes[creates.to_create];
+            let new_template_node = &self.template.nodes[creates.to_create];
             
             self.pending.push_create_defined(new_template_node.level, UpdateDefinesOperation { 
                 template_index: creates.to_create,
@@ -44,10 +44,9 @@ impl Collapser {
     pub async fn update_defined(
         &mut self, 
         opperation: UpdateDefinesOperation, 
-        template: &Template,
     ) {
         let parent_node = &self.nodes[opperation.parent_index];
-        let parent_template_node = &template.nodes[parent_node.template_index];
+        let parent_template_node = &self.template.nodes[parent_node.template_index];
         let creates: &Creates = &parent_template_node.creates[opperation.creates_index];
 
         #[cfg(debug_assertions)]
@@ -58,7 +57,6 @@ impl Collapser {
                 self.update_defined_one(
                     opperation.template_index, 
                     opperation.parent_index, 
-                    template, 
                 ).await;
             },
             CreatesType::Children => {
@@ -66,7 +64,6 @@ impl Collapser {
                     opperation.template_index, 
                     opperation.parent_index, 
                     opperation.creates_index, 
-                    template, 
                 ).await;
             },
         }
@@ -76,11 +73,10 @@ impl Collapser {
         &mut self, 
         template_index: TemplateIndex,
         parent_index: CollapseNodeKey, 
-        template: &Template,
     ) {
-        let template_node = &template.nodes[template_index];
+        let template_node = &self.template.nodes[template_index];
         let parent = &self.nodes[parent_index];
-        let parent_template_node = &template.nodes[parent.template_index];
+        let parent_template_node = &self.template.nodes[parent.template_index];
 
         if parent.children.iter().find(|(i, _)| *i == template_index).is_some() {
             return;
@@ -89,7 +85,6 @@ impl Collapser {
         let depends = self.get_depends(
             parent_index,
             CollapseChildKey::null(),
-            template,
             parent_template_node,
             template_node);
 
@@ -97,8 +92,7 @@ impl Collapser {
             template_index, 
             depends, 
             parent_index, 
-            CollapseChildKey::null(), 
-            template).await;    
+            CollapseChildKey::null()).await;    
     }
 
     pub async fn update_defined_by_creates(
@@ -106,12 +100,11 @@ impl Collapser {
         template_index: TemplateIndex,
         parent_index: CollapseNodeKey, 
         creates_index: usize, 
-        template: &Template, 
     ) {
         let parent_node = &self.nodes[parent_index];
-        let parent_template_node = &template.nodes[parent_node.template_index];
+        let parent_template_node = &self.template.nodes[parent_node.template_index];
         let creates: &Creates = &parent_template_node.creates[creates_index];
-        let template_node = &template.nodes[template_index];
+        let template_node = &self.template.nodes[template_index];
 
         let to_remove_children = parent_node.children.iter()
             .find(|(template_index, _)| *template_index == creates.to_create)
@@ -125,25 +118,28 @@ impl Collapser {
             .collect::<Vec<_>>();
         
         for child_key in self.get_new_children(parent_index).collect_vec() {
+
+            let parent_node = &self.nodes[parent_index];
+            let parent_template_node = &self.template.nodes[parent_node.template_index];
+            let creates: &Creates = &parent_template_node.creates[creates_index];
+            let template_node = &self.template.nodes[template_index];
+
             let depends = self.get_depends(
                 parent_index,   
                 child_key,
-                template,
                 parent_template_node,
                 template_node);
-
 
             self.add_node(
                 creates.to_create, 
                 depends, 
                 parent_index, 
                 child_key, 
-                template, 
             ).await; 
         }
 
         for child_index in to_remove_children {
-            self.delete_node(child_index, template);
+            self.delete_node(child_index);
         }
     }
   
@@ -154,11 +150,10 @@ impl Collapser {
         depends: Vec<(TemplateIndex, Vec<(CollapseNodeKey, CollapseChildKey)>)>, 
         defined_by: CollapseNodeKey,
         child_key: CollapseChildKey,
-        template: &Template,
     ) {
-        let new_node_template = &template.nodes[new_node_template_index];
+        let new_node_template = &self.template.nodes[new_node_template_index];
       
-        let value = &template.values[new_node_template.value_index];
+        let value = &self.template.values[new_node_template.value_index];
         let data = match value {
             TemplateValue::None => NodeDataType::None,
             TemplateValue::NumberSet(_) => NodeDataType::NumberSet(Default::default()),

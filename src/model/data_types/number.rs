@@ -102,7 +102,6 @@ impl NumberTemplate {
         &self, 
         get_value_data: GetValueData,
         collapser: &Collapser,
-        template: &Template
     ) -> (SmallVec<[T; 1]>, bool) {
 
         match self {
@@ -113,24 +112,24 @@ impl NumberTemplate {
                 //(i.collect(), r)
             }
             NumberTemplate::SplitPosition2D((position_template, i)) => {
-                let (v, r) = template
+                let (v, r) = collapser.template
                     .get_position2d_value(*position_template)
-                    .get_value(get_value_data, collapser, template);
+                    .get_value(get_value_data, collapser);
                 let v = v.into_iter().map(|v| v[*i]);
 
                 (v.collect(), r)
             },
             NumberTemplate::SplitPosition3D((position_template, i)) => {
-                let (v, r) = template
+                let (v, r) = collapser.template
                     .get_position3d_value(*position_template)
-                    .get_value(get_value_data, collapser, template);
+                    .get_value(get_value_data, collapser);
                 let v = v.into_iter().map(|v| v[*i]);
 
                 (v.collect(), r)
             },
             NumberTemplate::Position3DTo2D(p) => {
-                let (v, r) = template.get_position3d_value(*p)
-                    .get_value(get_value_data, collapser, template);
+                let (v, r) = collapser.template.get_position3d_value(*p)
+                    .get_value(get_value_data, collapser);
                 let v = v.into_iter().map(|v| {
                     let a: [T; 3] = v.to_array();
                     a[2]

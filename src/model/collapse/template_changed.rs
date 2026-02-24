@@ -11,13 +11,12 @@ impl Collapser {
     
     pub fn template_changed(
         &mut self, 
-        template: &Template,
-        old_template: &Template,
+        new_template: Template,
         updates: Vec<TemplateNodeUpdate>,
     ) {
-        self.pending.template_changed(template.max_level);
+        self.pending.template_changed(new_template.max_level);
 
-        let mut new_nodes_per_template_index = vec![SmallVec::new(); template.nodes.len()]; 
+        let mut new_nodes_per_template_index = vec![SmallVec::new(); new_template.nodes.len()]; 
         for update in updates {
             match update {
                 TemplateNodeUpdate::Delete(template_index) => {
@@ -25,7 +24,7 @@ impl Collapser {
                     for key in keys {
                         let node = &self.nodes[key];
                         if node.template_index == template_index {
-                            self.delete_node(key, old_template);
+                            self.delete_node(key);
                         }
                     }
                 },
@@ -64,6 +63,7 @@ impl Collapser {
             } 
         }
 
+        self.template = new_template;
         self.nodes_per_template_index = new_nodes_per_template_index;
     }
 } 

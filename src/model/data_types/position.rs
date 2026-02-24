@@ -229,16 +229,15 @@ impl<V: Ve<T, D>, const D: usize> PositionTemplate<V, D> {
         &self,
         get_value_data: GetValueData,
         collapser: &Collapser,
-        template: &Template
     ) -> (SmallVec<[V; 1]>, bool) {
 
         match self {
             PositionTemplate::Const(v) => (smallvec::smallvec![*v], false),
             PositionTemplate::Add((a, b)) => {
                 let (a, r_0) = 
-                template.get_position_value::<V, D>(*a).get_value(get_value_data, collapser, template);
+                collapser.template.get_position_value::<V, D>(*a).get_value(get_value_data, collapser);
                 let (b, r_1) = 
-                template.get_position_value::<V, D>(*b).get_value(get_value_data, collapser, template);
+                collapser.template.get_position_value::<V, D>(*b).get_value(get_value_data, collapser);
 
                 let p = a.into_iter()
                     .cartesian_product(b)
@@ -248,9 +247,9 @@ impl<V: Ve<T, D>, const D: usize> PositionTemplate<V, D> {
             }
             PositionTemplate::Sub((a, b)) => {
                 let (a, r_0) = 
-                template.get_position_value::<V, D>(*a).get_value(get_value_data, collapser, template);
+                collapser.template.get_position_value::<V, D>(*a).get_value(get_value_data, collapser);
                 let (b, r_1) = 
-                template.get_position_value::<V, D>(*b).get_value(get_value_data, collapser, template);
+                collapser.template.get_position_value::<V, D>(*b).get_value(get_value_data, collapser);
 
                 let p = a.into_iter()
                     .cartesian_product(b)
@@ -264,9 +263,9 @@ impl<V: Ve<T, D>, const D: usize> PositionTemplate<V, D> {
                 let n = n
                     .into_iter()
                     .map(|n| {
-                        let (i, r) =  template
+                        let (i, r) = collapser.template
                             .get_number_value(*n)
-                            .get_value(get_value_data, collapser, template);
+                            .get_value(get_value_data, collapser);
 
                         r_final |= r;
                         i
@@ -294,13 +293,13 @@ impl<V: Ve<T, D>, const D: usize> PositionTemplate<V, D> {
             },
             PositionTemplate::Position2DTo3D((p, n)) => {
 
-                let (p, r_0) = template
+                let (p, r_0) = collapser.template
                             .get_position2d_value(*p)
-                            .get_value(get_value_data, collapser, template);
+                            .get_value(get_value_data, collapser);
 
-                let (n, r_1) = template
+                let (n, r_1) = collapser.template
                             .get_number_value(*n)
-                            .get_value(get_value_data, collapser, template);
+                            .get_value(get_value_data, collapser);
 
                 debug_assert!(D == 3);
                 let p = p.into_iter()
@@ -314,9 +313,9 @@ impl<V: Ve<T, D>, const D: usize> PositionTemplate<V, D> {
                 (p.collect(), r_0 || r_1)
             },
             PositionTemplate::Position3DTo2D(p) => {
-                let (p, r) = template
+                let (p, r) = collapser.template
                     .get_position3d_value(*p)
-                    .get_value(get_value_data, collapser, template);
+                    .get_value(get_value_data, collapser);
 
                 debug_assert!(D == 2);
                 let p = p.into_iter()

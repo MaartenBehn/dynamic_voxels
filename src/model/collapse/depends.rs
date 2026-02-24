@@ -9,10 +9,9 @@ use super::{add_nodes::GetValueData, collapser::{CollapseNode, CollapseNodeKey, 
 
 impl Collapser {
     pub fn get_depends<'a>(
-        &self, 
+        &'a self, 
         parent_index: CollapseNodeKey,
         child_key: CollapseChildKey,
-        template: &'a Template,
         template_node: &'a TemplateNode,
         new_node_template: &'a TemplateNode,
     ) -> Vec<(TemplateIndex, Vec<(CollapseNodeKey, CollapseChildKey)>)> {
@@ -78,7 +77,7 @@ impl Collapser {
             .zip(depends)
             .map(|(depend_template_node, nodes)| {
 
-                let depend_template_node = &template.nodes[*depend_template_node];
+                let depend_template_node = &self.template.nodes[*depend_template_node];
 
                 #[cfg(debug_assertions)]
                 if nodes.is_empty() {

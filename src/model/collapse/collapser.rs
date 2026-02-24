@@ -12,11 +12,14 @@ use super::{add_nodes::{GetNewChildrenData, GetValueData}, external_input::Exter
 new_key_type! { pub struct CollapseNodeKey; }
 new_key_type! { pub struct CollapseChildKey; }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Collapser {
     pub nodes: SlotMap<CollapseNodeKey, CollapseNode>,
     pub nodes_per_template_index: Vec<SmallVec<[CollapseNodeKey; 4]>>,
     pub pending: PendingOperations,
+    pub template: Template,
+    pub external_input: ExternalInput,
+    pub state: OutputState,
 }
 
 #[derive(Debug, Clone)]
@@ -62,41 +65,42 @@ pub struct UpdateDefinesOperation {
 }
 
 impl Collapser {
-    pub async fn new(template: &Template) -> Self {
+    pub async fn new(
+        template: Template, 
+        external_input: ExternalInput,
+        state: OutputState,
+) -> Self {
         let inital_capacity = 1000;
 
         let mut collapser = Self {
             nodes: SlotMap::with_capacity_and_key(inital_capacity),
             pending: PendingOperations::new(template.max_level),
             nodes_per_template_index: vec![SmallVec::new(); template.nodes.len()],
+            template,
+            external_input,
+            state
         };
 
         collapser.add_node(
             0, 
             vec![], 
             CollapseNodeKey::null(), 
-            CollapseChildKey::null(), 
-            template).await;
+            CollapseChildKey::null()).await;
 
         collapser.pending.push_collpase(1, collapser.get_root_key());
 
         collapser
     }
  
-    pub async fn run(
-        &mut self, 
-        template: &Template, 
-        external_input: ExternalInput,
-        state: &mut OutputState,
-    ) {
+    pub async fn run(&mut self) {
 
         loop {
             match self.pending.pop() {
                 PendingOperationsRes::Collapse(key) => self.collapse_node(
-                    key, template, external_input, state).await,
+                    key).await,
 
                 PendingOperationsRes::CreateDefined(operation) => self.update_defined(
-                    operation, template).await,
+                    operation).await,
 
                 PendingOperationsRes::Retry => {
                     #[cfg(debug_assertions)]
@@ -107,16 +111,11 @@ impl Collapser {
         }
     }
 
-    async fn collapse_node(
-        &mut self, 
-        node_index: CollapseNodeKey, 
-        template: &Template, 
-        external_input: ExternalInput,
-        state: &mut OutputState,
-    ) {
+    async fn collapse_node(&mut self, node_index: CollapseNodeKey) {
+
         let node = &self.nodes[node_index];
-        let template_node = &template.nodes[node.template_index]; 
-        let value = &template.values[template_node.value_index];
+        let template_node = &self.template.nodes[node.template_index]; 
+        let value = &self.template.values[template_node.value_index];
 
         #[cfg(debug_assertions)]
         info!("{:?} Collapse", node_index);
@@ -125,14 +124,14 @@ impl Collapser {
             defined_by: node.defined_by, 
             depends: &node.depends, 
             depends_loop: &template_node.depends_loop,
-            external_input,
+            external_input: self.external_input,
         }; 
 
         let needs_recompute = match value {
             TemplateValue::None => false,
             TemplateValue::NumberSet(space) => {
                 todo!();
-                let (mut new_val, r) = space.get_value(get_value_data, &self, template);
+                let (mut new_val, r) = space.get_value(get_value_data, &self);
                 let new_val = new_val.next().unwrap(); 
 
                 let data = match &mut self.nodes[node_index].data {
@@ -146,7 +145,7 @@ impl Collapser {
                 r
             },
             TemplateValue::PositionSet2D(position_set_template) => {
-                let (new_positions, r) = position_set_template.get_value(get_value_data, &self, template);
+                let (new_positions, r) = position_set_template.get_value(get_value_data, &self);
 
                 let data = match &mut self.nodes[node_index].data {
                     NodeDataType::PositionSet2D(space) => space,
@@ -157,7 +156,7 @@ impl Collapser {
                 r
             },
             TemplateValue::PositionSet3D(position_set_template) => {
-                let (new_positions, r) = position_set_template.get_value(get_value_data, &self, template);
+                let (new_positions, r) = position_set_template.get_value(get_value_data, &self);
 
                 let data = match &mut self.nodes[node_index].data {
                     NodeDataType::PositionSet3D(space) => space,
@@ -168,7 +167,7 @@ impl Collapser {
                 r
             },
             TemplateValue::PositionPairSet2D(position_set_template) => {
-                let (new_positions, r) = position_set_template.get_value(get_value_data, &self, template);
+                let (new_positions, r) = position_set_template.get_value(get_value_data, &self);
 
                 let data = match &mut self.nodes[node_index].data {
                     NodeDataType::PositionPairSet2D(space) => space,
@@ -179,7 +178,7 @@ impl Collapser {
                 r
             },
             TemplateValue::PositionPairSet3D(position_set_template) => {
-                let (new_positions, r) = position_set_template.get_value(get_value_data, &self, template);
+                let (new_positions, r) = position_set_template.get_value(get_value_data, &self);
 
                 let data = match &mut self.nodes[node_index].data {
                     NodeDataType::PositionPairSet3D(space) => space,
@@ -191,11 +190,11 @@ impl Collapser {
             },
             TemplateValue::Voxels(voxel_template) => {
 
-                let (mut volume, r_0) = template.get_volume_value(voxel_template.volume)
-                    .get_value::<V3, u8, 3>(get_value_data, &self, template);
+                let (mut volume, r_0) = self.template.get_volume_value(voxel_template.volume)
+                    .get_value::<V3, u8, 3>(get_value_data, &self);
 
-                let (mut pos, r_1) = template.get_position3d_value(voxel_template.pos)
-                    .get_value(get_value_data, &self, template);
+                let (mut pos, r_1) = self.template.get_position3d_value(voxel_template.pos)
+                    .get_value(get_value_data, &self);
 
                 let pos = pos[0];
 
@@ -205,17 +204,17 @@ impl Collapser {
                     NodeDataType::Voxels(voxels) => voxels,
                     _ => unreachable!()
                 };
-                data.update(volume, pos, state).await; 
+                data.update(volume, pos, &mut self.state).await; 
  
                 false
             },
             TemplateValue::Mesh(mesh_template) => {
 
-                let (mut volume, r_0) = template.get_volume_value(mesh_template.volume)
-                    .get_value::<V3, u8, 3>(get_value_data, &self, template);
+                let (mut volume, r_0) = self.template.get_volume_value(mesh_template.volume)
+                    .get_value::<V3, u8, 3>(get_value_data, &self);
 
-                let (mut pos, r_1) = template.get_position3d_value(mesh_template.pos)
-                    .get_value(get_value_data, &self, template);
+                let (mut pos, r_1) = self.template.get_position3d_value(mesh_template.pos)
+                    .get_value(get_value_data, &self);
 
                 let pos = pos[0];
 
@@ -225,7 +224,7 @@ impl Collapser {
                     NodeDataType::Mesh(mesh) => mesh,
                     _ => unreachable!()
                 };
-                data.update(volume, pos, state).await; 
+                data.update(volume, pos, &mut self.state).await; 
  
                 false
             },
@@ -236,18 +235,18 @@ impl Collapser {
             self.pending.push_later_collpase(template_node.level, node_index);
         }
 
-        self.push_defined(node_index, template);
-        self.collapse_all_childeren(node_index, template);
+        self.push_defined(node_index);
+        self.collapse_all_childeren(node_index);
     }
 
-    fn collapse_all_childeren(&mut self, node_index: CollapseNodeKey, template: &Template) {
+    fn collapse_all_childeren(&mut self, node_index: CollapseNodeKey) {
         let node = &self.nodes[node_index];
 
         for (_, list) in node.children.iter() {
             for (child_index, _) in list.iter() {
 
                 let child_node = &self.nodes[*child_index];
-                let template_node = &template.nodes[child_node.template_index]; 
+                let template_node = &self.template.nodes[child_node.template_index]; 
                 self.pending.push_collpase(template_node.level, *child_index);
             }
         }

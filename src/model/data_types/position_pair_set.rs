@@ -26,15 +26,14 @@ impl PositionPairSetTemplate {
         &self, 
         get_value_data: GetValueData,
         collapser: &Collapser,
-        template: &Template
     ) -> (Vec<(V, V)>, bool) {
         match self {
             PositionPairSetTemplate::ByDistance((space, distance)) => {
-                let (set, r_0) = template.get_position_space_value(*space)
-                    .get_value::<V, D>(get_value_data, collapser, template);
+                let (set, r_0) = collapser.template.get_position_space_value(*space)
+                    .get_value::<V, D>(get_value_data, collapser);
 
-                let (distance, r_1) = template.get_number_value(*distance)
-                    .get_value(get_value_data, collapser, template);
+                let (distance, r_1) = collapser.template.get_number_value(*distance)
+                    .get_value(get_value_data, collapser);
 
                 let max_dist = distance.into_iter().fold(0.0, |a, b| if (a < b) { b } else { a });
                 let dist_squared = max_dist * max_dist;

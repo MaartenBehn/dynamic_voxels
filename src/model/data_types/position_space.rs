@@ -123,15 +123,14 @@ impl PositionSpaceTemplate {
         &self,
         get_value_data: GetValueData,
         collapser: &Collapser,
-        template: &Template
     ) -> (Vec<V>, bool) {
         match &self {
             PositionSpaceTemplate::Grid(grid)  => {
-                let (mut volume, r_0) = template.get_volume_value(grid.volume)
-                    .get_value::<V, (), D>(get_value_data, collapser, template);
+                let (mut volume, r_0) = collapser.template.get_volume_value(grid.volume)
+                    .get_value::<V, (), D>(get_value_data, collapser);
 
-                let (spacing, r_1) =  template.get_number_value(grid.spacing)
-                    .get_value(get_value_data, collapser, template);
+                let (spacing, r_1) =  collapser.template.get_number_value(grid.spacing)
+                    .get_value(get_value_data, collapser);
                 
                 volume.calculate_bounds();
                 let mut points = vec![];
@@ -143,11 +142,11 @@ impl PositionSpaceTemplate {
                 (points, r_0 || r_1 )
             },
             PositionSpaceTemplate::LeafSpread(spread) => {
-                let (mut volume, r_0) = template.get_volume_value(spread.volume)
-                    .get_value::<V, (), D>(get_value_data, collapser, template);
+                let (mut volume, r_0) = collapser.template.get_volume_value(spread.volume)
+                    .get_value::<V, (), D>(get_value_data, collapser);
 
-                let (samples, r_1) =  template.get_number_value(spread.samples)
-                    .get_value(get_value_data, collapser, template);
+                let (samples, r_1) =  collapser.template.get_number_value(spread.samples)
+                    .get_value(get_value_data, collapser);
 
                 volume.calculate_bounds();
                 let aabb: AABB<V, T, D> = volume.get_bounds();
@@ -179,17 +178,17 @@ impl PositionSpaceTemplate {
                 (points, r_0 || r_1 )
             },
             PositionSpaceTemplate::Path(path) => {
-                 let (start, r_0) =  template.get_position_value::<V, D>(path.start)
-                    .get_value(get_value_data, collapser, template);
+                 let (start, r_0) =  collapser.template.get_position_value::<V, D>(path.start)
+                    .get_value(get_value_data, collapser);
 
-                let (end, r_1) =  template.get_position_value::<V, D>(path.end)
-                    .get_value(get_value_data, collapser, template);
+                let (end, r_1) =  collapser.template.get_position_value::<V, D>(path.end)
+                    .get_value(get_value_data, collapser);
 
-                let (spacing, r_2) =  template.get_number_value(path.spacing)
-                    .get_value(get_value_data, collapser, template);
+                let (spacing, r_2) =  collapser.template.get_number_value(path.spacing)
+                    .get_value(get_value_data, collapser);
 
-                let (side_variance, r_3) =  template.get_position_value::<V, D>(path.side_variance)
-                    .get_value(get_value_data, collapser, template);
+                let (side_variance, r_3) =  collapser.template.get_position_value::<V, D>(path.side_variance)
+                    .get_value(get_value_data, collapser);
 
                 let points = iproduct!(start, end, spacing, side_variance)
                     .map(|(start, end, spacing, side_variance)| {

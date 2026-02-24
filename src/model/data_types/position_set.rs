@@ -24,12 +24,11 @@ impl PositionSetTemplate {
         &self, 
         get_value_data: GetValueData,
         collapser: &Collapser,
-        template: &Template
     ) -> (Vec<V>, bool) {
         match self {
             PositionSetTemplate::All(space) => {
-                template.get_position_space_value(*space)
-                    .get_value(get_value_data, collapser, template)
+                collapser.template.get_position_space_value(*space)
+                    .get_value(get_value_data, collapser)
             },
         }
     }

@@ -70,5 +70,11 @@ impl MeshCollapserData {
         
         self.mesh_key = mesh_key;
     }
+
+    pub fn on_delete(&self, state: &mut OutputState) {
+        if !self.mesh_key.is_null() {
+            state.mesh_scene.remove(self.mesh_key);
+        }
+    }
 }
 

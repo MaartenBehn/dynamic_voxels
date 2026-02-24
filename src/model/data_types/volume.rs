@@ -126,11 +126,10 @@ impl VolumeTemplate {
         &self, 
         get_value_data: GetValueData,
         collapser: &Collapser,
-        template: &Template,
     ) -> (CSGTree<M, V, T, D>, bool) {
         let mut tree = CSGTree::default();
 
-        let (roots, r) = self.get_value_inner(get_value_data, collapser, template, M::base(), &mut tree);
+        let (roots, r) = self.get_value_inner(get_value_data, collapser, M::base(), &mut tree);
         
         if roots.len() == 1 {
             tree.set_root(roots[0]);
@@ -146,7 +145,6 @@ impl VolumeTemplate {
         &self, 
         get_value_data: GetValueData,
         collapser: &Collapser,
-        template: &Template,
         mat: M,
         tree: &mut CSGTree<M, V, T, D>,
     ) -> (Vec<usize>, bool) {
@@ -154,12 +152,12 @@ impl VolumeTemplate {
         match &self {
             VolumeTemplate::Sphere { pos, size } => {
     
-                let (pos, r_0) = template.get_position_value::<V, D>(*pos)
-                    .get_value(get_value_data, collapser, template);
+                let (pos, r_0) = collapser.template.get_position_value::<V, D>(*pos)
+                    .get_value(get_value_data, collapser);
 
 
-                let (size, r_1) = template.get_number_value(*size)
-                    .get_value(get_value_data, collapser, template);
+                let (size, r_1) = collapser.template.get_number_value(*size)
+                    .get_value(get_value_data, collapser);
 
                 let mut roots = vec![];
                 for (pos, size) in iproduct!(pos, size) {
@@ -170,14 +168,14 @@ impl VolumeTemplate {
             },
             VolumeTemplate::Disk { pos, size, height } => {
     
-                let (pos, r_0) = template.get_position_value::<V, D>(*pos)
-                    .get_value(get_value_data, collapser, template);
+                let (pos, r_0) = collapser.template.get_position_value::<V, D>(*pos)
+                    .get_value(get_value_data, collapser);
 
-                let (size, r_1) = template.get_number_value(*size)
-                    .get_value(get_value_data, collapser, template);
+                let (size, r_1) = collapser.template.get_number_value(*size)
+                    .get_value(get_value_data, collapser);
 
-                let (height, r_2) = template.get_number_value(*height)
-                    .get_value(get_value_data, collapser, template);
+                let (height, r_2) = collapser.template.get_number_value(*height)
+                    .get_value(get_value_data, collapser);
 
                 let mut roots = vec![];
                 for (pos, size, height) in iproduct!(pos, size, height) {
@@ -190,11 +188,11 @@ impl VolumeTemplate {
                 (roots, r_0 || r_1 || r_2)            
             },
             VolumeTemplate::Box { pos, size } => {
-                let (pos, r_0) = template.get_position_value::<V, D>(*pos)
-                    .get_value(get_value_data, collapser, template);
+                let (pos, r_0) = collapser.template.get_position_value::<V, D>(*pos)
+                    .get_value(get_value_data, collapser);
 
-                let (size, r_1) = template.get_position_value::<V, D>(*size)
-                    .get_value(get_value_data, collapser, template);
+                let (size, r_1) = collapser.template.get_position_value::<V, D>(*size)
+                    .get_value(get_value_data, collapser);
 
                 let mut roots = vec![];
                 for (pos, size) in iproduct!(pos, size) {
@@ -204,22 +202,22 @@ impl VolumeTemplate {
                 (roots, r_0 || r_1)
             },
             VolumeTemplate::Union { a, b } => {
-                let (mut a, r_0) = template.get_volume_value(*a)
-                    .get_value_inner(get_value_data, collapser, template, mat, tree);
+                let (mut a, r_0) = collapser.template.get_volume_value(*a)
+                    .get_value_inner(get_value_data, collapser, mat, tree);
           
-                let (mut b, r_1) = template.get_volume_value(*b)
-                    .get_value_inner(get_value_data, collapser, template, mat, tree);
+                let (mut b, r_1) = collapser.template.get_volume_value(*b)
+                    .get_value_inner(get_value_data, collapser, mat, tree);
 
                 a.append(&mut b);
 
                 (a, r_0 || r_1)
             },
             VolumeTemplate::Cut { base, cut } => {
-                let (mut base, r_0) = template.get_volume_value(*base)
-                    .get_value_inner(get_value_data, collapser, template, mat, tree);
+                let (mut base, r_0) = collapser.template.get_volume_value(*base)
+                    .get_value_inner(get_value_data, collapser, mat, tree);
           
-                let (mut cut, r_1) = template.get_volume_value(*cut)
-                    .get_value_inner(get_value_data, collapser, template, mat, tree);
+                let (mut cut, r_1) = collapser.template.get_volume_value(*cut)
+                    .get_value_inner(get_value_data, collapser, mat, tree);
 
                 if base.is_empty() {
                     return (vec![], r_0 || r_1);
@@ -254,11 +252,11 @@ impl VolumeTemplate {
                     
                     let tree: &mut CSGTree<u8, V, T, D> = unsafe { TreeUnion { a: tree }.b };
 
-                    template.get_volume_value(*child)
-                        .get_value_inner(get_value_data, collapser, template, *new_mat, tree)
+                    collapser.template.get_volume_value(*child)
+                        .get_value_inner(get_value_data, collapser, *new_mat, tree)
                 } else {
-                    template.get_volume_value(*child)
-                        .get_value_inner(get_value_data, collapser, template, mat, tree) 
+                    collapser.template.get_volume_value(*child)
+                        .get_value_inner(get_value_data, collapser, mat, tree) 
                 }
             },
         }
