@@ -85,8 +85,6 @@ impl Collapser {
             matched_template_indecies: vec![]
         });
 
-        
-
         if !value_same {
             for index in self.nodes_per_template_index[old_template_index].iter() {
                 self.nodes[*index].template_index = new_template_index;
@@ -98,9 +96,45 @@ impl Collapser {
             }
         }
 
+        let mut matched_creates = 
+        let mut old_creates = old_template_node.creates.to_owned();
+        for (i, new_creates) in new_tempalte_node.creates.iter().enumerate() {
+
+            let new_child = &new_template.nodes[new_creates.to_create];
+            let new_child_value = &new_template.values[new_child.value_index];
+
+            let matched_old_creates_index = old_creates.iter().position(|old_create| {
+
+                let old_child = &self.template.nodes[old_create.to_create];
+                let old_child_value = &self.template.values[old_child.value_index];
+
+                old_child_value.match_value(new_child_value, MatchValueData { 
+                    template: &self.template, 
+                    other_template: new_template, 
+                    matched_template_indecies: vec![]
+                })
+            });
+
+            if let Some(matched_old_creates_index) = matched_old_creates_index {
+                let matched_old_creates = old_creates.swap_remove(matched_old_creates_index); 
+            } else {
+                for index in self.nodes_per_template_index[old_template_index].iter() {
+                    self.pending.push_create_defined(new_child.level, UpdateDefinesOperation { 
+                        template_index: new_creates.to_create,
+                        parent_index: *index, 
+                        creates_index: i,
+                    });
+                }
+            }
+        }
+
+        for old_create in old_creates {
+            for index in self.nodes_per_template_index[old_create.to_create].iter().copied().collect_vec() {
+                self.delete_node(index);
+            } 
+        }
+
         mem::swap(&mut new_nodes_per_template_index[new_template_index], &mut self.nodes_per_template_index[old_template_index]);
-
-
     }
 }
 
