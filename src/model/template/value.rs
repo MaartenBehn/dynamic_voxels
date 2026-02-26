@@ -3,12 +3,13 @@ use std::marker::PhantomData;
 use egui_snarl::NodeId;
 use octa_force::{egui::Vec2, glam::Vec3A};
 
-use crate::{model::data_types::{data_type::{T, V2, V3}, mesh::MeshTemplate, number::{Hook, NumberTemplate}, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate, voxels::VoxelTemplate}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::template_changed::MatchValueData, data_types::{data_type::{T, V2, V3}, mesh::MeshTemplate, number::{Hook, NumberTemplate}, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate, voxels::VoxelTemplate}}, util::{number::Nu, vector::Ve}};
 
 use super::{nodes, Template};
 
 pub type ValueIndex = usize;
 pub const VALUE_INDEX_NODE: usize = usize::MAX;
+ 
 
 #[derive(Debug, Clone, Copy)]
 pub enum TemplateValue {
@@ -110,7 +111,6 @@ impl Template {
     }
 
 
-
     pub fn get_number_value_mut(&mut self, value_index: ValueIndex) -> &mut NumberTemplate {
         match &mut self.values[value_index] {
             TemplateValue::Number(v) => v,
@@ -152,6 +152,35 @@ impl Template {
             TemplateValue::Volume2D(v)
             | TemplateValue::Volume3D(v) => v,
             _ => unreachable!()
+        }
+    }
+}
+
+impl TemplateValue {
+    pub fn match_value(&self, other: &TemplateValue, match_value_data: MatchValueData) -> bool {
+        match self {
+            TemplateValue::None => match other {
+                TemplateValue::None => true,
+                _ => false,
+            },
+            TemplateValue::Number(number_template) => match other {
+                TemplateValue::Number(other_numer_template) 
+                    => number_template.match_value(other_numer_template, match_value_data),
+                _ => false,
+            },
+            TemplateValue::NumberSet(number_space_template) => todo!(),
+            TemplateValue::Position2D(position_template) => todo!(),
+            TemplateValue::Position3D(position_template) => todo!(),
+            TemplateValue::PositionSet2D(position_set_template) => todo!(),
+            TemplateValue::PositionSet3D(position_set_template) => todo!(),
+            TemplateValue::PositionPairSet2D(position_pair_set_template) => todo!(),
+            TemplateValue::PositionPairSet3D(position_pair_set_template) => todo!(),
+            TemplateValue::PositionSpace2D(position_space_template) => todo!(),
+            TemplateValue::PositionSpace3D(position_space_template) => todo!(),
+            TemplateValue::Volume2D(volume_template) => todo!(),
+            TemplateValue::Volume3D(volume_template) => todo!(),
+            TemplateValue::Voxels(voxel_template) => todo!(),
+            TemplateValue::Mesh(mesh_template) => todo!(),
         }
     }
 }

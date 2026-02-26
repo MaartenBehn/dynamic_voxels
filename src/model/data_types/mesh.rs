@@ -32,7 +32,7 @@ impl ComposerGraph {
 
         let value = TemplateValue::Mesh(MeshTemplate { volume, pos });
 
-        let value_index = data.add_value(value);
+        let value_index = data.set_value(node.id, value);
         node_data.finish_template_node(value_index, data);
 
         value_index

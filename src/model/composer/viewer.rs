@@ -126,14 +126,6 @@ impl<'a> SnarlViewer<ComposeNode> for ComposeViewer<'a> {
             ui.label(self.title(&snarl[node]));
 
             let size = egui::Vec2::new(30.0, 30.0);
-            if self.flags.is_added(node) {
-                ui.add(
-                    egui::Image::new(egui::include_image!("../../../assets/plus.svg"))
-                        .tint(Color32::GRAY)
-                        .fit_to_exact_size(size)
-                );            
-            }
-
             if self.flags.is_changed(node) {
                 ui.add(
                     egui::Image::new(egui::include_image!("../../../assets/pencil.svg"))
@@ -263,8 +255,7 @@ impl<'a> SnarlViewer<ComposeNode> for ComposeViewer<'a> {
 
             snarl.connect(from.id, to.id);
 
-            self.flags.set_changed(from.id.node, snarl);
-            self.flags.set_changed(to.id.node, snarl);
+            self.flags.connection_added(from.id.node, to.id.node);
 
             self.flags.update_node_valid(from.id.node, snarl);
             self.flags.update_node_valid(to.id.node, snarl);
@@ -454,8 +445,8 @@ impl<'a> SnarlViewer<ComposeNode> for ComposeViewer<'a> {
     fn show_node_menu(
         &mut self,
         node_id: NodeId,
-        _inputs: &[InPin],
-        _outputs: &[OutPin],
+        inputs: &[InPin],
+        outputs: &[OutPin],
         ui: &mut Ui,
         snarl: &mut Snarl<ComposeNode>,
     ) {
@@ -464,16 +455,44 @@ impl<'a> SnarlViewer<ComposeNode> for ComposeViewer<'a> {
             ui.close();
 
             let node = snarl.remove_node(node_id);
-            self.flags.set_deleted(node_id);
-            self.flags.check_valid_for_all_nodes(snarl);
+
+            for input in inputs {
+                for remote in input.remotes.iter() {
+                    self.flags.connection_removed(remote.node, node_id);
+                    self.flags.update_node_valid(remote.node, snarl);
+                }
+            }
+
+            for output in outputs {
+                for remote in output.remotes.iter() {
+                    self.flags.connection_removed(node_id, remote.node);
+                    self.flags.update_node_valid(remote.node, snarl);
+                }
+            }
+
+            self.flags.on_node_removed(node_id);
 
             // Mark nodes dependend on external_input
             match node.t {
-            ComposeNodeType::CamPosition => self.flags.remove_cam_note(node_id),
+                ComposeNodeType::CamPosition => self.flags.remove_cam_note(node_id),
                 _ => {}
             }
-
         }
+    }
+
+    #[inline]
+    fn disconnect(&mut self, from: &OutPin, to: &InPin, snarl: &mut Snarl<ComposeNode>) {
+        self.flags.connection_removed(from.id.node, to.id.node);
+
+        for remote in from.remotes.iter() {
+            self.flags.update_node_valid(remote.node, snarl);
+        }
+
+        for remote in to.remotes.iter() {
+            self.flags.update_node_valid(remote.node, snarl);
+        }
+
+        snarl.disconnect(from.id, to.id);
     }
 }
 
@@ -495,7 +514,6 @@ impl<'a> ComposeViewer<'a> {
             _ => {}
         }
 
-        self.flags.set_added(node_id, snarl);
         self.flags.update_node_valid(node_id, snarl);
 
         node_id

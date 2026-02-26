@@ -30,38 +30,30 @@ pub struct Template {
     pub nodes: Vec<TemplateNode>,
     pub values: Vec<TemplateValue>,
     pub max_level: usize,
-    pub map_node_id: Vec<(TemplateIndex, ValueIndex)>,
+    pub map_node_id: Vec<(SmallVec<[TemplateIndex; 4]>, SmallVec<[ValueIndex; 4]>)>,
 }
 
 impl Template {
     pub fn enshure_map_size(&mut self, node_id: NodeId) {
         if node_id.0 >= self.map_node_id.len() {
-            self.map_node_id.resize(node_id.0 + 1, (TEMPLATE_INDEX_NONE, VALUE_INDEX_NODE));
+            self.map_node_id.resize(node_id.0 + 1, (SmallVec::new(), SmallVec::new()));
         }
     }
 
-    pub fn get_template_index_from_node_id(&self, node_id: NodeId) -> Option<TemplateIndex> { 
+    pub fn get_template_index_from_node_id(&self, node_id: NodeId) -> SmallVec<[TemplateIndex; 4]> { 
         if self.map_node_id.len() <= node_id.0 {
-            return None;
+            return SmallVec::new();
         }
 
-        if self.map_node_id[node_id.0].0 != TEMPLATE_INDEX_NONE {
-            Some(self.map_node_id[node_id.0].0)
-        } else {
-            None
-        }
+        self.map_node_id[node_id.0].0.clone()
     }
 
-    pub fn get_value_index_from_node_id(&self, node_id: NodeId) -> Option<ValueIndex> {
+    pub fn get_value_index_from_node_id(&self, node_id: NodeId) -> SmallVec<[ValueIndex; 4]> { 
         if self.map_node_id.len() <= node_id.0 {
-            return None;
+            return SmallVec::new();
         }
 
-        if self.map_node_id[node_id.0].1 != VALUE_INDEX_NODE {
-            Some(self.map_node_id[node_id.0].1)
-        } else {
-            None
-        }
+        self.map_node_id[node_id.0].1.clone()
     }
 }
 

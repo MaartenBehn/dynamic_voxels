@@ -5,7 +5,7 @@ use itertools::Itertools;
 use octa_force::log::debug;
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{ModelComposer, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}}, data_types::data_type::T, template::{Template, TemplateIndex, update::MakeTemplateData, value::{TemplateValue, ValueIndex}}}, util::{iter_merger::IM4}};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser, template_changed::MatchValueData}, composer::{ModelComposer, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}}, data_types::data_type::T, template::{Template, TemplateIndex, update::MakeTemplateData, value::{TemplateValue, ValueIndex}}}, util::iter_merger::IM4};
 
 use super::{data_type::ComposeDataType, position::{PositionTemplate, ValueIndexPosition2D, ValueIndexPosition3D}};
 
@@ -51,10 +51,10 @@ impl ComposerGraph {
                 _ => unreachable!()
             };
             
-            data.add_value(TemplateValue::Number(value)) 
+            data.add_unmapped_value(TemplateValue::Number(value)) 
         } else {
             let pin = remotes[0];
-            if let Some(value_index) = data.get_value_index_from_node_id(pin.node) {
+            if let Some(value_index) = data.get_first_value_index_for_node_id(pin.node) {
                 data.add_depends_of_value(value_index);
                 return value_index;
             } 
@@ -96,8 +96,73 @@ impl ComposerGraph {
 }
 
 
+impl Hook {
+    pub fn match_value(
+        &self, 
+        other: &Hook,
+        match_value_data: MatchValueData
+    ) -> bool {
+        if match_value_data.matched_template_indecies.len() >= self.template_index {
+            false
+        } else {
+            match_value_data.matched_template_indecies[self.template_index] == other.template_index 
+        }
+    }
+}
 
 impl NumberTemplate {
+    pub fn match_value(
+        &self, 
+        other: &NumberTemplate,
+        match_value_data: MatchValueData
+    ) -> bool {
+        match self {
+            NumberTemplate::Const(v) => {
+                match other {
+                    NumberTemplate::Const(v) => v == v,
+                    _ => false
+                }
+            },
+            NumberTemplate::Hook(hook) => {
+                match other {
+                    NumberTemplate::Hook(other_hook) => hook.match_value(other_hook, match_value_data),
+                    _ => false
+                }
+            },
+            NumberTemplate::SplitPosition2D((v_index, i)) => {
+                match other {
+                    NumberTemplate::SplitPosition2D((other_v_index, other_i)) => *i == *other_i && {
+                        match_value_data.template.get_position2d_value(*v_index).match_value(
+                            match_value_data.template.get_position2d_value(*other_v_index), 
+                            match_value_data)
+                    },
+                    _ => false
+                }
+            },
+            NumberTemplate::SplitPosition3D((v_index, i)) => {
+                match other {
+                    NumberTemplate::SplitPosition3D((other_v_index, other_i)) => *i == *other_i && {
+                        match_value_data.template.get_position3d_value(*v_index).match_value(
+                            match_value_data.template.get_position3d_value(*other_v_index), 
+                            match_value_data)
+                    },
+                    _ => false
+                }
+            },
+            NumberTemplate::Position3DTo2D(v_index) => {
+                match other {
+                    NumberTemplate::Position3DTo2D(other_v_index) => {
+                        match_value_data.template.get_position3d_value(*v_index).match_value(
+                            match_value_data.template.get_position3d_value(*other_v_index), 
+                            match_value_data)
+
+                    },
+                    _ => false
+                }
+            },
+        }
+    }
+
     pub fn get_value(
         &self, 
         get_value_data: GetValueData,

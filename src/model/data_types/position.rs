@@ -4,7 +4,7 @@ use egui_snarl::InPinId;
 use itertools::{Either, Itertools};
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{ModelComposer, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}}, data_types::data_type::{T, V2, V3}, template::{Template, update::MakeTemplateData, value::{TemplateValue, ValueIndex}}}, util::{iter_merger::IM3, number::Nu, vector::Ve}};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser, template_changed::MatchValueData}, composer::{ModelComposer, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}}, data_types::data_type::{T, V2, V3}, template::{Template, update::MakeTemplateData, value::{TemplateValue, ValueIndex}}}, util::{iter_merger::IM3, number::Nu, vector::Ve}};
 
 use super::{data_type::ComposeDataType, number::{Hook, NumberTemplate, ValueIndexNumber}, position_pair_set::PositionPairSetTemplate, position_set::{PositionSetTemplate, ValueIndexPositionSet}};
 
@@ -62,7 +62,7 @@ impl ComposerGraph {
                         PositionTemplate::Const(V2::ZERO)
                     };
 
-                    data.add_value(TemplateValue::Position2D(value)) 
+                    data.add_unmapped_value(TemplateValue::Position2D(value)) 
                 },
                 ComposeDataType::Position3D(v) => {
                     
@@ -72,7 +72,7 @@ impl ComposerGraph {
                         PositionTemplate::Const(V3::ZERO)
                     };
 
-                    data.add_value(TemplateValue::Position3D(value)) 
+                    data.add_unmapped_value(TemplateValue::Position3D(value)) 
                 },
                 _ => unreachable!()
             }
@@ -81,7 +81,7 @@ impl ComposerGraph {
             
             let node = self.snarl.get_node(pin.node).expect("Node of remote not found");
 
-            if let Some(value_index) = data.get_value_index_from_node_id(pin.node) {
+            if let Some(value_index) = data.get_first_value_index_for_node_id(pin.node) {
                 data.add_depends_of_value(value_index);
                 
                 match &node.t { 
@@ -89,7 +89,7 @@ impl ComposerGraph {
                         let value = data.template.get_position2d_value(value_index);
                         match value {
                             PositionTemplate::PerPair((hook, _)) => {
-                                return data.add_value(TemplateValue::Position2D(
+                                return data.set_value(node.id, TemplateValue::Position2D(
                                     PositionTemplate::PerPair((*hook, pin.output == 0))));
                             },
                             _ => unreachable!()
@@ -100,7 +100,7 @@ impl ComposerGraph {
                         let value = data.template.get_position3d_value(value_index);
                         match value {
                             PositionTemplate::PerPair((hook, _)) => {
-                                return data.add_value(TemplateValue::Position3D(
+                                return data.set_value(node.id, TemplateValue::Position3D(
                                     PositionTemplate::PerPair((*hook, pin.output == 0))));
                             },
                             _ => unreachable!()
@@ -156,7 +156,7 @@ impl ComposerGraph {
                     let space = self.make_pos_space(node, 0, data); 
                     let value = TemplateValue::PositionSet2D(PositionSetTemplate::All(space));
 
-                    let value_index = data.add_value(value);
+                    let value_index = data.set_value(node.id, value);
 
                     let template_index = node_data.finish_template_node(value_index, data);
 
@@ -171,7 +171,7 @@ impl ComposerGraph {
                     let space = self.make_pos_space(node, 0, data); 
                     let value = TemplateValue::PositionSet3D(PositionSetTemplate::All(space));
 
-                    let value_index = data.add_value(value);
+                    let value_index = data.set_value(node.id, value);
                     let template_index = node_data.finish_template_node(value_index, data);
 
                     TemplateValue::Position3D(PositionTemplate::PerPosition(Hook {
@@ -187,7 +187,7 @@ impl ComposerGraph {
 
                     let value = TemplateValue::PositionPairSet2D(PositionPairSetTemplate::ByDistance((space, distance)));
 
-                    let value_index = data.add_value(value);
+                    let value_index = data.set_value(node.id, value);
                     let template_index = node_data.finish_template_node(value_index, data);
 
                     TemplateValue::Position2D(PositionTemplate::PerPair((Hook {
@@ -203,7 +203,7 @@ impl ComposerGraph {
 
                     let value = TemplateValue::PositionPairSet3D(PositionPairSetTemplate::ByDistance((space, distance)));
                     
-                    let value_index = data.add_value(value);
+                    let value_index = data.set_value(node.id, value);
                     let template_index = node_data.finish_template_node(value_index, data);
 
                     TemplateValue::Position3D(PositionTemplate::PerPair((Hook {
@@ -225,6 +225,14 @@ impl ComposerGraph {
 
 
 impl<V: Ve<T, D>, const D: usize> PositionTemplate<V, D> {
+    pub fn match_value(
+        &self, 
+        other: &PositionTemplate<V, D>,
+        match_value_data: MatchValueData
+    ) -> bool {
+        todo!() 
+    }
+
     pub fn get_value(
         &self,
         get_value_data: GetValueData,

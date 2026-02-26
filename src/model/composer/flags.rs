@@ -7,8 +7,9 @@ use crate::model::{composer::nodes::{ComposeNode, ComposeNodeInput, ComposeNodeO
 
 #[derive(Debug)]
 pub struct ComposerNodeFlags { 
-    deleted_nodes: SmallVec<[NodeId; 4]>,
-    added_nodes: BitVec,
+    added_connections: SmallVec<[(NodeId, NodeId); 4]>,
+    removed_connections: SmallVec<[(NodeId, NodeId); 4]>,
+
     changed_nodes: BitVec,
     needs_collapse_nodes: BitVec,
     invalid_nodes: BitVec,
@@ -17,9 +18,9 @@ pub struct ComposerNodeFlags {
 
 impl ComposerNodeFlags {
     pub fn new(snarl: &mut Snarl<ComposeNode>) -> Self {
-        let mut flags = Self { 
-            deleted_nodes: SmallVec::new(),
-            added_nodes: BitVec::new(),
+        let mut flags = Self {
+            added_connections: SmallVec::new(),
+            removed_connections: SmallVec::new(),
             changed_nodes: BitVec::new(),
             needs_collapse_nodes: BitVec::new(),
             invalid_nodes: BitVec::new(),
@@ -46,27 +47,16 @@ impl ComposerNodeFlags {
     }
 
     pub fn reset_change_flags(&mut self) {
-        self.deleted_nodes.clear();
-        self.added_nodes.clear();
         self.changed_nodes.clear();
         self.needs_collapse_nodes.clear();
     } 
 
     pub fn enshure_nodes_list_index(&mut self, i: usize) {
-        if self.added_nodes.len() <= i {
-            self.added_nodes.resize(i + 1, false);
+        if self.changed_nodes.len() <= i {
             self.changed_nodes.resize(i + 1, false);
             self.invalid_nodes.resize(i + 1, false);
             self.needs_collapse_nodes.resize(i + 1, false);
         }
-    }
-
-    pub fn is_added(&self, node_id: NodeId) -> bool {
-        self.added_nodes.get(node_id.0).as_deref().copied().unwrap_or(false)
-    }
-
-    pub fn is_deleted(&self, node_id: NodeId) -> bool {
-        self.deleted_nodes.contains(&node_id)
     }
 
     pub fn is_changed(&self, node_id: NodeId) -> bool {
@@ -77,14 +67,6 @@ impl ComposerNodeFlags {
         self.needs_collapse_nodes.get(node_id.0).as_deref().copied().unwrap_or(false)
     }
 
-    pub fn iter_added(&self) -> impl Iterator<Item=NodeId> {
-        self.added_nodes.iter_ones().map(|i| NodeId(i))
-    }
-
-    pub fn iter_deleted(&self) -> impl Iterator<Item=NodeId> {
-        self.deleted_nodes.iter().copied()
-    }
-
     pub fn iter_changed(&self) -> impl Iterator<Item=NodeId> {
         self.changed_nodes.iter_ones().map(|i| NodeId(i))
     }
@@ -93,34 +75,39 @@ impl ComposerNodeFlags {
         self.changed_nodes.iter().by_vals().enumerate().map(|(i, v)| (NodeId(i), v))
     }
 
-    pub fn set_added(&mut self, node_id: NodeId, snarl: &Snarl<ComposeNode>) {
-        self.enshure_nodes_list_index(node_id.0);
-       
-        self.changed_nodes.set(node_id.0, false);
-        self.added_nodes.set(node_id.0, true);
-        self.set_needs_collapse(node_id, snarl);
-    }
- 
-    pub fn set_deleted(&mut self, node_id: NodeId) {
-        self.enshure_nodes_list_index(node_id.0);
-                
-        // Removed nodes can not be invalid.
-        self.invalid_nodes.set(node_id.0, false);
 
-        if !self.is_added(node_id) && !self.is_deleted(node_id) {
-            self.deleted_nodes.push(node_id);
+    pub fn connection_added(&mut self, from: NodeId, to: NodeId) {
+        if let Some(i) = self.removed_connections.iter().position(|(f, t)| from == *f && to == *t) {
+            self.removed_connections.swap_remove(i);
         }
 
-        self.added_nodes.set(node_id.0, false);
-        self.changed_nodes.set(node_id.0, false);
+        self.added_connections.push((from, to));
+    }
+
+    pub fn connection_removed(&mut self, from: NodeId, to: NodeId) {
+        if let Some(i) = self.added_connections.iter().position(|(f, t)| from == *f && to == *t) {
+            self.added_connections.swap_remove(i);
+        } else {
+            self.removed_connections.push((from, to));
+        }
+    }
+
+    pub fn on_node_removed(&mut self, node_id: NodeId) {
+        for i in (0..self.added_connections.len()).rev() {
+            if self.added_connections[i].0 == node_id || self.added_connections[i].1 == node_id {
+                self.added_connections.swap_remove(i);
+            } 
+        }
+
+        for i in (0..self.removed_connections.len()).rev() {
+            if self.removed_connections[i].0 == node_id || self.removed_connections[i].1 == node_id {
+                self.removed_connections.swap_remove(i);
+            } 
+        }
     }
 
     pub fn set_changed(&mut self, node_id: NodeId, snarl: &Snarl<ComposeNode>) {
         self.enshure_nodes_list_index(node_id.0);
-
-        if self.is_added(node_id) {
-            return;
-        }
 
         self.changed_nodes.set(node_id.0, true);
         self.set_needs_collapse(node_id, snarl);
@@ -207,7 +194,6 @@ impl ComposerNodeFlags {
             .to_owned();
 
         let valid = self.validate_node(node, snarl);
-        dbg!(valid);
         self.invalid_nodes.set(node_id.0, !valid);
     }
 

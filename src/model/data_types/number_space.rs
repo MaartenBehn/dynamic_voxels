@@ -29,7 +29,7 @@ impl ComposerGraph {
     ) -> ValueIndexNumberSpace {
         let node_id = self.get_input_remote_node_id(original_node, in_index);
 
-        if let Some(value_index) = data.get_value_index_from_node_id(node_id) {
+        if let Some(value_index) = data.get_first_value_index_for_node_id(node_id) {
             data.add_depends_of_value(value_index);
             return value_index;
         }

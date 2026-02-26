@@ -22,9 +22,9 @@ pub struct MakeTemplateNodeData {
 #[derive(Debug)]
 pub enum TemplateNodeUpdate {
     Delete(TemplateIndex),
-    New{ new: TemplateIndex, parent: TemplateIndex, creates_index: usize, new_level: usize },
-    Unchanged{ old: TemplateIndex, new: TemplateIndex },
-    Changed{ old: TemplateIndex, new: TemplateIndex, level: usize },
+    New { new: TemplateIndex, parent: TemplateIndex, creates_index: usize, new_level: usize },
+    Changed { old: TemplateIndex, new: TemplateIndex, level: usize },
+    UpdateIndex { old: TemplateIndex, new: TemplateIndex },
     None(TemplateIndex),
 }
 
@@ -126,80 +126,21 @@ impl Template {
             }
         }
 
+        dbg!(&template.map_node_id);
+
         let mut needs_update = vec![];
+
+        for id in graph.flags.iter_changed() {
+            let old_template_nodes = self.get_template_index_from_node_id(id);
+            let new_template_nodes = template.get_template_index_from_node_id(id);
+
+            if old_template_nodes == new_template_nodes {
+                for index in new_template_nodes {
+                    needs_update.push(TemplateNodeUpdate::Changed { old: index, new: index, level: template.nodes });
+                }
+            }
+        } 
         
-        for id in graph.flags.iter_deleted() {
-            let index = self.get_template_index_from_node_id(id);
-            
-            if index.is_none() {
-                log::error!("Invalid delted flag for {id:?}");
-                continue;
-            }
-
-            needs_update.push(TemplateNodeUpdate::Delete(index.unwrap()));
-        }
-
-        for id in graph.flags.iter_added() {
-            let index = template.get_template_index_from_node_id(id);
-            
-            if index.is_none() {
-                log::error!("Invalid new flag for {id:?}");
-                continue;
-            }
-            let index = index.unwrap();
-
-            let node: &TemplateNode = &template.nodes[index];
-            needs_update.push(TemplateNodeUpdate::New{
-                new: index,
-                parent: node.created_by.0,
-                creates_index: node.created_by.1,
-                new_level: node.level,
-            });
-        }
-
-        for (id, v) in graph.flags.iter_changed_all() {
-            if v {
-
-                let old_index = self.get_template_index_from_node_id(id);
-                let new_index = template.get_template_index_from_node_id(id);
-
-                if old_index.is_none() {
-                    log::error!("Invalid changed flag for old {id:?}");
-                    continue;
-                }
-
-                if new_index.is_none() {
-                    log::error!("Invalid changed flag for new {id:?}");
-                    continue;
-                }
-                let(new, old) = (new_index.unwrap(), old_index.unwrap());
-
-                let node: &TemplateNode = &template.nodes[new];
-                needs_update.push(TemplateNodeUpdate::Changed{ new, old, level: node.level });
-
-            } else if !graph.flags.is_added(id) && !graph.flags.is_deleted(id) {
-
-                let old_index = self.get_template_index_from_node_id(id);
-                let new_index = template.get_template_index_from_node_id(id);
-
-                if old_index.is_none() {
-                    continue;
-                }
-
-                if new_index.is_none() {
-                    log::error!("Invalid unchanged flag for new {id:?}");
-                    continue;
-                }
-                let(new, old) = (new_index.unwrap(), old_index.unwrap()); 
-                
-                if new != old {
-                    needs_update.push(TemplateNodeUpdate::Unchanged{ new, old });
-                } else {
-                    needs_update.push(TemplateNodeUpdate::None(new));
-                }
-            }
-        }
-
         (*self) = template;
 
         needs_update
@@ -274,7 +215,6 @@ impl ComposerGraph {
                 dependecy_tree: Default::default(),
             }
         );
-        data.template.map_node_id[node.id.0].0 = template_index;
 
         data.building_template_index = template_index;
         inactive
@@ -287,14 +227,14 @@ impl MakeTemplateNodeData{
         value_index: ValueIndex,
         data: &mut MakeTemplateData<'a>
     ) -> TemplateIndex {
-        let node: &mut TemplateNode = &mut data.template.nodes[data.building_template_index]; 
-        node.value_index = value_index;
+        let template_node: &mut TemplateNode = &mut data.template.nodes[data.building_template_index]; 
+        template_node.value_index = value_index;
 
         if let Some(create_by_node_id) = self.created_by_node_id {
-            let create_by_template_index = data.template.map_node_id[create_by_node_id.0].0;
+            let create_by_template_index = data.template.map_node_id[create_by_node_id.0].0[0];
 
-            if !node.depends.contains(&create_by_template_index) {
-                node.depends.push(create_by_template_index);
+            if !template_node.depends.contains(&create_by_template_index) {
+                template_node.depends.push(create_by_template_index);
             }
             
             let creates_index = data.template.nodes[create_by_template_index].creates.len();
@@ -305,7 +245,7 @@ impl MakeTemplateNodeData{
                 t: CreatesType::Children,
             });
         } else {
-            node.depends.push(0);
+            template_node.depends.push(0);
 
             let creates_index = data.template.nodes[0].creates.len();
             data.template.nodes[data.building_template_index].created_by = (0, creates_index);
@@ -332,19 +272,22 @@ impl MakeTemplateNodeData{
 }
 
 impl<'a> MakeTemplateData<'a> {
-    pub fn get_value_index_from_node_id(&mut self, node_id: NodeId) -> Option<ValueIndex> {
-        self.template.get_value_index_from_node_id(node_id)
+    pub fn get_first_value_index_for_node_id(&mut self, node_id: NodeId) -> Option<ValueIndex> {
+        self.template.get_value_index_from_node_id(node_id).get(0).copied()
     }
 
     pub fn set_value(&mut self, node_id: NodeId, value: TemplateValue) -> ValueIndex {
         let value_index = self.template.values.len(); 
         self.template.values.push(value);
-        self.template.map_node_id[node_id.0].1 = value_index;
+
+        if !self.template.map_node_id[node_id.0].0.contains(&self.building_template_index) {
+            self.template.map_node_id[node_id.0].0.push(self.building_template_index);
+        } 
+        self.template.map_node_id[node_id.0].1.push(value_index);
         value_index
     }
 
-    
-    pub fn add_value(&mut self, value: TemplateValue) -> ValueIndex {
+    pub fn add_unmapped_value(&mut self, value: TemplateValue) -> ValueIndex {
         let value_index = self.template.values.len(); 
         self.template.values.push(value);
         value_index

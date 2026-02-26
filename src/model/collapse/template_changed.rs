@@ -3,10 +3,15 @@ use std::mem;
 use itertools::Itertools;
 use smallvec::SmallVec;
 
-use crate::{model::{template::{nodes::{TemplateNode}, update::TemplateNodeUpdate, Template}}};
+use crate::model::template::{Template, TemplateIndex, nodes::TemplateNode, update::TemplateNodeUpdate, value::ValueIndex};
 
 use super::{collapser::{CollapseNodeKey, Collapser, UpdateDefinesOperation}, pending_operations::PendingOperations};
 
+pub struct MatchValueData<'a> {
+    pub template: &'a Template,
+    pub other_template: &'a Template,
+    pub matched_template_indecies: Vec<TemplateIndex>,
+}
 
 impl Collapser {
     
@@ -35,17 +40,17 @@ impl Collapser {
                         });
                     }
                 },
-                TemplateNodeUpdate::Unchanged { old, new } => {
-                    for index in self.nodes_per_template_index[old].iter() {
-                        self.nodes[*index].template_index = new;
-                    }
-
-                    mem::swap(&mut new_nodes_per_template_index[new], &mut self.nodes_per_template_index[old]);
-                },
                 TemplateNodeUpdate::Changed { old, new, level } => {
                     for index in self.nodes_per_template_index[old].iter() {
                         self.nodes[*index].template_index = new;
                         self.pending.push_collpase(level, *index);
+                    }
+
+                    mem::swap(&mut new_nodes_per_template_index[new], &mut self.nodes_per_template_index[old]);
+                },
+                TemplateNodeUpdate::UpdateIndex { old, new } => {
+                    for index in self.nodes_per_template_index[old].iter() {
+                        self.nodes[*index].template_index = new;
                     }
 
                     mem::swap(&mut new_nodes_per_template_index[new], &mut self.nodes_per_template_index[old]);
@@ -59,5 +64,45 @@ impl Collapser {
         self.template = new_template;
         self.nodes_per_template_index = new_nodes_per_template_index;
     }
-} 
+
+    pub fn match_template_node(
+        &mut self, 
+        old_template_index: TemplateIndex, 
+        new_template_index: TemplateIndex, 
+        new_template: &Template, 
+        new_nodes_per_template_index: &mut Vec<SmallVec<[CollapseNodeKey; 4]>>,
+    ) {
+
+        let old_template_node = &self.template.nodes[old_template_index];
+        let new_tempalte_node = &new_template.nodes[new_template_index]; 
+
+        let old_value = &self.template.values[old_template_node.value_index];
+        let new_value = &new_template.values[new_tempalte_node.value_index];
+
+        let value_same = old_value.match_value(new_value, MatchValueData { 
+            template: &self.template, 
+            other_template: new_template, 
+            matched_template_indecies: vec![]
+        });
+
+        
+
+        if !value_same {
+            for index in self.nodes_per_template_index[old_template_index].iter() {
+                self.nodes[*index].template_index = new_template_index;
+                self.pending.push_collpase(new_tempalte_node.level, *index);
+            }
+        } else if old_template_index != new_template_index {
+            for index in self.nodes_per_template_index[old_template_index].iter() {
+                self.nodes[*index].template_index = new_template_index;
+            }
+        }
+
+        mem::swap(&mut new_nodes_per_template_index[new_template_index], &mut self.nodes_per_template_index[old_template_index]);
+
+
+    }
+}
+
+
 
