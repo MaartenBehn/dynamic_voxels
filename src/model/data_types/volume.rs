@@ -127,8 +127,6 @@ impl VolumeValue {
         other: &VolumeValue,
         data: MatchValueData
     ) -> bool {
-        dbg!(self);
-        dbg!(other);
 
         match self {
             VolumeValue::Sphere { pos: p1, size: n1 } => match other {

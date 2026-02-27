@@ -230,8 +230,6 @@ impl<V: Ve<T, D>, const D: usize> PositionValue<V, D> {
         other: &PositionValue<V, D>,
         data: MatchValueData
     ) -> bool {
-        dbg!(self);
-        dbg!(other);
 
         match self {
             PositionValue::Const(p1) => match other {

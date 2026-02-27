@@ -118,8 +118,6 @@ impl NumberValue {
         other: &NumberValue,
         data: MatchValueData
     ) -> bool {
-        dbg!(self);
-        dbg!(other);
 
         match self {
             NumberValue::Const(v1) => {

@@ -27,8 +27,8 @@ pub enum TemplateNodeUpdate {
     None(TemplateIndex),
 }
 
-impl Template { 
-    pub fn new(graph: &ComposerGraph, palette: &mut SharedPalette) -> Self {
+impl ComposerGraph { 
+    pub fn make_template(&self, palette: &mut SharedPalette) -> Template {
         
         let mut template = Template {
             nodes: vec![
@@ -49,7 +49,7 @@ impl Template {
         }; 
 
         let mut map_node_id = vec![];
-        for composer_node in graph.snarl.nodes() {             
+        for composer_node in self.snarl.nodes() {             
             let node_id = composer_node.id;
 
             let mut data = MakeTemplateData {
@@ -61,10 +61,10 @@ impl Template {
 
             match &composer_node.t {
                 ComposeNodeType::Voxels => { 
-                    graph.make_voxels(composer_node, &mut data);                    
+                    self.make_voxels(composer_node, &mut data);                    
                 },
                 ComposeNodeType::Mesh => {
-                    graph.make_mesh(composer_node, &mut data);                    
+                    self.make_mesh(composer_node, &mut data);                    
                 }
                 _ => {}
             };

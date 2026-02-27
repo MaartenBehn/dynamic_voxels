@@ -255,8 +255,6 @@ impl<'a> SnarlViewer<ComposeNode> for ComposeViewer<'a> {
 
             snarl.connect(from.id, to.id);
 
-            self.flags.connection_added(from.id.node, to.id.node);
-
             self.flags.update_node_valid(from.id.node, snarl);
             self.flags.update_node_valid(to.id.node, snarl);
         }
@@ -458,19 +456,15 @@ impl<'a> SnarlViewer<ComposeNode> for ComposeViewer<'a> {
 
             for input in inputs {
                 for remote in input.remotes.iter() {
-                    self.flags.connection_removed(remote.node, node_id);
                     self.flags.update_node_valid(remote.node, snarl);
                 }
             }
 
             for output in outputs {
                 for remote in output.remotes.iter() {
-                    self.flags.connection_removed(node_id, remote.node);
                     self.flags.update_node_valid(remote.node, snarl);
                 }
             }
-
-            self.flags.on_node_removed(node_id);
 
             // Mark nodes dependend on external_input
             match node.t {
@@ -482,7 +476,6 @@ impl<'a> SnarlViewer<ComposeNode> for ComposeViewer<'a> {
 
     #[inline]
     fn disconnect(&mut self, from: &OutPin, to: &InPin, snarl: &mut Snarl<ComposeNode>) {
-        self.flags.connection_removed(from.id.node, to.id.node);
 
         for remote in from.remotes.iter() {
             self.flags.update_node_valid(remote.node, snarl);

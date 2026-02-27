@@ -45,8 +45,6 @@ impl MeshTemplate {
         other: &MeshTemplate,
         data: MatchValueData
     ) -> bool {
-        dbg!(self);
-        dbg!(other);
 
         data.match_two_volumes(self.volume, other.volume)
         && data.match_two_positions3d(self.pos, other.pos)

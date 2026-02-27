@@ -55,8 +55,6 @@ impl NumberSpaceValue {
         other: &NumberSpaceValue,
         data: MatchValueData
     ) -> bool {
-        dbg!(self);
-        dbg!(other);
 
         match self {
             NumberSpaceValue::NumberRange { min: min1, max: max1, step: step1 } => match other {

@@ -124,8 +124,6 @@ impl PositionSpaceValue {
         other: &PositionSpaceValue,
         data: MatchValueData
     ) -> bool {
-        dbg!(self);
-        dbg!(other);
 
         match self {
             PositionSpaceValue::Grid(grid_value1) => match other {

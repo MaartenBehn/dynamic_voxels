@@ -25,8 +25,6 @@ impl PositionSetValue {
         other: &PositionSetValue,
         data: MatchValueData
     ) -> bool {
-        dbg!(self);
-        dbg!(other);
 
         match self {
             PositionSetValue::All(ps1) => match other {

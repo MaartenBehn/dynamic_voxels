@@ -85,7 +85,6 @@ impl Collapser {
                         let old_child = &new_template.nodes[old_child_index];
                         to_match[old_child.level].push((old_child_index, new_match_index));
                     }
-                    dbg!(&to_match);
 
                     mem::swap(&mut new_nodes_per_template_index[new_match_index], 
                     &mut self.nodes_per_template_index[old_template_index]);
@@ -103,15 +102,12 @@ impl Collapser {
             }
         }
 
-        dbg!(&matched_template_indecies);
-
         for (new_parent_index, left_new_children) in left_new_children.into_iter().enumerate() {
             for (creates_index, left_new) in left_new_children {
                 let level = new_template.nodes[left_new].level;
 
-                dbg!(new_parent_index);
-                dbg!(left_new);
-
+                debug!("adding new: {left_new}");
+                
                 for index in self.nodes_per_template_index[matched_template_indecies[new_parent_index]].iter() {
                     self.pending.push_create_defined(level, UpdateDefinesOperation { 
                         template_index: left_new,

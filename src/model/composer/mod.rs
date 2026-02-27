@@ -52,7 +52,7 @@ impl ModelComposer {
         let viewer_data = ComposeViewerData::new();
 
         let mut template = if graph.flags.are_all_valid() {
-            Template::new(&graph, &mut palette)
+            graph.make_template(&mut palette)
         } else {
             Template::empty()
         };
@@ -153,7 +153,7 @@ impl ModelComposer {
                 
                 let now = Instant::now();
 
-                self.template = Template::new(&self.graph, &mut self.palette);
+                self.template = self.graph.make_template(&mut self.palette);
                 self.collapser_worker.template_changed(self.template.clone(), self.external_input);
 
                 let elapsed = now.elapsed();

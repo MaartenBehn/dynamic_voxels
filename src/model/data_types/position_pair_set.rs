@@ -27,8 +27,6 @@ impl PositionPairSetValue {
         other: &PositionPairSetValue,
         data: MatchValueData
     ) -> bool {
-        dbg!(self);
-        dbg!(other);
 
         match self {
             PositionPairSetValue::ByDistance((ps1, n1)) => match other {

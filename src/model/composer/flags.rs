@@ -7,9 +7,6 @@ use crate::model::{composer::nodes::{ComposeNode, ComposeNodeInput, ComposeNodeO
 
 #[derive(Debug)]
 pub struct ComposerNodeFlags { 
-    added_connections: SmallVec<[(NodeId, NodeId); 4]>,
-    removed_connections: SmallVec<[(NodeId, NodeId); 4]>,
-
     changed_nodes: BitVec,
     needs_collapse_nodes: BitVec,
     invalid_nodes: BitVec,
@@ -19,8 +16,6 @@ pub struct ComposerNodeFlags {
 impl ComposerNodeFlags {
     pub fn new(snarl: &mut Snarl<ComposeNode>) -> Self {
         let mut flags = Self {
-            added_connections: SmallVec::new(),
-            removed_connections: SmallVec::new(),
             changed_nodes: BitVec::new(),
             needs_collapse_nodes: BitVec::new(),
             invalid_nodes: BitVec::new(),
@@ -73,37 +68,6 @@ impl ComposerNodeFlags {
 
     pub fn iter_changed_all(&self) -> impl Iterator<Item=(NodeId, bool)> {
         self.changed_nodes.iter().by_vals().enumerate().map(|(i, v)| (NodeId(i), v))
-    }
-
-
-    pub fn connection_added(&mut self, from: NodeId, to: NodeId) {
-        if let Some(i) = self.removed_connections.iter().position(|(f, t)| from == *f && to == *t) {
-            self.removed_connections.swap_remove(i);
-        }
-
-        self.added_connections.push((from, to));
-    }
-
-    pub fn connection_removed(&mut self, from: NodeId, to: NodeId) {
-        if let Some(i) = self.added_connections.iter().position(|(f, t)| from == *f && to == *t) {
-            self.added_connections.swap_remove(i);
-        } else {
-            self.removed_connections.push((from, to));
-        }
-    }
-
-    pub fn on_node_removed(&mut self, node_id: NodeId) {
-        for i in (0..self.added_connections.len()).rev() {
-            if self.added_connections[i].0 == node_id || self.added_connections[i].1 == node_id {
-                self.added_connections.swap_remove(i);
-            } 
-        }
-
-        for i in (0..self.removed_connections.len()).rev() {
-            if self.removed_connections[i].0 == node_id || self.removed_connections[i].1 == node_id {
-                self.removed_connections.swap_remove(i);
-            } 
-        }
     }
 
     pub fn set_changed(&mut self, node_id: NodeId, snarl: &Snarl<ComposeNode>) {
