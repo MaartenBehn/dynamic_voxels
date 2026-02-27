@@ -5,7 +5,7 @@ use itertools::{iproduct, Either, Itertools};
 use octa_force::glam::{ivec2, IVec2, IVec3, Vec2, Vec3A};
 use smallvec::SmallVec;
 
-use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::{GetNewChildrenData, GetValueData}, collapser::{CollapseChildKey, CollapseNodeKey, Collapser}}, composer::{ModelComposer, nodes::ComposeNodeType}, data_types::data_type::T, template::{self, Template, TemplateIndex, value::TemplateValue}}, util::{iter_merger::IM2, math_config::MC, vector::Ve}};
+use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::{GetNewChildrenData, GetValueData}, collapser::{CollapseChildKey, CollapseNodeKey, Collapser}, template_changed::MatchValueData}, composer::{ModelComposer, nodes::ComposeNodeType}, data_types::data_type::T, template::{self, Template, TemplateIndex, value::TemplateValue}}, util::{iter_merger::IM2, math_config::MC, vector::Ve}};
 
 use crate::util::vector;
 use crate::util::math_config;
@@ -22,6 +22,28 @@ pub enum PositionPairSetValue {
 }
 
 impl PositionPairSetValue {
+    pub fn match_value(
+        &self, 
+        other: &PositionPairSetValue,
+        data: MatchValueData
+    ) -> bool {
+        dbg!(self);
+        dbg!(other);
+
+        match self {
+            PositionPairSetValue::ByDistance((ps1, n1)) => match other {
+                PositionPairSetValue::ByDistance((ps2, n2)) => {
+                    data.template.get_position_space_value(*ps1).match_value(
+                            data.other_template.get_position_space_value(*ps2), 
+                            data)
+
+                    && data.match_two_numbers(*n1, *n2)
+                },
+                _ => false
+            },
+        }
+    }
+
     pub fn get_value<V: Ve<T, D>, const D: usize>(
         &self, 
         get_value_data: GetValueData,

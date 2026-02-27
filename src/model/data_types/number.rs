@@ -100,12 +100,14 @@ impl Hook {
     pub fn match_value(
         &self, 
         other: &Hook,
-        match_value_data: MatchValueData
+        data: MatchValueData
     ) -> bool {
-        if match_value_data.matched_template_indecies.len() >= self.template_index {
+        dbg!(&data.matched_template_indecies);
+
+        if data.matched_template_indecies.len() >= self.template_index {
             false
         } else {
-            match_value_data.matched_template_indecies[self.template_index] == other.template_index 
+            data.matched_template_indecies[self.template_index] == other.template_index 
         }
     }
 }
@@ -114,8 +116,11 @@ impl NumberValue {
     pub fn match_value(
         &self, 
         other: &NumberValue,
-        match_value_data: MatchValueData
+        data: MatchValueData
     ) -> bool {
+        dbg!(self);
+        dbg!(other);
+
         match self {
             NumberValue::Const(v) => {
                 match other {
@@ -125,38 +130,27 @@ impl NumberValue {
             },
             NumberValue::Hook(hook) => {
                 match other {
-                    NumberValue::Hook(other_hook) => hook.match_value(other_hook, match_value_data),
+                    NumberValue::Hook(other_hook) => hook.match_value(other_hook, data),
                     _ => false
                 }
             },
-            NumberValue::SplitPosition2D((v_index, i)) => {
+            NumberValue::SplitPosition2D((p1, i1)) => {
                 match other {
-                    NumberValue::SplitPosition2D((other_v_index, other_i)) => *i == *other_i && {
-                        match_value_data.template.get_position2d_value(*v_index).match_value(
-                            match_value_data.template.get_position2d_value(*other_v_index), 
-                            match_value_data)
-                    },
+                    NumberValue::SplitPosition2D((p2, i2)) => *i1 == *i2 && 
+                        data.match_two_positions2d(*p1, *p2),
                     _ => false
                 }
             },
-            NumberValue::SplitPosition3D((v_index, i)) => {
+            NumberValue::SplitPosition3D((p1, i1)) => {
                 match other {
-                    NumberValue::SplitPosition3D((other_v_index, other_i)) => *i == *other_i && {
-                        match_value_data.template.get_position3d_value(*v_index).match_value(
-                            match_value_data.template.get_position3d_value(*other_v_index), 
-                            match_value_data)
-                    },
+                    NumberValue::SplitPosition3D((p2, i2)) => *i1 == *i2 && 
+                        data.match_two_positions3d(*p1, *p2),
                     _ => false
                 }
             },
-            NumberValue::Position3DTo2D(v_index) => {
+            NumberValue::Position3DTo2D(p1) => {
                 match other {
-                    NumberValue::Position3DTo2D(other_v_index) => {
-                        match_value_data.template.get_position3d_value(*v_index).match_value(
-                            match_value_data.template.get_position3d_value(*other_v_index), 
-                            match_value_data)
-
-                    },
+                    NumberValue::Position3DTo2D(p2) => data.match_two_positions3d(*p1, *p2),
                     _ => false
                 }
             },

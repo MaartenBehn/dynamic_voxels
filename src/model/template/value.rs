@@ -157,30 +157,43 @@ impl Template {
 }
 
 impl TemplateValue {
-    pub fn match_value(&self, other: &TemplateValue, match_value_data: MatchValueData) -> bool {
+    pub fn match_template_value(&self, other: &TemplateValue, data: MatchValueData) -> bool {
         match self {
             TemplateValue::None => match other {
                 TemplateValue::None => true,
                 _ => false,
             },
-            TemplateValue::Number(number_template) => match other {
-                TemplateValue::Number(other_numer_template) 
-                    => number_template.match_value(other_numer_template, match_value_data),
+            TemplateValue::PositionSet2D(a) => match other {
+                TemplateValue::PositionSet2D(b) 
+                    => a.match_value(b, data),
                 _ => false,
             },
-            TemplateValue::NumberSet(number_space_template) => todo!(),
-            TemplateValue::Position2D(position_template) => todo!(),
-            TemplateValue::Position3D(position_template) => todo!(),
-            TemplateValue::PositionSet2D(position_set_template) => todo!(),
-            TemplateValue::PositionSet3D(position_set_template) => todo!(),
-            TemplateValue::PositionPairSet2D(position_pair_set_template) => todo!(),
-            TemplateValue::PositionPairSet3D(position_pair_set_template) => todo!(),
-            TemplateValue::PositionSpace2D(position_space_template) => todo!(),
-            TemplateValue::PositionSpace3D(position_space_template) => todo!(),
-            TemplateValue::Volume2D(volume_template) => todo!(),
-            TemplateValue::Volume3D(volume_template) => todo!(),
-            TemplateValue::Voxels(voxel_template) => todo!(),
-            TemplateValue::Mesh(mesh_template) => todo!(),
+            TemplateValue::PositionSet3D(a) => match other {
+                TemplateValue::PositionSet3D(b) 
+                    => a.match_value(b, data),
+                _ => false,
+            },
+            TemplateValue::PositionPairSet2D(a) => match other {
+                TemplateValue::PositionPairSet2D(b) 
+                    => a.match_value(b, data),
+                _ => false,
+            },
+            TemplateValue::PositionPairSet3D(a) => match other {
+                TemplateValue::PositionPairSet3D(b) 
+                    => a.match_value(b, data),
+                _ => false,
+            },
+            TemplateValue::Voxels(a) => match other {
+                TemplateValue::Voxels(b) 
+                    => a.match_value(b, data),
+                _ => false,
+            },
+            TemplateValue::Mesh(a) => match other {
+                TemplateValue::Mesh(b) 
+                    => a.match_value(b, data),
+                _ => false,
+            },
+            _ => unreachable!()
         }
     }
 }

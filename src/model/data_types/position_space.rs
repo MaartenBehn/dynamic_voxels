@@ -6,7 +6,7 @@ use octa_force::{anyhow::bail, glam::{Mat4, Vec3, Vec3A}, OctaResult};
 use slotmap::{new_key_type, SecondaryMap, SlotMap};
 use smallvec::SmallVec;
 
-use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{ModelComposer, graph::ComposerGraph, make_template::MakeTemplateData, nodes::{ComposeNode, ComposeNodeType}}, data_types::data_type::{ComposeDataType, T}, template::{Template, value::TemplateValue}}, util::{aabb::AABB, iter_merger::IM3, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
+use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::Collapser, template_changed::MatchValueData}, composer::{ModelComposer, graph::ComposerGraph, make_template::MakeTemplateData, nodes::{ComposeNode, ComposeNodeType}}, data_types::data_type::{ComposeDataType, T}, template::{Template, value::TemplateValue}}, util::{aabb::AABB, iter_merger::IM3, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
 
 use super::{number::{NumberValue, ValueIndexNumber}, position::{PositionValue, ValueIndexPosition}, volume::{ValueIndexVolume, VolumeValue}};
 
@@ -118,7 +118,42 @@ impl ComposerGraph {
     }
 }
 
-impl PositionSpaceValue { 
+impl PositionSpaceValue {
+    pub fn match_value(
+        &self, 
+        other: &PositionSpaceValue,
+        data: MatchValueData
+    ) -> bool {
+        dbg!(self);
+        dbg!(other);
+
+        match self {
+            PositionSpaceValue::Grid(grid_value1) => match other {
+                PositionSpaceValue::Grid(grid_value2) => {
+                    data.match_two_volumes(grid_value1.volume, grid_value2.volume)
+                    && data.match_two_numbers(grid_value1.spacing, grid_value2.spacing)
+                },
+                _ => false,
+            },
+            PositionSpaceValue::LeafSpread(leaf_spread_value1) => match other {
+                PositionSpaceValue::LeafSpread(leaf_spread_value2) => {
+                    data.match_two_volumes(leaf_spread_value1.volume, leaf_spread_value2.volume)
+                    && data.match_two_numbers(leaf_spread_value1.samples, leaf_spread_value2.samples)
+                },
+                _ => false,
+            },
+            PositionSpaceValue::Path(path_value1) => match other {
+                PositionSpaceValue::Path(path_value2) => {
+                    data.match_two_positions_check(path_value1.start, path_value1.start)
+                    && data.match_two_positions_check(path_value1.end, path_value1.end)
+                    && data.match_two_numbers(path_value1.spacing, path_value1.spacing)
+                    && data.match_two_positions_check(path_value1.side_variance, path_value2.side_variance)               
+                },
+                _ => false
+            },
+        }
+    }
+
     pub fn get_value<V: Ve<T, D>, const D: usize>(
         &self,
         get_value_data: GetValueData,

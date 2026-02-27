@@ -4,7 +4,7 @@ use egui_snarl::OutPinId;
 use itertools::{iproduct, Itertools};
 use smallvec::SmallVec;
 
-use crate::{csg::{Base, csg_tree::tree::CSGTree}, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{ModelComposer, graph::ComposerGraph, make_template::MakeTemplateData, nodes::{ComposeNode, ComposeNodeType}}, data_types::data_type::{T, V3}, template::{Template, value::TemplateValue}}, util::{iter_merger::IM5, number::Nu, vector::Ve}};
+use crate::{csg::{Base, csg_tree::tree::CSGTree}, model::{collapse::{add_nodes::GetValueData, collapser::Collapser, template_changed::MatchValueData}, composer::{ModelComposer, graph::ComposerGraph, make_template::MakeTemplateData, nodes::{ComposeNode, ComposeNodeType}}, data_types::{data_type::{T, V3}}, template::{Template, value::TemplateValue}}, util::{iter_merger::IM5, number::Nu, vector::Ve}};
 
 use super::{data_type::ComposeDataType, number::{NumberValue, ValueIndexNumber}, position::{PositionValue, ValueIndexPosition}, position_set::{PositionSetValue, ValueIndexPositionSet}};
 
@@ -25,7 +25,7 @@ pub enum VolumeValue {
     },
     Box {
         pos: ValueIndexPosition,
-        size: ValueIndexNumber,
+        size: ValueIndexPosition,
     },
     Union {
         a: ValueIndexVolume,
@@ -121,7 +121,62 @@ impl ComposerGraph {
     }
 }
 
-impl VolumeValue {  
+impl VolumeValue { 
+    pub fn match_value(
+        &self, 
+        other: &VolumeValue,
+        data: MatchValueData
+    ) -> bool {
+        dbg!(self);
+        dbg!(other);
+
+        match self {
+            VolumeValue::Sphere { pos: p1, size: n1 } => match other {
+                VolumeValue::Sphere { pos: p2, size: n2 } => {
+                    data.match_two_positions_check(*p1, *p2)
+                    && data.match_two_numbers(*n1, *n2)
+                },
+                _ => false,
+            },
+            VolumeValue::Disk { pos: p1, size: size1, height: height1 } => match other {
+                VolumeValue::Disk { pos: p2, size: size2, height: height2 } => {
+                    data.match_two_positions_check(*p1, *p2)
+                    && data.match_two_numbers(*size1, *size2)
+                    && data.match_two_numbers(*height1, *height2)
+                }, 
+                _ => false,
+            },
+            VolumeValue::Box { pos: p1, size: size1 } => match other {
+                VolumeValue::Box { pos: p2, size: size2 } => {
+                    data.match_two_positions_check(*p1, *p2)
+                    && data.match_two_positions_check(*size1, *size2)
+                },
+                _ => false,
+            },
+            VolumeValue::Union { a: a1, b: b1 } => match other {
+                VolumeValue::Union { a: a2, b: b2 } => {
+                    data.match_two_volumes(*a1, *a2)
+                    && data.match_two_volumes(*b1, *b2)
+                }, 
+                _ => false,
+            },
+            VolumeValue::Cut { base: base1, cut: cut1 } => match other {
+                VolumeValue::Cut { base: base2, cut: cut2 } => {
+                    data.match_two_volumes(*base1, *base2)
+                    && data.match_two_volumes(*cut1, *cut2)
+                },
+                _ => false,
+            },
+            VolumeValue::Material { mat: mat1, child: child1 } => match other {
+                VolumeValue::Material { mat: mat2, child: child2 } => {
+                    mat1 == mat2 
+                    && data.match_two_volumes(*child1, *child2)
+                },
+                _ => false
+            },
+        }
+    }
+
     pub fn get_value<V: Ve<T, D>, M: Base, const D: usize>(
         &self, 
         get_value_data: GetValueData,

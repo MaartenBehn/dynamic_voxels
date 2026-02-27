@@ -228,9 +228,65 @@ impl<V: Ve<T, D>, const D: usize> PositionValue<V, D> {
     pub fn match_value(
         &self, 
         other: &PositionValue<V, D>,
-        match_value_data: MatchValueData
+        data: MatchValueData
     ) -> bool {
-        todo!() 
+        dbg!(self);
+        dbg!(other);
+
+        match self {
+            PositionValue::Const(a) => match other {
+                PositionValue::Const(b) => a == b,
+                _ => false
+            },
+            PositionValue::Add((a1, b1)) => match other {
+                PositionValue::Add((a2, b2)) => {
+                    data.match_two_positions::<V, D>(*a1, *a2)
+                    && data.match_two_positions::<V, D>(*b1, *b2)
+                },
+                _ => false
+            },
+            PositionValue::Sub((a1, b1)) => match other {
+                PositionValue::Sub((a2, b2)) => {
+                    data.match_two_positions::<V, D>(*a1, *a2)
+                    && data.match_two_positions::<V, D>(*b1, *b2)
+                },
+                _ => false
+            },
+            PositionValue::FromNumbers(n1) => match other {
+                PositionValue::FromNumbers(n2) => {
+                    (0..D).all(|i| {
+                        data.match_two_numbers(n1[i], n2[i])              
+                    })
+                },
+                _ => false,
+            },
+            PositionValue::Position2DTo3D((p1, n1)) => match other {
+                PositionValue::Position2DTo3D((p2, n2)) => {
+                    data.match_two_positions2d(*p1, *p2)
+                    && data.match_two_numbers(*n1, *n2)       
+                },
+                _ => false,
+            },
+            PositionValue::Position3DTo2D(p1) => match other {
+                PositionValue::Position3DTo2D(p2) => data.match_two_positions3d(*p1, *p2),
+                _ => false,
+            },
+            PositionValue::PerPosition(hook1) => match other {
+                PositionValue::PerPosition(hook2) => hook1.match_value(hook2, data),
+                _ => false,
+            },
+            PositionValue::PerPair((hook1, b1)) => match other {
+                PositionValue::PerPair((hook2, b2)) => { 
+                    b1 == b2 && hook1.match_value(hook2, data)
+                },
+                _ => false,
+            },
+            PositionValue::Cam => match other {
+                PositionValue::Cam => true,
+                _ => false,
+            },
+            PositionValue::PhantomData(phantom_data) => unreachable!(),
+        } 
     }
 
     pub fn get_value(

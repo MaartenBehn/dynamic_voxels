@@ -5,7 +5,7 @@ use itertools::{iproduct, Itertools};
 use octa_force::{log::debug, OctaResult};
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{ModelComposer, graph::ComposerGraph, make_template::MakeTemplateData, nodes::{ComposeNode, ComposeNodeType}}, data_types::data_type::T, template::{self, Template, value::{TemplateValue, ValueIndex}}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser, template_changed::MatchValueData}, composer::{ModelComposer, graph::ComposerGraph, make_template::MakeTemplateData, nodes::{ComposeNode, ComposeNodeType}}, data_types::{data_type::T, number::ValueIndexNumber}, template::{self, Template, value::{TemplateValue, ValueIndex}}}, util::{number::Nu, vector::Ve}};
 
 use super::{number::NumberValue};
 
@@ -14,9 +14,9 @@ pub type ValueIndexNumberSpace = usize;
 #[derive(Debug, Clone, Copy)]
 pub enum NumberSpaceValue {
     NumberRange {
-        min: ValueIndexNumberSpace,
-        max: ValueIndexNumberSpace,
-        step: ValueIndexNumberSpace,
+        min: ValueIndexNumber,
+        max: ValueIndexNumber,
+        step: ValueIndexNumber,
     }
 }
 
@@ -49,7 +49,27 @@ impl ComposerGraph {
     }
 }
 
-impl NumberSpaceValue { 
+impl NumberSpaceValue {
+    pub fn match_value(
+        &self, 
+        other: &NumberSpaceValue,
+        data: MatchValueData
+    ) -> bool {
+        dbg!(self);
+        dbg!(other);
+
+        match self {
+            NumberSpaceValue::NumberRange { min: min1, max: max1, step: step1 } => match other {
+                NumberSpaceValue::NumberRange { min: min2, max: max2, step: step2 } => {
+                    data.match_two_numbers(*min1, *min2)
+                    && data.match_two_numbers(*max1, *max2)
+                    && data.match_two_numbers(*step1, *step2)
+                }
+                _ => false,
+            },
+        } 
+    }
+
     pub fn get_value(
         &self,
         get_value_data: GetValueData,
