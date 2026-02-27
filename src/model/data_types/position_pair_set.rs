@@ -10,25 +10,25 @@ use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::{GetNewC
 use crate::util::vector;
 use crate::util::math_config;
 
-use super::{data_type::ComposeDataType, number::{Hook, NumberTemplate, ValueIndexNumber}, position_space::ValueIndexPositionSpace};
+use super::{data_type::ComposeDataType, number::{Hook, NumberValue, ValueIndexNumber}, position_space::ValueIndexPositionSpace};
 
 pub type ValueIndexPositionSet = usize;
 pub type ValueIndexPositionSet2D = usize;
 pub type ValueIndexPositionSet3D = usize;
 
 #[derive(Debug, Clone, Copy)]
-pub enum PositionPairSetTemplate {
+pub enum PositionPairSetValue {
     ByDistance((ValueIndexPositionSpace, ValueIndexNumber)),
 }
 
-impl PositionPairSetTemplate {
+impl PositionPairSetValue {
     pub fn get_value<V: Ve<T, D>, const D: usize>(
         &self, 
         get_value_data: GetValueData,
         collapser: &Collapser,
     ) -> (Vec<(V, V)>, bool) {
         match self {
-            PositionPairSetTemplate::ByDistance((space, distance)) => {
+            PositionPairSetValue::ByDistance((space, distance)) => {
                 let (set, r_0) = collapser.template.get_position_space_value(*space)
                     .get_value::<V, D>(get_value_data, collapser);
 

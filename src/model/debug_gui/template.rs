@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use octa_force::egui;
 
-use crate::{model::{ data_types::{number::NumberTemplate, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}, template::{Template, TemplateIndex, dependency_tree::{DependencyPath, DependencyTree}, nodes::TemplateNode, value::{TemplateValue, ValueIndex}}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{ data_types::{number::NumberValue, number_space::NumberSpaceValue, position::PositionValue, position_pair_set::PositionPairSetValue, position_set::PositionSetValue, position_space::PositionSpaceValue, volume::VolumeValue}, template::{Template, TemplateIndex, dependency_tree::{DependencyPath, DependencyTree}, nodes::TemplateNode, value::{TemplateValue, ValueIndex}}}, util::{number::Nu, vector::Ve}};
 
 impl Template { 
     pub fn debug_render(&self, ui: &mut egui::Ui) {
@@ -72,16 +72,16 @@ impl Template {
                 TemplateValue::None => unreachable!(),
                 TemplateValue::Number(number_template) => {
                     match number_template {
-                        NumberTemplate::Const(t) => {},
-                        NumberTemplate::Hook(hook) => {},
-                        NumberTemplate::SplitPosition2D((i, _)) => self.value(ui, *i),
-                        NumberTemplate::SplitPosition3D((i, _)) => self.value(ui, *i),
-                        NumberTemplate::Position3DTo2D(i) => self.value(ui, *i),
+                        NumberValue::Const(t) => {},
+                        NumberValue::Hook(hook) => {},
+                        NumberValue::SplitPosition2D((i, _)) => self.value(ui, *i),
+                        NumberValue::SplitPosition3D((i, _)) => self.value(ui, *i),
+                        NumberValue::Position3DTo2D(i) => self.value(ui, *i),
                     }
                 },
                 TemplateValue::NumberSet(number_space_template) => {
                     match number_space_template {
-                        NumberSpaceTemplate::NumberRange { min, max, step } => {
+                        NumberSpaceValue::NumberRange { min, max, step } => {
                             self.value(ui, *min);
                             self.value(ui, *max);
                             self.value(ui, *step);
@@ -90,71 +90,71 @@ impl Template {
                 },
                 TemplateValue::Position2D(position_template) => {
                     match position_template {
-                        PositionTemplate::Const(_) => {},
-                        PositionTemplate::Add((a, b)) => {
+                        PositionValue::Const(_) => {},
+                        PositionValue::Add((a, b)) => {
                             self.value(ui, *a);
                             self.value(ui, *b);
                         },
-                        PositionTemplate::Sub((a, b)) => {
+                        PositionValue::Sub((a, b)) => {
                             self.value(ui, *a);
                             self.value(ui, *b);
                         },
-                        PositionTemplate::FromNumbers([x, y]) => {
+                        PositionValue::FromNumbers([x, y]) => {
                             self.value(ui, *x);
                             self.value(ui, *y);
                         },
-                        PositionTemplate::Position2DTo3D((a, b)) => {
+                        PositionValue::Position2DTo3D((a, b)) => {
                             self.value(ui, *a);
                             self.value(ui, *b);
                         },
-                        PositionTemplate::Position3DTo2D(i) =>self.value(ui, *i),
-                        PositionTemplate::PerPosition(hook) => {},
-                        PositionTemplate::PerPair(_) => {},
-                        PositionTemplate::Cam => {},
-                        PositionTemplate::PhantomData(phantom_data) => unreachable!(),
+                        PositionValue::Position3DTo2D(i) =>self.value(ui, *i),
+                        PositionValue::PerPosition(hook) => {},
+                        PositionValue::PerPair(_) => {},
+                        PositionValue::Cam => {},
+                        PositionValue::PhantomData(phantom_data) => unreachable!(),
                     }
                 },
                 TemplateValue::Position3D(position_template) => {
                     match position_template {
-                        PositionTemplate::Const(_) => {},
-                        PositionTemplate::Add((a, b)) => {
+                        PositionValue::Const(_) => {},
+                        PositionValue::Add((a, b)) => {
                             self.value(ui, *a);
                             self.value(ui, *b);
                         },
-                        PositionTemplate::Sub((a, b)) => {
+                        PositionValue::Sub((a, b)) => {
                             self.value(ui, *a);
                             self.value(ui, *b);
                         },
-                        PositionTemplate::FromNumbers([x, y, z]) => {
+                        PositionValue::FromNumbers([x, y, z]) => {
                             self.value(ui, *x);
                             self.value(ui, *y);
                             self.value(ui, *z);
                         },
-                        PositionTemplate::Position2DTo3D((a, b)) => {
+                        PositionValue::Position2DTo3D((a, b)) => {
                             self.value(ui, *a);
                             self.value(ui, *b);
                         },
-                        PositionTemplate::Position3DTo2D(i) =>self.value(ui, *i),
-                        PositionTemplate::PerPosition(hook) => {},
-                        PositionTemplate::PerPair(_) => {},
-                        PositionTemplate::Cam => {},
-                        PositionTemplate::PhantomData(phantom_data) => unreachable!(),
+                        PositionValue::Position3DTo2D(i) =>self.value(ui, *i),
+                        PositionValue::PerPosition(hook) => {},
+                        PositionValue::PerPair(_) => {},
+                        PositionValue::Cam => {},
+                        PositionValue::PhantomData(phantom_data) => unreachable!(),
                     }
 
                 },
                 TemplateValue::PositionSet2D(position_set_template) => {
                     match position_set_template {
-                        PositionSetTemplate::All(i) => self.value(ui, *i),
+                        PositionSetValue::All(i) => self.value(ui, *i),
                     }
                 },
                 TemplateValue::PositionSet3D(position_set_template) => {
                     match position_set_template {
-                        PositionSetTemplate::All(i) => self.value(ui, *i),
+                        PositionSetValue::All(i) => self.value(ui, *i),
                     }
                 },
                 TemplateValue::PositionPairSet2D(position_pair_set_template) => {
                     match position_pair_set_template {
-                        PositionPairSetTemplate::ByDistance((a, b)) => {
+                        PositionPairSetValue::ByDistance((a, b)) => {
                             self.value(ui, *a);
                             self.value(ui, *b);
                         },
@@ -162,7 +162,7 @@ impl Template {
                 },
                 TemplateValue::PositionPairSet3D(position_pair_set_template) => {
                     match position_pair_set_template {
-                        PositionPairSetTemplate::ByDistance((a, b)) => {
+                        PositionPairSetValue::ByDistance((a, b)) => {
                             self.value(ui, *a);
                             self.value(ui, *b);
                         },
@@ -170,15 +170,15 @@ impl Template {
                 },
                 TemplateValue::PositionSpace2D(position_space_template) => {
                     match position_space_template {
-                        PositionSpaceTemplate::Grid(grid_template) => {
+                        PositionSpaceValue::Grid(grid_template) => {
                             self.value(ui, grid_template.volume);
                             self.value(ui, grid_template.spacing);
                         },
-                        PositionSpaceTemplate::LeafSpread(leaf_spread_template) => {
+                        PositionSpaceValue::LeafSpread(leaf_spread_template) => {
                             self.value(ui, leaf_spread_template.volume);
                             self.value(ui, leaf_spread_template.samples); 
                         },
-                        PositionSpaceTemplate::Path(path_template) => {
+                        PositionSpaceValue::Path(path_template) => {
                             self.value(ui, path_template.start);
                             self.value(ui, path_template.end);
                             self.value(ui, path_template.spacing);
@@ -188,15 +188,15 @@ impl Template {
                 },
                 TemplateValue::PositionSpace3D(position_space_template) => {
                     match position_space_template {
-                        PositionSpaceTemplate::Grid(grid_template) => {
+                        PositionSpaceValue::Grid(grid_template) => {
                             self.value(ui, grid_template.volume);
                             self.value(ui, grid_template.spacing);
                         },
-                        PositionSpaceTemplate::LeafSpread(leaf_spread_template) => {
+                        PositionSpaceValue::LeafSpread(leaf_spread_template) => {
                             self.value(ui, leaf_spread_template.volume);
                             self.value(ui, leaf_spread_template.samples); 
                         },
-                        PositionSpaceTemplate::Path(path_template) => {
+                        PositionSpaceValue::Path(path_template) => {
                             self.value(ui, path_template.start);
                             self.value(ui, path_template.end);
                             self.value(ui, path_template.spacing);
@@ -206,56 +206,56 @@ impl Template {
                 },
                 TemplateValue::Volume2D(volume_template) => {
                     match volume_template {
-                        VolumeTemplate::Sphere { pos, size } => {
+                        VolumeValue::Sphere { pos, size } => {
                             self.value(ui, *pos);
                             self.value(ui, *size);
                         },
-                        VolumeTemplate::Disk { pos, size, height } => {
+                        VolumeValue::Disk { pos, size, height } => {
                             self.value(ui, *pos);
                             self.value(ui, *size);
                             self.value(ui, *height);
                         },
-                        VolumeTemplate::Box { pos, size } => {
+                        VolumeValue::Box { pos, size } => {
                             self.value(ui, *pos);
                             self.value(ui, *size);
                         },
-                        VolumeTemplate::Union { a, b } => {
+                        VolumeValue::Union { a, b } => {
                             self.value(ui, *a);
                             self.value(ui, *b);
                         },
-                        VolumeTemplate::Cut { base, cut } => {
+                        VolumeValue::Cut { base, cut } => {
                             self.value(ui, *base);
                             self.value(ui, *cut);
                         },
-                        VolumeTemplate::Material { mat, child } => {
+                        VolumeValue::Material { mat, child } => {
                             self.value(ui, *child);
                         },
                     }
                 },
                 TemplateValue::Volume3D(volume_template) => {
                     match volume_template {
-                        VolumeTemplate::Sphere { pos, size } => {
+                        VolumeValue::Sphere { pos, size } => {
                             self.value(ui, *pos);
                             self.value(ui, *size);
                         },
-                        VolumeTemplate::Disk { pos, size, height } => {
+                        VolumeValue::Disk { pos, size, height } => {
                             self.value(ui, *pos);
                             self.value(ui, *size);
                             self.value(ui, *height);
                         },
-                        VolumeTemplate::Box { pos, size } => {
+                        VolumeValue::Box { pos, size } => {
                             self.value(ui, *pos);
                             self.value(ui, *size);
                         },
-                        VolumeTemplate::Union { a, b } => {
+                        VolumeValue::Union { a, b } => {
                             self.value(ui, *a);
                             self.value(ui, *b);
                         },
-                        VolumeTemplate::Cut { base, cut } => {
+                        VolumeValue::Cut { base, cut } => {
                             self.value(ui, *base);
                             self.value(ui, *cut);
                         },
-                        VolumeTemplate::Material { mat, child } => {
+                        VolumeValue::Material { mat, child } => {
                             self.value(ui, *child);
                         },
                     }

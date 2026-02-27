@@ -14,10 +14,10 @@ use octa_force::log::{self, debug, trace};
 use smallvec::{SmallVec, smallvec};
 use value::{TemplateValue, ValueIndex, VALUE_INDEX_NODE};
 use crate::model::data_types::data_type::ComposeDataType;
-use crate::model::data_types::number::NumberTemplate;
-use crate::model::data_types::number_space::NumberSpaceTemplate;
-use crate::model::data_types::position_set::PositionSetTemplate;
-use crate::model::data_types::position_space::PositionSpaceTemplate;
+use crate::model::data_types::number::NumberValue;
+use crate::model::data_types::number_space::NumberSpaceValue;
+use crate::model::data_types::position_set::PositionSetValue;
+use crate::model::data_types::position_space::PositionSpaceValue;
 
 pub type TemplateIndex = usize;
 pub type OutputIndex = usize;
@@ -30,30 +30,39 @@ pub struct Template {
     pub nodes: Vec<TemplateNode>,
     pub values: Vec<TemplateValue>,
     pub max_level: usize,
-    pub map_node_id: Vec<(SmallVec<[TemplateIndex; 4]>, SmallVec<[ValueIndex; 4]>)>,
+    pub map_node_id: Vec<(TemplateIndex, ValueIndex)>,
 }
 
 impl Template {
     pub fn enshure_map_size(&mut self, node_id: NodeId) {
         if node_id.0 >= self.map_node_id.len() {
-            self.map_node_id.resize(node_id.0 + 1, (SmallVec::new(), SmallVec::new()));
+            self.map_node_id.resize(node_id.0 + 1, (TEMPLATE_INDEX_NONE, VALUE_INDEX_NODE));
         }
     }
 
-    pub fn get_template_index_from_node_id(&self, node_id: NodeId) -> SmallVec<[TemplateIndex; 4]> { 
+    
+    pub fn get_template_index_from_node_id(&self, node_id: NodeId) -> Option<TemplateIndex> { 
         if self.map_node_id.len() <= node_id.0 {
-            return SmallVec::new();
+            return None;
         }
 
-        self.map_node_id[node_id.0].0.clone()
+        if self.map_node_id[node_id.0].0 != TEMPLATE_INDEX_NONE {
+            Some(self.map_node_id[node_id.0].0)
+        } else {
+            None
+        }
     }
 
-    pub fn get_value_index_from_node_id(&self, node_id: NodeId) -> SmallVec<[ValueIndex; 4]> { 
+    pub fn get_value_index_from_node_id(&self, node_id: NodeId) -> Option<ValueIndex> {
         if self.map_node_id.len() <= node_id.0 {
-            return SmallVec::new();
+            return None;
         }
 
-        self.map_node_id[node_id.0].1.clone()
+        if self.map_node_id[node_id.0].1 != VALUE_INDEX_NODE {
+            Some(self.map_node_id[node_id.0].1)
+        } else {
+            None
+        }
     }
 }
 

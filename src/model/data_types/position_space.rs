@@ -8,7 +8,7 @@ use smallvec::SmallVec;
 
 use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{ModelComposer, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}}, data_types::data_type::{ComposeDataType, T}, template::{Template, update::MakeTemplateData, value::TemplateValue}}, util::{aabb::AABB, iter_merger::IM3, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
 
-use super::{number::{NumberTemplate, ValueIndexNumber}, position::{PositionTemplate, ValueIndexPosition}, volume::{ValueIndexVolume, VolumeTemplate}};
+use super::{number::{NumberValue, ValueIndexNumber}, position::{PositionValue, ValueIndexPosition}, volume::{ValueIndexVolume, VolumeValue}};
 
 const LEAF_SPREAD_MAX_SAMPLES_MULTIPLYER: usize = 2;
 const PATH_MAX_SAMPLES_MULTIPLYER: usize = 2;
@@ -18,26 +18,26 @@ pub type ValueIndexPositionSpace2D = usize;
 pub type ValueIndexPositionSpace3D = usize;
 
 #[derive(Debug, Clone, Copy)]
-pub enum PositionSpaceTemplate {
-    Grid(GridTemplate),
-    LeafSpread(LeafSpreadTemplate),
-    Path(PathTemplate)
+pub enum PositionSpaceValue {
+    Grid(GridValue),
+    LeafSpread(LeafSpreadValue),
+    Path(PathValue)
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct GridTemplate {
+pub struct GridValue {
     pub volume: ValueIndexVolume,
     pub spacing: ValueIndexNumber,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct LeafSpreadTemplate {
+pub struct LeafSpreadValue {
     pub volume: ValueIndexVolume,
     pub samples: ValueIndexNumber,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct PathTemplate {
+pub struct PathValue {
     pub spacing: ValueIndexNumber,
     pub side_variance: ValueIndexPosition,
     pub start: ValueIndexPosition,
@@ -53,7 +53,7 @@ impl ComposerGraph {
     ) -> ValueIndexPositionSpace {
         let node_id = self.get_input_remote_node_id(original_node, in_index);
 
-        if let Some(value_index) = data.get_first_value_index_for_node_id(node_id) {
+        if let Some(value_index) = data.get_value_index_from_node_id(node_id) {
             data.add_depends_of_value(value_index);
             return value_index;
         }
@@ -62,53 +62,53 @@ impl ComposerGraph {
         let value = match &node.t {
             ComposeNodeType::Grid2D => {
                 
-                let grid = GridTemplate {
+                let grid = GridValue {
                     volume: self.make_volume(node, 0, data),
                     spacing: self.make_number(node, 1, data),
                 };
-                TemplateValue::PositionSpace2D(PositionSpaceTemplate::Grid(grid))
+                TemplateValue::PositionSpace2D(PositionSpaceValue::Grid(grid))
             },
             ComposeNodeType::Grid3D => {
                 
-                let grid = GridTemplate {
+                let grid = GridValue {
                     volume: self.make_volume(node, 0, data),
                     spacing: self.make_number(node, 1, data),
                 };
-                TemplateValue::PositionSpace3D(PositionSpaceTemplate::Grid(grid))
+                TemplateValue::PositionSpace3D(PositionSpaceValue::Grid(grid))
             },
             ComposeNodeType::LeafSpread2D => {
-                let leaf_spread = LeafSpreadTemplate {
+                let leaf_spread = LeafSpreadValue {
                     volume: self.make_volume(node, 0, data),
                     samples: self.make_number(node, 1,data),                
                 };
-                TemplateValue::PositionSpace2D(PositionSpaceTemplate::LeafSpread(leaf_spread))
+                TemplateValue::PositionSpace2D(PositionSpaceValue::LeafSpread(leaf_spread))
             },
             ComposeNodeType::LeafSpread3D => {
-                let leaf_spread = LeafSpreadTemplate {
+                let leaf_spread = LeafSpreadValue {
                     volume: self.make_volume(node, 0, data),
                     samples: self.make_number(node, 1,data),                
                 };
-                TemplateValue::PositionSpace3D(PositionSpaceTemplate::LeafSpread(leaf_spread))
+                TemplateValue::PositionSpace3D(PositionSpaceValue::LeafSpread(leaf_spread))
             },
             ComposeNodeType::Path2D => {
                 
-                let path = PathTemplate {
+                let path = PathValue {
                     start: self.make_position(node, 0, data),
                     end: self.make_position(node, 1, data),
                     spacing: self.make_number(node, 2,  data),
                     side_variance: self.make_position(node, 3, data),
                 };
-                TemplateValue::PositionSpace2D(PositionSpaceTemplate::Path(path))
+                TemplateValue::PositionSpace2D(PositionSpaceValue::Path(path))
             },
             ComposeNodeType::Path3D => {
                 
-                let path = PathTemplate {
+                let path = PathValue {
                     start: self.make_position(node, 0, data),
                     end: self.make_position(node, 1, data),
                     spacing: self.make_number(node, 2, data),
                     side_variance: self.make_position(node, 3, data),
                 };
-                TemplateValue::PositionSpace3D(PositionSpaceTemplate::Path(path))
+                TemplateValue::PositionSpace3D(PositionSpaceValue::Path(path))
             },
             
             _ => unreachable!(),
@@ -118,14 +118,14 @@ impl ComposerGraph {
     }
 }
 
-impl PositionSpaceTemplate { 
+impl PositionSpaceValue { 
     pub fn get_value<V: Ve<T, D>, const D: usize>(
         &self,
         get_value_data: GetValueData,
         collapser: &Collapser,
     ) -> (Vec<V>, bool) {
         match &self {
-            PositionSpaceTemplate::Grid(grid)  => {
+            PositionSpaceValue::Grid(grid)  => {
                 let (mut volume, r_0) = collapser.template.get_volume_value(grid.volume)
                     .get_value::<V, (), D>(get_value_data, collapser);
 
@@ -141,7 +141,7 @@ impl PositionSpaceTemplate {
                 
                 (points, r_0 || r_1 )
             },
-            PositionSpaceTemplate::LeafSpread(spread) => {
+            PositionSpaceValue::LeafSpread(spread) => {
                 let (mut volume, r_0) = collapser.template.get_volume_value(spread.volume)
                     .get_value::<V, (), D>(get_value_data, collapser);
 
@@ -177,7 +177,7 @@ impl PositionSpaceTemplate {
  
                 (points, r_0 || r_1 )
             },
-            PositionSpaceTemplate::Path(path) => {
+            PositionSpaceValue::Path(path) => {
                  let (start, r_0) =  collapser.template.get_position_value::<V, D>(path.start)
                     .get_value(get_value_data, collapser);
 

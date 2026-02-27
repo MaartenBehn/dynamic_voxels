@@ -6,14 +6,14 @@ use smallvec::SmallVec;
 
 use crate::{csg::{Base, csg_tree::tree::CSGTree}, model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{ModelComposer, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}}, data_types::data_type::{T, V3}, template::{Template, update::MakeTemplateData, value::TemplateValue}}, util::{iter_merger::IM5, number::Nu, vector::Ve}};
 
-use super::{data_type::ComposeDataType, number::{NumberTemplate, ValueIndexNumber}, position::{PositionTemplate, ValueIndexPosition}, position_set::{PositionSetTemplate, ValueIndexPositionSet}};
+use super::{data_type::ComposeDataType, number::{NumberValue, ValueIndexNumber}, position::{PositionValue, ValueIndexPosition}, position_set::{PositionSetValue, ValueIndexPositionSet}};
 
 pub type ValueIndexVolume = usize;
 pub type ValueIndexVolume2D = usize;
 pub type ValueIndexVolume3D = usize;
 
 #[derive(Debug, Clone, Copy)]
-pub enum VolumeTemplate {
+pub enum VolumeValue {
     Sphere {
         pos: ValueIndexPosition,
         size: ValueIndexNumber,
@@ -62,55 +62,55 @@ impl ComposerGraph {
     ) -> ValueIndexVolume {
         let node_id = self.get_input_remote_node_id(original_node, in_index);
         
-        if let Some(value_index) = data.get_first_value_index_for_node_id(node_id) {
+        if let Some(value_index) = data.get_value_index_from_node_id(node_id) {
             data.add_depends_of_value(value_index);
             return value_index;
         }
 
         let node = self.snarl.get_node(node_id).expect("Node of remote not found");
         let value = match &node.t {
-            ComposeNodeType::Circle => TemplateValue::Volume2D(VolumeTemplate::Sphere { 
+            ComposeNodeType::Circle => TemplateValue::Volume2D(VolumeValue::Sphere { 
                 pos: self.make_position(node, 0, data),
                 size: self.make_number(node, 1, data),
             }),
-            ComposeNodeType::Sphere => TemplateValue::Volume3D(VolumeTemplate::Sphere { 
+            ComposeNodeType::Sphere => TemplateValue::Volume3D(VolumeValue::Sphere { 
                 pos: self.make_position(node, 0, data),
                 size: self.make_number(node, 1, data),
             }),
-            ComposeNodeType::Disk => TemplateValue::Volume3D(VolumeTemplate::Disk { 
+            ComposeNodeType::Disk => TemplateValue::Volume3D(VolumeValue::Disk { 
                 pos: self.make_position(node, 0, data),
                 size: self.make_number(node, 1, data),
                 height: self.make_number(node, 2, data),
             }),
-            ComposeNodeType::Box2D => TemplateValue::Volume2D(VolumeTemplate::Box { 
+            ComposeNodeType::Box2D => TemplateValue::Volume2D(VolumeValue::Box { 
                 pos: self.make_position(node, 0, data),
                 size: self.make_position(node, 1, data),
             }),
-            ComposeNodeType::Box3D => TemplateValue::Volume3D(VolumeTemplate::Box { 
+            ComposeNodeType::Box3D => TemplateValue::Volume3D(VolumeValue::Box { 
                 pos: self.make_position(node, 0, data),
                 size: self.make_position(node, 1, data),
             }),
-            ComposeNodeType::UnionVolume2D => TemplateValue::Volume2D(VolumeTemplate::Union {
+            ComposeNodeType::UnionVolume2D => TemplateValue::Volume2D(VolumeValue::Union {
                 a: self.make_volume(node, 0, data),
                 b: self.make_volume(node, 1, data),
             }),
-            ComposeNodeType::UnionVolume3D => TemplateValue::Volume3D(VolumeTemplate::Union {
+            ComposeNodeType::UnionVolume3D => TemplateValue::Volume3D(VolumeValue::Union {
                 a: self.make_volume(node, 0, data),
                 b: self.make_volume(node, 1, data),
             }),
-            ComposeNodeType::CutVolume2D => TemplateValue::Volume2D(VolumeTemplate::Cut {
+            ComposeNodeType::CutVolume2D => TemplateValue::Volume2D(VolumeValue::Cut {
                 base: self.make_volume(node, 0, data),
                 cut: self.make_volume(node, 1, data),
             }),
-            ComposeNodeType::CutVolume3D => TemplateValue::Volume3D(VolumeTemplate::Cut {
+            ComposeNodeType::CutVolume3D => TemplateValue::Volume3D(VolumeValue::Cut {
                 base: self.make_volume(node, 0, data),
                 cut: self.make_volume(node, 1, data),
             }),
-            ComposeNodeType::VolumeMaterial2D => TemplateValue::Volume2D(VolumeTemplate::Material {
+            ComposeNodeType::VolumeMaterial2D => TemplateValue::Volume2D(VolumeValue::Material {
                 child: self.make_volume(node, 0, data),
                 mat: self.make_material(node, 1, data),
             }),
-            ComposeNodeType::VolumeMaterial3D => TemplateValue::Volume3D(VolumeTemplate::Material {
+            ComposeNodeType::VolumeMaterial3D => TemplateValue::Volume3D(VolumeValue::Material {
                 child: self.make_volume(node, 0, data),
                 mat: self.make_material(node, 1, data),
             }),
@@ -121,7 +121,7 @@ impl ComposerGraph {
     }
 }
 
-impl VolumeTemplate {  
+impl VolumeValue {  
     pub fn get_value<V: Ve<T, D>, M: Base, const D: usize>(
         &self, 
         get_value_data: GetValueData,
@@ -149,10 +149,8 @@ impl VolumeTemplate {
         tree: &mut CSGTree<M, V, T, D>,
     ) -> (Vec<usize>, bool) {
 
-        dbg!(&self);
-
         match &self {
-            VolumeTemplate::Sphere { pos, size } => {
+            VolumeValue::Sphere { pos, size } => {
     
                 let (pos, r_0) = collapser.template.get_position_value::<V, D>(*pos)
                     .get_value(get_value_data, collapser);
@@ -168,9 +166,8 @@ impl VolumeTemplate {
 
                 (roots, r_0 || r_1)            
             },
-            VolumeTemplate::Disk { pos, size, height } => {
+            VolumeValue::Disk { pos, size, height } => {
    
-                dbg!(&collapser.template);
                 let (pos, r_0) = collapser.template.get_position_value::<V, D>(*pos)
                     .get_value(get_value_data, collapser);
 
@@ -190,7 +187,7 @@ impl VolumeTemplate {
 
                 (roots, r_0 || r_1 || r_2)            
             },
-            VolumeTemplate::Box { pos, size } => {
+            VolumeValue::Box { pos, size } => {
                 let (pos, r_0) = collapser.template.get_position_value::<V, D>(*pos)
                     .get_value(get_value_data, collapser);
 
@@ -204,7 +201,7 @@ impl VolumeTemplate {
 
                 (roots, r_0 || r_1)
             },
-            VolumeTemplate::Union { a, b } => {
+            VolumeValue::Union { a, b } => {
                 let (mut a, r_0) = collapser.template.get_volume_value(*a)
                     .get_value_inner(get_value_data, collapser, mat, tree);
           
@@ -215,7 +212,7 @@ impl VolumeTemplate {
 
                 (a, r_0 || r_1)
             },
-            VolumeTemplate::Cut { base, cut } => {
+            VolumeValue::Cut { base, cut } => {
                 let (mut base, r_0) = collapser.template.get_volume_value(*base)
                     .get_value_inner(get_value_data, collapser, mat, tree);
           
@@ -246,7 +243,7 @@ impl VolumeTemplate {
 
                 (vec![root], r_0 || r_1)
             },
-            VolumeTemplate::Material { mat: new_mat, child } => {
+            VolumeValue::Material { mat: new_mat, child } => {
 
                 // Compiletime if statement: 
                 // If M is u8 then the child will be created with new_mat as material

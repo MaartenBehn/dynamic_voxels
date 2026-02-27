@@ -4,7 +4,7 @@ use egui_snarl::{InPinId, NodeId, OutPinId};
 use octa_force::log::{self, trace};
 use smallvec::{SmallVec, smallvec};
 
-use crate::{model::{composer::{ModelComposer, graph::{self, ComposerGraph}, nodes::{ComposeNode, ComposeNodeType}}, data_types::{data_type::ComposeDataType, number::NumberTemplate, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::VALUE_INDEX_NODE, value_hook_iterator::ValueHooksIterator}}, util::{number::Nu, vector::Ve}, voxel::palette::shared::SharedPalette};
+use crate::{model::{composer::{ModelComposer, graph::{self, ComposerGraph}, nodes::{ComposeNode, ComposeNodeType}}, data_types::{data_type::ComposeDataType, number::NumberValue, number_space::NumberSpaceValue, position::PositionValue, position_pair_set::PositionPairSetValue, position_set::PositionSetValue, position_space::PositionSpaceValue, volume::VolumeValue}, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::VALUE_INDEX_NODE, value_hook_iterator::ValueHooksIterator}}, util::{number::Nu, vector::Ve}, voxel::palette::shared::SharedPalette};
 
 use super::{dependency_tree::get_dependency_tree_and_loop_paths, nodes::TemplateNode, value::{TemplateValue, ValueIndex}, Template, TemplateIndex, TEMPLATE_INDEX_NONE};
 
@@ -126,6 +126,8 @@ impl Template {
             }
         }
 
+        dbg!(&template.map_node_id);
+
         template
     }
 
@@ -198,6 +200,7 @@ impl ComposerGraph {
                 dependecy_tree: Default::default(),
             }
         );
+        data.template.map_node_id[node.id.0].0 = template_index;
 
         data.building_template_index = template_index;
         inactive
@@ -210,14 +213,14 @@ impl MakeTemplateNodeData{
         value_index: ValueIndex,
         data: &mut MakeTemplateData<'a>
     ) -> TemplateIndex {
-        let template_node: &mut TemplateNode = &mut data.template.nodes[data.building_template_index]; 
-        template_node.value_index = value_index;
+        let node: &mut TemplateNode = &mut data.template.nodes[data.building_template_index]; 
+        node.value_index = value_index;
 
         if let Some(create_by_node_id) = self.created_by_node_id {
-            let create_by_template_index = data.template.map_node_id[create_by_node_id.0].0[0];
+            let create_by_template_index = data.template.map_node_id[create_by_node_id.0].0;
 
-            if !template_node.depends.contains(&create_by_template_index) {
-                template_node.depends.push(create_by_template_index);
+            if !node.depends.contains(&create_by_template_index) {
+                node.depends.push(create_by_template_index);
             }
             
             let creates_index = data.template.nodes[create_by_template_index].creates.len();
@@ -228,7 +231,7 @@ impl MakeTemplateNodeData{
                 t: CreatesType::Children,
             });
         } else {
-            template_node.depends.push(0);
+            node.depends.push(0);
 
             let creates_index = data.template.nodes[0].creates.len();
             data.template.nodes[data.building_template_index].created_by = (0, creates_index);
@@ -255,22 +258,19 @@ impl MakeTemplateNodeData{
 }
 
 impl<'a> MakeTemplateData<'a> {
-    pub fn get_first_value_index_for_node_id(&mut self, node_id: NodeId) -> Option<ValueIndex> {
-        self.template.get_value_index_from_node_id(node_id).get(0).copied()
+    pub fn get_value_index_from_node_id(&mut self, node_id: NodeId) -> Option<ValueIndex> {
+        self.template.get_value_index_from_node_id(node_id)
     }
 
     pub fn set_value(&mut self, node_id: NodeId, value: TemplateValue) -> ValueIndex {
         let value_index = self.template.values.len(); 
         self.template.values.push(value);
-
-        if !self.template.map_node_id[node_id.0].0.contains(&self.building_template_index) {
-            self.template.map_node_id[node_id.0].0.push(self.building_template_index);
-        } 
-        self.template.map_node_id[node_id.0].1.push(value_index);
+        self.template.map_node_id[node_id.0].1 = value_index;
         value_index
     }
 
-    pub fn add_unmapped_value(&mut self, value: TemplateValue) -> ValueIndex {
+    
+    pub fn add_value(&mut self, value: TemplateValue) -> ValueIndex {
         let value_index = self.template.values.len(); 
         self.template.values.push(value);
         value_index

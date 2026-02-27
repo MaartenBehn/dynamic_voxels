@@ -7,12 +7,12 @@ use smallvec::SmallVec;
 
 use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{ModelComposer, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}}, data_types::data_type::T, template::{self, Template, update::MakeTemplateData, value::{TemplateValue, ValueIndex}}}, util::{number::Nu, vector::Ve}};
 
-use super::{number::NumberTemplate};
+use super::{number::NumberValue};
 
 pub type ValueIndexNumberSpace = usize;
 
 #[derive(Debug, Clone, Copy)]
-pub enum NumberSpaceTemplate {
+pub enum NumberSpaceValue {
     NumberRange {
         min: ValueIndexNumberSpace,
         max: ValueIndexNumberSpace,
@@ -29,7 +29,7 @@ impl ComposerGraph {
     ) -> ValueIndexNumberSpace {
         let node_id = self.get_input_remote_node_id(original_node, in_index);
 
-        if let Some(value_index) = data.get_first_value_index_for_node_id(node_id) {
+        if let Some(value_index) = data.get_value_index_from_node_id(node_id) {
             data.add_depends_of_value(value_index);
             return value_index;
         }
@@ -40,7 +40,7 @@ impl ComposerGraph {
                 let min = self.make_number(node, 0, data);
                 let max = self.make_number(node, 1, data);
                 let step = self.make_number(node, 2, data);
-                NumberSpaceTemplate::NumberRange { min, max, step }
+                NumberSpaceValue::NumberRange { min, max, step }
             },
             _ => unreachable!(),
         };
@@ -49,14 +49,14 @@ impl ComposerGraph {
     }
 }
 
-impl NumberSpaceTemplate { 
+impl NumberSpaceValue { 
     pub fn get_value(
         &self,
         get_value_data: GetValueData,
         collapser: &Collapser,
     ) -> (impl Iterator<Item = T>, bool) {
         match &self {
-            NumberSpaceTemplate::NumberRange { min, max, step } => {
+            NumberSpaceValue::NumberRange { min, max, step } => {
                 let (min, r_0) = collapser.template
                     .get_number_value(*min)
                     .get_value(get_value_data, collapser);

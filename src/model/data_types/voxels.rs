@@ -9,7 +9,7 @@ use crate::{VOXELS_PER_SHADER_UNIT, csg::csg_tree::tree::CSGTree, model::{collap
 pub type ValueIndexVoxels = usize;
 
 #[derive(Debug, Clone, Copy)]
-pub struct VoxelTemplate {
+pub struct VoxelValue {
     pub pos: ValueIndexPosition,
     pub volume: ValueIndexVolume,
 }
@@ -31,9 +31,9 @@ impl ComposerGraph {
         let volume = self.make_volume(node, 0, data);
         let pos = self.make_position(node, 1, data);    
 
-        let value = TemplateValue::Voxels(VoxelTemplate { volume, pos });
+        let value = TemplateValue::Voxels(VoxelValue { volume, pos });
 
-        let value_index = data.set_value(node.id, value);
+        let value_index = data.add_value(value);
         node_data.finish_template_node(value_index, data);
 
         value_index

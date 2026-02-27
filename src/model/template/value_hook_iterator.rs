@@ -1,4 +1,4 @@
-use crate::{model::{data_types::{number::{Hook, NumberTemplate}, number_space::NumberSpaceTemplate, position::PositionTemplate, position_pair_set::PositionPairSetTemplate, position_set::PositionSetTemplate, position_space::PositionSpaceTemplate, volume::VolumeTemplate}, template::{Template, value::{TemplateValue, ValueIndex}}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{data_types::{number::{Hook, NumberValue}, number_space::NumberSpaceValue, position::PositionValue, position_pair_set::PositionPairSetValue, position_set::PositionSetValue, position_space::PositionSpaceValue, volume::VolumeValue}, template::{Template, value::{TemplateValue, ValueIndex}}}, util::{number::Nu, vector::Ve}};
 
 pub struct ValueHooksIterator<'a> {
     values: &'a mut [TemplateValue],
@@ -34,24 +34,24 @@ impl<'a> Iterator for ValueHooksIterator<'a> {
                 TemplateValue::None => {},
                 TemplateValue::Number(number_template) => {
                     match number_template {
-                        NumberTemplate::Const(_) => {},
-                        NumberTemplate::Hook(hook) => {
+                        NumberValue::Const(_) => {},
+                        NumberValue::Hook(hook) => {
                             return Some(hook);
                         },
-                        NumberTemplate::SplitPosition2D((p, _)) => {
+                        NumberValue::SplitPosition2D((p, _)) => {
                             self.pointers.push(*p);
                         },
-                        NumberTemplate::SplitPosition3D((p, _)) => {
+                        NumberValue::SplitPosition3D((p, _)) => {
                             self.pointers.push(*p);
                         },
-                        NumberTemplate::Position3DTo2D(p) => {
+                        NumberValue::Position3DTo2D(p) => {
                             self.pointers.push(*p);
                         },
                     }
                 },
                 TemplateValue::NumberSet(number_space_template) => {
                     match number_space_template {
-                        NumberSpaceTemplate::NumberRange { min, max, step } => {
+                        NumberSpaceValue::NumberRange { min, max, step } => {
                             self.pointers.push(*min);
                             self.pointers.push(*max);
                             self.pointers.push(*step);
@@ -61,15 +61,15 @@ impl<'a> Iterator for ValueHooksIterator<'a> {
                 TemplateValue::PositionSpace2D(position_space_template)
                 | TemplateValue::PositionSpace3D(position_space_template)=> {
                     match position_space_template {
-                        PositionSpaceTemplate::Grid(grid_template) => {
+                        PositionSpaceValue::Grid(grid_template) => {
                             self.pointers.push(grid_template.volume);
                             self.pointers.push(grid_template.spacing);
                         },
-                        PositionSpaceTemplate::LeafSpread(leaf_spread_template) => {
+                        PositionSpaceValue::LeafSpread(leaf_spread_template) => {
                             self.pointers.push(leaf_spread_template.volume);
                             self.pointers.push(leaf_spread_template.samples);
                         },
-                        PositionSpaceTemplate::Path(path_template) => {
+                        PositionSpaceValue::Path(path_template) => {
                             self.pointers.push(path_template.start);
                             self.pointers.push(path_template.end);
                             self.pointers.push(path_template.spacing);
@@ -79,65 +79,65 @@ impl<'a> Iterator for ValueHooksIterator<'a> {
                 },
                 TemplateValue::Position2D(position_template) => {
                     match position_template {
-                        PositionTemplate::Const(_) => {},
-                        PositionTemplate::FromNumbers(n) => {
+                        PositionValue::Const(_) => {},
+                        PositionValue::FromNumbers(n) => {
                             self.pointers.push(n[0]);
                             self.pointers.push(n[1]);
                         },
-                        PositionTemplate::Add((a, b)) => {
+                        PositionValue::Add((a, b)) => {
                             self.pointers.push(*a);
                             self.pointers.push(*b);
                         },
-                        PositionTemplate::Sub((a, b)) => {
+                        PositionValue::Sub((a, b)) => {
                             self.pointers.push(*a);
                             self.pointers.push(*b);
                         },
-                        PositionTemplate::PerPosition(hook) => {
+                        PositionValue::PerPosition(hook) => {
                             return Some(hook);
                         },
-                        PositionTemplate::PerPair((hook, _)) => {
+                        PositionValue::PerPair((hook, _)) => {
                             return Some(hook);
                         },
-                        PositionTemplate::PhantomData(phantom_data) => unreachable!(),
-                        PositionTemplate::Cam => {},
-                        PositionTemplate::Position2DTo3D((p, n)) => {
+                        PositionValue::PhantomData(phantom_data) => unreachable!(),
+                        PositionValue::Cam => {},
+                        PositionValue::Position2DTo3D((p, n)) => {
                             self.pointers.push(*p);
                             self.pointers.push(*n);
                         },
-                        PositionTemplate::Position3DTo2D(p) => {
+                        PositionValue::Position3DTo2D(p) => {
                             self.pointers.push(*p);
                         },
                     }
                 },
                 TemplateValue::Position3D(position_template) => {
                     match position_template {
-                        PositionTemplate::Const(_) => {},
-                        PositionTemplate::Add((a, b)) => {
+                        PositionValue::Const(_) => {},
+                        PositionValue::Add((a, b)) => {
                             self.pointers.push(*a);
                             self.pointers.push(*b);
                         },
-                        PositionTemplate::Sub((a, b)) => {
+                        PositionValue::Sub((a, b)) => {
                             self.pointers.push(*a);
                             self.pointers.push(*b);
                         },
-                        PositionTemplate::FromNumbers(n) => {
+                        PositionValue::FromNumbers(n) => {
                             self.pointers.push(n[0]);
                             self.pointers.push(n[1]);
                             self.pointers.push(n[2]);
                         },
-                        PositionTemplate::PerPosition(hook) => {
+                        PositionValue::PerPosition(hook) => {
                             return Some(hook);
                         },
-                        PositionTemplate::PerPair((hook, _)) => {
+                        PositionValue::PerPair((hook, _)) => {
                             return Some(hook);
                         },
-                        PositionTemplate::PhantomData(phantom_data) => unreachable!(),
-                        PositionTemplate::Cam => {},
-                        PositionTemplate::Position2DTo3D((p, n)) => {
+                        PositionValue::PhantomData(phantom_data) => unreachable!(),
+                        PositionValue::Cam => {},
+                        PositionValue::Position2DTo3D((p, n)) => {
                             self.pointers.push(*p);
                             self.pointers.push(*n);
                         },
-                        PositionTemplate::Position3DTo2D(p) => { 
+                        PositionValue::Position3DTo2D(p) => { 
                             self.pointers.push(*p);
                         },
                     }
@@ -145,7 +145,7 @@ impl<'a> Iterator for ValueHooksIterator<'a> {
                 TemplateValue::PositionSet2D(position_set_template)
                 | TemplateValue::PositionSet3D(position_set_template)=> {
                     match position_set_template {
-                        PositionSetTemplate::All(space) => {
+                        PositionSetValue::All(space) => {
                             self.pointers.push(*space);
                         },
                     }
@@ -153,7 +153,7 @@ impl<'a> Iterator for ValueHooksIterator<'a> {
                 TemplateValue::PositionPairSet2D(position_pair_set_template)
                 | TemplateValue::PositionPairSet3D(position_pair_set_template) => {
                     match position_pair_set_template {
-                        PositionPairSetTemplate::ByDistance((space, distance)) => {
+                        PositionPairSetValue::ByDistance((space, distance)) => {
                             self.pointers.push(*space);
                             self.pointers.push(*distance);
                         },
@@ -162,28 +162,28 @@ impl<'a> Iterator for ValueHooksIterator<'a> {
                 TemplateValue::Volume2D(volume_template)
                 | TemplateValue::Volume3D(volume_template)=> {
                     match volume_template {
-                        VolumeTemplate::Sphere { pos, size } => {
+                        VolumeValue::Sphere { pos, size } => {
                             self.pointers.push(*pos);
                             self.pointers.push(*size);
                         },
-                        VolumeTemplate::Disk { pos, size, height } => {
+                        VolumeValue::Disk { pos, size, height } => {
                             self.pointers.push(*pos);
                             self.pointers.push(*size);
                             self.pointers.push(*height);
                         },
-                        VolumeTemplate::Box { pos, size } => {
+                        VolumeValue::Box { pos, size } => {
                             self.pointers.push(*pos);
                             self.pointers.push(*size);
                         },
-                        VolumeTemplate::Union { a, b } => {
+                        VolumeValue::Union { a, b } => {
                             self.pointers.push(*a);
                             self.pointers.push(*b);
                         },
-                        VolumeTemplate::Cut { base, cut } => {
+                        VolumeValue::Cut { base, cut } => {
                             self.pointers.push(*base);
                             self.pointers.push(*cut);
                         },
-                        VolumeTemplate::Material { mat, child } => {
+                        VolumeValue::Material { mat, child } => {
                             self.pointers.push(*child);
                         },
                     }

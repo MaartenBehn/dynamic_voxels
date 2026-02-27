@@ -8,25 +8,25 @@ use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::{GetNewC
 use crate::util::vector;
 use crate::util::math_config;
 
-use super::{data_type::ComposeDataType, number::{Hook, NumberTemplate, ValueIndexNumber}, position_space::ValueIndexPositionSpace};
+use super::{data_type::ComposeDataType, number::{Hook, NumberValue, ValueIndexNumber}, position_space::ValueIndexPositionSpace};
 
 pub type ValueIndexPositionSet = usize;
 pub type ValueIndexPositionSet2D = usize;
 pub type ValueIndexPositionSet3D = usize;
 
 #[derive(Debug, Clone, Copy)]
-pub enum PositionSetTemplate {
+pub enum PositionSetValue {
     All(ValueIndexPositionSpace),
 }
  
-impl PositionSetTemplate { 
+impl PositionSetValue { 
     pub fn get_value<V: Ve<T, D>, const D: usize>(
         &self, 
         get_value_data: GetValueData,
         collapser: &Collapser,
     ) -> (Vec<V>, bool) {
         match self {
-            PositionSetTemplate::All(space) => {
+            PositionSetValue::All(space) => {
                 collapser.template.get_position_space_value(*space)
                     .get_value(get_value_data, collapser)
             },

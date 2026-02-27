@@ -1,6 +1,6 @@
 use octa_force::{anyhow::bail, OctaResult};
 
-use crate::{model::data_types::{data_type::T, number_space::NumberSpaceTemplate}, volume::VolumeQureyPosValid};
+use crate::{model::data_types::{data_type::T, number_space::NumberSpaceValue}, volume::VolumeQureyPosValid};
 
 use super::{add_nodes::GetValueData, collapser::{CollapseNode, CollapseNodeKey, Collapser}};
 

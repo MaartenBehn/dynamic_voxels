@@ -7,7 +7,7 @@ use smallvec::SmallVec;
 
 use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser, template_changed::MatchValueData}, composer::{ModelComposer, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}}, data_types::data_type::T, template::{Template, TemplateIndex, update::MakeTemplateData, value::{TemplateValue, ValueIndex}}}, util::iter_merger::IM4};
 
-use super::{data_type::ComposeDataType, position::{PositionTemplate, ValueIndexPosition2D, ValueIndexPosition3D}};
+use super::{data_type::ComposeDataType, position::{PositionValue, ValueIndexPosition2D, ValueIndexPosition3D}};
 
 pub type ValueIndexNumber = usize;
 
@@ -18,7 +18,7 @@ pub struct Hook {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum NumberTemplate {
+pub enum NumberValue {
     Const(T),
     Hook(Hook),
     SplitPosition2D((ValueIndexPosition2D, usize)),
@@ -43,18 +43,18 @@ impl ComposerGraph {
             let value = match &original_node.inputs[in_index].data_type {
                 ComposeDataType::Number(v) => {
                     if let Some(v) = v {
-                        NumberTemplate::Const(*v)
+                        NumberValue::Const(*v)
                     } else {
-                        NumberTemplate::Const(0.0)
+                        NumberValue::Const(0.0)
                     }
                 },
                 _ => unreachable!()
             };
             
-            data.add_unmapped_value(TemplateValue::Number(value)) 
+            data.add_value(TemplateValue::Number(value)) 
         } else {
             let pin = remotes[0];
-            if let Some(value_index) = data.get_first_value_index_for_node_id(pin.node) {
+            if let Some(value_index) = data.get_value_index_from_node_id(pin.node) {
                 data.add_depends_of_value(value_index);
                 return value_index;
             } 
@@ -65,7 +65,7 @@ impl ComposerGraph {
                 ComposeNodeType::NumberRange => {
                     todo!();
 
-                    NumberTemplate::Hook(Hook {
+                    NumberValue::Hook(Hook {
                         template_index: 0,
                         loop_cut: false,
                     })
@@ -74,16 +74,16 @@ impl ComposerGraph {
                     let pos = self.make_position(remote_node, 0, data);
 
                     assert!(pin.output <= 1);
-                    NumberTemplate::SplitPosition2D((pos, pin.output))
+                    NumberValue::SplitPosition2D((pos, pin.output))
                 },
                 ComposeNodeType::SplitPosition3D => {
                     let pos = self.make_position(remote_node, 0, data);
 
                     assert!(pin.output <= 2);
-                    NumberTemplate::SplitPosition3D((pos, pin.output))
+                    NumberValue::SplitPosition3D((pos, pin.output))
                 },
                 ComposeNodeType::Position3DTo2D => {
-                    NumberTemplate::Position3DTo2D(self.make_position(remote_node, 0, data))
+                    NumberValue::Position3DTo2D(self.make_position(remote_node, 0, data))
                 },
                 _ => {
                     unreachable!()
@@ -110,28 +110,28 @@ impl Hook {
     }
 }
 
-impl NumberTemplate {
+impl NumberValue {
     pub fn match_value(
         &self, 
-        other: &NumberTemplate,
+        other: &NumberValue,
         match_value_data: MatchValueData
     ) -> bool {
         match self {
-            NumberTemplate::Const(v) => {
+            NumberValue::Const(v) => {
                 match other {
-                    NumberTemplate::Const(v) => v == v,
+                    NumberValue::Const(v) => v == v,
                     _ => false
                 }
             },
-            NumberTemplate::Hook(hook) => {
+            NumberValue::Hook(hook) => {
                 match other {
-                    NumberTemplate::Hook(other_hook) => hook.match_value(other_hook, match_value_data),
+                    NumberValue::Hook(other_hook) => hook.match_value(other_hook, match_value_data),
                     _ => false
                 }
             },
-            NumberTemplate::SplitPosition2D((v_index, i)) => {
+            NumberValue::SplitPosition2D((v_index, i)) => {
                 match other {
-                    NumberTemplate::SplitPosition2D((other_v_index, other_i)) => *i == *other_i && {
+                    NumberValue::SplitPosition2D((other_v_index, other_i)) => *i == *other_i && {
                         match_value_data.template.get_position2d_value(*v_index).match_value(
                             match_value_data.template.get_position2d_value(*other_v_index), 
                             match_value_data)
@@ -139,9 +139,9 @@ impl NumberTemplate {
                     _ => false
                 }
             },
-            NumberTemplate::SplitPosition3D((v_index, i)) => {
+            NumberValue::SplitPosition3D((v_index, i)) => {
                 match other {
-                    NumberTemplate::SplitPosition3D((other_v_index, other_i)) => *i == *other_i && {
+                    NumberValue::SplitPosition3D((other_v_index, other_i)) => *i == *other_i && {
                         match_value_data.template.get_position3d_value(*v_index).match_value(
                             match_value_data.template.get_position3d_value(*other_v_index), 
                             match_value_data)
@@ -149,9 +149,9 @@ impl NumberTemplate {
                     _ => false
                 }
             },
-            NumberTemplate::Position3DTo2D(v_index) => {
+            NumberValue::Position3DTo2D(v_index) => {
                 match other {
-                    NumberTemplate::Position3DTo2D(other_v_index) => {
+                    NumberValue::Position3DTo2D(other_v_index) => {
                         match_value_data.template.get_position3d_value(*v_index).match_value(
                             match_value_data.template.get_position3d_value(*other_v_index), 
                             match_value_data)
@@ -170,13 +170,13 @@ impl NumberTemplate {
     ) -> (SmallVec<[T; 1]>, bool) {
 
         match self {
-            NumberTemplate::Const(v) => (smallvec::smallvec![*v], false),
-            NumberTemplate::Hook(hook) => {
+            NumberValue::Const(v) => (smallvec::smallvec![*v], false),
+            NumberValue::Hook(hook) => {
                 todo!();
                 //let (i, r) = collapser.get_dependend_number(hook.template_index, get_value_data); 
                 //(i.collect(), r)
             }
-            NumberTemplate::SplitPosition2D((position_template, i)) => {
+            NumberValue::SplitPosition2D((position_template, i)) => {
                 let (v, r) = collapser.template
                     .get_position2d_value(*position_template)
                     .get_value(get_value_data, collapser);
@@ -184,7 +184,7 @@ impl NumberTemplate {
 
                 (v.collect(), r)
             },
-            NumberTemplate::SplitPosition3D((position_template, i)) => {
+            NumberValue::SplitPosition3D((position_template, i)) => {
                 let (v, r) = collapser.template
                     .get_position3d_value(*position_template)
                     .get_value(get_value_data, collapser);
@@ -192,7 +192,7 @@ impl NumberTemplate {
 
                 (v.collect(), r)
             },
-            NumberTemplate::Position3DTo2D(p) => {
+            NumberValue::Position3DTo2D(p) => {
                 let (v, r) = collapser.template.get_position3d_value(*p)
                     .get_value(get_value_data, collapser);
                 let v = v.into_iter().map(|v| {
