@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use octa_force::{anyhow::Context, camera::Camera, log::{debug, error, info, trace}, OctaResult};
 
-use crate::{model::{composer::output_state::OutputState, template::{Template, update::TemplateNodeUpdate}}, scene::worker::SceneWorkerSend, util::{number::Nu, vector::Ve}, voxel::palette::shared::SharedPalette};
+use crate::{model::{composer::output_state::OutputState, template::{Template}}, scene::worker::SceneWorkerSend, util::{number::Nu, vector::Ve}, voxel::palette::shared::SharedPalette};
 
 use super::{collapser::Collapser, external_input::{self, ExternalInput}};
 

@@ -1,6 +1,6 @@
 use egui_snarl::InPinId;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{graph::ComposerGraph, nodes::ComposeNode}, data_types::{data_type::ComposeDataType, number::NumberValue}, template::{Template, update::MakeTemplateData}}, util::{number::Nu, vector::Ve}, voxel::palette::Palette};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{graph::ComposerGraph, make_template::MakeTemplateData, nodes::ComposeNode}, data_types::{data_type::ComposeDataType, number::NumberValue}, template::Template}, util::{number::Nu, vector::Ve}, voxel::palette::Palette};
 
 impl ComposerGraph { 
     pub fn make_material(

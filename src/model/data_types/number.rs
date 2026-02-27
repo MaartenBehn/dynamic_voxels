@@ -5,7 +5,7 @@ use itertools::Itertools;
 use octa_force::log::debug;
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser, template_changed::MatchValueData}, composer::{ModelComposer, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}}, data_types::data_type::T, template::{Template, TemplateIndex, update::MakeTemplateData, value::{TemplateValue, ValueIndex}}}, util::iter_merger::IM4};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser, template_changed::MatchValueData}, composer::{ModelComposer, graph::ComposerGraph, make_template::MakeTemplateData, nodes::{ComposeNode, ComposeNodeType}}, data_types::data_type::T, template::{Template, TemplateIndex, value::{TemplateValue, ValueIndex}}}, util::iter_merger::IM4};
 
 use super::{data_type::ComposeDataType, position::{PositionValue, ValueIndexPosition2D, ValueIndexPosition3D}};
 

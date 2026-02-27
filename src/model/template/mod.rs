@@ -1,8 +1,8 @@
 pub mod dependency_tree;
 pub mod nodes;
 pub mod value;
-pub mod update;
 pub mod value_hook_iterator;
+pub mod cut_loops;
 
 use std::{iter, ops::RangeBounds};
 
@@ -30,38 +30,24 @@ pub struct Template {
     pub nodes: Vec<TemplateNode>,
     pub values: Vec<TemplateValue>,
     pub max_level: usize,
-    pub map_node_id: Vec<(TemplateIndex, ValueIndex)>,
 }
 
 impl Template {
-    pub fn enshure_map_size(&mut self, node_id: NodeId) {
-        if node_id.0 >= self.map_node_id.len() {
-            self.map_node_id.resize(node_id.0 + 1, (TEMPLATE_INDEX_NONE, VALUE_INDEX_NODE));
-        }
-    }
-
-    
-    pub fn get_template_index_from_node_id(&self, node_id: NodeId) -> Option<TemplateIndex> { 
-        if self.map_node_id.len() <= node_id.0 {
-            return None;
-        }
-
-        if self.map_node_id[node_id.0].0 != TEMPLATE_INDEX_NONE {
-            Some(self.map_node_id[node_id.0].0)
-        } else {
-            None
-        }
-    }
-
-    pub fn get_value_index_from_node_id(&self, node_id: NodeId) -> Option<ValueIndex> {
-        if self.map_node_id.len() <= node_id.0 {
-            return None;
-        }
-
-        if self.map_node_id[node_id.0].1 != VALUE_INDEX_NODE {
-            Some(self.map_node_id[node_id.0].1)
-        } else {
-            None
+    pub fn empty() -> Self {
+        Self {
+            nodes: vec![TemplateNode {
+                index: 0,
+                value_index: 0,
+                depends_loop: smallvec![],
+                depends: smallvec![],
+                dependend: smallvec![],
+                level: 1,
+                creates: smallvec![],
+                created_by: (TEMPLATE_INDEX_NONE, 0),
+                dependecy_tree: Default::default(),
+            }],
+            values: vec![TemplateValue::None],
+            max_level: 1,
         }
     }
 }

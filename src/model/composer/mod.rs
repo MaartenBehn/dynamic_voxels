@@ -5,6 +5,7 @@ pub mod graph;
 pub mod external_input;
 pub mod output_state;
 pub mod flags;
+pub mod make_template;
 
 use std::{fs::{self, File}, io::Write, time::{Duration, Instant}};
 

@@ -3,7 +3,7 @@ use std::{collections::VecDeque, iter, mem};
 use itertools::Itertools;
 use smallvec::SmallVec;
 
-use crate::model::template::{TEMPLATE_INDEX_NONE, Template, TemplateIndex, nodes::TemplateNode, update::TemplateNodeUpdate, value::ValueIndex};
+use crate::model::template::{TEMPLATE_INDEX_NONE, Template, TemplateIndex, nodes::TemplateNode, value::ValueIndex};
 
 use super::{collapser::{CollapseNodeKey, Collapser, UpdateDefinesOperation}, pending_operations::PendingOperations};
 

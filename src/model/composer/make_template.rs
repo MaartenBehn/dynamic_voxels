@@ -4,14 +4,13 @@ use egui_snarl::{InPinId, NodeId, OutPinId};
 use octa_force::log::{self, trace};
 use smallvec::{SmallVec, smallvec};
 
-use crate::{model::{composer::{ModelComposer, graph::{self, ComposerGraph}, nodes::{ComposeNode, ComposeNodeType}}, data_types::{data_type::ComposeDataType, number::NumberValue, number_space::NumberSpaceValue, position::PositionValue, position_pair_set::PositionPairSetValue, position_set::PositionSetValue, position_space::PositionSpaceValue, volume::VolumeValue}, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::VALUE_INDEX_NODE, value_hook_iterator::ValueHooksIterator}}, util::{number::Nu, vector::Ve}, voxel::palette::shared::SharedPalette};
-
-use super::{dependency_tree::get_dependency_tree_and_loop_paths, nodes::TemplateNode, value::{TemplateValue, ValueIndex}, Template, TemplateIndex, TEMPLATE_INDEX_NONE};
+use crate::{model::{composer::{ModelComposer, graph::{self, ComposerGraph}, nodes::{ComposeNode, ComposeNodeType}}, data_types::{data_type::ComposeDataType, number::NumberValue, number_space::NumberSpaceValue, position::PositionValue, position_pair_set::PositionPairSetValue, position_set::PositionSetValue, position_space::PositionSpaceValue, volume::VolumeValue}, template::{TEMPLATE_INDEX_NONE, Template, TemplateIndex, dependency_tree::{DependencyPath, get_dependency_tree_and_loop_paths}, nodes::{Creates, CreatesType, TemplateNode}, value::{TemplateValue, VALUE_INDEX_NODE, ValueIndex}, value_hook_iterator::ValueHooksIterator}}, util::{number::Nu, vector::Ve}, voxel::palette::shared::SharedPalette};
 
 pub struct MakeTemplateData<'a> {
     pub building_template_index: TemplateIndex,
     pub template: &'a mut Template,
     pub palette: &'a mut SharedPalette,
+    pub map_node_id: &'a mut Vec<(TemplateIndex, ValueIndex)>,
 }
 
 pub struct MakeTemplateNodeData {
@@ -28,26 +27,7 @@ pub enum TemplateNodeUpdate {
     None(TemplateIndex),
 }
 
-impl Template {
-    pub fn empty() -> Self {
-        Self {
-            nodes: vec![TemplateNode {
-                index: 0,
-                value_index: 0,
-                depends_loop: smallvec![],
-                depends: smallvec![],
-                dependend: smallvec![],
-                level: 1,
-                creates: smallvec![],
-                created_by: (TEMPLATE_INDEX_NONE, 0),
-                dependecy_tree: Default::default(),
-            }],
-            values: vec![TemplateValue::None],
-            max_level: 1,
-            map_node_id: vec![],
-        }
-    }
-
+impl Template { 
     pub fn new(graph: &ComposerGraph, palette: &mut SharedPalette) -> Self {
         
         let mut template = Template {
@@ -66,14 +46,9 @@ impl Template {
             ],
             values: vec![TemplateValue::None],
             max_level: 1,
-            map_node_id: vec![],
         }; 
 
-        for composer_node in graph.snarl.nodes() {
-            let node_id = composer_node.id;
-            template.enshure_map_size(node_id);
-        }
-        
+        let mut map_node_id = vec![];
         for composer_node in graph.snarl.nodes() {             
             let node_id = composer_node.id;
 
@@ -81,6 +56,7 @@ impl Template {
                 building_template_index: TEMPLATE_INDEX_NONE,
                 template: &mut template,
                 palette,
+                map_node_id: &mut map_node_id,
             };
 
             match &composer_node.t {
@@ -126,50 +102,7 @@ impl Template {
             }
         }
 
-        dbg!(&template.map_node_id);
-
         template
-    }
-
-    fn cut_loops(&mut self, index: usize, mut index_seen: Vec<usize>) -> usize {
-        index_seen.push(index);
-
-        trace!("Set level of node {}, index_seen: {:?}", index, &index_seen);
-
-        let node: &mut TemplateNode = &mut self.nodes[index];
-        
-        let mut max_level = 0;
-        for (i, depends_index) in node.depends.to_owned().iter().enumerate().rev() {
-            trace!("Node {}, depends on {}", index, *depends_index);
-
-            if let Some(_) = index_seen.iter().find(|p| **p == *depends_index) {
-                trace!("Loop found from {} to {:?}", index, depends_index);
-                
-                let value_index = self.nodes[index].value_index;
-                for hook in self.iter_hooks(value_index) {
-                    hook.loop_cut |= hook.template_index == *depends_index;
-                }
-
-                let node = &mut self.nodes[index];
-                node.depends.swap_remove(i);
-                node.depends_loop.push((*depends_index, DependencyPath::default()));
-
-                continue;
-            }
-
-            let mut level = self.nodes[*depends_index].level; 
-            if level == 0 {
-                level = self.cut_loops(*depends_index, index_seen.to_owned());
-            } 
-
-            max_level = max_level.max(level);
-        }
-
-        let node_level = max_level + 1;
-        self.nodes[index].level = node_level;
-        self.max_level = self.max_level.max(node_level);
-
-        node_level
     }
 }
 
@@ -200,7 +133,9 @@ impl ComposerGraph {
                 dependecy_tree: Default::default(),
             }
         );
-        data.template.map_node_id[node.id.0].0 = template_index;
+
+        data.enshure_map_size(node.id);
+        data.map_node_id[node.id.0].0 = template_index;
 
         data.building_template_index = template_index;
         inactive
@@ -217,7 +152,7 @@ impl MakeTemplateNodeData{
         node.value_index = value_index;
 
         if let Some(create_by_node_id) = self.created_by_node_id {
-            let create_by_template_index = data.template.map_node_id[create_by_node_id.0].0;
+            let create_by_template_index = data.map_node_id[create_by_node_id.0].0;
 
             if !node.depends.contains(&create_by_template_index) {
                 node.depends.push(create_by_template_index);
@@ -258,14 +193,43 @@ impl MakeTemplateNodeData{
 }
 
 impl<'a> MakeTemplateData<'a> {
-    pub fn get_value_index_from_node_id(&mut self, node_id: NodeId) -> Option<ValueIndex> {
-        self.template.get_value_index_from_node_id(node_id)
+    pub fn enshure_map_size(&mut self, node_id: NodeId) {
+        if node_id.0 >= self.map_node_id.len() {
+            self.map_node_id.resize(node_id.0 + 1, (TEMPLATE_INDEX_NONE, VALUE_INDEX_NODE));
+        }
     }
 
+    
+    pub fn get_template_index_from_node_id(&self, node_id: NodeId) -> Option<TemplateIndex> { 
+        if self.map_node_id.len() <= node_id.0 {
+            return None;
+        }
+
+        if self.map_node_id[node_id.0].0 != TEMPLATE_INDEX_NONE {
+            Some(self.map_node_id[node_id.0].0)
+        } else {
+            None
+        }
+    }
+
+    pub fn get_value_index_from_node_id(&self, node_id: NodeId) -> Option<ValueIndex> {
+        if self.map_node_id.len() <= node_id.0 {
+            return None;
+        }
+
+        if self.map_node_id[node_id.0].1 != VALUE_INDEX_NODE {
+            Some(self.map_node_id[node_id.0].1)
+        } else {
+            None
+        }
+    }
+   
     pub fn set_value(&mut self, node_id: NodeId, value: TemplateValue) -> ValueIndex {
         let value_index = self.template.values.len(); 
         self.template.values.push(value);
-        self.template.map_node_id[node_id.0].1 = value_index;
+
+        self.enshure_map_size(node_id);
+        self.map_node_id[node_id.0].1 = value_index;
         value_index
     }
 

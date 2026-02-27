@@ -5,7 +5,7 @@ use itertools::{iproduct, Itertools};
 use octa_force::{log::debug, OctaResult};
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{ModelComposer, graph::ComposerGraph, nodes::{ComposeNode, ComposeNodeType}}, data_types::data_type::T, template::{self, Template, update::MakeTemplateData, value::{TemplateValue, ValueIndex}}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser}, composer::{ModelComposer, graph::ComposerGraph, make_template::MakeTemplateData, nodes::{ComposeNode, ComposeNodeType}}, data_types::data_type::T, template::{self, Template, value::{TemplateValue, ValueIndex}}}, util::{number::Nu, vector::Ve}};
 
 use super::{number::NumberValue};
 
