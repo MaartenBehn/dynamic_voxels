@@ -10,7 +10,7 @@ use super::{collapser::Collapser, external_input::{self, ExternalInput}};
 #[derive(Debug)]
 pub struct ComposeCollapseWorker {
     pub task: smol::Task<()>,
-    pub update_s: smol::channel::Sender<(Template, Vec<TemplateNodeUpdate>, ExternalInput)>,
+    pub update_s: smol::channel::Sender<(Template, ExternalInput)>,
 }
 
 #[derive(Debug)]
@@ -53,7 +53,7 @@ impl ComposeCollapseWorker {
     }
 
     async fn run(
-        update_r: smol::channel::Receiver<(Template, Vec<TemplateNodeUpdate>, ExternalInput)>,
+        update_r: smol::channel::Receiver<(Template, ExternalInput)>,
         collapser_s: smol::channel::Sender<Collapser>, 
         mut collapser: Collapser,
     ) {
@@ -68,10 +68,10 @@ impl ComposeCollapseWorker {
 
         loop {
             match update_r.recv().await {
-                Ok((new_template, updates, external_input)) => {
+                Ok((new_template, external_input)) => {
                     let now = Instant::now();
 
-                    collapser.template_changed(new_template, updates);
+                    collapser.template_changed(new_template);
                     collapser.external_input = external_input;
 
                     collapser.run().await;
@@ -86,8 +86,8 @@ impl ComposeCollapseWorker {
         }
     }
 
-    pub fn template_changed(&self, template: Template, update: Vec<TemplateNodeUpdate>, external_input: ExternalInput) {
-        let _ = self.update_s.force_send((template, update, external_input));
+    pub fn template_changed(&self, template: Template, external_input: ExternalInput) {
+        let _ = self.update_s.force_send((template, external_input));
     }
 }
 

@@ -50,10 +50,11 @@ impl ModelComposer {
         let viewer_templates = ComposeViewerTemplates::new();
         let viewer_data = ComposeViewerData::new();
 
-        let mut template = Template::empty();
-        if graph.flags.are_all_valid() {
-            template.update(&graph, &mut palette);
-        }
+        let mut template = if graph.flags.are_all_valid() {
+            Template::new(&graph, &mut palette)
+        } else {
+            Template::empty()
+        };
 
         let state = OutputState::new(scene, mesh_scene, camera, palette.clone());
         
@@ -151,8 +152,8 @@ impl ModelComposer {
                 
                 let now = Instant::now();
 
-                let updates = self.template.update(&self.graph, &mut self.palette);
-                self.collapser_worker.template_changed(self.template.clone(), updates, self.external_input);
+                self.template = Template::new(&self.graph, &mut self.palette);
+                self.collapser_worker.template_changed(self.template.clone(), self.external_input);
 
                 let elapsed = now.elapsed();
                 info!("Template took: {:?}", elapsed);

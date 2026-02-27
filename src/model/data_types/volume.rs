@@ -149,6 +149,8 @@ impl VolumeTemplate {
         tree: &mut CSGTree<M, V, T, D>,
     ) -> (Vec<usize>, bool) {
 
+        dbg!(&self);
+
         match &self {
             VolumeTemplate::Sphere { pos, size } => {
     
@@ -167,7 +169,8 @@ impl VolumeTemplate {
                 (roots, r_0 || r_1)            
             },
             VolumeTemplate::Disk { pos, size, height } => {
-    
+   
+                dbg!(&collapser.template);
                 let (pos, r_0) = collapser.template.get_position_value::<V, D>(*pos)
                     .get_value(get_value_data, collapser);
 

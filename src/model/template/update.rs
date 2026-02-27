@@ -48,7 +48,7 @@ impl Template {
         }
     }
 
-    pub fn update(&mut self, graph: &ComposerGraph, palette: &mut SharedPalette) -> Vec<TemplateNodeUpdate> {
+    pub fn new(graph: &ComposerGraph, palette: &mut SharedPalette) -> Self {
         
         let mut template = Template {
             nodes: vec![
@@ -126,24 +126,7 @@ impl Template {
             }
         }
 
-        dbg!(&template.map_node_id);
-
-        let mut needs_update = vec![];
-
-        for id in graph.flags.iter_changed() {
-            let old_template_nodes = self.get_template_index_from_node_id(id);
-            let new_template_nodes = template.get_template_index_from_node_id(id);
-
-            if old_template_nodes == new_template_nodes {
-                for index in new_template_nodes {
-                    needs_update.push(TemplateNodeUpdate::Changed { old: index, new: index, level: template.nodes });
-                }
-            }
-        } 
-        
-        (*self) = template;
-
-        needs_update
+        template
     }
 
     fn cut_loops(&mut self, index: usize, mut index_seen: Vec<usize>) -> usize {

@@ -67,7 +67,11 @@ impl Template {
     pub fn get_position2d_value(&self, value_index: ValueIndex) -> &PositionTemplate<V2, 2> {
         match &self.values[value_index] {
             TemplateValue::Position2D(v) => v,
-            _ => unreachable!()
+            _ => {
+                dbg!(value_index); 
+                dbg!(&self.values[value_index]); 
+                unreachable!();
+            }
         }
     }
 
