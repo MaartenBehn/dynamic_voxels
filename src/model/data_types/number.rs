@@ -104,10 +104,10 @@ impl Hook {
     ) -> bool {
         dbg!(&data.matched_template_indecies);
 
-        if data.matched_template_indecies.len() >= self.template_index {
+        if data.matched_template_indecies.len() < other.template_index {
             false
         } else {
-            data.matched_template_indecies[self.template_index] == other.template_index 
+            self.template_index == data.matched_template_indecies[other.template_index]
         }
     }
 }
@@ -122,9 +122,9 @@ impl NumberValue {
         dbg!(other);
 
         match self {
-            NumberValue::Const(v) => {
+            NumberValue::Const(v1) => {
                 match other {
-                    NumberValue::Const(v) => v == v,
+                    NumberValue::Const(v2) => v1 == v2,
                     _ => false
                 }
             },

@@ -234,8 +234,8 @@ impl<V: Ve<T, D>, const D: usize> PositionValue<V, D> {
         dbg!(other);
 
         match self {
-            PositionValue::Const(a) => match other {
-                PositionValue::Const(b) => a == b,
+            PositionValue::Const(p1) => match other {
+                PositionValue::Const(p2) => p1 == p2,
                 _ => false
             },
             PositionValue::Add((a1, b1)) => match other {

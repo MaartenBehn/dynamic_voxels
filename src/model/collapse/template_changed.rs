@@ -20,83 +20,105 @@ impl Collapser {
     pub fn template_changed(&mut self, new_template: Template) {
         self.pending.template_changed(new_template.max_level);
 
-        let mut new_nodes_per_template_index = vec![SmallVec::new(); new_template.nodes.len()]; 
-        let mut matched_template_indecies = vec![TEMPLATE_INDEX_NONE; self.template.nodes.len()];
+        let mut new_nodes_per_template_index = vec![SmallVec::new(); new_template.nodes.len()];
+
+        // [new] = old
+        let mut matched_template_indecies = vec![TEMPLATE_INDEX_NONE; new_template.nodes.len()];
+        matched_template_indecies[0] = 0;
       
         let mut to_match: Vec<Vec<(TemplateIndex, TemplateIndex)>> = iter::repeat_with(|| {Vec::new()})
-            .take(self.template.max_level)
+            .take(self.template.max_level +1)
             .collect();
 
-        to_match[0].push((0, 0));
+        let mut left_new_children = vec![vec![]; new_template.nodes.len()];
+        left_new_children[0] = new_template.nodes[0].creates.iter()
+            .map(|c| c.to_create)
+            .enumerate()
+            .collect();
+
+        for old_child_index in self.template.nodes[0].creates.iter().map(|c| c.to_create) {
+            let old_child = &self.template.nodes[old_child_index];
+            to_match[old_child.level].push((old_child_index, 0));
+        }
+
         let mut min_to_match_level = 0;
 
-        while min_to_match_level < self.template.max_level {
-            if let Some((old_template_index, new_template_index)) = to_match[min_to_match_level].pop() {
-                let old_template_node = &self.template.nodes[old_template_index];
-                let new_tempalte_node = &new_template.nodes[new_template_index]; 
-           
-                if old_template_index != new_template_index {
-                    for index in self.nodes_per_template_index[old_template_index].iter() {
-                        self.nodes[*index].template_index = new_template_index;
-                    }
-                }
+        while min_to_match_level <= self.template.max_level {
+            if let Some((old_template_index, new_parent_template_index)) = to_match[min_to_match_level].pop() {
+                let old_tempalte_node = &self.template.nodes[old_template_index]; 
+                let old_value = &self.template.values[old_tempalte_node.value_index];
 
-                let mut old_creates = old_template_node.creates.to_owned();
-                for (i, new_creates) in new_tempalte_node.creates.iter().enumerate() {
+                debug!("Searching old: {}", old_template_index);
 
-                    let new_child = &new_template.nodes[new_creates.to_create];
-                    let new_child_value = &new_template.values[new_child.value_index];
+                let new_match_index = left_new_children[new_parent_template_index].iter()
+                    .map(|(_, i)| *i)
+                    .enumerate()
+                    .find(|(_, i)| {
+                        debug!("testing new: {i}");
 
-                    debug!("Searching child: {}", new_child.index);
+                        let new_child = &new_template.nodes[*i];
+                        let new_value = &new_template.values[new_child.value_index];
 
-                    let matched_old_child = old_creates.iter()
-                        .map(|old_create| &self.template.nodes[old_create.to_create])
-                        .enumerate()
-                        .find(|(_, old_child)| {
-
-                        let old_child_value = &self.template.values[old_child.value_index];
-
-                        old_child_value.match_template_value(new_child_value, MatchValueData { 
+                        let v = old_value.match_template_value(new_value, MatchValueData { 
                             template: &self.template, 
                             other_template: &new_template, 
                             matched_template_indecies: &matched_template_indecies
-                        })
+                        });
+                        
+                        debug!("res: {v}");
+
+                        v
                     });
 
-                    if let Some((old_creates_index, old_child)) = matched_old_child {
-                        debug!("Child: {old_creates_index} found!");
-                        matched_template_indecies[]
-                        // NOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+                if let Some((i, new_match_index)) = new_match_index {
+                    debug!("new: {new_match_index} found!");
 
-                        old_creates.swap_remove(old_creates_index);
+                    left_new_children[new_parent_template_index].swap_remove(i);
+                    matched_template_indecies[new_match_index] = old_template_index;
 
-                        to_match[old_child.level].push((old_child.index, new_child.index));
-                        min_to_match_level = min_to_match_level.min(old_child.level);
-
-                    } else {
-                        debug!("Child not found!");
-
-                        for index in self.nodes_per_template_index[old_template_index].iter() {
-                            self.pending.push_create_defined(new_child.level, UpdateDefinesOperation { 
-                                template_index: new_creates.to_create,
-                                parent_index: *index, 
-                                creates_index: i,
-                            });
-                        }
+                    left_new_children[new_match_index] = new_template.nodes[new_match_index].creates.iter()
+                        .map(|c| c.to_create)
+                        .enumerate()
+                        .collect();
+                    
+                    for old_child_index in new_template.nodes[old_template_index].creates.iter().map(|c| c.to_create) {
+                        let old_child = &new_template.nodes[old_child_index];
+                        to_match[old_child.level].push((old_child_index, new_match_index));
                     }
-                }
+                    dbg!(&to_match);
 
-                for old_create in old_creates {
-                    for index in self.nodes_per_template_index[old_create.to_create].iter().copied().collect_vec() {
-                        self.delete_node(index);
-                    } 
-                }
-
-                mem::swap(&mut new_nodes_per_template_index[new_template_index], 
+                    mem::swap(&mut new_nodes_per_template_index[new_match_index], 
                     &mut self.nodes_per_template_index[old_template_index]);
 
+                } else {
+                    debug!("not found!");
+
+                    for index in self.nodes_per_template_index[old_template_index].to_owned() {
+                        self.delete_node(index);
+                    }
+                }
+  
             } else {
                 min_to_match_level += 1;
+            }
+        }
+
+        dbg!(&matched_template_indecies);
+
+        for (new_parent_index, left_new_children) in left_new_children.into_iter().enumerate() {
+            for (creates_index, left_new) in left_new_children {
+                let level = new_template.nodes[left_new].level;
+
+                dbg!(new_parent_index);
+                dbg!(left_new);
+
+                for index in self.nodes_per_template_index[matched_template_indecies[new_parent_index]].iter() {
+                    self.pending.push_create_defined(level, UpdateDefinesOperation { 
+                        template_index: left_new,
+                        parent_index: *index, 
+                        creates_index: creates_index,
+                    });
+                } 
             }
         }
  
@@ -123,9 +145,9 @@ impl<'a> MatchValueData<'a> {
     }
 
     pub fn match_two_positions3d(self, p1: ValueIndexPosition3D, p2: ValueIndexPosition3D) -> bool {
-        self.template.get_position2d_value(p1)
+        self.template.get_position3d_value(p1)
             .match_value(
-                self.other_template.get_position2d_value(p2), 
+                self.other_template.get_position3d_value(p2), 
                 self
             )
     }
