@@ -230,10 +230,11 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
             2 => {
                 let mat = mat.to_mat3();
                 let a = vec3a(
-                    f32::sqrt(mat.x_axis.x.powf(2.0) + mat.x_axis.y.powf(2.0) + mat.x_axis.z.powf(2.0)),
-                    f32::sqrt(mat.y_axis.x.powf(2.0) + mat.y_axis.y.powf(2.0) + mat.y_axis.z.powf(2.0)),
+                    f32::sqrt(mat.x_axis.x * mat.x_axis.x + mat.x_axis.y * mat.x_axis.y + mat.x_axis.z * mat.x_axis.z),
+                    f32::sqrt(mat.y_axis.x * mat.y_axis.x + mat.y_axis.y * mat.y_axis.y + mat.y_axis.z * mat.y_axis.z),
                     0.0
                 );
+
                 let b = vec3a(mat.z_axis.x, mat.z_axis.y, 1.0);
 
                 Self::new(V::from_vec3a(b - a), V::from_vec3a(b + a))
@@ -241,9 +242,9 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
             3 => {
                 let mat = mat.to_mat4();
                 let a = vec4(
-                    f32::sqrt(mat.x_axis.x.powf(2.0) + mat.x_axis.y.powf(2.0) + mat.x_axis.z.powf(2.0)),
-                    f32::sqrt(mat.y_axis.x.powf(2.0) + mat.y_axis.y.powf(2.0) + mat.y_axis.z.powf(2.0)),
-                    f32::sqrt(mat.z_axis.x.powf(2.0) + mat.z_axis.y.powf(2.0) + mat.z_axis.z.powf(2.0)),
+                    f32::sqrt(mat.x_axis.x * mat.x_axis.x + mat.x_axis.y * mat.x_axis.y + mat.x_axis.z * mat.x_axis.z),
+                    f32::sqrt(mat.y_axis.x * mat.y_axis.x + mat.y_axis.y * mat.y_axis.y + mat.y_axis.z * mat.y_axis.z),
+                    f32::sqrt(mat.z_axis.x * mat.z_axis.x + mat.z_axis.y * mat.z_axis.y + mat.z_axis.z * mat.z_axis.z),
                     0.0
                 );
                 let b = vec4(mat.w_axis.x, mat.w_axis.y, mat.w_axis.z, 1.0);

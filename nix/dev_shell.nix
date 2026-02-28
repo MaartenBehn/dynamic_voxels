@@ -3,6 +3,10 @@
     pkgs.mkShell ((mkEnv cross) // {
       name = "dynamic_voxels";
 
+      shellHook = ''
+        PATH=$HOME/.cargo/bin:$PATH
+      '';  
+
       packages = with pkgs; [
         cmake
 
