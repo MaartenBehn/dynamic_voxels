@@ -193,7 +193,8 @@ impl PositionSpaceValue {
                     let samples = samples.to_usize();
                     let tries = samples * LEAF_SPREAD_MAX_SAMPLES_MULTIPLYER;
 
-                    let mut seq = quasi_rd::Sequence::new(D);
+                    let seed = fastrand::u64(0..=u64::MAX);
+                    let mut seq = quasi_rd::Sequence::new_with_offset(D, seed);
                     let mut fi = iter::from_fn(move || Some(seq.next_f32()));
 
                     let pos_iter = iter::from_fn(move || {

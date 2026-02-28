@@ -116,6 +116,7 @@ impl ComposerNodeFlags {
     }
 
     pub fn on_remove(&mut self, node_id: NodeId) {
+        self.enshure_nodes_list_index(node_id.0);
         self.invalid_nodes.set(node_id.0, false);    
         self.changed_nodes.set(node_id.0, false);    
         self.needs_collapse_nodes.set(node_id.0, false);    
