@@ -95,15 +95,13 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
 
     pub fn collides_aabb(&self, other: Self) -> bool {
         (0..D).all(|i| {
-            self.min[i] <= other.max[i] && other.min[i] <= self.max[i]
-            // self.min.x <= other.max.x && other.min.x <= self.max.x
+            self.min[i] < other.max[i] && other.min[i] < self.max[i]
         })
     }
 
     pub fn contains_aabb(&self, other: Self) -> bool {
         (0..D).all(|i| {
-            self.min[i] <= other.min[i] && other.max[i] <= self.max[i]
-            // self.min.x <= other.max.x && other.min.x <= self.max.x
+            self.min[i] < other.min[i] && other.max[i] < self.max[i]
         })
     }
 

@@ -54,10 +54,9 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> VolumeQureyAABB<V, T, D> for CSGBox<u8,
 
         let b = AABB::<V::VectorF, f32, D>::new(V::VectorF::new([-0.5; D]), V::VectorF::new([0.5; D]));
 
-
-        if aabb.contains_aabb(b) {
+        if b.contains_aabb(aabb) {
             VolumeQureyAABBResult::Full(self.v)
-        } else if aabb.collides_aabb(b) {
+        } else if b.collides_aabb(aabb) {
             VolumeQureyAABBResult::Mixed
         } else {
             VolumeQureyAABBResult::Full(MATERIAL_ID_NONE)

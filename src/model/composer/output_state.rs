@@ -13,7 +13,7 @@ pub struct OutputState {
 
 impl OutputState {
     pub fn new(scene: SceneWorkerSend, mesh_scene: MeshSceneSend, camera: &Camera, palette: SharedPalette) -> Self {
-        let mut dag = VoxelDAG64::new(1000000, 1000000).parallel();
+        let mut dag = VoxelDAG64::new(100000000, 100000000).parallel();
         let scene_dag_key = scene.add_dag(dag.clone()).result_blocking();
 
         Self {
