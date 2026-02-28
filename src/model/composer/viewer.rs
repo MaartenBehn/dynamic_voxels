@@ -454,6 +454,8 @@ impl<'a> SnarlViewer<ComposeNode> for ComposeViewer<'a> {
 
             let node = snarl.remove_node(node_id);
 
+            self.flags.on_remove(node_id);  
+            
             for input in inputs {
                 for remote in input.remotes.iter() {
                     self.flags.update_node_valid(remote.node, snarl);

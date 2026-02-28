@@ -247,6 +247,7 @@ impl VolumeValue {
                 let (size, r_1) = collapser.template.get_position_value::<V, D>(*size)
                     .get_value(get_value_data, collapser);
 
+
                 let mut roots = vec![];
                 for (pos, size) in iproduct!(pos, size) {
                     roots.push(tree.add_box(pos.to_vecf(), size.to_vecf(), mat));
@@ -298,7 +299,7 @@ impl VolumeValue {
             },
             VolumeValue::Material { mat: new_mat, child } => {
 
-                // Compiletime if statement: 
+                // Compile time if statement: 
                 // If M is u8 then the child will be created with new_mat as material
                 // otherwise just create the child
                 if TypeId::of::<M>() == TypeId::of::<u8>() {

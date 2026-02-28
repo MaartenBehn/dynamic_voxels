@@ -115,6 +115,12 @@ impl ComposerNodeFlags {
         }
     }
 
+    pub fn on_remove(&mut self, node_id: NodeId) {
+        self.invalid_nodes.set(node_id.0, false);    
+        self.changed_nodes.set(node_id.0, false);    
+        self.needs_collapse_nodes.set(node_id.0, false);    
+    }
+
     pub fn remove_cam_note(&mut self, node_id: NodeId) {
         let res = self.cam_nodes.iter().position(|id| *id == node_id);
         if let Some(i) = res {
@@ -153,6 +159,8 @@ impl ComposerNodeFlags {
     }
 
     pub fn update_node_valid(&mut self, node_id: NodeId, snarl: &mut Snarl<ComposeNode>) {
+        self.enshure_nodes_list_index(node_id.0);
+
         let node = snarl.get_node(node_id)
             .expect("NodeId was not valid")
             .to_owned();
