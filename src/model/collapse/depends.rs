@@ -81,7 +81,7 @@ impl Collapser {
 
                 #[cfg(debug_assertions)]
                 if nodes.is_empty() {
-                    octa_force::log::warn!("No nodes for dependency or knows of node found! \n {:?} tyring to find {:?}", 
+                    octa_force::log::warn!("No nodes for dependency of node found! \n {:?} tyring to find {:?}", 
                     new_node_template.index, depend_template_node.index);
                 } 
                 (depend_template_node.index, nodes)

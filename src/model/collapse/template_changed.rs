@@ -21,7 +21,7 @@ impl Collapser {
         self.pending.template_changed(new_template.max_level);
 
         let mut new_nodes_per_template_index = vec![SmallVec::new(); new_template.nodes.len()];
-
+        
         // [new] = old
         let mut matched_template_indecies = vec![TEMPLATE_INDEX_NONE; new_template.nodes.len()];
         matched_template_indecies[0] = 0;
@@ -30,6 +30,7 @@ impl Collapser {
             .take(self.template.max_level +1)
             .collect();
 
+        // Push root node
         let mut left_new_children = vec![vec![]; new_template.nodes.len()];
         left_new_children[0] = new_template.nodes[0].creates.iter()
             .map(|c| c.to_create)
@@ -40,6 +41,10 @@ impl Collapser {
             let old_child = &self.template.nodes[old_child_index];
             to_match[old_child.level].push((old_child_index, 0));
         }
+
+        mem::swap(&mut new_nodes_per_template_index[0], 
+                    &mut self.nodes_per_template_index[0]);
+
 
         let mut min_to_match_level = 0;
 
@@ -106,9 +111,9 @@ impl Collapser {
             for (creates_index, left_new) in left_new_children {
                 let level = new_template.nodes[left_new].level;
 
-                debug!("adding new: {left_new}");
+                debug!("adding new: {left_new} parent: {new_parent_index}");
                 
-                for index in self.nodes_per_template_index[matched_template_indecies[new_parent_index]].iter() {
+                for index in new_nodes_per_template_index[new_parent_index].iter() {
                     self.pending.push_create_defined(level, UpdateDefinesOperation { 
                         template_index: left_new,
                         parent_index: *index, 
@@ -117,7 +122,7 @@ impl Collapser {
                 } 
             }
         }
- 
+
         self.template = new_template;
         self.nodes_per_template_index = new_nodes_per_template_index;
     }
