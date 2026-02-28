@@ -3,7 +3,7 @@ use octa_force::camera::Camera;
 
 use crate::{model::collapse::external_input::ExternalInput};
 
-use super::{nodes::ComposeNodeType, ModelComposer};
+use super::{ModelComposer};
 
 impl ModelComposer {
     pub fn update_external_input(&mut self, camera: &Camera) {

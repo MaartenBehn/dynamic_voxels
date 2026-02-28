@@ -8,7 +8,7 @@ use smallvec::SmallVec;
 
 use crate::{model::{composer::flags::ComposerNodeFlags, data_types::data_type::ComposeDataType}, util::{number::Nu, vector::Ve}};
 
-use super::{nodes::{ComposeNode, ComposeNodeType}};
+use super::{nodes::{ComposeNode}};
 
 const TEMP_SAVE_FILE: &str = "./composer_temp_save.json";
 

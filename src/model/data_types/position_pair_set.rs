@@ -1,11 +1,12 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, marker::PhantomData};
 
 use egui_snarl::{InPinId, NodeId, OutPinId};
 use itertools::{iproduct, Either, Itertools};
 use octa_force::glam::{ivec2, IVec2, IVec3, Vec2, Vec3A};
+use slotmap::SlotMap;
 use smallvec::SmallVec;
 
-use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::{GetNewChildrenData, GetValueData}, collapser::{CollapseChildKey, CollapseNodeKey, Collapser}, template_changed::MatchValueData}, composer::{ModelComposer, nodes::ComposeNodeType}, data_types::data_type::T, template::{self, Template, TemplateIndex, value::TemplateValue}}, util::{iter_merger::IM2, math_config::MC, vector::Ve}};
+use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::{GetNewChildrenData, GetValueData}, collapser::{CollapseChildKey, CollapseNodeKey, CollapseValueT, Collapser}, template_changed::MatchValueData}, composer::{ModelComposer, output_state::OutputState}, data_types::data_type::{CollapseValue, T}, template::{self, Template, TemplateIndex}}, util::{iter_merger::IM2, math_config::MC, number::Nu, vector::Ve}};
 
 use crate::util::vector;
 use crate::util::math_config;
@@ -66,5 +67,55 @@ impl PositionPairSetValue {
                 (pairs.collect(), r_0 || r_1)
             },
         }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct PositionPairSet<V: Ve<T, D>, T: Nu, const D: usize> {
+    positions: SlotMap<CollapseChildKey, (V, V)>,
+    new_children: Vec<CollapseChildKey>,
+    p: PhantomData<T>,
+}
+
+impl<V: Ve<T, D>,  T: Nu, const D: usize> PositionPairSet<V, T, D> { 
+    pub fn get_position_pair(&self, index: CollapseChildKey) -> (V, V) {
+        self.positions[index]    
+    }
+
+    pub fn get_position_pairs(&self) -> impl Iterator<Item = (V, V)> {
+        self.positions.values().into_iter().map(|v| *v)
+    }
+    
+    pub fn is_child_valid(&self, index: CollapseChildKey) -> bool {
+        self.positions.contains_key(index)    
+    }
+
+    pub fn update(
+        &mut self,
+        mut new_pairs: Vec<(V, V)>,
+    ) {
+        self.positions.retain(|_, p| {
+            if let Some(i) = new_pairs.iter().position(|t| *t == *p) {
+                new_pairs.swap_remove(i);
+                true
+            } else {
+                false
+            }
+        });
+
+        let new_children = new_pairs.iter()
+            .map(|p| self.positions.insert(*p))
+            .collect_vec();
+
+        self.new_children = new_children;
+    }
+
+    pub fn get_new_children(&self) -> &[CollapseChildKey] {
+        &self.new_children
+    }
+}
+
+impl<V: Ve<T, D>, T: Nu, const D: usize> CollapseValueT for PositionPairSet<V, T, D> {
+    fn on_delete(&self, state: &mut OutputState) {
     }
 }

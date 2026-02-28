@@ -2,6 +2,7 @@ use super::template::value::ValueIndex;
 
 pub mod data_type;
 pub mod number;
+pub mod number_set;
 pub mod number_space;
 pub mod position;
 pub mod position_set;
@@ -11,4 +12,5 @@ pub mod volume;
 pub mod material;
 pub mod voxels;
 pub mod mesh;
+pub mod none;
 

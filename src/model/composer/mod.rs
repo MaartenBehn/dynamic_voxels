@@ -19,7 +19,6 @@ use crate::{mesh::scene::MeshSceneSend, model::{collapse::external_input::Extern
 
 use super::{collapse::worker::{CollapserChangeReciver, ComposeCollapseWorker}, template::Template};
 
-
 #[derive(Debug)]
 pub struct ModelComposer {
     pub graph: ComposerGraph,

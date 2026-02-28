@@ -1,13 +1,14 @@
 use std::{collections::{HashMap, VecDeque}, fmt::{Debug, Octal}, iter, marker::PhantomData, mem::{self, ManuallyDrop}, task::ready, usize};
 
+use enum_dispatch::enum_dispatch;
 use itertools::{Either, Itertools};
 use octa_force::{anyhow::{anyhow, bail, ensure}, glam::{vec3, vec3a, IVec3, Vec3, Vec3Swizzles}, log::{debug, error, info}, vulkan::ash::vk::OpaqueCaptureDescriptorDataCreateInfoEXT, OctaResult};
 use rayon::iter::IntoParallelIterator;
 use slotmap::{new_key_type, Key, SlotMap};
 use smallvec::SmallVec;
-use crate::{model::{composer::output_state::OutputState, data_types::{data_type::{T, V2, V3}, mesh::MeshCollapserData, voxels::VoxelCollapserData}, template::{Template, TemplateIndex, value::TemplateValue}}, util::{iter_merger::{IM2, IM3}, number::Nu, state_saver, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
+use crate::{model::{composer::output_state::OutputState, data_types::{data_type::{CollapseValue, T, TemplateValue, V2, V3}, mesh::MeshCollapserData, voxels::VoxelCollapserData}, template::{Template, TemplateIndex}}, util::{iter_merger::{IM2, IM3}, number::Nu, state_saver, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
 
-use super::{add_nodes::{GetNewChildrenData, GetValueData}, external_input::ExternalInput, number_set::NumberSet, pending_operations::{PendingOperations, PendingOperationsRes}, position_pair_set::PositionPairSet, position_set::PositionSet};
+use super::{add_nodes::{GetNewChildrenData, GetValueData}, external_input::ExternalInput, pending_operations::{PendingOperations, PendingOperationsRes}};
 
 new_key_type! { pub struct CollapseNodeKey; }
 new_key_type! { pub struct CollapseChildKey; }
@@ -29,20 +30,13 @@ pub struct CollapseNode {
     pub depends: Vec<(TemplateIndex, Vec<(CollapseNodeKey, CollapseChildKey)>)>,
     pub defined_by: CollapseNodeKey,
     pub child_key: CollapseChildKey,
-    pub data: NodeDataType,
+    pub data: CollapseValue,
     pub next_reset: CollapseNodeKey,
 }
 
-#[derive(Debug, Clone)]
-pub enum NodeDataType {
-    NumberSet(NumberSet),
-    PositionSet2D(PositionSet<V2, T, 2>),
-    PositionSet3D(PositionSet<V3, T, 3>),
-    PositionPairSet2D(PositionPairSet<V2, T, 2>),
-    PositionPairSet3D(PositionPairSet<V3, T, 3>),
-    Voxels(VoxelCollapserData),
-    Mesh(MeshCollapserData),
-    None,
+#[enum_dispatch]
+pub trait CollapseValueT {
+    fn on_delete(&self, state: &mut OutputState);
 }
 
 union VUnion<VA: Ve<T, DA>, VB: Ve<T, DB>, T: Nu, const DA: usize, const DB: usize> {
@@ -135,7 +129,7 @@ impl Collapser {
                 let new_val = new_val.next().unwrap(); 
 
                 let data = match &mut self.nodes[node_index].data {
-                    NodeDataType::NumberSet(space) => space,
+                    CollapseValue::NumberSet(space) => space,
                     _ => unreachable!()
                 };
 
@@ -148,7 +142,7 @@ impl Collapser {
                 let (new_positions, r) = position_set_template.get_value(get_value_data, &self);
 
                 let data = match &mut self.nodes[node_index].data {
-                    NodeDataType::PositionSet2D(space) => space,
+                    CollapseValue::PositionSet2D(space) => space,
                     _ => unreachable!()
                 };
                 data.update(new_positions); 
@@ -159,7 +153,7 @@ impl Collapser {
                 let (new_positions, r) = position_set_template.get_value(get_value_data, &self);
 
                 let data = match &mut self.nodes[node_index].data {
-                    NodeDataType::PositionSet3D(space) => space,
+                    CollapseValue::PositionSet3D(space) => space,
                     _ => unreachable!()
                 };
                 data.update(new_positions); 
@@ -170,7 +164,7 @@ impl Collapser {
                 let (new_positions, r) = position_set_template.get_value(get_value_data, &self);
 
                 let data = match &mut self.nodes[node_index].data {
-                    NodeDataType::PositionPairSet2D(space) => space,
+                    CollapseValue::PositionPairSet2D(space) => space,
                     _ => unreachable!()
                 };
                 data.update(new_positions); 
@@ -181,7 +175,7 @@ impl Collapser {
                 let (new_positions, r) = position_set_template.get_value(get_value_data, &self);
 
                 let data = match &mut self.nodes[node_index].data {
-                    NodeDataType::PositionPairSet3D(space) => space,
+                    CollapseValue::PositionPairSet3D(space) => space,
                     _ => unreachable!()
                 };
                 data.update(new_positions); 
@@ -201,7 +195,7 @@ impl Collapser {
                 volume.calculate_bounds();
 
                 let data = match &mut self.nodes[node_index].data {
-                    NodeDataType::Voxels(voxels) => voxels,
+                    CollapseValue::Voxels(voxels) => voxels,
                     _ => unreachable!()
                 };
                 data.update(volume, pos, &mut self.state).await; 
@@ -221,7 +215,7 @@ impl Collapser {
                 volume.calculate_bounds();
 
                 let data = match &mut self.nodes[node_index].data {
-                    NodeDataType::Mesh(mesh) => mesh,
+                    CollapseValue::Mesh(mesh) => mesh,
                     _ => unreachable!()
                 };
                 data.update(volume, pos, &mut self.state).await; 
@@ -257,16 +251,16 @@ impl Collapser {
             .expect("New Children Node not found");
 
         let keys = match &node.data {
-            NodeDataType::NumberSet(number_space) => {
+            CollapseValue::NumberSet(number_space) => {
                 todo!()
             },
-            NodeDataType::PositionSet2D(s) => s.get_new_children(),
-            NodeDataType::PositionSet3D(s) => s.get_new_children(),
-            NodeDataType::PositionPairSet2D(s) => s.get_new_children(),
-            NodeDataType::PositionPairSet3D(s) => s.get_new_children(),
-            NodeDataType::Voxels(_)
-            | NodeDataType::Mesh(_)
-            | NodeDataType::None 
+            CollapseValue::PositionSet2D(s) => s.get_new_children(),
+            CollapseValue::PositionSet3D(s) => s.get_new_children(),
+            CollapseValue::PositionPairSet2D(s) => s.get_new_children(),
+            CollapseValue::PositionPairSet3D(s) => s.get_new_children(),
+            CollapseValue::Voxels(_)
+            | CollapseValue::Mesh(_)
+            | CollapseValue::None(_)
             => panic!("Called get new children on node that has no children"),
         };
 
@@ -283,14 +277,14 @@ impl Collapser {
             .expect("Is Child Valid Node not found");
 
         match &node.data {
-            NodeDataType::PositionSet2D(position_space) => position_space.is_child_valid(child_index),
-            NodeDataType::PositionSet3D(position_space) => position_space.is_child_valid(child_index),
-            NodeDataType::PositionPairSet2D(position_pair_set) => position_pair_set.is_child_valid(child_index),
-            NodeDataType::PositionPairSet3D(position_pair_set) => position_pair_set.is_child_valid(child_index),
-            NodeDataType::NumberSet(_)
-            | NodeDataType::Voxels(_)
-            | NodeDataType::Mesh(_)
-            | NodeDataType::None 
+            CollapseValue::PositionSet2D(position_space) => position_space.is_child_valid(child_index),
+            CollapseValue::PositionSet3D(position_space) => position_space.is_child_valid(child_index),
+            CollapseValue::PositionPairSet2D(position_pair_set) => position_pair_set.is_child_valid(child_index),
+            CollapseValue::PositionPairSet3D(position_pair_set) => position_pair_set.is_child_valid(child_index),
+            CollapseValue::NumberSet(_)
+            | CollapseValue::Voxels(_)
+            | CollapseValue::Mesh(_)
+            | CollapseValue::None(_) 
             => panic!("Called is child valid on node that has no children"),
         }
     }
@@ -300,7 +294,7 @@ impl Collapser {
             .expect("Number Set by index not found");
 
         let v = match &node.data {
-            NodeDataType::NumberSet(d) => d.value,
+            CollapseValue::NumberSet(d) => d.value,
             _ => panic!("Template Node {:?} is not of Type Number Space", node.template_index)
         };
 
@@ -313,7 +307,7 @@ impl Collapser {
         match D {
             2 => {
                 let v = match &parent.data {
-                    NodeDataType::PositionSet2D(d) => d.get_position(child_index),
+                    CollapseValue::PositionSet2D(d) => d.get_position(child_index),
                     _ => panic!("Template Node {:?} is not of Type Position Set 2D Set", parent.template_index)
                 };
 
@@ -322,7 +316,7 @@ impl Collapser {
             }
             3 => {
                 let v = match &parent.data {
-                    NodeDataType::PositionSet3D(d) => d.get_position(child_index),
+                    CollapseValue::PositionSet3D(d) => d.get_position(child_index),
                     _ => panic!("Template Node {:?} is not of Type Position Set 3D Set", parent.template_index)
                 };
 
@@ -343,7 +337,7 @@ impl Collapser {
         match D {
             2 => {
                 let v = match &parent.data {
-                    NodeDataType::PositionSet2D(d) => d.get_positions(),
+                    CollapseValue::PositionSet2D(d) => d.get_positions(),
                     _ => panic!("Template Node {:?} is not of Type Position Set 2D Set", parent.template_index)
                 };
 
@@ -352,7 +346,7 @@ impl Collapser {
             }
             3 => {
                 let v = match &parent.data {
-                    NodeDataType::PositionSet3D(d) => d.get_positions(),
+                    CollapseValue::PositionSet3D(d) => d.get_positions(),
                     _ => panic!("Template Node {:?} is not of Type Position Set 3D Set", parent.template_index)
                 };
 
@@ -369,7 +363,7 @@ impl Collapser {
         match D {
             2 => {
                 let v = match &parent.data {
-                    NodeDataType::PositionPairSet2D(d) => d.get_position_pair(child_index),
+                    CollapseValue::PositionPairSet2D(d) => d.get_position_pair(child_index),
                     _ => panic!("Template Node {:?} is not of Type Position Pair Set 2D Set", parent.template_index)
                 };
 
@@ -378,7 +372,7 @@ impl Collapser {
             }
             3 => {
                 let v = match &parent.data {
-                    NodeDataType::PositionPairSet3D(d) => d.get_position_pair(child_index),
+                    CollapseValue::PositionPairSet3D(d) => d.get_position_pair(child_index),
                     _ => panic!("Template Node {:?} is not of Type Position Pair Set 3D Set", parent.template_index)
                 };
 
@@ -395,7 +389,7 @@ impl Collapser {
         match D {
             2 => {
                 let v = match &parent.data {
-                    NodeDataType::PositionPairSet2D(d) => d.get_position_pairs(),
+                    CollapseValue::PositionPairSet2D(d) => d.get_position_pairs(),
                     _ => panic!("Template Node {:?} is not of Type Position Pair Set 2D Set", parent.template_index)
                 };
 
@@ -404,7 +398,7 @@ impl Collapser {
             }
             3 => {
                 let v = match &parent.data {
-                    NodeDataType::PositionPairSet3D(d) => d.get_position_pairs(),
+                    CollapseValue::PositionPairSet3D(d) => d.get_position_pairs(),
                     _ => panic!("Template Node {:?} is not of Type Position Pair Set 3D Set", parent.template_index)
                 };
 

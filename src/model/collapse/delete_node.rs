@@ -1,10 +1,9 @@
 use octa_force::{anyhow::{self, ensure, anyhow}, log::info, OctaResult};
 use slotmap::Key;
 
-use crate::model::{collapse::collapser::{CollapseNode, NodeDataType}, composer::output_state::OutputState, template::Template};
+use crate::model::{collapse::collapser::{CollapseNode, CollapseValueT}, composer::output_state::OutputState, data_types::data_type::CollapseValue, template::Template};
 
 use super::collapser::{CollapseNodeKey, Collapser};
-
 
 impl Collapser { 
     pub fn delete_node(&mut self, node_index: CollapseNodeKey) {
@@ -14,16 +13,7 @@ impl Collapser {
         }
         let mut node = node.unwrap();
 
-        match &mut node.data {
-            NodeDataType::None
-            | NodeDataType::NumberSet(_)
-            | NodeDataType::PositionSet2D(_)
-            | NodeDataType::PositionSet3D(_)
-            | NodeDataType::PositionPairSet2D(_)
-            | NodeDataType::PositionPairSet3D(_) => {}
-            NodeDataType::Voxels(voxel_collapser_data) => voxel_collapser_data.on_delete(&mut self.state),
-            NodeDataType::Mesh(mesh_collapser_data) => mesh_collapser_data.on_delete(&mut self.state),
-        }
+        node.data.on_delete(&mut self.state);
 
         assert!(!node.defined_by.is_null(), "Trying to delete root node!");
 

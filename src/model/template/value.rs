@@ -3,32 +3,13 @@ use std::marker::PhantomData;
 use egui_snarl::NodeId;
 use octa_force::{egui::Vec2, glam::Vec3A};
 
-use crate::{model::{collapse::template_changed::MatchValueData, data_types::{data_type::{T, V2, V3}, mesh::MeshTemplate, number::{Hook, NumberValue}, number_space::NumberSpaceValue, position::PositionValue, position_pair_set::PositionPairSetValue, position_set::PositionSetValue, position_space::PositionSpaceValue, volume::VolumeValue, voxels::VoxelValue}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::template_changed::MatchValueData, data_types::{data_type::{T, TemplateValue, V2, V3}, mesh::MeshTemplate, number::{Hook, NumberValue}, number_space::NumberSpaceValue, position::PositionValue, position_pair_set::PositionPairSetValue, position_set::PositionSetValue, position_space::PositionSpaceValue, volume::VolumeValue, voxels::VoxelValue}}, util::{number::Nu, vector::Ve}};
 
 use super::{nodes, Template};
 
 pub type ValueIndex = usize;
 pub const VALUE_INDEX_NODE: usize = usize::MAX;
- 
 
-#[derive(Debug, Clone, Copy)]
-pub enum TemplateValue {
-    None,
-    Number(NumberValue),
-    NumberSet(NumberSpaceValue),
-    Position2D(PositionValue<V2, 2>),
-    Position3D(PositionValue<V3, 3>),
-    PositionSet2D(PositionSetValue),
-    PositionSet3D(PositionSetValue),
-    PositionPairSet2D(PositionPairSetValue),
-    PositionPairSet3D(PositionPairSetValue),
-    PositionSpace2D(PositionSpaceValue),
-    PositionSpace3D(PositionSpaceValue),
-    Volume2D(VolumeValue),
-    Volume3D(VolumeValue),
-    Voxels(VoxelValue),
-    Mesh(MeshTemplate),
-}
 
 pub union PositionTemplateUnion<'a, VA: Ve<T, DA>, VB: Ve<T, DB>, const DA: usize, const DB: usize> {
     a: &'a PositionValue<VA, DA>,

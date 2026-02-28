@@ -4,7 +4,7 @@ use egui_snarl::InPinId;
 use itertools::{Either, Itertools};
 use smallvec::SmallVec;
 
-use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser, template_changed::MatchValueData}, composer::{ModelComposer, graph::ComposerGraph, make_template::MakeTemplateData, nodes::{ComposeNode, ComposeNodeType}}, data_types::data_type::{T, V2, V3}, template::{Template, value::{TemplateValue, ValueIndex}}}, util::{iter_merger::IM3, number::Nu, vector::Ve}};
+use crate::{model::{collapse::{add_nodes::GetValueData, collapser::Collapser, template_changed::MatchValueData}, composer::{ModelComposer, graph::ComposerGraph, make_template::MakeTemplateData, nodes::ComposeNode}, data_types::data_type::{CollapseValue, ComposeNodeType, T, TemplateValue, V2, V3}, template::{Template, value::{ValueIndex}}}, util::{iter_merger::IM3, number::Nu, vector::Ve}};
 
 use super::{data_type::ComposeDataType, number::{Hook, NumberValue, ValueIndexNumber}, position_pair_set::PositionPairSetValue, position_set::{PositionSetValue, ValueIndexPositionSet}};
 
@@ -221,7 +221,6 @@ impl ComposerGraph {
         }
     } 
 } 
-
 
 
 impl<V: Ve<T, D>, const D: usize> PositionValue<V, D> {

@@ -5,9 +5,9 @@ use octa_force::{anyhow::{anyhow, bail}, glam::Vec3, log::{debug, info}, OctaRes
 use slotmap::Key;
 use tree64::Node;
 
-use crate::{model::{collapse::collapser::CollapseNode, template::{dependency_tree::DependencyPath, nodes::{Creates, CreatesType}, value::TemplateValue, Template, TemplateIndex}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::collapser::CollapseNode, data_types::data_type::{CollapseValue, TemplateValue}, template::{Template, TemplateIndex, dependency_tree::DependencyPath, nodes::{Creates, CreatesType}}}, util::{number::Nu, vector::Ve}};
 
-use super::{collapser::{CollapseChildKey, CollapseNodeKey, Collapser, NodeDataType, UpdateDefinesOperation}, external_input::ExternalInput, number_set::NumberSet};
+use super::{collapser::{CollapseChildKey, CollapseNodeKey, Collapser, UpdateDefinesOperation}, external_input::ExternalInput};
 
 #[derive(Debug, Clone, Copy)]
 pub struct GetValueData<'a> {
@@ -154,17 +154,7 @@ impl Collapser {
         let new_node_template = &self.template.nodes[new_node_template_index];
       
         let value = &self.template.values[new_node_template.value_index];
-        let data = match value {
-            TemplateValue::None => NodeDataType::None,
-            TemplateValue::NumberSet(_) => NodeDataType::NumberSet(Default::default()),
-            TemplateValue::PositionSet2D(position_set_template) => NodeDataType::PositionSet2D(Default::default()),
-            TemplateValue::PositionSet3D(position_set_template) => NodeDataType::PositionSet3D(Default::default()),
-            TemplateValue::PositionPairSet2D(position_pair_set_template) => NodeDataType::PositionPairSet2D(Default::default()),
-            TemplateValue::PositionPairSet3D(position_pair_set_template) => NodeDataType::PositionPairSet3D(Default::default()),
-            TemplateValue::Voxels(_) => NodeDataType::Voxels(Default::default()), 
-            TemplateValue::Mesh(_) => NodeDataType::Mesh(Default::default()), 
-            _ => unreachable!()
-        };
+        let data = value.to_collapse_value();
 
         let index = self.nodes.insert(CollapseNode {
             template_index: new_node_template.index,

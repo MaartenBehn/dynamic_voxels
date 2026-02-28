@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use octa_force::egui;
 
-use crate::{model::{ data_types::{number::NumberValue, number_space::NumberSpaceValue, position::PositionValue, position_pair_set::PositionPairSetValue, position_set::PositionSetValue, position_space::PositionSpaceValue, volume::VolumeValue}, template::{Template, TemplateIndex, dependency_tree::{DependencyPath, DependencyTree}, nodes::TemplateNode, value::{TemplateValue, ValueIndex}}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{ data_types::{data_type::TemplateValue, number::NumberValue, number_space::NumberSpaceValue, position::PositionValue, position_pair_set::PositionPairSetValue, position_set::PositionSetValue, position_space::PositionSpaceValue, volume::VolumeValue}, template::{Template, TemplateIndex, dependency_tree::{DependencyPath, DependencyTree}, nodes::TemplateNode, value::ValueIndex}}, util::{number::Nu, vector::Ve}};
 
 impl Template { 
     pub fn debug_render(&self, ui: &mut egui::Ui) {
@@ -67,7 +67,7 @@ impl Template {
         let value = &self.values[value_index];
 
         ui.collapsing(format!("{:?}", value), |ui| {
-            
+
             match value {
                 TemplateValue::None => unreachable!(),
                 TemplateValue::Number(number_template) => {

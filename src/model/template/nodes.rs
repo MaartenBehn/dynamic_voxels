@@ -1,7 +1,7 @@
 use egui_snarl::NodeId;
 use smallvec::SmallVec;
 
-use super::{dependency_tree::{DependencyPath, DependencyTree}, value::{TemplateValue, ValueIndex}, TemplateIndex};
+use super::{dependency_tree::{DependencyPath, DependencyTree}, value::{ValueIndex}, TemplateIndex};
 
 #[derive(Debug, Clone)]
 pub struct TemplateNode {

@@ -4,7 +4,7 @@ use egui_snarl::{InPinId, NodeId, OutPinId};
 use octa_force::log::{self, trace};
 use smallvec::{SmallVec, smallvec};
 
-use crate::{model::{composer::{ModelComposer, graph::{self, ComposerGraph}, nodes::{ComposeNode, ComposeNodeType}}, data_types::{data_type::ComposeDataType, number::NumberValue, number_space::NumberSpaceValue, position::PositionValue, position_pair_set::PositionPairSetValue, position_set::PositionSetValue, position_space::PositionSpaceValue, volume::VolumeValue}, template::{TEMPLATE_INDEX_NONE, Template, TemplateIndex, dependency_tree::{DependencyPath, get_dependency_tree_and_loop_paths}, nodes::{Creates, CreatesType, TemplateNode}, value::{TemplateValue, VALUE_INDEX_NODE, ValueIndex}, value_hook_iterator::ValueHooksIterator}}, util::{number::Nu, vector::Ve}, voxel::palette::shared::SharedPalette};
+use crate::{model::{composer::{ModelComposer, graph::{self, ComposerGraph}, nodes::ComposeNode}, data_types::{data_type::{ComposeDataType, ComposeNodeType, TemplateValue}, number::NumberValue, number_space::NumberSpaceValue, position::PositionValue, position_pair_set::PositionPairSetValue, position_set::PositionSetValue, position_space::PositionSpaceValue, volume::VolumeValue}, template::{TEMPLATE_INDEX_NONE, Template, TemplateIndex, dependency_tree::{DependencyPath, get_dependency_tree_and_loop_paths}, nodes::{Creates, CreatesType, TemplateNode}, value::{VALUE_INDEX_NODE, ValueIndex}, value_hook_iterator::ValueHooksIterator}}, util::{number::Nu, vector::Ve}, voxel::palette::shared::SharedPalette};
 
 pub struct MakeTemplateData<'a> {
     pub building_template_index: TemplateIndex,

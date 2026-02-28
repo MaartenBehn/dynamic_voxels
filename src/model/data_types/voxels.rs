@@ -4,7 +4,7 @@ use octa_force::{glam::{Mat4, Quat, Vec3}, log::info};
 use slotmap::Key;
 use smallvec::SmallVec;
 
-use crate::{VOXELS_PER_SHADER_UNIT, csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::Collapser, template_changed::MatchValueData}, composer::{graph::ComposerGraph, make_template::MakeTemplateData, nodes::ComposeNode, output_state::OutputState}, data_types::{data_type::{T, V3}, position::{ValueIndexPosition, ValueIndexPosition3D}, volume::ValueIndexVolume}, template::{Template, value::TemplateValue}}, scene::SceneObjectKey, volume::VolumeBounds, voxel::dag64::DAG64EntryKey};
+use crate::{VOXELS_PER_SHADER_UNIT, csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::Collapser, collapser::CollapseValueT, template_changed::MatchValueData}, composer::{graph::ComposerGraph, make_template::MakeTemplateData, nodes::ComposeNode, output_state::OutputState}, data_types::{data_type::{T, TemplateValue, V3}, position::{ValueIndexPosition, ValueIndexPosition3D}, volume::ValueIndexVolume}, template::Template}, scene::SceneObjectKey, volume::VolumeBounds, voxel::dag64::DAG64EntryKey};
 
 pub type ValueIndexVoxels = usize;
 
@@ -76,9 +76,11 @@ impl VoxelCollapserData {
             state.scene_dag_key,
             state.dag.get_entry(self.dag_key),
         ).result_async().await;
-    }
+    } 
+}
 
-    pub fn on_delete(&self, state: &mut OutputState) {
+impl CollapseValueT for VoxelCollapserData {
+    fn on_delete(&self, state: &mut OutputState) {
         if !self.dag_key.is_null() {
             state.dag.remove_entry(self.dag_key);
         }

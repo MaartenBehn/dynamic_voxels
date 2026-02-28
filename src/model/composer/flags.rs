@@ -3,7 +3,7 @@ use egui_snarl::{InPinId, NodeId, OutPinId, Snarl};
 use itertools::Itertools;
 use smallvec::SmallVec;
 
-use crate::model::{composer::nodes::{ComposeNode, ComposeNodeInput, ComposeNodeOutput, ComposeNodeType}, data_types::data_type::ComposeDataType};
+use crate::model::{composer::nodes::{ComposeNode, ComposeNodeInput, ComposeNodeOutput}, data_types::data_type::{ComposeDataType, ComposeNodeType}};
 
 #[derive(Debug)]
 pub struct ComposerNodeFlags { 
