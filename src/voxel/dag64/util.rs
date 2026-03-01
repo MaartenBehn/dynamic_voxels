@@ -1,5 +1,5 @@
 use octa_force::{glam::{IVec3, UVec3, Vec3A}, OctaResult};
-use crate::{util::{math_config::MC, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyAABB}};
+use crate::{util::{math_config::MC, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyAABB}, voxel::dag64::lod_heuristic::LODHeuristicT};
 
 use super::{node::VoxelDAG64Node, parallel::ParallelVoxelDAG64, DAG64Entry, DAG64EntryKey, VoxelDAG64};
 
@@ -21,7 +21,7 @@ pub fn get_dag_offset_levels<V: Ve<T, 3>, T: Nu, M: VolumeBounds<V, T, 3>>(model
     (offset, levels)
 }
 
-impl VoxelDAG64 { 
+impl<LOD: LODHeuristicT> VoxelDAG64<LOD> {  
     pub fn empty_entry(&mut self) -> OctaResult<DAG64EntryKey> {
 
         let root_index = self.nodes.push(&[VoxelDAG64Node::new(true, 0, 0)])?;
@@ -35,7 +35,7 @@ impl VoxelDAG64 {
     }
 }
 
-impl ParallelVoxelDAG64 { 
+impl<LOD: LODHeuristicT> ParallelVoxelDAG64<LOD> { 
     pub fn empty_entry(&mut self) -> OctaResult<DAG64EntryKey> {
 
         let root_index = self.nodes.push(&[VoxelDAG64Node::new(true, 0, 0)])?;

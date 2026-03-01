@@ -1,13 +1,13 @@
 use itertools::Either;
 use octa_force::{anyhow::{self, anyhow}, glam::{IVec3, Vec3Swizzles}, OctaResult};
 use smallvec::SmallVec;
-use crate::{util::{aabb::AABB, math::{get_dag_node_children, get_dag_node_children_xzy_i}, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeQureyAABB, VolumeQureyAABBResult}, voxel::dag64::{node::VoxelDAG64Node, util::get_dag_offset_levels, DAG64Entry, DAG64EntryKey}};
+use crate::{util::{aabb::AABB, math::{get_dag_node_children, get_dag_node_children_xzy_i}, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeQureyAABB, VolumeQureyAABBResult}, voxel::dag64::{DAG64Entry, DAG64EntryKey, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, util::get_dag_offset_levels}};
 use super::ParallelVoxelDAG64;
 use rayon::iter::{walk_tree_postfix};
 use rayon::prelude::*;
 
 
-impl ParallelVoxelDAG64 {
+impl<LOD: LODHeuristicT> ParallelVoxelDAG64<LOD> {
     pub fn add_aabb_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T,3> + Send + Sync>(&mut self, model: &M) -> OctaResult<DAG64EntryKey> {
         let (offset, levels) = get_dag_offset_levels(model);
         if levels == 0 {
@@ -32,7 +32,7 @@ impl ParallelVoxelDAG64 {
         offset: IVec3,
         node_level: u8,
     ) -> OctaResult<VoxelDAG64Node> {
-        if node_level == 1 {
+        if node_level <= self.lod.lod_level(offset) {
             self.add_aabb_query_leaf(model, offset, node_level)
         } else {
             let scale = 4_i32.pow(node_level as u32);

@@ -5,12 +5,12 @@ use octa_force::{glam::Mat4, log::{debug, trace, warn}, vulkan::{Context}};
 use parking_lot::Mutex;
 use smol::future::FutureExt;
 
-use crate::{mesh::Mesh, util::worker_response::{WithRespose, WorkerRespose}, voxel::dag64::{DAG64Entry, parallel::ParallelVoxelDAG64}};
+use crate::{mesh::Mesh, scene::dag_store::LODType, util::worker_response::{WithRespose, WorkerRespose}, voxel::dag64::{DAG64Entry, parallel::ParallelVoxelDAG64}};
 
 use super::{dag64::{SceneAddDAGObject, SceneSetDAGEntry}, dag_store::SceneDAGKey, Scene, SceneData, SceneObjectKey};
 
 pub enum SceneMessage {
-    AddDAG(WithRespose<ParallelVoxelDAG64, SceneDAGKey>),
+    AddDAG(WithRespose<ParallelVoxelDAG64<LODType>, SceneDAGKey>),
     AddDAGObject(WithRespose<SceneAddDAGObject, SceneObjectKey>),
     SetDAGEntry(SceneSetDAGEntry),
     RemoveObject(SceneObjectKey),
@@ -128,7 +128,7 @@ impl SceneWorkerSend {
         });
     }
 
-    pub fn add_dag(&self, dag: ParallelVoxelDAG64) -> WorkerRespose<SceneDAGKey> {
+    pub fn add_dag(&self, dag: ParallelVoxelDAG64<LODType>) -> WorkerRespose<SceneDAGKey> {
         let (message, res) = WithRespose::new(dag);
         self.send(SceneMessage::AddDAG(message));
         res

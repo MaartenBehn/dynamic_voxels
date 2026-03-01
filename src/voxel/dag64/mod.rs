@@ -8,20 +8,22 @@ pub mod update_pos_query_volume;
 pub mod expand;
 pub mod parallel;
 pub mod util;
+pub mod lod_heuristic;
 
 use node::VoxelDAG64Node;
 use octa_force::{glam::{IVec3, Vec3, Vec3A}, log::{debug, info}};
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{multi_data_buffer::{cached_vec::CachedVec}, util::math::to_mb};
+use crate::{multi_data_buffer::cached_vec::CachedVec, util::math::to_mb, voxel::dag64::lod_heuristic::{LODHeuristicNone, LODHeuristicT}};
 
 new_key_type! { pub struct DAG64EntryKey; }
 
 #[derive(Debug)]
-pub struct VoxelDAG64 {
+pub struct VoxelDAG64<LOD: LODHeuristicT> {
     pub nodes: CachedVec<VoxelDAG64Node>,
     pub data: CachedVec<u8>,
-    pub entry_points: SlotMap<DAG64EntryKey, DAG64Entry>
+    pub entry_points: SlotMap<DAG64EntryKey, DAG64Entry>,
+    pub lod: LOD
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -31,12 +33,13 @@ pub struct DAG64Entry {
     pub offset: IVec3,
 }
 
-impl VoxelDAG64 { 
-    pub fn new(nodes_capacity: usize, data_capacity: usize) -> Self {
+impl<LOD: LODHeuristicT> VoxelDAG64<LOD> { 
+    pub fn new(nodes_capacity: usize, data_capacity: usize, lod: LOD) -> Self {
         Self {
             nodes: CachedVec::new(nodes_capacity),
             data: CachedVec::new(data_capacity),
             entry_points: Default::default(),
+            lod,
         }
     }
 
@@ -59,7 +62,7 @@ impl DAG64Entry {
 }
 
 
-impl PartialEq for VoxelDAG64 {
+impl<LOD: LODHeuristicT> PartialEq for VoxelDAG64<LOD> {
     fn eq(&self, other: &Self) -> bool {
         self.nodes == other.nodes 
         && self.data == other.data 

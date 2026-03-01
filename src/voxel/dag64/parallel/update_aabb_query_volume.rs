@@ -2,12 +2,12 @@ use octa_force::{anyhow, glam::{vec3a, IVec3, UVec3, Vec3A, Vec4Swizzles}, log::
 use rayon::prelude::*;
 use smallvec::{SmallVec, ToSmallVec};
 
-use crate::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, new_logic_state, util::{aabb::AABB, math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::VolumeQureyAABB, voxel::dag64::node::VoxelDAG64Node};
+use crate::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, new_logic_state, util::{aabb::AABB, math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::VolumeQureyAABB, voxel::dag64::{lod_heuristic::LODHeuristicT, node::VoxelDAG64Node}};
 
 use super::{DAG64Entry, DAG64EntryKey, ParallelVoxelDAG64, VoxelDAG64};
 
 
-impl ParallelVoxelDAG64 {
+impl<LOD: LODHeuristicT> ParallelVoxelDAG64<LOD> {
     pub fn update_aabb_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3> + Send + Sync>(
         &mut self, 
         model: &M,

@@ -1,13 +1,15 @@
 use octa_force::{vulkan::{ash::vk, gpu_allocator::MemoryLocation, Context, Buffer}, OctaResult};
 use slotmap::{new_key_type, SlotMap};
 
-use crate::voxel::dag64::parallel::ParallelVoxelDAG64;
+use crate::voxel::dag64::{lod_heuristic::{LODHeuristicNone, LinearLODHeuristicSphere, PowHeuristicSphere}, parallel::ParallelVoxelDAG64};
 
 new_key_type! { pub struct SceneDAGKey; }
 
+pub type LODType = PowHeuristicSphere; 
+
 #[derive(Debug)]
 pub struct SceneDAG {
-    pub dag: ParallelVoxelDAG64,
+    pub dag: ParallelVoxelDAG64<LODType>,
     pub changed: bool,
     pub node_buffer: Buffer,
     pub data_buffer: Buffer,
@@ -25,7 +27,7 @@ impl SceneDAGStore {
         }
     }   
 
-    pub fn add_dag(&mut self, context: &Context, dag: ParallelVoxelDAG64) -> OctaResult<SceneDAGKey> {
+    pub fn add_dag(&mut self, context: &Context, dag: ParallelVoxelDAG64<LODType>) -> OctaResult<SceneDAGKey> {
         let mut node_buffer = context.create_buffer(
             vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS_KHR,
             MemoryLocation::CpuToGpu,
@@ -50,7 +52,7 @@ impl SceneDAGStore {
         self.dags[key].changed = true;
     }
 
-    pub fn get_dag(&self, key: SceneDAGKey) -> &ParallelVoxelDAG64 {
+    pub fn get_dag(&self, key: SceneDAGKey) -> &ParallelVoxelDAG64<LODType> {
         &self.dags[key].dag
     }
 

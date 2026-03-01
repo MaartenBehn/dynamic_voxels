@@ -1,11 +1,11 @@
 use octa_force::{glam::{UVec3, Vec3A}, OctaResult};
 
-use crate::util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve};
+use crate::{util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, voxel::dag64::lod_heuristic::LODHeuristicT};
 
 use super::{node::VoxelDAG64Node, DAG64Entry, DAG64EntryKey, VoxelDAG64};
 
 
-impl VoxelDAG64 {
+impl<LOD: LODHeuristicT> VoxelDAG64<LOD> { 
     pub fn expand_to_include_aabb<V: Ve<T, 3>, T: Nu>(&mut self, based_on_entry: DAG64EntryKey, aabb: AABB<V, T, 3>) -> OctaResult<DAG64Entry> {
         let mut entry_data = self.entry_points[based_on_entry].to_owned(); 
 

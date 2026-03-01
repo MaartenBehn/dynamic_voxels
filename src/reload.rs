@@ -48,6 +48,10 @@ use std::{default, env};
 
 #[cfg(any(feature="graph"))]
 use crate::mesh::scene::MeshScene;
+#[cfg(any(feature="scene"))]
+use crate::scene::dag_store::{LODType, SceneDAGKey};
+#[cfg(any(feature="scene"))]
+use crate::voxel::dag64::parallel::ParallelVoxelDAG64;
 
 pub const USE_PROFILE: bool = false;
 pub const NUM_FRAMES_IN_FLIGHT: usize = 2;
@@ -80,7 +84,7 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
     #[cfg(feature="scene")]
     {
         camera.set_meter_per_unit(METERS_PER_SHADER_UNIT as f32);
-        camera.set_position_in_meters(Vec3::new(12.648946, 21.449644, 6.6995387)); 
+        camera.set_position_in_meters(Vec3::new(30.0, 30.0, 20.0)); 
         camera.direction = Vec3::new(-0.6110025, -0.7362994, -0.29075617).normalize();
         
         camera.speed = 10.0;
@@ -115,6 +119,18 @@ pub struct RenderState {
     #[cfg(any(feature="scene", feature="graph"))]
     pub renderer: SceneRenderer,
     
+    #[cfg(any(feature="scene"))]
+    pub dag: ParallelVoxelDAG64<LODType>,
+    
+    #[cfg(any(feature="scene"))]
+    pub csg: CSGTree<u8, IVec3, i32, 3>, 
+
+    #[cfg(any(feature="scene"))]
+    pub dag_key: SceneDAGKey,
+    
+    #[cfg(any(feature="scene"))]
+    pub object_key: SceneObjectKey,
+    
     #[cfg(any(feature="graph"))]
     pub composer: ModelComposer, 
     
@@ -129,7 +145,11 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
        
     #[cfg(feature="scene")]
     {
-        let scene = Scene::new(&engine.context)?.run_worker(engine.context.get_alloc_context(), 10);
+        use octa_force::glam::ivec3;
+
+        use crate::{util::vector::Ve, voxel::{dag64::lod_heuristic::{LODHeuristicNone, LinearLODHeuristicSphere, PowHeuristicSphere}, palette::palette::MATERIAL_ID_BASE}};
+
+        let scene = Scene::new(&engine.context)?.run_worker(engine.context.clone(), 10);
 
         let palette = SharedPalette::new();
         let renderer = SceneRenderer::new(
@@ -141,28 +161,36 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
             true,
         )?;
 
-        let mut csg = CSGTree::<u8, Int3D, 3>::new_sphere(Vec3A::ZERO, 100.0);
-        csg.cut_with_sphere(vec3a(70.0, 0.0, 0.0), 70.0);
+        let factor = 3.0;
+        let mut csg = CSGTree::<u8, IVec3, i32, 3>::new_sphere_float(Vec3A::ZERO, 
+            100.0 * factor, MATERIAL_ID_BASE);
+        csg.cut_with_sphere(vec3a(70.0 * factor, 0.0, 0.0), 70.0 * factor, MATERIAL_ID_BASE);
         
         let now = Instant::now();
 
-        let mut dag = VoxelDAG64::new(1000000, 64);
+        let mut dag = VoxelDAG64::new(
+            1000000, 
+            64, 
+            PowHeuristicSphere {
+                center: (logic_state.camera.get_position_in_meters() * VOXELS_PER_METER as f32).as_ivec3(),
+                render_dist: 15.0,
+            }
+        );
         let mut dag = dag.parallel();
-        let key = dag.add_aabb_query_volume(&csg)?;
+        let key = dag.add_pos_query_volume(&csg)?;
 
-       /* 
-        let index = csg.append_node_with_remove(
-            CSGNode::new_sphere(vec3(70.0, 0.0, 0.0), 50.0));
-        csg.set_all_aabbs();
+        /*
+        csg.cut_with_sphere(vec3a(70.0, 0.0, 0.0), 70.0, MATERIAL_ID_BASE);
+        csg.calculate_bounds();
 
-        let key = dag.update_aabb_query_volume(&csg, key)?;
-*/
+        let key = dag.update_pos_query_volume(&csg, key)?;
+        */        
 
         let elapsed = now.elapsed();
         info!("Tree Build took {:.2?}", elapsed);
 
         let dag_key = scene.send.add_dag(dag.clone()).result_blocking();
-        scene.send.add_dag_object(
+        let object_key = scene.send.add_dag_object(
             Mat4::from_scale_rotation_translation(
                 Vec3::ONE,
                 Quat::IDENTITY,
@@ -170,11 +198,15 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
             ),
             dag_key,
             dag.get_entry(key),
-        );
+        ).result_blocking();
         
         Ok(RenderState {
+            csg,
             scene,
             renderer,
+            dag,
+            dag_key,
+            object_key
         })
     }
 
@@ -231,6 +263,26 @@ pub fn update(
     //info!("Camera Pos: {} Dir: {}", logic_state.camera.get_position_in_meters(), logic_state.camera.direction);
     
     #[cfg(any(feature="scene"))]
+    if engine.controls.f2 {
+        use crate::voxel::dag64::lod_heuristic::{LinearLODHeuristicSphere, PowHeuristicSphere};
+
+        render_state.scene.send.remove_object(render_state.object_key);
+        
+        render_state.dag.lod.center = (logic_state.camera.get_position_in_meters() * VOXELS_PER_METER as f32).as_ivec3();
+
+        let key = render_state.dag.add_pos_query_volume(&render_state.csg)?;
+        render_state.object_key = render_state.scene.send.add_dag_object(
+            Mat4::from_scale_rotation_translation(
+                Vec3::ONE,
+                Quat::IDENTITY,
+                vec3(0.0, 0.0, 0.0)
+            ),
+            render_state.dag_key,
+            render_state.dag.get_entry(key),
+        ).result_blocking();
+    }
+
+    #[cfg(any(feature="scene"))]
     render_state.renderer.update(
         &logic_state.camera, 
         &engine.context, 
@@ -285,7 +337,7 @@ pub fn record_render_commands(
     let command_buffer = engine.get_current_command_buffer();
     
     #[cfg(any(feature="scene"))]
-    render_state.renderer.render(UVec2::ZERO, command_buffer, &engine)?;
+    render_state.renderer.render(UVec2::ZERO, command_buffer, &engine, &logic_state.camera)?;
 
     #[cfg(any(feature="graph"))]
     render_state.renderer.render(UVec2::ZERO, command_buffer, &engine, &logic_state.camera)?;
