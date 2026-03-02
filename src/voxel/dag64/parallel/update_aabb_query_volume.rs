@@ -7,26 +7,29 @@ use crate::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, new
 use super::{DAG64Entry, DAG64EntryKey, ParallelVoxelDAG64, VoxelDAG64};
 
 
-impl<LOD: LODHeuristicT> ParallelVoxelDAG64<LOD> {
-    pub fn update_aabb_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3> + Send + Sync>(
+impl ParallelVoxelDAG64 {
+
+    pub fn update_aabb_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3> + Send + Sync, LOD: LODHeuristicT>(
         &mut self, 
         model: &M,
+        lod: &LOD,
         based_on_entry: DAG64EntryKey,
     ) -> OctaResult<DAG64EntryKey> {
         let model_aabb = model.get_bounds();
         let mut entry_data = self.expand_to_include_aabb(based_on_entry, model_aabb)?;
 
-        let root = self.update_aabb_recursive_par(model, model_aabb, entry_data.levels, entry_data.offset, entry_data.root_index)?;
+        let root = self.update_aabb_recursive_par(model, lod, model_aabb, entry_data.levels, entry_data.offset, entry_data.root_index)?;
         entry_data.root_index = self.nodes.push(&[root])?;
 
         let key = self.entry_points.lock().insert(entry_data);
 
         Ok(key)
     }
-
-    fn update_aabb_recursive_par<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3> + Send + Sync>(
+    
+    pub(super) fn update_aabb_recursive_par<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3> + Send + Sync, LOD: LODHeuristicT>(
         &self, 
         model: &M, 
+        lod: &LOD,
         aabb: AABB<V, T, 3>, 
         node_level: u8, 
         offset: IVec3, 
@@ -62,18 +65,21 @@ impl<LOD: LODHeuristicT> ParallelVoxelDAG64<LOD> {
 
                     (self.add_aabb_query_recursive(
                         model, 
+                        lod,
                         node_aabb.min().to_ivec3(),
                         new_level,
                     )?.check_empty(), true)
                 } else if aabb.contains_aabb(node_aabb) {
                     (Some(self.add_aabb_query_recursive(
-                        model, 
+                        model,
+                        lod,
                         node_aabb.min().to_ivec3(),
                         new_level,
                     )?), false)
                 } else {
                     (Some(self.update_aabb_recursive(
                         model,
+                        lod,
                         aabb,
                         new_level,
                         node_aabb.min().to_ivec3(),
@@ -135,9 +141,10 @@ impl<LOD: LODHeuristicT> ParallelVoxelDAG64<LOD> {
         }
     }
 
-    fn update_aabb_recursive<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>>(
+    fn update_aabb_recursive<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>, LOD: LODHeuristicT>(
         &self, 
         model: &M, 
+        lod: &LOD,
         aabb: AABB<V, T, 3>, 
         node_level: u8, 
         offset: IVec3, 
@@ -173,7 +180,8 @@ impl<LOD: LODHeuristicT> ParallelVoxelDAG64<LOD> {
                 if !node.is_occupied(i as u32) {
 
                     let new_child_node = self.add_aabb_query_recursive(
-                        model, 
+                        model,
+                        lod,
                         min,
                         new_level,
                     )?;
@@ -195,12 +203,14 @@ impl<LOD: LODHeuristicT> ParallelVoxelDAG64<LOD> {
                 let new_child_node = if aabb.contains_aabb(node_aabb) {
                     self.add_aabb_query_recursive(
                         model, 
+                        lod, 
                         min,
                         new_level,
                     )?
                 } else {
                     self.update_aabb_recursive(
                         model,
+                        lod,
                         aabb,
                         new_level,
                         min,

@@ -6,7 +6,7 @@ use itertools::Itertools;
 use octa_force::{egui::{self, Color32, CornerRadius, DragValue, Pos2, Sense, StrokeKind, Ui, WidgetInfo, WidgetType, color_picker::color_edit_button_rgb}, glam::{IVec2, IVec3, Vec2, Vec3A}, log::debug};
 use smallvec::SmallVec;
 
-use crate::{model::{composer::flags::ComposerNodeFlags, data_types::data_type::{ComposeDataType, ComposeNodeGroupe, ComposeNodeType, V2, V3, get_node_templates}}, util::{number::Nu, vector::Ve}, voxel::palette::{Palette, picker::palette_color_picker, shared::SharedPalette}};
+use crate::{model::{composer::flags::ComposerNodeFlags, data_types::data_type::{ComposeDataType, ComposeNodeGroupe, ComposeNodeType, get_node_templates}}, util::{default_types::{V2, V3}, number::Nu, vector::Ve}, voxel::palette::{Palette, picker::palette_color_picker, shared::SharedPalette}};
 
 use super::{nodes::{ComposeNode, ComposeNodeInput, ComposeNodeOutput}, pin::ComposePin};
 

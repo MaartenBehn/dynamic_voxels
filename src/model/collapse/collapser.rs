@@ -6,7 +6,7 @@ use octa_force::{anyhow::{anyhow, bail, ensure}, glam::{vec3, vec3a, IVec3, Vec3
 use rayon::iter::IntoParallelIterator;
 use slotmap::{new_key_type, Key, SlotMap};
 use smallvec::SmallVec;
-use crate::{model::{composer::output_state::OutputState, data_types::{data_type::{CollapseValue, T, TemplateValue, V2, V3}, mesh::MeshCollapserData, voxels::VoxelCollapserData}, template::{Template, TemplateIndex}}, util::{iter_merger::{IM2, IM3}, number::Nu, state_saver, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
+use crate::{model::{composer::output_state::OutputState, data_types::{data_type::{CollapseValue, TemplateValue}, mesh::MeshCollapserData, voxels::VoxelCollapserData}, template::{Template, TemplateIndex}}, util::{default_types::{T, V3}, iter_merger::{IM2, IM3}, number::Nu, state_saver, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
 
 use super::{add_nodes::{GetNewChildrenData, GetValueData}, external_input::ExternalInput, pending_operations::{PendingOperations, PendingOperationsRes}};
 

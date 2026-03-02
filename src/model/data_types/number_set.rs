@@ -1,6 +1,6 @@
 use octa_force::{anyhow::bail, OctaResult};
 
-use crate::{model::{collapse::collapser::CollapseValueT, composer::output_state::OutputState, data_types::{data_type::T, number_space::NumberSpaceValue}}, volume::VolumeQureyPosValid};
+use crate::{model::{collapse::collapser::CollapseValueT, composer::output_state::OutputState, data_types::number_space::NumberSpaceValue}, util::default_types::T, volume::VolumeQureyPosValid};
 
 #[derive(Debug, Clone, Default)]
 pub struct NumberSet {

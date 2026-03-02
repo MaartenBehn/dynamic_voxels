@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use egui_snarl::NodeId;
 use octa_force::{egui::Vec2, glam::Vec3A};
 
-use crate::{model::{collapse::template_changed::MatchValueData, data_types::{data_type::{T, TemplateValue, V2, V3}, mesh::MeshTemplate, number::{Hook, NumberValue}, number_space::NumberSpaceValue, position::PositionValue, position_pair_set::PositionPairSetValue, position_set::PositionSetValue, position_space::PositionSpaceValue, volume::VolumeValue, voxels::VoxelValue}}, util::{number::Nu, vector::Ve}};
+use crate::{model::{collapse::template_changed::MatchValueData, data_types::{data_type::TemplateValue, mesh::MeshTemplate, number::{Hook, NumberValue}, number_space::NumberSpaceValue, position::PositionValue, position_pair_set::PositionPairSetValue, position_set::PositionSetValue, position_space::PositionSpaceValue, volume::VolumeValue, voxels::VoxelValue}}, util::{default_types::{T, V2, V3}, number::Nu, vector::Ve}};
 
 use super::{nodes, Template};
 

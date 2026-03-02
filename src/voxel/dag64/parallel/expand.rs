@@ -3,8 +3,8 @@ use octa_force::{glam::UVec3, OctaResult};
 use crate::{util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, voxel::dag64::{DAG64Entry, DAG64EntryKey, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node}};
 use super::ParallelVoxelDAG64;
 
-impl<LOD: LODHeuristicT> ParallelVoxelDAG64<LOD> {
-    pub fn expand_to_include_aabb<V: Ve<T, 3>, T: Nu>(&mut self, based_on_entry: DAG64EntryKey, aabb: AABB<V, T, 3>) -> OctaResult<DAG64Entry> {
+impl ParallelVoxelDAG64 {
+    pub(super) fn expand_to_include_aabb<V: Ve<T, 3>, T: Nu>(&mut self, based_on_entry: DAG64EntryKey, aabb: AABB<V, T, 3>) -> OctaResult<DAG64Entry> {
         let mut entry_data = self.entry_points.lock()[based_on_entry].to_owned(); 
 
         let mut size = 4_i32.pow(entry_data.levels as u32);

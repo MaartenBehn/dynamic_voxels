@@ -9,7 +9,7 @@ use dag_store::SceneDAGStore;
 use octa_force::{anyhow::anyhow, glam::{vec3, Mat4, Vec3, Vec4Swizzles}, log::{debug, info}, vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{VOXELS_PER_SHADER_UNIT, multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, util::{aabb::{AABB, AABB3}, math::to_mb,vector::Ve}};
+use crate::{VOXELS_PER_SHADER_UNIT, multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, util::{aabb::{AABB, AABB3}, default_types::LODType, math::to_mb, vector::Ve}, voxel::dag64::VoxelDAG64};
 
 new_key_type! { pub struct SceneObjectKey; }
 
@@ -24,6 +24,8 @@ pub struct Scene {
     pub bvh_allocation: BuddyAllocation,
     pub bvh_len: usize,
     pub needs_bvh_update: bool,
+
+    pub lod: LODType,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -57,7 +59,13 @@ pub struct SceneObjectData {
 
 impl Scene {
     pub fn new(context: &Context) -> OctaResult<Self> {
-        let dag_store = SceneDAGStore::new();
+        let mut dag_store = SceneDAGStore::new();
+
+        let mut dag = VoxelDAG64::new(
+            100000000, 
+            100000000, 
+        ).parallel();
+        dag_store.add_dag(context, dag)?;
 
         let buffer_size = 2_usize.pow(20);
         info!("Scene Buffer size: {:.04} MB", to_mb(buffer_size));
@@ -82,6 +90,7 @@ impl Scene {
             bvh_allocation,
             bvh_len: 0,
             needs_bvh_update: true,
+            lod: LODType::default(),
         })
     }
 

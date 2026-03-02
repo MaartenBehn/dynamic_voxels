@@ -21,8 +21,8 @@ pub fn get_dag_offset_levels<V: Ve<T, 3>, T: Nu, M: VolumeBounds<V, T, 3>>(model
     (offset, levels)
 }
 
-impl<LOD: LODHeuristicT> VoxelDAG64<LOD> {  
-    pub fn empty_entry(&mut self) -> OctaResult<DAG64EntryKey> {
+impl VoxelDAG64 {  
+    pub(super) fn empty_entry(&mut self) -> OctaResult<DAG64EntryKey> {
 
         let root_index = self.nodes.push(&[VoxelDAG64Node::new(true, 0, 0)])?;
         let key = self.entry_points.insert(DAG64Entry { 
@@ -35,8 +35,8 @@ impl<LOD: LODHeuristicT> VoxelDAG64<LOD> {
     }
 }
 
-impl<LOD: LODHeuristicT> ParallelVoxelDAG64<LOD> { 
-    pub fn empty_entry(&mut self) -> OctaResult<DAG64EntryKey> {
+impl ParallelVoxelDAG64 { 
+    pub(super) fn empty_entry(&mut self) -> OctaResult<DAG64EntryKey> {
 
         let root_index = self.nodes.push(&[VoxelDAG64Node::new(true, 0, 0)])?;
         let key = self.entry_points.lock().insert(DAG64Entry { 

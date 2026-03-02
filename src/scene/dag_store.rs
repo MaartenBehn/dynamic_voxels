@@ -5,11 +5,10 @@ use crate::voxel::dag64::{lod_heuristic::{LODHeuristicNone, LinearLODHeuristicSp
 
 new_key_type! { pub struct SceneDAGKey; }
 
-pub type LODType = PowHeuristicSphere; 
 
 #[derive(Debug)]
 pub struct SceneDAG {
-    pub dag: ParallelVoxelDAG64<LODType>,
+    pub dag: ParallelVoxelDAG64,
     pub changed: bool,
     pub node_buffer: Buffer,
     pub data_buffer: Buffer,
@@ -27,7 +26,7 @@ impl SceneDAGStore {
         }
     }   
 
-    pub fn add_dag(&mut self, context: &Context, dag: ParallelVoxelDAG64<LODType>) -> OctaResult<SceneDAGKey> {
+    pub fn add_dag(&mut self, context: &Context, dag: ParallelVoxelDAG64) -> OctaResult<SceneDAGKey> {
         let mut node_buffer = context.create_buffer(
             vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS_KHR,
             MemoryLocation::CpuToGpu,
@@ -52,8 +51,16 @@ impl SceneDAGStore {
         self.dags[key].changed = true;
     }
 
-    pub fn get_dag(&self, key: SceneDAGKey) -> &ParallelVoxelDAG64<LODType> {
+    pub fn active_dag(&self) -> SceneDAGKey {
+        self.dags.keys().next().unwrap()
+    }
+
+    pub fn get_dag(&self, key: SceneDAGKey) -> &ParallelVoxelDAG64 {
         &self.dags[key].dag
+    }
+
+    pub fn get_dag_mut(&mut self, key: SceneDAGKey) -> &mut ParallelVoxelDAG64 {
+        &mut self.dags[key].dag
     }
 
     pub fn flush(&mut self) {

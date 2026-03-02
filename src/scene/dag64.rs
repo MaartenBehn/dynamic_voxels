@@ -5,7 +5,7 @@ use octa_force::{anyhow::anyhow, glam::{vec3, vec4, Mat4, Quat, Vec3, Vec3A, Vec
 use parking_lot::Mutex;
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, util::aabb::AABB3, voxel::dag64::{parallel::ParallelVoxelDAG64, DAG64Entry, DAG64EntryKey, VoxelDAG64}, VOXELS_PER_METER, VOXELS_PER_SHADER_UNIT};
+use crate::{VOXELS_PER_METER, VOXELS_PER_SHADER_UNIT, csg::csg_tree::tree::CSGTree, multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, util::{aabb::AABB3, default_types::Volume}, volume::VolumeQureyAABB, voxel::dag64::{DAG64Entry, DAG64EntryKey, VoxelDAG64, parallel::ParallelVoxelDAG64}};
 
 use super::{dag_store::{SceneDAG, SceneDAGKey, SceneDAGStore}, Scene, SceneObjectData, SceneObjectKey, SceneObjectType};
 
@@ -14,7 +14,9 @@ pub struct SceneDAGObject {
     pub allocation: BuddyAllocation,
     pub mat: Mat4,
     pub dag_key: SceneDAGKey,
+    pub entry_key: DAG64EntryKey,
     pub entry: DAG64Entry,
+    pub model: Volume,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -30,14 +32,7 @@ pub struct SceneDAGObjectData {
 #[derive(Debug)]
 pub struct SceneAddDAGObject {
     pub mat: Mat4,
-    pub dag_key: SceneDAGKey,
-    pub entry: DAG64Entry,
-}
-
-#[derive(Debug)]
-pub struct SceneSetDAGEntry {
-    pub object: SceneObjectKey,
-    pub entry: DAG64Entry,
+    pub model: Volume,
 }
 
 impl Scene {
@@ -46,30 +41,24 @@ impl Scene {
         add_dag_object: SceneAddDAGObject,
     ) -> OctaResult<SceneObjectKey> {
         let allocation = self.allocator.alloc(size_of::<SceneDAGObjectData>())?;
+       
+        let dag_key = self.dag_store.active_dag(); 
+        let dag = self.dag_store.get_dag_mut(dag_key);
+
+        let entry_key = dag.add_aabb_query_volume(&add_dag_object.model, &self.lod)?;
+        let entry = dag.get_entry(entry_key);
+
         let key = self.add_object(SceneObjectType::DAG64(SceneDAGObject {
             allocation,
             mat: add_dag_object.mat,
-            dag_key: add_dag_object.dag_key,
-            entry: add_dag_object.entry,
+            model: add_dag_object.model,
+            dag_key,
+            entry_key,
+            entry,
         }));
-        self.dag_store.mark_changed(add_dag_object.dag_key);
+        self.dag_store.mark_changed(dag_key);
 
         Ok(key)
-    }
-
-    pub fn set_dag64_entry(&mut self, set: SceneSetDAGEntry) -> OctaResult<()> {
-        let object = self.objects.get_mut(set.object)
-            .ok_or_else(|| anyhow!("Invalid SceneObjectKey!"))?;
-
-        match &mut object.data {
-            SceneObjectType::DAG64(dag) => {
-                dag.entry = set.entry;
-                self.dag_store.mark_changed(dag.dag_key);
-            },
-        }
-        object.changed = true;
-
-        Ok(())
     }
 }
 

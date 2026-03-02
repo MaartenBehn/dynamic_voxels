@@ -5,14 +5,12 @@ use octa_force::{glam::Mat4, log::{debug, trace, warn}, vulkan::{Context}};
 use parking_lot::Mutex;
 use smol::future::FutureExt;
 
-use crate::{mesh::Mesh, scene::dag_store::LODType, util::worker_response::{WithRespose, WorkerRespose}, voxel::dag64::{DAG64Entry, parallel::ParallelVoxelDAG64}};
+use crate::{mesh::Mesh, util::{default_types::Volume, worker_response::{WithRespose, WorkerRespose}}, voxel::dag64::{DAG64Entry, parallel::ParallelVoxelDAG64}};
 
-use super::{dag64::{SceneAddDAGObject, SceneSetDAGEntry}, dag_store::SceneDAGKey, Scene, SceneData, SceneObjectKey};
+use super::{dag64::{SceneAddDAGObject}, dag_store::SceneDAGKey, Scene, SceneData, SceneObjectKey};
 
 pub enum SceneMessage {
-    AddDAG(WithRespose<ParallelVoxelDAG64<LODType>, SceneDAGKey>),
     AddDAGObject(WithRespose<SceneAddDAGObject, SceneObjectKey>),
-    SetDAGEntry(SceneSetDAGEntry),
     RemoveObject(SceneObjectKey),
     Flush,
 }
@@ -55,14 +53,6 @@ impl Scene {
                         debug!("Scene Worker Message: {m:?}");
 
                         match m {
-                            SceneMessage::AddDAG(worker_message) => {
-                                let (data, awnser) = worker_message.unwarp();
-
-                                let key = self.dag_store.add_dag(&context, data)
-                                    .expect("Failed to add DAG to Store");
-
-                                awnser(key);
-                            },
                             SceneMessage::AddDAGObject(worker_message) => {
                                 let (data, awnser) = worker_message.unwarp();
 
@@ -70,13 +60,6 @@ impl Scene {
                                     .expect("Failed to add DAG Object");
 
                                 awnser(key);
-                                let _ = loop_s.force_send(SceneMessage::Flush);
-                            },
-                            SceneMessage::SetDAGEntry(set) => {
-                                let res = self.set_dag64_entry(set);
-                                if res.is_err() {
-                                    warn!("Set Entry for invalid DAG Object -> Ignoring");
-                                }
                                 let _ = loop_s.force_send(SceneMessage::Flush);
                             },
                             SceneMessage::RemoveObject(key) => {
@@ -128,28 +111,14 @@ impl SceneWorkerSend {
         });
     }
 
-    pub fn add_dag(&self, dag: ParallelVoxelDAG64<LODType>) -> WorkerRespose<SceneDAGKey> {
-        let (message, res) = WithRespose::new(dag);
-        self.send(SceneMessage::AddDAG(message));
-        res
-    }
-
-    pub fn add_dag_object(&self, mat: Mat4, dag_key: SceneDAGKey, entry: DAG64Entry) -> WorkerRespose<SceneObjectKey> {
+    pub fn add_dag_object(&self, mat: Mat4, model: Volume) -> WorkerRespose<SceneObjectKey> {
         let (message, res) = WithRespose::new(SceneAddDAGObject {
             mat,
-            dag_key,
-            entry,
+            model,
         });
 
         self.send(SceneMessage::AddDAGObject(message));
         res
-    }
-
-    pub fn set_dag_entry(&self, object: SceneObjectKey, entry: DAG64Entry) {
-        self.send(SceneMessage::SetDAGEntry(SceneSetDAGEntry {
-            object,
-            entry,
-        }));
     }
 
     pub fn remove_object(&self, object: SceneObjectKey) {
@@ -189,9 +158,7 @@ impl fmt::Debug for SceneWorker {
 impl fmt::Debug for SceneMessage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::AddDAG(arg0) => f.debug_tuple("AddDAG").finish(),
             Self::AddDAGObject(arg0) => f.debug_tuple("AddDAGObject").finish(),
-            Self::SetDAGEntry(arg0) => f.debug_tuple("SetDAGEntry").finish(),
             Self::RemoveObject(arg0) => f.debug_tuple("RemoveObject").finish(),
             Self::Flush => write!(f, "Flush"),
         }

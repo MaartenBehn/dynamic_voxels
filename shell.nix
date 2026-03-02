@@ -37,14 +37,14 @@ in pkgs.mkShell {
 
   name = "dynamic_voxels";
   shellHook = ''
-    export PATH=$PATH:''${CARGO_HOME:-~/.cargo}/bin
-    export PATH=$PATH:''${RUSTUP_HOME:-~/.rustup}/toolchains/$${rustc_version}-x86_64-unknown-linux-gnu/bin/
+    export PATH=''${CARGO_HOME:-~/.cargo}/bin:$PATH
+    export PATH=''${RUSTUP_HOME:-~/.rustup}/toolchains/${rustc_version}-x86_64-unknown-linux-gnu/bin/:$PATH
   '';
 
   RUSTC_VERSION = rustc_version;
   RUSTUP_TOOLCHAIN="${rustc_version}-x86_64-unknown-linux-gnu";
     #CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS = "[\"-C\", \"link-arg=--ld-path=${pkgs.mold}/bin/mold\"]";
-  RUST_FEATURES = "fence";
+  RUST_FEATURES = "graph";
 
   packages = with pkgs; [
     rustup
@@ -55,7 +55,7 @@ in pkgs.mkShell {
     xorg.libXrandr
     xorg.libXi
     glslang
-    linuxPackages_latest.perf
+    perf
     hotspot
     cmake
     fontconfig
@@ -65,17 +65,17 @@ in pkgs.mkShell {
     python3
     graphviz
 
-    pkgs-mcwitt.cudaPackages.nsight_systems
+    #pkgs-mcwitt.cudaPackages.nsight_systems
       #pkgs-mcwitt.cudaPackages.nsight_compute
-    my-nsight_compute 
+    #my-nsight_compute 
   ];
 
   # Use fast liker 
-  CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER = "${pkgs.clang}/bin/clang";
+  #CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER = "${pkgs.clang}/bin/clang";
   
   RUSTFLAGS = 
       # Use faster linker     
-      [''-C link-arg=-fuse-ld=${pkgs.mold-wrapped}/bin/mold''] ++
+      #[''-C link-arg=-fuse-ld=${pkgs.mold-wrapped}/bin/mold''] ++
       # Add precompiled library to rustc search path
       (builtins.map (a: '' -L ${a}/lib'') [
       # add libraries here (e.g. pkgs.libvmi)

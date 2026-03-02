@@ -6,16 +6,17 @@ use crate::{multi_data_buffer::buddy_buffer_allocator::BuddyBufferAllocator, uti
 use super::{node::VoxelDAG64Node, DAG64Entry, DAG64EntryKey, VoxelDAG64};
 
 
-impl<LOD: LODHeuristicT> VoxelDAG64<LOD> { 
-    pub fn update_aabb_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>>(
+impl VoxelDAG64 { 
+    pub fn update_aabb_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>, LOD: LODHeuristicT>(
         &mut self, 
         model: &M,
+        lod: &LOD,
         based_on_entry: DAG64EntryKey,
     ) -> OctaResult<DAG64EntryKey> {
         let model_aabb = model.get_bounds();
         let mut entry_data = self.expand_to_include_aabb(based_on_entry, model_aabb)?;
 
-        let root = self.update_aabb_recursive(model, model_aabb,entry_data.levels, entry_data.offset, entry_data.root_index)?;
+        let root = self.update_aabb_recursive(model, lod, model_aabb,entry_data.levels, entry_data.offset, entry_data.root_index)?;
         entry_data.root_index = self.nodes.push(&[root])?;
 
         let key = self.entry_points.insert(entry_data);
@@ -23,9 +24,10 @@ impl<LOD: LODHeuristicT> VoxelDAG64<LOD> {
         Ok(key)
     }
 
-    fn update_aabb_recursive<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>>(
+    pub(super) fn update_aabb_recursive<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>, LOD: LODHeuristicT>(
         &mut self, 
         model: &M, 
+        lod: &LOD,
         aabb: AABB<V, T, 3>, 
         node_level: u8, 
         offset: IVec3, 
@@ -35,7 +37,8 @@ impl<LOD: LODHeuristicT> VoxelDAG64<LOD> {
 
         if node.is_leaf() {
             let new_node = self.add_aabb_query_recursive(
-                model, 
+                model,
+                lod,
                 offset,
                 node_level,
             )?;
@@ -61,7 +64,8 @@ impl<LOD: LODHeuristicT> VoxelDAG64<LOD> {
                 if !node.is_occupied(i as u32) {
 
                     let new_child_node = self.add_aabb_query_recursive(
-                        model, 
+                        model,
+                        lod,
                         min,
                         new_level,
                     )?;
@@ -82,13 +86,15 @@ impl<LOD: LODHeuristicT> VoxelDAG64<LOD> {
 
                 let new_child_node = if aabb.contains_aabb(node_aabb) {
                     self.add_aabb_query_recursive(
-                        model, 
+                        model,
+                        lod,
                         min,
                         new_level,
                     )?
                 } else {
                     self.update_aabb_recursive(
                         model,
+                        lod,
                         aabb,
                         new_level,
                         min,

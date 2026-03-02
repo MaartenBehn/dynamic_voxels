@@ -4,7 +4,7 @@ use octa_force::{glam::{Mat4, Quat, Vec3}, log::info};
 use slotmap::Key;
 use smallvec::SmallVec;
 
-use crate::{VOXELS_PER_SHADER_UNIT, csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::Collapser, collapser::CollapseValueT, template_changed::MatchValueData}, composer::{graph::ComposerGraph, make_template::MakeTemplateData, nodes::ComposeNode, output_state::OutputState}, data_types::{data_type::{T, TemplateValue, V3}, position::{ValueIndexPosition, ValueIndexPosition3D}, volume::ValueIndexVolume}, template::Template}, scene::SceneObjectKey, volume::VolumeBounds, voxel::dag64::DAG64EntryKey};
+use crate::{VOXELS_PER_SHADER_UNIT, csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::{CollapseValueT, Collapser}, template_changed::MatchValueData}, composer::{graph::ComposerGraph, make_template::MakeTemplateData, nodes::ComposeNode, output_state::OutputState}, data_types::{data_type::TemplateValue, position::{ValueIndexPosition, ValueIndexPosition3D}, volume::ValueIndexVolume}, template::Template}, scene::SceneObjectKey, util::default_types::{V3, Volume}, volume::VolumeBounds, voxel::dag64::DAG64EntryKey};
 
 pub type ValueIndexVoxels = usize;
 
@@ -55,17 +55,12 @@ impl VoxelValue {
 impl VoxelCollapserData {
     pub async fn update(
         &mut self,
-        volume: CSGTree<u8, V3, T, 3>,
+        volume: Volume,
         pos: V3,
         state: &mut OutputState,
     ) { 
         self.on_delete(state);
 
-        let now = Instant::now();
-        self.dag_key = state.dag.add_aabb_query_volume(&volume).expect("Could not add DAG Entry!");
-
-        let elapsed = now.elapsed();
-        info!("Voxel DAG Build took: {:?}", elapsed);
 
         self.scene_key = state.scene.add_dag_object(
             Mat4::from_scale_rotation_translation(
@@ -73,18 +68,13 @@ impl VoxelCollapserData {
                 Quat::IDENTITY,
                 Vec3::from(pos) / VOXELS_PER_SHADER_UNIT as f32
             ), 
-            state.scene_dag_key,
-            state.dag.get_entry(self.dag_key),
+            volume,
         ).result_async().await;
     } 
 }
 
 impl CollapseValueT for VoxelCollapserData {
     fn on_delete(&self, state: &mut OutputState) {
-        if !self.dag_key.is_null() {
-            state.dag.remove_entry(self.dag_key);
-        }
-
         if !self.scene_key.is_null() {
             state.scene.remove_object(self.scene_key);
         }

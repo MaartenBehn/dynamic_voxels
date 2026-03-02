@@ -1,4 +1,4 @@
-use octa_force::{camera::Camera, engine::{self, Engine}, glam::{Mat4, Vec2}, vulkan::{CommandBuffer, Context, GraphicsPipeline, GraphicsPipelineCreateInfo, GraphicsShaderCreateInfo, PipelineLayout, ash::vk::{self, AttachmentLoadOp, BlendFactor, BlendOp, ColorComponentFlags, Format, PipelineColorBlendAttachmentState, PushConstantRange, ShaderStageFlags}}};
+use octa_force::{camera::Camera, engine::{self, Engine}, glam::{Mat4, Vec2}, log::debug, vulkan::{CommandBuffer, Context, GraphicsPipeline, GraphicsPipelineCreateInfo, GraphicsShaderCreateInfo, PipelineLayout, ash::vk::{self, AttachmentLoadOp, BlendFactor, BlendOp, ColorComponentFlags, Format, PipelineColorBlendAttachmentState, PushConstantRange, ShaderStageFlags}}};
 use spirv_struct_layout::SpirvLayout;
 
 use crate::{mesh::{Mesh, Vertex, gpu_mesh::GPUMesh}, voxel::palette::{self, buffer::PaletteBuffer}};
@@ -26,10 +26,12 @@ impl MeshRenderer {
             .size(size_of::<MeshDispatchParams>() as _)
             .stage_flags(ShaderStageFlags::VERTEX | ShaderStageFlags::FRAGMENT);
 
+        debug!("test");
         let pipeline_layout = context.create_pipeline_layout(
             &[], &[push_constant_range])
             .expect("Failed to create Pipeline Layout");
 
+        debug!("test3");
         let pipeline = context.create_graphics_pipeline::<Vertex>(
             &pipeline_layout,
             GraphicsPipelineCreateInfo {
@@ -62,6 +64,7 @@ impl MeshRenderer {
                 dynamic_states: Some(&[vk::DynamicState::SCISSOR, vk::DynamicState::VIEWPORT]),
             },
         ).expect("Failed to create Pipeline");
+        debug!("test4");
 
         Self {
             push_constant_range,

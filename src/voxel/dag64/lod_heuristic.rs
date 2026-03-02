@@ -8,13 +8,16 @@ use crate::util::vector::Ve;
 
 pub trait LODHeuristicT: Sync + Send + Debug + Clone {
     fn lod_level(&self, pos: IVec3) -> u8;
+    fn set_center(&mut self, center: IVec3);
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct LODHeuristicNone {}
 
 impl LODHeuristicT for LODHeuristicNone {
     fn lod_level(&self, pos: IVec3) -> u8 { 1 }
+
+    fn set_center(&mut self, center: IVec3) {}
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -29,6 +32,10 @@ impl LODHeuristicT for LinearLODHeuristicSphere {
 
         let level = delta.abs().max_element() / self.level_size;
         return level.clamp(1, 255) as u8;
+    }
+
+    fn set_center(&mut self, center: IVec3) {
+        self.center = center;
     }
 }
 
@@ -45,6 +52,10 @@ impl LODHeuristicT for PowHeuristicSphere {
         //let level = delta.abs().max_element() / self.level_size;
         let level = ((delta.length() as f32).powf(0.5) / self.render_dist) as u8;
         return level.max(1);
+    }
+
+    fn set_center(&mut self, center: IVec3) {
+        self.center = center;
     }
 }
 

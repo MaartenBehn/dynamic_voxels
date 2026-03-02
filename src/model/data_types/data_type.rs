@@ -2,13 +2,11 @@ use egui_snarl::ui::PinInfo;
 use enum_dispatch::enum_dispatch;
 use octa_force::{egui::Color32, glam::{IVec2, IVec3, Vec2, Vec3A}};
 
-use crate::model::{composer::nodes::ComposeNode, data_types::{mesh::{MeshCollapserData, MeshTemplate}, none::{NoneCollapserValue}, number::NumberValue, number_set::NumberSet, number_space::NumberSpaceValue, position::PositionValue, position_pair_set::{PositionPairSet, PositionPairSetValue}, position_set::{PositionSet, PositionSetValue}, position_space::PositionSpaceValue, volume::VolumeValue, voxels::{VoxelCollapserData, VoxelValue}}};
+use crate::{model::{composer::nodes::ComposeNode, data_types::{mesh::{MeshCollapserData, MeshTemplate}, none::NoneCollapserValue, number::NumberValue, number_set::NumberSet, number_space::NumberSpaceValue, position::PositionValue, position_pair_set::{PositionPairSet, PositionPairSetValue}, position_set::{PositionSet, PositionSetValue}, position_space::PositionSpaceValue, volume::VolumeValue, voxels::{VoxelCollapserData, VoxelValue}}}, util::default_types::{T, V2, V3}};
 use crate::model::collapse::collapser::CollapseValueT;
 use crate::model::composer::output_state::OutputState;
 
-pub type T = f32;
-pub type V2 = Vec2;
-pub type V3 = Vec3A;
+
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum ComposeDataType {

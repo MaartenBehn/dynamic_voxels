@@ -4,7 +4,7 @@ use egui_snarl::OutPinId;
 use itertools::{iproduct, Itertools};
 use smallvec::SmallVec;
 
-use crate::{csg::{Base, csg_tree::tree::CSGTree}, model::{collapse::{add_nodes::GetValueData, collapser::Collapser, template_changed::MatchValueData}, composer::{ModelComposer, graph::ComposerGraph, make_template::MakeTemplateData, nodes::ComposeNode}, data_types::data_type::{ComposeNodeType, T, TemplateValue, V3}, template::Template}, util::{iter_merger::IM5, number::Nu, vector::Ve}};
+use crate::{csg::{Base, csg_tree::tree::CSGTree}, model::{collapse::{add_nodes::GetValueData, collapser::Collapser, template_changed::MatchValueData}, composer::{ModelComposer, graph::ComposerGraph, make_template::MakeTemplateData, nodes::ComposeNode}, data_types::data_type::{ComposeNodeType, TemplateValue}, template::Template}, util::{default_types::{T, V3}, iter_merger::IM5, number::Nu, vector::Ve}};
 
 use super::{data_type::ComposeDataType, number::{NumberValue, ValueIndexNumber}, position::{PositionValue, ValueIndexPosition}, position_set::{PositionSetValue, ValueIndexPositionSet}};
 

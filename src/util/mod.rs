@@ -3,6 +3,7 @@ pub mod vector;
 pub mod matrix;
 pub mod number;
 pub mod math_config;
+pub mod default_types;
 
 pub mod math;
 pub mod profiler;

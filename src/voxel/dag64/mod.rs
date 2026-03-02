@@ -11,19 +11,20 @@ pub mod util;
 pub mod lod_heuristic;
 
 use node::VoxelDAG64Node;
-use octa_force::{glam::{IVec3, Vec3, Vec3A}, log::{debug, info}};
+use octa_force::{OctaResult, glam::{IVec3, Vec3, Vec3A}, log::{debug, info}};
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{multi_data_buffer::cached_vec::CachedVec, util::math::to_mb, voxel::dag64::lod_heuristic::{LODHeuristicNone, LODHeuristicT}};
+use crate::{multi_data_buffer::cached_vec::CachedVec, util::{math::to_mb, number::Nu, vector::Ve}, volume::{VolumeQureyAABB, VolumeQureyPosValue}, voxel::dag64::lod_heuristic::{LODHeuristicNone, LODHeuristicT}};
 
 new_key_type! { pub struct DAG64EntryKey; }
 
+
+
 #[derive(Debug)]
-pub struct VoxelDAG64<LOD: LODHeuristicT> {
+pub struct VoxelDAG64 {
     pub nodes: CachedVec<VoxelDAG64Node>,
     pub data: CachedVec<u8>,
     pub entry_points: SlotMap<DAG64EntryKey, DAG64Entry>,
-    pub lod: LOD
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -33,25 +34,32 @@ pub struct DAG64Entry {
     pub offset: IVec3,
 }
 
-impl<LOD: LODHeuristicT> VoxelDAG64<LOD> { 
-    pub fn new(nodes_capacity: usize, data_capacity: usize, lod: LOD) -> Self {
+impl VoxelDAG64 { 
+    pub fn new(nodes_capacity: usize, data_capacity: usize) -> Self {
         Self {
             nodes: CachedVec::new(nodes_capacity),
             data: CachedVec::new(data_capacity),
             entry_points: Default::default(),
-            lod,
         }
     }
 
-    pub fn print_memory_info(&self) { 
+    pub fn get_first_key(&self) -> DAG64EntryKey {
+        self.entry_points.keys().next().unwrap().to_owned()
+    }
+
+     fn print_memory_info(&self) {
         info!("VoxelDAG64: nodes {} MB, data {} MB", 
             to_mb(self.nodes.get_memory_size()),
             to_mb(self.data.get_memory_size()),
         );
     }
 
-    pub fn get_first_key(&self) -> DAG64EntryKey {
-        self.entry_points.keys().next().unwrap().to_owned()
+    fn get_entry(&self, key: DAG64EntryKey) -> DAG64Entry {
+        self.entry_points[key].to_owned()
+    }
+
+    fn remove_entry(&mut self, key: DAG64EntryKey) {
+        self.entry_points.remove(key);
     }
 }
 
@@ -62,7 +70,7 @@ impl DAG64Entry {
 }
 
 
-impl<LOD: LODHeuristicT> PartialEq for VoxelDAG64<LOD> {
+impl PartialEq for VoxelDAG64 {
     fn eq(&self, other: &Self) -> bool {
         self.nodes == other.nodes 
         && self.data == other.data 

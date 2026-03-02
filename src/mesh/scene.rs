@@ -1,4 +1,4 @@
-use octa_force::{camera::Camera, engine::Engine, glam::{Mat4, Vec2}, vulkan::{CommandBuffer, Context, Swapchain, ash::vk::AttachmentLoadOp}};
+use octa_force::{camera::Camera, engine::Engine, glam::{Mat4, Vec2}, log::debug, vulkan::{CommandBuffer, Context, Swapchain, ash::vk::AttachmentLoadOp}};
 use slotmap::{SlotMap, new_key_type};
 use smol::channel::Receiver;
 
@@ -41,7 +41,9 @@ impl MeshScene {
     pub fn new(context: &Context, swapchain: &Swapchain) -> Self {
         let (mesh_s, mesh_r) = smol::channel::bounded(1);
 
+        debug!("test1");
         let renderer = MeshRenderer::new(context, swapchain.format, swapchain.depth_format);
+        debug!("test2");
         
         Self {
             meshes: Default::default(),

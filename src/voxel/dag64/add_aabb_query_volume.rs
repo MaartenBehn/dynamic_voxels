@@ -6,14 +6,18 @@ use crate::{multi_data_buffer::{buddy_buffer_allocator::BuddyBufferAllocator, ca
 
 use super::{node::VoxelDAG64Node, util::get_dag_offset_levels, DAG64Entry, DAG64EntryKey, VoxelDAG64};
 
-impl<LOD: LODHeuristicT> VoxelDAG64<LOD> { 
-    pub fn add_aabb_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>>(&mut self, model: &M) -> OctaResult<DAG64EntryKey> { 
+impl VoxelDAG64 {  
+    pub fn add_aabb_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>, LOD: LODHeuristicT>(
+        &mut self, 
+        model: &M, 
+        lod: &LOD
+    ) -> OctaResult<DAG64EntryKey> { 
         let (offset, levels) = get_dag_offset_levels(model);
         if levels == 0 {
             return self.empty_entry();
         }
 
-        let root = self.add_aabb_query_recursive(model, offset, levels)?;
+        let root = self.add_aabb_query_recursive(model, lod, offset, levels)?;
         let root_index = self.nodes.push(&[root])?;
         let key = self.entry_points.insert(DAG64Entry { 
             levels, 
@@ -24,15 +28,16 @@ impl<LOD: LODHeuristicT> VoxelDAG64<LOD> {
         Ok(key)
     }
 
-    pub fn add_aabb_query_recursive<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>>(
+    pub(super) fn add_aabb_query_recursive<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>, LOD: LODHeuristicT>(
         &mut self,
         model: &M,
+        lod: &LOD,
         offset: IVec3,
         node_level: u8,
     ) -> OctaResult<VoxelDAG64Node> {
         let mut bitmask = 0;
 
-        if node_level <= self.lod.lod_level(offset) {
+        if node_level <= lod.lod_level(offset) {
              self.add_aabb_query_leaf(model, offset, node_level)
         } else {
             let scale = 4_i32.pow(node_level as u32);
@@ -58,6 +63,7 @@ impl<LOD: LODHeuristicT> VoxelDAG64<LOD> {
                     for (i, pos) in get_dag_node_children_xzy_i().into_iter().enumerate() {
                         let child = self.add_aabb_query_recursive(
                             model,
+                            lod,
                             offset + pos * new_scale,
                             new_level,
                         )?;
@@ -73,7 +79,7 @@ impl<LOD: LODHeuristicT> VoxelDAG64<LOD> {
         }
     }
 
-    pub fn add_aabb_query_leaf<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>>(
+    pub(super) fn add_aabb_query_leaf<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>>(
         &mut self,
         model: &M,
         offset: IVec3,

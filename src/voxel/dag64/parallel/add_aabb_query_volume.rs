@@ -7,14 +7,18 @@ use rayon::iter::{walk_tree_postfix};
 use rayon::prelude::*;
 
 
-impl<LOD: LODHeuristicT> ParallelVoxelDAG64<LOD> {
-    pub fn add_aabb_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T,3> + Send + Sync>(&mut self, model: &M) -> OctaResult<DAG64EntryKey> {
+impl ParallelVoxelDAG64 {
+    pub fn add_aabb_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T,3> + Send + Sync, LOD: LODHeuristicT>(
+        &mut self, 
+        model: &M,
+        lod: &LOD,
+    ) -> OctaResult<DAG64EntryKey> {
         let (offset, levels) = get_dag_offset_levels(model);
         if levels == 0 {
             return self.empty_entry();
         }
 
-        let root = self.add_aabb_query_recursive_par(model, offset, levels)?;
+        let root = self.add_aabb_query_recursive_par(model, lod, offset, levels)?;
 
         let root_index = self.nodes.push(&[root])?;
         let key = self.entry_points.lock().insert(DAG64Entry { 
@@ -25,14 +29,15 @@ impl<LOD: LODHeuristicT> ParallelVoxelDAG64<LOD> {
 
         Ok(key)
     }
-
-    pub fn add_aabb_query_recursive_par<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3> + Send + Sync>(
+    
+    pub(super) fn add_aabb_query_recursive_par<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3> + Send + Sync, LOD: LODHeuristicT>(
         &self,
         model: &M,
+        lod: &LOD,
         offset: IVec3,
         node_level: u8,
     ) -> OctaResult<VoxelDAG64Node> {
-        if node_level <= self.lod.lod_level(offset) {
+        if node_level <= lod.lod_level(offset) {
             self.add_aabb_query_leaf(model, offset, node_level)
         } else {
             let scale = 4_i32.pow(node_level as u32);
@@ -58,7 +63,8 @@ impl<LOD: LODHeuristicT> ParallelVoxelDAG64<LOD> {
                         .map(move |(i, pos)| {
                             let pos = offset + pos * new_scale;
                             let res = self.add_aabb_query_recursive(
-                                model, 
+                                model,
+                                lod,
                                 pos, 
                                 new_level);
 
@@ -94,13 +100,14 @@ impl<LOD: LODHeuristicT> ParallelVoxelDAG64<LOD> {
         }
     }
 
-    pub fn add_aabb_query_recursive<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>>(
+    pub(super) fn add_aabb_query_recursive<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>, LOD: LODHeuristicT>(
         &self,
         model: &M,
+        lod: &LOD,
         offset: IVec3,
         node_level: u8,
     ) -> OctaResult<VoxelDAG64Node> {
-        if node_level == 1 {
+        if node_level == lod.lod_level(offset) {
             self.add_aabb_query_leaf(model, offset, node_level)
         } else {
             let scale = 4_i32.pow(node_level as u32);
@@ -127,6 +134,7 @@ impl<LOD: LODHeuristicT> ParallelVoxelDAG64<LOD> {
                     for (i, pos) in get_dag_node_children_xzy_i().into_iter().enumerate() {
                         let child = self.add_aabb_query_recursive(
                             model,
+                            lod,
                             offset + pos * new_scale,
                             new_level,
                         )?;
@@ -142,7 +150,7 @@ impl<LOD: LODHeuristicT> ParallelVoxelDAG64<LOD> {
         }
     }
 
-    pub fn add_aabb_query_leaf<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>>(
+    pub(super) fn add_aabb_query_leaf<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>>(
         &self,
         model: &M,
         offset: IVec3,

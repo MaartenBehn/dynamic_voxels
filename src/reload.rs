@@ -215,9 +215,10 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         use crate::mesh::scene::MeshScene;
 
         let palette = SharedPalette::new();
-        let scene = Scene::new(&engine.context)?.run_worker(engine.context.clone(), 1000);
         let mesh_scene = MeshScene::new(&engine.context, &engine.swapchain);
+        let scene = Scene::new(&engine.context)?.run_worker(engine.context.clone(), 1000);
 
+        debug!("1");
         let composer = ModelComposer::new(
             &logic_state.camera, 
             palette.clone(), 
@@ -232,6 +233,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
             palette,
             false,
         )?;
+        debug!("2");
 
         return Ok(RenderState {
             scene,
@@ -256,6 +258,8 @@ pub fn update(
 ) -> OctaResult<()> {
     #[cfg(debug_assertions)]
     puffin::profile_function!();
+
+    debug!("3");
 
     let time = logic_state.start_time.elapsed(); 
 
