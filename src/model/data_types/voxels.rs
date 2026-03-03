@@ -4,7 +4,7 @@ use octa_force::{glam::{Mat4, Quat, Vec3}, log::info};
 use slotmap::Key;
 use smallvec::SmallVec;
 
-use crate::{VOXELS_PER_SHADER_UNIT, csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::{CollapseValueT, Collapser}, template_changed::MatchValueData}, composer::{graph::ComposerGraph, make_template::MakeTemplateData, nodes::ComposeNode, output_state::OutputState}, data_types::{data_type::TemplateValue, position::{ValueIndexPosition, ValueIndexPosition3D}, volume::ValueIndexVolume}, template::Template}, scene::SceneObjectKey, util::default_types::{V3, Volume}, volume::VolumeBounds, voxel::dag64::{DAG64EntryKey, lod_heuristic::LODHeuristicNone}};
+use crate::{VOXELS_PER_SHADER_UNIT, csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::{CollapseValueT, Collapser}, template_changed::MatchValueData}, composer::{graph::ComposerGraph, make_template::MakeTemplateData, nodes::ComposeNode, output_state::OutputState}, data_types::{data_type::TemplateValue, position::{ValueIndexPosition, ValueIndexPosition3D}, volume::ValueIndexVolume}, template::Template}, scene::worker::SceneObjectKey, util::default_types::{V3, Volume}, volume::VolumeBounds, voxel::dag64::{DAG64EntryKey, lod_heuristic::LODHeuristicNone}};
 
 pub type ValueIndexVoxels = usize;
 
@@ -61,6 +61,7 @@ impl VoxelCollapserData {
     ) { 
         self.on_delete(state);
 
+        /*
         let now = Instant::now();
         self.dag_key = state.dag.add_aabb_query_volume(&volume, &LODHeuristicNone::default())
             .expect("Could not add DAG Entry!");
@@ -77,14 +78,12 @@ impl VoxelCollapserData {
             state.scene_dag_key,
             state.dag.get_entry(self.dag_key),
         ).result_async().await;
+        */
     } 
 }
 
 impl CollapseValueT for VoxelCollapserData {
     fn on_delete(&self, state: &mut OutputState) {
-        if !self.dag_key.is_null() {
-            state.dag.remove_entry(self.dag_key);
-        }
 
         if !self.scene_key.is_null() {
             state.scene.remove_object(self.scene_key);

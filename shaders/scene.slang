@@ -19,8 +19,8 @@ public struct SceneObject {
 public struct DAG64SceneObject {
   float4x4 mat;
   float4x4 inv_mat;
-  Node* TreeNodes;
-  uint8_t* LeafData;
+  uint64_t node_alloc;
+  uint64_t data_alloc;
   uint root_index;
 }
 
@@ -49,7 +49,7 @@ public struct Scene {
         switch (node.leaf_nr) {
           case 0: { 
             DAG64SceneObject* tree_object = (DAG64SceneObject*)(start_ptr + node.object_start);
-            Tree64 tree = Tree64(tree_object.TreeNodes, tree_object.LeafData, tree_object.root_index);
+            Tree64 tree = Tree64((Node*)(start_ptr + tree_object.node_alloc), start_ptr + tree_object.data_alloc, tree_object.root_index);
 
             float4x4 mat = tree_object.mat;
             float3 object_ray_pos = mul(float4(ray_pos, 1.0), mat).xyz;

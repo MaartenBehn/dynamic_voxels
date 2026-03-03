@@ -5,13 +5,13 @@ use octa_force::{anyhow::anyhow, glam::{vec3, vec4, Mat4, Quat, Vec3, Vec3A, Vec
 use parking_lot::Mutex;
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{VOXELS_PER_METER, VOXELS_PER_SHADER_UNIT, csg::csg_tree::tree::CSGTree, multi_data_buffer::buddy_buffer_allocator::{BuddyAllocation, BuddyBufferAllocator}, util::{aabb::AABB3, default_types::Volume}, volume::VolumeQureyAABB, voxel::dag64::{DAG64Entry, DAG64EntryKey, VoxelDAG64, parallel::ParallelVoxelDAG64}};
+use crate::{VOXELS_PER_METER, VOXELS_PER_SHADER_UNIT, csg::csg_tree::tree::CSGTree, scene::{object::SceneObjectType, worker::{SceneObjectKey, SceneWorker}}, util::{aabb::AABB3, buddy_allocator::ManualBuddyAllocation, default_types::Volume}, volume::VolumeQureyAABB, voxel::dag64::{DAG64Entry, DAG64EntryKey, VoxelDAG64, parallel::ParallelVoxelDAG64}};
 
-use super::{dag_store::{SceneDAG, SceneDAGKey, SceneDAGStore}, Scene, SceneObjectData, SceneObjectKey, SceneObjectType};
+use super::{dag_store::{SceneDAG, SceneDAGKey, SceneDAGStore}};
 
 #[derive(Debug)]
 pub struct SceneDAGObject {
-    pub allocation: BuddyAllocation,
+    pub allocation: ManualBuddyAllocation,
     pub mat: Mat4,
     pub dag_key: SceneDAGKey,
     pub entry: DAG64Entry,
@@ -22,8 +22,8 @@ pub struct SceneDAGObject {
 pub struct SceneDAGObjectData {
     pub mat: Mat4,
     pub inv_mat: Mat4,
-    pub node_ptr: u64,
-    pub data_ptr: u64,
+    pub node_alloc: u64,
+    pub data_alloc: u64,
     pub root_index: u32,
 }
 
@@ -40,7 +40,7 @@ pub struct SceneSetDAGEntry {
     pub entry: DAG64Entry,
 }
 
-impl Scene {
+impl SceneWorker {
     pub fn add_dag64_object(
         &mut self,
         add_dag_object: SceneAddDAGObject,
@@ -91,12 +91,12 @@ impl SceneDAGObject {
             mat: mat.transpose(),
             inv_mat: inv_mat.transpose(),
             
-            node_ptr: dag.node_buffer.get_device_address(),
-            data_ptr: dag.data_buffer.get_device_address(),
+            node_alloc: dag.node_alloc.start() as u64,
+            data_alloc: dag.data_alloc.start() as u64,
             root_index: self.entry.root_index,
         };
 
-        scene_buffer.copy_data_to_buffer_without_aligment(&[data], self.allocation.start);
+        scene_buffer.copy_data_to_buffer_without_aligment(&[data], self.allocation.start());
     }
 
     pub fn get_aabb(&self) -> AABB3 {

@@ -23,7 +23,7 @@ impl<S: BHShape<V, T, D>, V: Ve<T, D>, T: Nu, const D: usize> Shapes<'_, S, V, T
     }
 
     /// Creates a [`Shapes`] that inherits its lifetime from the slice.
-    pub(crate) fn from_slice(slice: &[S]) -> Shapes<S, V, T, D>
+    pub(crate) fn from_slice(slice: &[S]) -> Shapes<'_, S, V, T, D>
     {
         Shapes { shapes: &slice, p1: Default::default(), p2: Default::default() }
     }

@@ -28,6 +28,7 @@
         watchexec
 
         bacon
+        clippy
       ];
 
       # Use faster linker for local build 

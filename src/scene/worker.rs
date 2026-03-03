@@ -1,97 +1,122 @@
 use core::fmt;
 use std::{ops::Deref, sync::Arc};
 
-use octa_force::{glam::Mat4, log::{debug, trace, warn}, vulkan::{Context}};
+use bvh::bvh::Bvh;
+use octa_force::{OctaResult, glam::Mat4, log::{debug, trace, warn}, vulkan::{Buffer, Context, ash::vk, gpu_allocator::MemoryLocation}};
 use parking_lot::Mutex;
+use slotmap::{SlotMap, new_key_type};
 use smol::future::FutureExt;
 
-use crate::{mesh::Mesh, scene::dag64::SceneSetDAGEntry, util::{default_types::Volume, worker_response::{WithRespose, WorkerRespose}}, voxel::dag64::{DAG64Entry, parallel::ParallelVoxelDAG64}};
+use crate::{mesh::Mesh, scene::{dag_store::SceneDAGStore, dag64::SceneSetDAGEntry, object::{SceneObject, SceneObjectData}}, util::{buddy_allocator::{BuddyAllocator, ManualBuddyAllocation}, default_types::Volume, worker_response::{WithRespose, WorkerRespose}}, voxel::dag64::{DAG64Entry, VoxelDAG64, parallel::ParallelVoxelDAG64}};
 
-use super::{dag64::{SceneAddDAGObject}, dag_store::SceneDAGKey, Scene, SceneData, SceneObjectKey};
+use super::{dag64::{SceneAddDAGObject}, dag_store::SceneDAGKey};
 
-pub enum SceneMessage {
-    AddDAG(WithRespose<ParallelVoxelDAG64, SceneDAGKey>),
-    AddDAGObject(WithRespose<SceneAddDAGObject, SceneObjectKey>),
-    SetDAGEntry(SceneSetDAGEntry),
-    RemoveObject(SceneObjectKey),
-    Flush,
-}
+new_key_type! { pub struct SceneObjectKey; }
+
+const INITAL_STAGING_BUFFER_AMMOUNT: usize = 2;
+const INITAL_STAGING_BUFFER_SIZE: usize = 2;
+
+const SCENE_TASK_QUEUE_SIZE: usize = 10;
+const SCENE_RENDER_QUEUE_SIZE: usize = 2;
 
 pub struct SceneWorker {
-    pub task: smol::Task<Scene>,
-    pub send: SceneWorkerSend,
+    pub staging_buffers: Vec<Buffer>,
 
-    // TODO: This makes no sense because two reciver would not work.
-    pub render_data: SceneWorkerRenderData,
+    pub objects: SlotMap<SceneObjectKey, SceneObject>,
+    
+    pub allocator: BuddyAllocator,
+    pub bvh: Bvh<f32, 3>,
+    pub bvh_allocation: ManualBuddyAllocation,
+    pub bvh_len: usize,
+    pub needs_bvh_update: bool,
+    
+    pub dag_store: SceneDAGStore,
+}
+
+#[derive(Debug)]
+pub struct SceneWorkerRef {
+    pub task: smol::Task<SceneWorker>,
+    pub send: SceneWorkerSend,
+    pub render_r: smol::channel::Receiver<SceneRenderTask>,
+}
+
+pub enum SceneTask {
+    AddDAGObject(WithRespose<SceneAddDAGObject, SceneObjectKey>),
+    RemoveObject(SceneObjectKey),
 }
 
 #[derive(Clone, Debug)]
 pub struct SceneWorkerSend {
-    s: smol::channel::Sender<SceneMessage>,
+    s: smol::channel::Sender<SceneTask>,
 }
 
-#[derive(Clone)]
-pub struct SceneWorkerData {
-    data: Arc<Mutex<SceneData>>
+pub struct SceneRenderTask {
+
 }
 
-#[derive(Clone, Debug)]
-pub struct SceneWorkerRenderData {
-    r: smol::channel::Receiver<SceneData>,
-    data: SceneData,
-}
+impl SceneWorker {
+    pub(super) fn new(buffer_size: usize, context: &Context) -> OctaResult<SceneWorker> {
 
-impl Scene {
-    pub fn run_worker(mut self, context: Context, cap: usize) -> SceneWorker {
-        let (s, r) = smol::channel::bounded(cap); 
-        let (loop_s, loop_r) = smol::channel::bounded(1); 
-        let (render_s, render_r) = smol::channel::bounded(1); 
-        let data = self.get_data();
+        let mut staging_buffers = vec![];
+        for _ in (0..INITAL_STAGING_BUFFER_AMMOUNT) {
+            staging_buffers.push(context.create_buffer(
+                vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS_KHR,
+                MemoryLocation::CpuToGpu,
+                INITAL_STAGING_BUFFER_SIZE as _)?);
+        }
+
+        let mut allocator = BuddyAllocator::new(buffer_size, 32);
+        let bvh = Bvh::build::<SceneObject>(&mut []);
+        let bvh_allocation = allocator.alloc(1024)?;
+
+        let mut dag_store = SceneDAGStore::new();
+
+        let mut dag = VoxelDAG64::new(
+            100000, 
+            1000000, 
+        ).parallel();
+        dag_store.add_dag(dag, &mut allocator).expect("Failed to add DAG to Store");
+
+        Ok(SceneWorker {
+            staging_buffers,
+
+            allocator,
+            objects: Default::default(),
+
+            bvh,
+            bvh_allocation,
+            bvh_len: 0,
+            needs_bvh_update: true,
+
+            dag_store,
+        })
+    }
+
+    pub(super) fn run(mut self) -> SceneWorkerRef {
+        let (task_s, tasks_r) = smol::channel::bounded(SCENE_TASK_QUEUE_SIZE); 
+        let (render_s, render_r) = smol::channel::bounded(SCENE_RENDER_QUEUE_SIZE); 
 
         let task = smol::spawn(async move {
             loop {
-                match r.recv().or(loop_r.recv()).await {
+                match tasks_r.recv().await {
                     Ok(m) => {
                         debug!("Scene Worker Message: {m:?}");
 
                         match m {
-                            SceneMessage::AddDAG(worker_message) => {
-                                let (data, awnser) = worker_message.unwarp();
-
-                                let key = self.dag_store.add_dag(&context, data)
-                                    .expect("Failed to add DAG to Store");
-
-                                awnser(key);
-                            },
-                            SceneMessage::AddDAGObject(worker_message) => {
+                            SceneTask::AddDAGObject(worker_message) => {
                                 let (data, awnser) = worker_message.unwarp();
 
                                 let key = self.add_dag64_object(data)
                                     .expect("Failed to add DAG Object");
 
                                 awnser(key);
-                                let _ = loop_s.force_send(SceneMessage::Flush);
                             },
-                            SceneMessage::SetDAGEntry(set) => {
-                                let res = self.set_dag64_entry(set);
-                                if res.is_err() {
-                                    warn!("Set Entry for invalid DAG Object -> Ignoring");
-                                }
-                                let _ = loop_s.force_send(SceneMessage::Flush);
-                            },
-                            SceneMessage::RemoveObject(key) => {
+                            SceneTask::RemoveObject(key) => {
                                 let res = self.remove_object(key);
                                 if res.is_err() {
                                     warn!("Typed to removed Scene Object with invalid Key")
                                 }
-
-                                let _ = loop_s.force_send(SceneMessage::Flush);
-                            },
-                            SceneMessage::Flush => {
-                                self.flush().expect("Failed to flush scene");
-                                let scene_data = self.get_data();
-                                render_s.force_send(scene_data).expect("Failed to send Scene Data");
-                            },
+                            },                        
                         }
                     },
 
@@ -103,16 +128,16 @@ impl Scene {
             self
         });
 
-        SceneWorker {
+        SceneWorkerRef {
             task,
-            send: SceneWorkerSend { s },
-            render_data: SceneWorkerRenderData { r: render_r, data },
+            send: SceneWorkerSend { s: task_s },
+            render_r
         }
     }
 }
 
-impl SceneWorker {
-    pub fn stop(self) -> Scene {
+impl SceneWorkerRef {
+    pub fn stop(self) -> SceneWorker {
         self.send.s.close();
         smol::block_on(async {
             self.task.await
@@ -121,17 +146,11 @@ impl SceneWorker {
 }
 
 impl SceneWorkerSend {
-    fn send(&self, message: SceneMessage) {
+    fn send(&self, message: SceneTask) {
         smol::block_on(async {
             self.s.send(message)
                 .await.expect("Send channel to worker closed!");
         });
-    }
-
-    pub fn add_dag(&self, dag: ParallelVoxelDAG64) -> WorkerRespose<SceneDAGKey> {
-        let (message, res) = WithRespose::new(dag);
-        self.send(SceneMessage::AddDAG(message));
-        res
     }
 
     pub fn add_dag_object(&self, mat: Mat4, dag_key: SceneDAGKey, entry: DAG64Entry) -> WorkerRespose<SceneObjectKey> {
@@ -141,59 +160,20 @@ impl SceneWorkerSend {
             entry,
         });
 
-        self.send(SceneMessage::AddDAGObject(message));
+        self.send(SceneTask::AddDAGObject(message));
         res
     }
 
-    pub fn set_dag_entry(&self, object: SceneObjectKey, entry: DAG64Entry) {
-        self.send(SceneMessage::SetDAGEntry(SceneSetDAGEntry {
-            object,
-            entry,
-        }));
-    }
-
     pub fn remove_object(&self, object: SceneObjectKey) {
-        self.send(SceneMessage::RemoveObject(object));
+        self.send(SceneTask::RemoveObject(object));
     }
 }
 
-impl SceneWorkerRenderData {
-    pub fn get_data(&mut self) -> SceneData {
-        match self.r.try_recv() {
-            Ok(data) => {
-                self.data = data;
-                data
-            },
-            Err(e) => match e {
-                smol::channel::TryRecvError::Empty => {
-                    self.data
-                },
-                smol::channel::TryRecvError::Closed => {
-                    panic!("Scene Worker Render Data Channel closed");
-                },
-            },
-        }
-    }
-}
-
-impl fmt::Debug for SceneWorker {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SceneWorker")
-            .field("task", &())
-            .field("send", &self.send)
-            .field("render_data", &self.render_data)
-            .finish()
-    }
-}
-
-impl fmt::Debug for SceneMessage {
+impl fmt::Debug for SceneTask {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::AddDAG(arg0) => f.debug_tuple("AddDAG").finish(),
             Self::AddDAGObject(arg0) => f.debug_tuple("AddDAGObject").finish(),
-            Self::SetDAGEntry(arg0) => f.debug_tuple("SetDAGEntry").finish(),
             Self::RemoveObject(arg0) => f.debug_tuple("RemoveObject").finish(),
-            Self::Flush => write!(f, "Flush"),
         }
     }
 }

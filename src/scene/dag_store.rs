@@ -1,7 +1,7 @@
 use octa_force::{vulkan::{ash::vk, gpu_allocator::MemoryLocation, Context, Buffer}, OctaResult};
 use slotmap::{new_key_type, SlotMap};
 
-use crate::voxel::dag64::{lod_heuristic::{LODHeuristicNone, LinearLODHeuristicSphere, PowHeuristicSphere}, parallel::ParallelVoxelDAG64};
+use crate::{util::buddy_allocator::{BuddyAllocator, ManualBuddyAllocation}, voxel::dag64::{lod_heuristic::{LODHeuristicNone, LinearLODHeuristicSphere, PowHeuristicSphere}, parallel::ParallelVoxelDAG64}};
 
 new_key_type! { pub struct SceneDAGKey; }
 
@@ -9,9 +9,9 @@ new_key_type! { pub struct SceneDAGKey; }
 #[derive(Debug)]
 pub struct SceneDAG {
     pub dag: ParallelVoxelDAG64,
+    pub node_alloc: ManualBuddyAllocation,
+    pub data_alloc: ManualBuddyAllocation,
     pub changed: bool,
-    pub node_buffer: Buffer,
-    pub data_buffer: Buffer,
 }
 
 #[derive(Debug)]
@@ -26,24 +26,16 @@ impl SceneDAGStore {
         }
     }   
 
-    pub fn add_dag(&mut self, context: &Context, dag: ParallelVoxelDAG64) -> OctaResult<SceneDAGKey> {
-        let mut node_buffer = context.create_buffer(
-            vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS_KHR,
-            MemoryLocation::CpuToGpu,
-            dag.nodes.get_memory_size() as _,
-        )?;
+    pub fn add_dag(&mut self, dag: ParallelVoxelDAG64, allocator: &mut BuddyAllocator) -> OctaResult<SceneDAGKey> {
 
-        let mut data_buffer = context.create_buffer(
-            vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS_KHR,
-            MemoryLocation::CpuToGpu,
-            dag.data.get_memory_size() as _,
-        )?;
+        let node_alloc = allocator.alloc(dag.nodes.get_memory_size())?;
+        let data_alloc = allocator.alloc(dag.data.get_memory_size())?;
 
         Ok(self.dags.insert(SceneDAG {
             dag,
+            node_alloc,
+            data_alloc,
             changed: true,
-            node_buffer, 
-            data_buffer,
         }))
     }
 
@@ -54,14 +46,11 @@ impl SceneDAGStore {
     pub fn get_dag(&self, key: SceneDAGKey) -> &ParallelVoxelDAG64 {
         &self.dags[key].dag
     }
-
-    pub fn flush(&mut self) {
-        for scene_dag in self.dags.values_mut() {
-            if scene_dag.changed {
-                scene_dag.dag.nodes.flush(&scene_dag.node_buffer);
-                scene_dag.dag.data.flush(&scene_dag.data_buffer);
-                scene_dag.changed = false;
-            }
+    
+    pub fn remove_dag(&mut self, key: SceneDAGKey, allocator: &mut BuddyAllocator) {
+        if let Some(d) = self.dags.remove(key) {
+            allocator.dealloc(d.node_alloc);
+            allocator.dealloc(d.data_alloc);
         }
     }
 }

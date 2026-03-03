@@ -256,7 +256,7 @@ impl ShaderProfiler {
         )
     }
 
-    pub fn descriptor_layout_bindings(&self) -> [vk::DescriptorSetLayoutBinding; 2] {
+    pub fn descriptor_layout_bindings(&self) -> [vk::DescriptorSetLayoutBinding<'_>; 2] {
         [
             vk::DescriptorSetLayoutBinding {
                 binding: 10,
@@ -275,7 +275,7 @@ impl ShaderProfiler {
         ]
     }
 
-    pub fn write_descriptor_sets(&self) -> [WriteDescriptorSet; 2] {
+    pub fn write_descriptor_sets(&self) -> [WriteDescriptorSet<'_>; 2] {
         [
             WriteDescriptorSet {
                 binding: 10,

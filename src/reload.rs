@@ -21,7 +21,6 @@ use parking_lot::Mutex;
 use scene::dag64::SceneAddDAGObject;
 use scene::renderer::SceneRenderer;
 use scene::worker::SceneWorker;
-use scene::{Scene, SceneObjectData, SceneObjectKey, SceneObjectType};
 use slotmap::Key;
 use octa_force::camera::Camera;
 use octa_force::egui_winit::winit::event::WindowEvent;
@@ -114,10 +113,7 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
 #[derive(Debug)]
 pub struct RenderState {
     #[cfg(any(feature="scene", feature="graph"))]
-    pub scene: SceneWorker,
-    
-    #[cfg(any(feature="scene", feature="graph"))]
-    pub renderer: SceneRenderer,
+    pub scene: SceneRenderer,
     
     #[cfg(any(feature="scene"))]
     pub dag: ParallelVoxelDAG64<LODType>,
@@ -149,7 +145,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
         use crate::{util::vector::Ve, voxel::{dag64::lod_heuristic::{LODHeuristicNone, LinearLODHeuristicSphere, PowHeuristicSphere}, palette::palette::MATERIAL_ID_BASE}};
 
-        let scene = Scene::new(&engine.context)?.run_worker(engine.context.clone(), 10);
+        let scene = SceneWorker::new(&engine.context)?.run_worker(engine.context.clone(), 10);
 
         let palette = SharedPalette::new();
         let renderer = SceneRenderer::new(
@@ -216,28 +212,24 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
 
         let palette = SharedPalette::new();
         let mesh_scene = MeshScene::new(&engine.context, &engine.swapchain);
-        let scene = Scene::new(&engine.context)?.run_worker(engine.context.clone(), 1000);
 
-        debug!("1");
-        let composer = ModelComposer::new(
-            &logic_state.camera, 
-            palette.clone(), 
-            scene.send.to_owned(), 
-            mesh_scene.send.to_owned()); 
-
-        let mut renderer = SceneRenderer::new(
+        let mut scene = SceneRenderer::new(
             &engine.context, 
             &engine.swapchain, 
             &logic_state.camera,
-            scene.render_data.clone(),
-            palette,
+            palette.clone(),
             false,
         )?;
-        debug!("2");
+
+        let composer = ModelComposer::new(
+            &logic_state.camera, 
+            palette, 
+            scene.worker_ref.send.clone(), 
+            mesh_scene.send.to_owned()); 
+
 
         return Ok(RenderState {
             scene,
-            renderer,
             composer,
             mesh_scene,
         })
@@ -305,7 +297,7 @@ pub fn update(
             logic_state.camera.set_screen_size(render_state.composer.render_panel_size.as_vec2());
 
             render_state
-                .renderer
+                .scene
                 .on_size_changed(
                     render_state.composer.render_panel_size,
                     &engine.context,
@@ -315,7 +307,7 @@ pub fn update(
 
         render_state.mesh_scene.update(&engine.context);
 
-        render_state.renderer.update(
+        render_state.scene.update(
             &logic_state.camera, 
             &engine.context, 
             render_state.composer.render_panel_size, 
@@ -342,7 +334,7 @@ pub fn record_render_commands(
     render_state.renderer.render(UVec2::ZERO, command_buffer, &engine, &logic_state.camera)?;
 
     #[cfg(any(feature="graph"))]
-    render_state.renderer.render(UVec2::ZERO, command_buffer, &engine, &logic_state.camera)?;
+    render_state.scene.render(UVec2::ZERO, command_buffer, &engine, &logic_state.camera)?;
     
     #[cfg(any(feature="graph"))]
     render_state.mesh_scene.render(
@@ -350,7 +342,7 @@ pub fn record_render_commands(
         &logic_state.camera,
         engine, 
         render_state.composer.render_panel_size.as_vec2(),
-        &render_state.renderer.voxel_renderer.palette_buffer,
+        &render_state.scene.voxel_renderer.palette_buffer,
     );
     // TODO: Move Palette Code
 
@@ -368,7 +360,7 @@ pub fn record_ui_commands(
     render_state: &mut RenderState,
 ) -> OctaResult<()> {
     #[cfg(any(feature="scene", feature="graph"))]
-    render_state.renderer.render_ui(ctx);
+    render_state.scene.render_ui(ctx);
 
     #[cfg(any(feature="graph"))]
     render_state.composer.render(ctx);
