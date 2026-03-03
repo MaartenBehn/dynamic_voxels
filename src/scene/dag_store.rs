@@ -51,16 +51,8 @@ impl SceneDAGStore {
         self.dags[key].changed = true;
     }
 
-    pub fn active_dag(&self) -> SceneDAGKey {
-        self.dags.keys().next().unwrap()
-    }
-
     pub fn get_dag(&self, key: SceneDAGKey) -> &ParallelVoxelDAG64 {
         &self.dags[key].dag
-    }
-
-    pub fn get_dag_mut(&mut self, key: SceneDAGKey) -> &mut ParallelVoxelDAG64 {
-        &mut self.dags[key].dag
     }
 
     pub fn flush(&mut self) {

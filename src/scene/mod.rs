@@ -24,8 +24,6 @@ pub struct Scene {
     pub bvh_allocation: BuddyAllocation,
     pub bvh_len: usize,
     pub needs_bvh_update: bool,
-
-    pub lod: LODType,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -59,13 +57,7 @@ pub struct SceneObjectData {
 
 impl Scene {
     pub fn new(context: &Context) -> OctaResult<Self> {
-        let mut dag_store = SceneDAGStore::new();
-
-        let mut dag = VoxelDAG64::new(
-            100000000, 
-            100000000, 
-        ).parallel();
-        dag_store.add_dag(context, dag)?;
+        let dag_store = SceneDAGStore::new();
 
         let buffer_size = 2_usize.pow(20);
         info!("Scene Buffer size: {:.04} MB", to_mb(buffer_size));
@@ -90,7 +82,6 @@ impl Scene {
             bvh_allocation,
             bvh_len: 0,
             needs_bvh_update: true,
-            lod: LODType::default(),
         })
     }
 

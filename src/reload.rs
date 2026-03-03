@@ -259,8 +259,6 @@ pub fn update(
     #[cfg(debug_assertions)]
     puffin::profile_function!();
 
-    debug!("3");
-
     let time = logic_state.start_time.elapsed(); 
 
     logic_state.camera.update(&engine.controls, delta_time);
