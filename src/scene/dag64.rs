@@ -13,6 +13,7 @@ use super::{dag_store::{SceneDAG, SceneDAGKey, SceneDAGStore}};
 pub struct SceneDAGObject {
     pub allocation: ManualBuddyAllocation,
     pub mat: Mat4,
+    pub model: Volume,
     pub dag_key: SceneDAGKey,
     pub entry: DAG64Entry,
 }
@@ -42,7 +43,7 @@ impl SceneWorker {
         let dag = self.dag_store.get_dag_mut(dag_key);
 
         let now = Instant::now();
-        let entry_key = dag.add_aabb_query_volume(&add_dag_object.model, &LODHeuristicNone::default())
+        let entry_key = dag.add_aabb_query_volume(&add_dag_object.model, &self.lod)
             .expect("Could not add DAG Entry!");
 
         let elapsed = now.elapsed();
@@ -50,17 +51,41 @@ impl SceneWorker {
 
         let entry = dag.get_entry(entry_key);
 
-        let allocation = self.allocator.alloc(size_of::<SceneDAGObjectData>())?;
+        let allocation = self.allocator.alloc(size_of::<SceneDAGObjectData>() )?;
 
         let key = self.add_object(SceneObjectType::DAG64(SceneDAGObject {
             allocation,
             mat: add_dag_object.mat,
+            model: add_dag_object.model,
             dag_key,
             entry,
         }));
         self.dag_store.mark_changed(dag_key);
 
         Ok(key)
+    }
+
+    pub fn rebuild_all_dag_objects(&mut self) {
+        for dag_object in self.objects.values_mut() {
+            match &mut dag_object.data {
+                SceneObjectType::DAG64(scene_dagobject) => {
+                    let dag = self.dag_store.get_dag_mut(scene_dagobject.dag_key);
+
+                    let now = Instant::now();
+                    let entry_key = dag.add_aabb_query_volume(&scene_dagobject.model, &self.lod)
+                        .expect("Could not add DAG Entry!");
+
+                    let elapsed = now.elapsed();
+                    info!("Voxel DAG Build took: {:?}", elapsed);
+
+                    let entry = dag.get_entry(entry_key);
+                    self.dag_store.mark_changed(scene_dagobject.dag_key);
+
+                    dag_object.needs_update = true;
+                },
+            }
+        }
+
     }
 }
 

@@ -2,12 +2,12 @@ use core::fmt;
 use std::{ops::Deref, sync::Arc};
 
 use bvh::bvh::Bvh;
-use octa_force::{OctaResult, glam::Mat4, log::{debug, trace, warn}, vulkan::{Buffer, Context, ash::vk, gpu_allocator::MemoryLocation}};
+use octa_force::{OctaResult, camera::Camera, glam::{Mat4, Vec3, Vec3A}, log::{debug, trace, warn}, vulkan::{Buffer, Context, ash::vk, gpu_allocator::MemoryLocation}};
 use parking_lot::Mutex;
 use slotmap::{SlotMap, new_key_type};
 use smol::{channel::Sender, future::FutureExt};
 
-use crate::{mesh::Mesh, scene::{dag_store::SceneDAGStore, object::{SceneObject, SceneObjectData}, staging_copies::OptimalBufferCopyAlligment}, util::{buddy_allocator::{BuddyAllocator, ManualBuddyAllocation}, default_types::Volume, worker_response::{WithRespose, WorkerRespose}}, voxel::dag64::{DAG64Entry, VoxelDAG64, parallel::ParallelVoxelDAG64}};
+use crate::{VOXELS_PER_METER, mesh::Mesh, scene::{dag_store::SceneDAGStore, object::{SceneObject, SceneObjectData}, staging_copies::OptimalBufferCopyAlligment}, util::{buddy_allocator::{BuddyAllocator, ManualBuddyAllocation}, default_types::{LODType, Volume}, worker_response::{WithRespose, WorkerRespose}}, voxel::dag64::{DAG64Entry, VoxelDAG64, lod_heuristic::LODHeuristicT, parallel::ParallelVoxelDAG64}};
 
 use super::{dag64::{SceneAddDAGObject}, dag_store::SceneDAGKey, staging_copies::SceneStaging};
 
@@ -32,6 +32,7 @@ pub struct SceneWorker {
     pub needs_bvh_update: bool,
     
     pub dag_store: SceneDAGStore,
+    pub lod: LODType,
 }
 
 #[derive(Debug)]
@@ -44,12 +45,16 @@ pub struct SceneWorkerRef {
 pub enum SceneTask {
     AddDAGObject(WithRespose<SceneAddDAGObject, SceneObjectKey>),
     RemoveObject(SceneObjectKey),
+
     FreeStagingBuffer(Buffer),
+    CameraPosition(Vec3),
 }
 
 #[derive(Clone, Debug)]
 pub struct SceneWorkerSend {
-    s: smol::channel::Sender<SceneTask>,
+    task_s: smol::channel::Sender<SceneTask>,
+    free_staging_buffer_s: smol::channel::Sender<SceneTask>,
+    cam_pos_s: smol::channel::Sender<SceneTask>,
 }
 
 impl SceneWorker {
@@ -62,6 +67,7 @@ impl SceneWorker {
                 MemoryLocation::CpuToGpu,
                 buffer_size as _)?);
         }
+        let optimal_alignment = OptimalBufferCopyAlligment::new(context);
 
         let mut allocator = BuddyAllocator::new(buffer_size, 32);
         let bvh = Bvh::build::<SceneObject>(&mut []);
@@ -71,11 +77,11 @@ impl SceneWorker {
 
         let mut dag = VoxelDAG64::new(
             1000000, 
-            1000000, 
+            2000000, 
         ).parallel();
         dag_store.add_dag(dag, &mut allocator).expect("Failed to add DAG to Store");
 
-        let optimal_alignment = OptimalBufferCopyAlligment::new(context);
+        let lod = LODType::default();
 
         Ok(SceneWorker {
             staging_buffers,
@@ -90,16 +96,20 @@ impl SceneWorker {
             needs_bvh_update: true,
 
             dag_store,
+            lod,
         })
     }
 
     pub(super) fn run(mut self) -> SceneWorkerRef {
         let (task_s, tasks_r) = smol::channel::bounded(SCENE_TASK_QUEUE_SIZE); 
+        let (free_staging_buffer_s, free_staging_buffer_r) 
+            = smol::channel::unbounded(); 
+        let (cam_pos_s, cam_pos_r) = smol::channel::bounded(1); 
         let (render_s, render_r) = smol::channel::bounded(SCENE_STAGING_QUEUE_SIZE); 
 
         let task = smol::spawn(async move {
             loop {
-                match tasks_r.recv().await {
+                match free_staging_buffer_r.recv().or(cam_pos_r.recv()).or(tasks_r.recv()).await {
                     Ok(m) => {
                         debug!("Scene Worker Message: {m:?}");
 
@@ -107,6 +117,12 @@ impl SceneWorker {
                             SceneTask::FreeStagingBuffer(buffer) => {
                                 self.staging_buffers.push(buffer);
                             },
+                            SceneTask::CameraPosition(pos) => {
+                                self.lod.set_center((pos * VOXELS_PER_METER as f32).as_ivec3());
+                                
+                                self.rebuild_all_dag_objects();
+                                self.update(&render_s).await.unwrap();
+                            }
                             SceneTask::AddDAGObject(worker_message) => {
                                 let (data, awnser) = worker_message.unwarp();
 
@@ -138,7 +154,11 @@ impl SceneWorker {
 
         SceneWorkerRef {
             task,
-            send: SceneWorkerSend { s: task_s },
+            send: SceneWorkerSend { 
+                task_s,
+                free_staging_buffer_s,
+                cam_pos_s,
+            },
             render_r,
         }
     }
@@ -172,7 +192,9 @@ impl SceneWorker {
 
 impl SceneWorkerRef {
     pub fn stop(self) -> SceneWorker {
-        self.send.s.close();
+        self.send.task_s.close();
+        self.send.free_staging_buffer_s.close();
+        self.send.cam_pos_s.close();
         smol::block_on(async {
             self.task.await
         })
@@ -180,15 +202,24 @@ impl SceneWorkerRef {
 }
 
 impl SceneWorkerSend {
-    fn send(&self, message: SceneTask) {
+    
+    pub(super) fn free_staging_buffer(&self, buffer: Buffer) {
         smol::block_on(async {
-            self.s.send(message)
+            self.free_staging_buffer_s.send(SceneTask::FreeStagingBuffer(buffer))
                 .await.expect("Send channel to worker closed!");
         });
     }
 
-    pub(super) fn free_staging_buffer(&self, buffer: Buffer) {
-        self.send(SceneTask::FreeStagingBuffer(buffer));
+    pub(super) fn camera_position(&self, pos: Vec3) {
+        self.cam_pos_s.force_send(SceneTask::CameraPosition(pos))
+            .expect("Send channel to worker closed!");
+    }
+
+    fn send_task(&self, message: SceneTask) {
+        smol::block_on(async {
+            self.task_s.send(message)
+                .await.expect("Send channel to worker closed!");
+        });
     }
 
     pub fn add_dag_object(&self, mat: Mat4, model: Volume) -> WorkerRespose<SceneObjectKey> {
@@ -197,12 +228,12 @@ impl SceneWorkerSend {
             model,
         });
 
-        self.send(SceneTask::AddDAGObject(message));
+        self.send_task(SceneTask::AddDAGObject(message));
         res
     }
 
     pub fn remove_object(&self, object: SceneObjectKey) {
-        self.send(SceneTask::RemoveObject(object));
+        self.send_task(SceneTask::RemoveObject(object));
     }
 }
 
@@ -212,6 +243,7 @@ impl fmt::Debug for SceneTask {
             Self::AddDAGObject(arg0) => f.debug_tuple("AddDAGObject").finish(),
             Self::RemoveObject(arg0) => f.debug_tuple("RemoveObject").finish(),
             Self::FreeStagingBuffer(arg0) => f.debug_tuple("FreeStagingBuffer").finish(),
+            Self::CameraPosition(arg0) => f.debug_tuple("CameraPosition").finish(),
         }
     }
 }

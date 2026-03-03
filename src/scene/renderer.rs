@@ -1,7 +1,7 @@
 use std::mem;
 
-use octa_force::{OctaResult, camera::Camera, egui, engine::Engine, glam::UVec2, log::info, vulkan::{Buffer, CommandBuffer, CommandPool, Context, Fence, Swapchain, ash::vk::{self, AttachmentLoadOp}, gpu_allocator::MemoryLocation}};
-use crate::{scene::{staging_copies::SceneStaging, worker::SceneWorkerRef}, util::math::to_mb, voxel::{palette::shared::SharedPalette, renderer::{RayManagerData, VoxelRenderer}}};
+use octa_force::{OctaResult, camera::Camera, egui, engine::Engine, glam::{UVec2, Vec3}, log::info, vulkan::{Buffer, CommandBuffer, CommandPool, Context, Fence, Swapchain, ash::vk::{self, AttachmentLoadOp}, gpu_allocator::MemoryLocation}};
+use crate::{VOXELS_PER_METER, scene::{staging_copies::SceneStaging, worker::SceneWorkerRef}, util::math::to_mb, voxel::{palette::shared::SharedPalette, renderer::{RayManagerData, VoxelRenderer}}};
 
 use super::{worker::{SceneWorker}};
 
@@ -10,6 +10,7 @@ pub const NUM_SCENE_GPU_BUFFERS: usize = 2;
 #[derive(Debug)]
 pub struct SceneRenderer {
     pub worker_ref: SceneWorkerRef,
+    pub last_send_camera_position: Vec3,
     
     pub gpu_buffers: [Buffer; NUM_SCENE_GPU_BUFFERS],
     pub gpu_buffers_addresses: [u64; NUM_SCENE_GPU_BUFFERS],
@@ -57,7 +58,7 @@ impl SceneRenderer {
         allways_fullscreen: bool,
     ) -> OctaResult<SceneRenderer> {
 
-        let gpu_buffer_size = 2_usize.pow(25);
+        let gpu_buffer_size = 2_usize.pow(27);
         info!("Scene Buffer size: {:.04} MB", to_mb(gpu_buffer_size));
   
         let flags = vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS_KHR | vk::BufferUsageFlags::TRANSFER_DST;
@@ -99,6 +100,7 @@ impl SceneRenderer {
         };
 
         let worker_ref = worker.run();
+        worker_ref.send.camera_position(camera.get_position_in_meters());
 
         let staging_fence = engine.context.create_fence(None)?;
         let staging_command_pool = engine.context.create_command_pool(
@@ -111,6 +113,7 @@ impl SceneRenderer {
 
         Ok(SceneRenderer {
             worker_ref,
+            last_send_camera_position: camera.get_position_in_meters(), 
 
             gpu_buffers,
             gpu_buffers_addresses,
@@ -198,6 +201,12 @@ impl SceneRenderer {
                     self.staging_state = StagingState::Inactive; 
                 }
             },
+        }
+
+        let new_cam_pos = camera.get_position_in_meters(); 
+        if (self.last_send_camera_position.distance(new_cam_pos) * VOXELS_PER_METER as f32) > 30.0 {
+            self.worker_ref.send.camera_position(new_cam_pos);
+            self.last_send_camera_position = new_cam_pos;
         }
         
         Ok(())

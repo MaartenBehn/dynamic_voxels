@@ -20,7 +20,7 @@ impl LODHeuristicT for LODHeuristicNone {
     fn set_center(&mut self, center: IVec3) {}
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy)]
 pub struct LinearLODHeuristicSphere {
     pub center: IVec3,
     pub level_size: i32,
@@ -36,6 +36,12 @@ impl LODHeuristicT for LinearLODHeuristicSphere {
 
     fn set_center(&mut self, center: IVec3) {
         self.center = center;
+    }
+}
+
+impl Default for LinearLODHeuristicSphere {
+    fn default() -> Self {
+        Self { center: Default::default(), level_size: 20 }
     }
 }
 
@@ -61,7 +67,7 @@ impl LODHeuristicT for PowHeuristicSphere {
 
 impl Default for PowHeuristicSphere {
     fn default() -> Self {
-        Self { center: Default::default(), render_dist: 5.0 }
+        Self { center: Default::default(), render_dist: 20.0 }
     }
 }
 
