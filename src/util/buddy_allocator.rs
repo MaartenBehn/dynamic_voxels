@@ -99,6 +99,10 @@ impl BuddyAllocator {
         // to search for block if available
         let n = calc_n(size).max(self.min_n) - self.min_n;
 
+        if n >= self.free_list.len() {
+            bail!("Requested to large allocation");
+        }
+
         let space = if !self.free_list[n].is_empty() {
             self.free_list[n].remove(0)
         } else {

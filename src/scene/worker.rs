@@ -5,11 +5,11 @@ use bvh::bvh::Bvh;
 use octa_force::{OctaResult, glam::Mat4, log::{debug, trace, warn}, vulkan::{Buffer, Context, ash::vk, gpu_allocator::MemoryLocation}};
 use parking_lot::Mutex;
 use slotmap::{SlotMap, new_key_type};
-use smol::future::FutureExt;
+use smol::{channel::Sender, future::FutureExt};
 
-use crate::{mesh::Mesh, scene::{dag_store::SceneDAGStore, dag64::SceneSetDAGEntry, object::{SceneObject, SceneObjectData}}, util::{buddy_allocator::{BuddyAllocator, ManualBuddyAllocation}, default_types::Volume, worker_response::{WithRespose, WorkerRespose}}, voxel::dag64::{DAG64Entry, VoxelDAG64, parallel::ParallelVoxelDAG64}};
+use crate::{mesh::Mesh, scene::{dag_store::SceneDAGStore, object::{SceneObject, SceneObjectData}, staging_copies::OptimalBufferCopyAlligment}, util::{buddy_allocator::{BuddyAllocator, ManualBuddyAllocation}, default_types::Volume, worker_response::{WithRespose, WorkerRespose}}, voxel::dag64::{DAG64Entry, VoxelDAG64, parallel::ParallelVoxelDAG64}};
 
-use super::{dag64::{SceneAddDAGObject}, dag_store::SceneDAGKey};
+use super::{dag64::{SceneAddDAGObject}, dag_store::SceneDAGKey, staging_copies::SceneStaging};
 
 new_key_type! { pub struct SceneObjectKey; }
 
@@ -17,10 +17,11 @@ const INITAL_STAGING_BUFFER_AMMOUNT: usize = 2;
 const INITAL_STAGING_BUFFER_SIZE: usize = 2;
 
 const SCENE_TASK_QUEUE_SIZE: usize = 10;
-const SCENE_RENDER_QUEUE_SIZE: usize = 2;
+const SCENE_STAGING_QUEUE_SIZE: usize = 2;
 
 pub struct SceneWorker {
     pub staging_buffers: Vec<Buffer>,
+    pub optimal_alignment: OptimalBufferCopyAlligment,
 
     pub objects: SlotMap<SceneObjectKey, SceneObject>,
     
@@ -37,21 +38,18 @@ pub struct SceneWorker {
 pub struct SceneWorkerRef {
     pub task: smol::Task<SceneWorker>,
     pub send: SceneWorkerSend,
-    pub render_r: smol::channel::Receiver<SceneRenderTask>,
+    pub render_r: smol::channel::Receiver<SceneStaging>,
 }
 
 pub enum SceneTask {
     AddDAGObject(WithRespose<SceneAddDAGObject, SceneObjectKey>),
     RemoveObject(SceneObjectKey),
+    FreeStagingBuffer(Buffer),
 }
 
 #[derive(Clone, Debug)]
 pub struct SceneWorkerSend {
     s: smol::channel::Sender<SceneTask>,
-}
-
-pub struct SceneRenderTask {
-
 }
 
 impl SceneWorker {
@@ -60,9 +58,9 @@ impl SceneWorker {
         let mut staging_buffers = vec![];
         for _ in (0..INITAL_STAGING_BUFFER_AMMOUNT) {
             staging_buffers.push(context.create_buffer(
-                vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS_KHR,
+                vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::TRANSFER_SRC,
                 MemoryLocation::CpuToGpu,
-                INITAL_STAGING_BUFFER_SIZE as _)?);
+                buffer_size as _)?);
         }
 
         let mut allocator = BuddyAllocator::new(buffer_size, 32);
@@ -72,13 +70,16 @@ impl SceneWorker {
         let mut dag_store = SceneDAGStore::new();
 
         let mut dag = VoxelDAG64::new(
-            100000, 
+            1000000, 
             1000000, 
         ).parallel();
         dag_store.add_dag(dag, &mut allocator).expect("Failed to add DAG to Store");
 
+        let optimal_alignment = OptimalBufferCopyAlligment::new(context);
+
         Ok(SceneWorker {
             staging_buffers,
+            optimal_alignment,
 
             allocator,
             objects: Default::default(),
@@ -94,7 +95,7 @@ impl SceneWorker {
 
     pub(super) fn run(mut self) -> SceneWorkerRef {
         let (task_s, tasks_r) = smol::channel::bounded(SCENE_TASK_QUEUE_SIZE); 
-        let (render_s, render_r) = smol::channel::bounded(SCENE_RENDER_QUEUE_SIZE); 
+        let (render_s, render_r) = smol::channel::bounded(SCENE_STAGING_QUEUE_SIZE); 
 
         let task = smol::spawn(async move {
             loop {
@@ -103,6 +104,9 @@ impl SceneWorker {
                         debug!("Scene Worker Message: {m:?}");
 
                         match m {
+                            SceneTask::FreeStagingBuffer(buffer) => {
+                                self.staging_buffers.push(buffer);
+                            },
                             SceneTask::AddDAGObject(worker_message) => {
                                 let (data, awnser) = worker_message.unwarp();
 
@@ -110,13 +114,17 @@ impl SceneWorker {
                                     .expect("Failed to add DAG Object");
 
                                 awnser(key);
+
+                                self.update(&render_s).await.unwrap();
                             },
                             SceneTask::RemoveObject(key) => {
                                 let res = self.remove_object(key);
                                 if res.is_err() {
                                     warn!("Typed to removed Scene Object with invalid Key")
                                 }
-                            },                        
+
+                                self.update(&render_s).await.unwrap();
+                            },
                         }
                     },
 
@@ -131,8 +139,34 @@ impl SceneWorker {
         SceneWorkerRef {
             task,
             send: SceneWorkerSend { s: task_s },
-            render_r
+            render_r,
         }
+    }
+
+    async fn update(&mut self, render_s: &Sender<SceneStaging>) -> OctaResult<()> {
+        if !self.needs_bvh_update && !self.dag_store.needs_update {
+            return Ok(());
+        }
+
+        let mut builder = self.new_staging_builder();
+
+        if self.dag_store.needs_update {
+            self.dag_store.update(&mut builder); 
+        }
+
+        for object in self.objects.values_mut() {
+            if object.needs_update {
+                object.update(&self.dag_store, &mut builder);
+            }
+        }
+
+        if self.needs_bvh_update {
+            self.update_bvh(&mut builder)?;
+        }
+
+        render_s.send(builder.build()).await?;
+
+        Ok(())
     }
 }
 
@@ -153,11 +187,14 @@ impl SceneWorkerSend {
         });
     }
 
-    pub fn add_dag_object(&self, mat: Mat4, dag_key: SceneDAGKey, entry: DAG64Entry) -> WorkerRespose<SceneObjectKey> {
+    pub(super) fn free_staging_buffer(&self, buffer: Buffer) {
+        self.send(SceneTask::FreeStagingBuffer(buffer));
+    }
+
+    pub fn add_dag_object(&self, mat: Mat4, model: Volume) -> WorkerRespose<SceneObjectKey> {
         let (message, res) = WithRespose::new(SceneAddDAGObject {
             mat,
-            dag_key,
-            entry,
+            model,
         });
 
         self.send(SceneTask::AddDAGObject(message));
@@ -174,6 +211,7 @@ impl fmt::Debug for SceneTask {
         match self {
             Self::AddDAGObject(arg0) => f.debug_tuple("AddDAGObject").finish(),
             Self::RemoveObject(arg0) => f.debug_tuple("RemoveObject").finish(),
+            Self::FreeStagingBuffer(arg0) => f.debug_tuple("FreeStagingBuffer").finish(),
         }
     }
 }

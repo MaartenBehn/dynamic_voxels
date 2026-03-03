@@ -7,7 +7,7 @@ use rayon::{iter::empty, prelude::*};
 use octa_force::{anyhow::bail, itertools::Itertools, log::{debug, error}, vulkan::Buffer, OctaResult};
 use smallvec::{SmallVec, ToSmallVec};
 
-use crate::multi_data_buffer::cached_vec::CompactRange;
+use crate::{multi_data_buffer::cached_vec::CompactRange, scene::staging_copies::SceneStagingBuilder};
 
 use super::cached_vec::CachedVec;
 
@@ -170,9 +170,9 @@ impl<T: Copy + Default + fmt::Debug + Eq + std::hash::Hash, Hasher: std::hash::B
         inner_w.data[index..max].copy_from_slice(data);
     }
 
-    pub fn flush(&self, buffer: &Buffer, offset: usize) {
+    pub fn push_scene_builder(&self, builder: &mut SceneStagingBuilder, offset: usize) {
         let inner_r = self.inner.read();
-        buffer.copy_data_to_buffer_without_aligment(&inner_r.data, offset);
+        builder.push(&inner_r.data, offset);
     }
 
     pub fn get_memory_size(&self) -> usize {

@@ -214,8 +214,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         let mesh_scene = MeshScene::new(&engine.context, &engine.swapchain);
 
         let mut scene = SceneRenderer::new(
-            &engine.context, 
-            &engine.swapchain, 
+            engine, 
             &logic_state.camera,
             palette.clone(),
             false,
@@ -308,12 +307,9 @@ pub fn update(
         render_state.mesh_scene.update(&engine.context);
 
         render_state.scene.update(
+            engine,
             &logic_state.camera, 
-            &engine.context, 
-            render_state.composer.render_panel_size, 
-            engine.get_current_in_flight_frame_index(), 
-            engine.get_current_frame_index())?;
-
+            render_state.composer.render_panel_size)?;
     }
 
     Ok(())

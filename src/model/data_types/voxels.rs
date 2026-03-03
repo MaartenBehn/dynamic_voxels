@@ -60,25 +60,15 @@ impl VoxelCollapserData {
         state: &mut OutputState,
     ) { 
         self.on_delete(state);
-
-        /*
-        let now = Instant::now();
-        self.dag_key = state.dag.add_aabb_query_volume(&volume, &LODHeuristicNone::default())
-            .expect("Could not add DAG Entry!");
-
-        let elapsed = now.elapsed();
-        info!("Voxel DAG Build took: {:?}", elapsed);
-
+ 
         self.scene_key = state.scene.add_dag_object(
             Mat4::from_scale_rotation_translation(
                 Vec3::ONE,
                 Quat::IDENTITY,
                 Vec3::from(pos) / VOXELS_PER_SHADER_UNIT as f32
             ), 
-            state.scene_dag_key,
-            state.dag.get_entry(self.dag_key),
+            volume,
         ).result_async().await;
-        */
     } 
 }
 

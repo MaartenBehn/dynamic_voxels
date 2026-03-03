@@ -1,11 +1,11 @@
 
-use std::{rc::Rc, sync::Arc};
+use std::{rc::Rc, sync::Arc, time::Instant};
 
-use octa_force::{anyhow::anyhow, glam::{vec3, vec4, Mat4, Quat, Vec3, Vec3A, Vec3Swizzles, Vec4, Vec4Swizzles}, log::debug, vulkan::{ash::vk, gpu_allocator::MemoryLocation, Buffer, Context}, OctaResult};
+use octa_force::{OctaResult, anyhow::anyhow, glam::{Mat4, Quat, Vec3, Vec3A, Vec3Swizzles, Vec4, Vec4Swizzles, vec3, vec4}, log::{debug, info}, vulkan::{Buffer, Context, ash::vk, gpu_allocator::MemoryLocation}};
 use parking_lot::Mutex;
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{VOXELS_PER_METER, VOXELS_PER_SHADER_UNIT, csg::csg_tree::tree::CSGTree, scene::{object::SceneObjectType, worker::{SceneObjectKey, SceneWorker}}, util::{aabb::AABB3, buddy_allocator::ManualBuddyAllocation, default_types::Volume}, volume::VolumeQureyAABB, voxel::dag64::{DAG64Entry, DAG64EntryKey, VoxelDAG64, parallel::ParallelVoxelDAG64}};
+use crate::{VOXELS_PER_METER, VOXELS_PER_SHADER_UNIT, csg::csg_tree::tree::CSGTree, scene::{object::SceneObjectType, staging_copies::SceneStagingBuilder, worker::{SceneObjectKey, SceneWorker}}, util::{aabb::AABB3, buddy_allocator::ManualBuddyAllocation, default_types::Volume}, volume::VolumeQureyAABB, voxel::dag64::{DAG64Entry, DAG64EntryKey, VoxelDAG64, lod_heuristic::LODHeuristicNone, parallel::ParallelVoxelDAG64}};
 
 use super::{dag_store::{SceneDAG, SceneDAGKey, SceneDAGStore}};
 
@@ -30,14 +30,7 @@ pub struct SceneDAGObjectData {
 #[derive(Debug)]
 pub struct SceneAddDAGObject {
     pub mat: Mat4,
-    pub dag_key: SceneDAGKey,
-    pub entry: DAG64Entry,
-}
-
-#[derive(Debug)]
-pub struct SceneSetDAGEntry {
-    pub object: SceneObjectKey,
-    pub entry: DAG64Entry,
+    pub model: Volume,
 }
 
 impl SceneWorker {
@@ -45,36 +38,34 @@ impl SceneWorker {
         &mut self,
         add_dag_object: SceneAddDAGObject,
     ) -> OctaResult<SceneObjectKey> {
+        let dag_key = self.dag_store.active_dag();
+        let dag = self.dag_store.get_dag_mut(dag_key);
+
+        let now = Instant::now();
+        let entry_key = dag.add_aabb_query_volume(&add_dag_object.model, &LODHeuristicNone::default())
+            .expect("Could not add DAG Entry!");
+
+        let elapsed = now.elapsed();
+        info!("Voxel DAG Build took: {:?}", elapsed);
+
+        let entry = dag.get_entry(entry_key);
+
         let allocation = self.allocator.alloc(size_of::<SceneDAGObjectData>())?;
+
         let key = self.add_object(SceneObjectType::DAG64(SceneDAGObject {
             allocation,
             mat: add_dag_object.mat,
-            dag_key: add_dag_object.dag_key,
-            entry: add_dag_object.entry,
+            dag_key,
+            entry,
         }));
-        self.dag_store.mark_changed(add_dag_object.dag_key);
+        self.dag_store.mark_changed(dag_key);
 
         Ok(key)
     }
-
-    pub fn set_dag64_entry(&mut self, set: SceneSetDAGEntry) -> OctaResult<()> {
-        let object = self.objects.get_mut(set.object)
-            .ok_or_else(|| anyhow!("Invalid SceneObjectKey!"))?;
-
-        match &mut object.data {
-            SceneObjectType::DAG64(dag) => {
-                dag.entry = set.entry;
-                self.dag_store.mark_changed(dag.dag_key);
-            },
-        }
-        object.changed = true;
-
-        Ok(())
-    }
 }
 
-impl SceneDAGObject { 
-    pub fn push_to_buffer(&mut self, scene_buffer: &mut Buffer, dag_store: &SceneDAGStore) { 
+impl SceneDAGObject {
+    pub fn update(&self, dag_store: &SceneDAGStore, builder: &mut SceneStagingBuilder) {
         let dag = &dag_store.dags[self.dag_key];
 
         let size = self.entry.get_size() as f32;
@@ -96,7 +87,7 @@ impl SceneDAGObject {
             root_index: self.entry.root_index,
         };
 
-        scene_buffer.copy_data_to_buffer_without_aligment(&[data], self.allocation.start());
+        builder.push(&[data], self.allocation.start());
     }
 
     pub fn get_aabb(&self) -> AABB3 {

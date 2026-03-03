@@ -1,7 +1,6 @@
 extern crate reload as dynamic_voxels;
 
 use bvh::bvh::Bvh;
-use dynamic_voxels::multi_data_buffer::buddy_buffer_allocator::BuddyAllocator;
 use dynamic_voxels::record_ui_commands;
 use dynamic_voxels::volume::magica_voxel::MagicaVoxelModel;
 use dynamic_voxels::voxel::dag64::VoxelDAG64;
