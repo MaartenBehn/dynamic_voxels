@@ -60,7 +60,7 @@ pub const USE_PROFILE: bool = false;
 pub const NUM_FRAMES_IN_FLIGHT: usize = 2;
 
 pub const VOXELS_PER_METER: usize = 10;
-pub const METERS_PER_SHADER_UNIT: usize = 1000;
+pub const METERS_PER_SHADER_UNIT: usize = 1000000;
 pub const VOXELS_PER_SHADER_UNIT: usize = VOXELS_PER_METER * METERS_PER_SHADER_UNIT;
 
 #[unsafe(no_mangle)]
@@ -87,14 +87,10 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
     #[cfg(feature="voxel")]
     {
         camera.set_meter_per_unit(METERS_PER_SHADER_UNIT as f32);
-        camera.set_position_in_meters(Vec3::new(
-            1729.3622,
-            1915.3217,
-            1362.9427,
-        )); 
+        camera.set_position_in_meters(Vec3::new(228.99355, 269.8007, 114.694595)); 
         camera.direction = Vec3::new(-0.6110025, -0.7362994, -0.29075617).normalize();
         
-        camera.speed = 1000.0;
+        camera.speed = 500.0;
         camera.z_near = 0.001;
     }
 
@@ -275,6 +271,9 @@ pub fn record_ui_commands(
     logic_state: &mut LogicState,
     render_state: &mut RenderState,
 ) -> OctaResult<()> {
+    #[cfg(any(feature="voxel"))]
+    render_state.tree_renderer.render_ui(ctx);
+    
     #[cfg(any(feature="graph"))]
     render_state.scene.render_ui(ctx);
 

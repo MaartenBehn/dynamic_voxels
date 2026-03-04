@@ -91,21 +91,15 @@ impl SceneWorker {
 
 impl SceneDAGObject {
     pub fn update(&self, dag_store: &SceneDAGStore, builder: &mut SceneStagingBuilder) {
-        let dag = &dag_store.dags[self.dag_key];
 
-        let size = self.entry.get_size() as f32;
-        let scale = (VOXELS_PER_SHADER_UNIT as f32 / size); 
-        let mat = Mat4::from_scale_rotation_translation(
-            Vec3::splat(scale), 
-            Quat::IDENTITY,
-            Vec3::splat(1.0) - self.entry.offset.as_vec3() / size,
-        ).mul_mat4(&self.mat.inverse());
-
+        let mat = self.entry.calc_mat(self.mat);
         let inv_mat = mat.inverse();
 
+        let dag = &dag_store.dags[self.dag_key];
+        
         let data = SceneDAGObjectData {
-            mat: mat.transpose(),
-            inv_mat: inv_mat.transpose(),
+            mat,
+            inv_mat,
             
             node_alloc: dag.node_alloc.start() as u64,
             data_alloc: dag.data_alloc.start() as u64,

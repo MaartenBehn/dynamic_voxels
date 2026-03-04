@@ -1,21 +1,25 @@
 use std::time::Instant;
 
-use octa_force::{OctaResult, camera::Camera, engine::Engine, glam::{UVec2, Vec3A, vec3a}, log::info, vulkan::{Buffer, CommandBuffer, Context, Swapchain, ash::vk}};
+use octa_force::{OctaResult, camera::Camera, egui, engine::Engine, glam::{Mat4, UVec2, Vec3A, vec3a}, log::info, vulkan::{Buffer, CommandBuffer, Context, Swapchain, ash::vk}};
 
-use crate::{VOXELS_PER_METER, util::default_types::{LODType, Volume}, voxel::{dag64::{VoxelDAG64, lod_heuristic::LODHeuristicT}, palette::{Palette, palette::MATERIAL_ID_BASE, shared::SharedPalette}, renderer::{RayManagerData, VoxelRenderer}}};
+use crate::{VOXELS_PER_METER, util::default_types::{LODType, Volume}, voxel::{dag64::{DAG64Entry, VoxelDAG64, lod_heuristic::LODHeuristicT, parallel::ParallelVoxelDAG64}, palette::{Palette, palette::MATERIAL_ID_BASE, shared::SharedPalette}, renderer::{RayManagerData, VoxelRenderer}}};
 
 #[derive(Debug)]
 pub struct Tree64Renderer {
     csg: Volume,
-    dag: VoxelDAG64,
+    dag: ParallelVoxelDAG64,
     node_buffer: Buffer,
     data_buffer: Buffer,
     start_index: u32,
     voxel_renderer: VoxelRenderer,
+    mat: Mat4,
+    inv_mat: Mat4,
 }
 
 #[repr(C)]
 pub struct Tree64RendererData {
+    mat: Mat4,
+    inv_mat: Mat4,
     ray_manager: RayManagerData,
     tree: Tree64Data,
 }
@@ -30,7 +34,7 @@ pub struct Tree64Data {
 impl Tree64Renderer {
     pub fn new(engine: &Engine, camera: &Camera) -> OctaResult<Self> {
 
-        let factor = 3.0;
+        let factor = 20.0;
         let mut csg = Volume::new_sphere_float(Vec3A::ZERO, 
             100.0 * factor, MATERIAL_ID_BASE);
         csg.cut_with_sphere(vec3a(70.0 * factor, 0.0, 0.0), 70.0 * factor, MATERIAL_ID_BASE);
@@ -41,27 +45,30 @@ impl Tree64Renderer {
         let now = Instant::now();
 
         let mut dag = VoxelDAG64::new(
-            10000000, 
+            100000000, 
             64, 
-        );
-        let key = dag.add_pos_query_volume(&csg, &lod)?;
+        ).parallel();
+        let key = dag.add_aabb_query_volume(&csg, &lod)?;
 
         let elapsed = now.elapsed();
         info!("Tree Build took {:.2?}", elapsed);
 
         let entry = dag.get_entry(key);
 
-        dbg!(dag.nodes.data.len());
-        dbg!(dag.data.data.len());
+        let mat = entry.calc_mat(Mat4::IDENTITY);
+        let inv_mat = mat.inverse();
+
+        dbg!(dag.nodes.data().len());
+        dbg!(dag.data.data().len());
 
         
         let node_buffer = engine.context.create_gpu_only_buffer_from_data(
             vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS_KHR, 
-            &dag.nodes.data)?;
+            &dag.nodes.data())?;
 
         let data_buffer = engine.context.create_gpu_only_buffer_from_data(
             vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS_KHR, 
-            &dag.data.data)?;
+            &dag.data.data())?;
 
         let palette = SharedPalette::new();
 
@@ -83,7 +90,9 @@ impl Tree64Renderer {
             node_buffer,
             data_buffer,
             start_index: entry.root_index,
-            voxel_renderer
+            voxel_renderer,
+            mat, 
+            inv_mat,
         })
     }
 
@@ -105,21 +114,24 @@ impl Tree64Renderer {
 
             let now = Instant::now();
 
-            let key = self.dag.add_pos_query_volume(&self.csg, &lod)?;
+            let key = self.dag.add_aabb_query_volume(&self.csg, &lod)?;
 
             let elapsed = now.elapsed();
             info!("Tree Build took {:.2?}", elapsed);
 
             let entry = self.dag.get_entry(key);
+            
             self.start_index = entry.root_index;
+            self.mat = entry.calc_mat(Mat4::IDENTITY);
+            self.inv_mat = self.mat.inverse();
 
             self.node_buffer = engine.context.create_gpu_only_buffer_from_data(
                 vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS_KHR, 
-                &self.dag.nodes.data)?;
+                &self.dag.nodes.data())?;
 
             self.data_buffer = engine.context.create_gpu_only_buffer_from_data(
                 vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS_KHR, 
-                &self.dag.data.data)?;
+                &self.dag.data.data())?;
         }
 
         Ok(())
@@ -132,6 +144,8 @@ impl Tree64Renderer {
         camera: &Camera,
     ) -> OctaResult<()> {
         self.voxel_renderer.render(UVec2::ZERO, buffer, engine, Tree64RendererData {
+            mat: self.mat,
+            inv_mat: self.inv_mat,
             ray_manager: self.voxel_renderer.get_ray_manager_data(),
             tree: Tree64Data {
                 nodes_ptr: self.node_buffer.get_device_address(), 
@@ -143,6 +157,10 @@ impl Tree64Renderer {
         Ok(())
     }
 
+    pub fn render_ui(&mut self, ctx: &egui::Context) { 
+        self.voxel_renderer.render_ui(ctx);        
+    }
+
     pub fn on_size_changed(
         &mut self,
         engine: &Engine,
@@ -150,3 +168,5 @@ impl Tree64Renderer {
         self.voxel_renderer.on_size_changed(&engine.context, engine.get_resolution(), &engine.swapchain)
     }
 }
+
+

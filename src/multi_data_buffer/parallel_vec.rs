@@ -175,6 +175,12 @@ impl<T: Copy + Default + fmt::Debug + Eq + std::hash::Hash, Hasher: std::hash::B
         builder.push(&inner_r.data, offset);
     }
 
+    pub fn data(&self) -> Vec<T> {
+        let inner_r = self.inner.read();
+        inner_r.data.to_owned()
+    }
+
+
     pub fn get_memory_size(&self) -> usize {
         let inner_r = self.inner.read();
         inner_r.data.len() * size_of::<T>()

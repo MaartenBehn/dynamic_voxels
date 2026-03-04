@@ -11,10 +11,10 @@ pub mod util;
 pub mod lod_heuristic;
 
 use node::VoxelDAG64Node;
-use octa_force::{OctaResult, glam::{IVec3, Vec3, Vec3A}, log::{debug, info}};
+use octa_force::{OctaResult, glam::{IVec3, Mat4, Quat, Vec3, Vec3A}, log::{debug, info}};
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{multi_data_buffer::cached_vec::CachedVec, util::{math::to_mb, number::Nu, vector::Ve}, volume::{VolumeQureyAABB, VolumeQureyPosValue}, voxel::dag64::lod_heuristic::{LODHeuristicNone, LODHeuristicT}};
+use crate::{VOXELS_PER_SHADER_UNIT, multi_data_buffer::cached_vec::CachedVec, util::{math::to_mb, number::Nu, vector::Ve}, volume::{VolumeQureyAABB, VolumeQureyPosValue}, voxel::dag64::lod_heuristic::{LODHeuristicNone, LODHeuristicT}};
 
 new_key_type! { pub struct DAG64EntryKey; }
 
@@ -66,6 +66,21 @@ impl VoxelDAG64 {
 impl DAG64Entry { 
     pub fn get_size(&self) -> u32 {
         4_u32.pow(self.levels as u32)
+    }
+
+    pub fn calc_mat(&self, mat: Mat4) -> Mat4 {
+
+        let size = self.get_size() as f32;
+        let scale = (VOXELS_PER_SHADER_UNIT as f32 / size);
+
+        let mat = Mat4::from_scale_rotation_translation(
+            Vec3::splat(scale), 
+            Quat::IDENTITY,
+            Vec3::splat(1.0) - self.offset.as_vec3() / size,
+        ).mul_mat4(&mat.inverse())
+            .transpose();
+
+        mat
     }
 }
 
