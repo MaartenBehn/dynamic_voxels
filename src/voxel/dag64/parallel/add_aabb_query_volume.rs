@@ -107,7 +107,7 @@ impl ParallelVoxelDAG64 {
         offset: IVec3,
         node_level: u8,
     ) -> OctaResult<VoxelDAG64Node> {
-        if node_level == lod.lod_level(offset) {
+        if node_level <= lod.lod_level(offset) {
             self.add_aabb_query_leaf(model, offset, node_level)
         } else {
             let scale = 4_i32.pow(node_level as u32);

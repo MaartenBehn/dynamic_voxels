@@ -58,7 +58,7 @@ impl SceneRenderer {
         allways_fullscreen: bool,
     ) -> OctaResult<SceneRenderer> {
 
-        let gpu_buffer_size = 2_usize.pow(27);
+        let gpu_buffer_size = 2_usize.pow(29);
         info!("Scene Buffer size: {:.04} MB", to_mb(gpu_buffer_size));
   
         let flags = vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS_KHR | vk::BufferUsageFlags::TRANSFER_DST;
@@ -204,7 +204,7 @@ impl SceneRenderer {
         }
 
         let new_cam_pos = camera.get_position_in_meters(); 
-        if (self.last_send_camera_position.distance(new_cam_pos) * VOXELS_PER_METER as f32) > 30.0 {
+        if (self.last_send_camera_position.distance(new_cam_pos) * VOXELS_PER_METER as f32) > 100.0 {
             self.worker_ref.send.camera_position(new_cam_pos);
             self.last_send_camera_position = new_cam_pos;
         }

@@ -78,7 +78,7 @@ impl SceneWorker {
                     let elapsed = now.elapsed();
                     info!("Voxel DAG Build took: {:?}", elapsed);
 
-                    let entry = dag.get_entry(entry_key);
+                    scene_dagobject.entry = dag.get_entry(entry_key); 
                     self.dag_store.mark_changed(scene_dagobject.dag_key);
 
                     dag_object.needs_update = true;
