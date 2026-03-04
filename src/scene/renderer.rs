@@ -37,9 +37,9 @@ enum StagingState {
 
 #[repr(C)]
 pub struct SceneDispatchParams {
-    ray_manager: RayManagerData,
-    scene: SceneData,
-    debug: bool,
+    pub ray_manager: RayManagerData,
+    pub scene: SceneData,
+    pub debug: bool,
 }
 
 #[derive(Clone, Copy, Debug)]

@@ -54,11 +54,11 @@ impl VoxelDAG64 {
         );
     }
 
-    fn get_entry(&self, key: DAG64EntryKey) -> DAG64Entry {
+    pub fn get_entry(&self, key: DAG64EntryKey) -> DAG64Entry {
         self.entry_points[key].to_owned()
     }
 
-    fn remove_entry(&mut self, key: DAG64EntryKey) {
+    pub fn remove_entry(&mut self, key: DAG64EntryKey) {
         self.entry_points.remove(key);
     }
 }

@@ -1,6 +1,7 @@
 pub mod render_data;
 pub mod g_buffer;
 pub mod shader_stage;
+pub mod tree64_render;
 
 use std::mem;
 use std::time::Duration;

@@ -38,8 +38,8 @@ name = "bvh_build"
 harness = false
 
 [features]
-scene = []
 graph = []
+voxel = []
 
 [dependencies]
 

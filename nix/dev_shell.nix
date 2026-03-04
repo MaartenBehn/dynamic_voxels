@@ -8,6 +8,8 @@
       '';  
 
       packages = with pkgs; [
+        just
+
         cmake
 
         # For performance profile

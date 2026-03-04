@@ -41,7 +41,7 @@ impl LODHeuristicT for LinearLODHeuristicSphere {
 
 impl Default for LinearLODHeuristicSphere {
     fn default() -> Self {
-        Self { center: Default::default(), level_size: 20 }
+        Self { center: Default::default(), level_size: 200 }
     }
 }
 
@@ -55,8 +55,11 @@ impl LODHeuristicT for PowHeuristicSphere {
     fn lod_level(&self, pos: IVec3) -> u8 {
         let delta = pos - self.center.yxz();
 
+        //dbg!(delta.length());
         //let level = delta.abs().max_element() / self.level_size;
         let level = ((delta.length() as f32).powf(0.5) / self.render_dist) as u8;
+        //dbg!(level);
+
         return level.max(1);
     }
 
@@ -67,7 +70,7 @@ impl LODHeuristicT for PowHeuristicSphere {
 
 impl Default for PowHeuristicSphere {
     fn default() -> Self {
-        Self { center: Default::default(), render_dist: 20.0 }
+        Self { center: Default::default(), render_dist: 100.0 }
     }
 }
 

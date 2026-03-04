@@ -47,10 +47,14 @@ use std::{default, env};
 
 #[cfg(any(feature="graph"))]
 use crate::mesh::scene::MeshScene;
-#[cfg(any(feature="scene"))]
-use crate::scene::dag_store::{LODType, SceneDAGKey};
-#[cfg(any(feature="scene"))]
+#[cfg(any(feature="voxel"))]
 use crate::voxel::dag64::parallel::ParallelVoxelDAG64;
+#[cfg(any(feature="voxel"))]
+use crate::voxel::renderer::VoxelRenderer;
+#[cfg(any(feature="voxel"))]
+use crate::voxel::renderer::tree64_render::Tree64Renderer;
+#[cfg(any(feature="graph"))]
+use crate::voxel::renderer::tree64_render::Tree64Renderer;
 
 pub const USE_PROFILE: bool = false;
 pub const NUM_FRAMES_IN_FLIGHT: usize = 2;
@@ -80,13 +84,17 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
     log::info!("Creating Camera");
     let mut camera = Camera::default();
  
-    #[cfg(feature="scene")]
+    #[cfg(feature="voxel")]
     {
         camera.set_meter_per_unit(METERS_PER_SHADER_UNIT as f32);
-        camera.set_position_in_meters(Vec3::new(30.0, 30.0, 20.0)); 
+        camera.set_position_in_meters(Vec3::new(
+            1729.3622,
+            1915.3217,
+            1362.9427,
+        )); 
         camera.direction = Vec3::new(-0.6110025, -0.7362994, -0.29075617).normalize();
         
-        camera.speed = 10.0;
+        camera.speed = 1000.0;
         camera.z_near = 0.001;
     }
 
@@ -111,21 +119,12 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
 
 
 #[derive(Debug)]
-pub struct RenderState {
-    #[cfg(any(feature="scene", feature="graph"))]
+pub struct RenderState {    
+    #[cfg(any(feature="voxel"))]
+    pub tree_renderer: Tree64Renderer,
+    
+    #[cfg(any(feature="graph"))]
     pub scene: SceneRenderer,
-    
-    #[cfg(any(feature="scene"))]
-    pub dag: ParallelVoxelDAG64<LODType>,
-    
-    #[cfg(any(feature="scene"))]
-    pub csg: CSGTree<u8, IVec3, i32, 3>, 
-
-    #[cfg(any(feature="scene"))]
-    pub dag_key: SceneDAGKey,
-    
-    #[cfg(any(feature="scene"))]
-    pub object_key: SceneObjectKey,
     
     #[cfg(any(feature="graph"))]
     pub composer: ModelComposer, 
@@ -139,70 +138,12 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     #[cfg(debug_assertions)]
     puffin::profile_function!();
        
-    #[cfg(feature="scene")]
+    #[cfg(feature="voxel")]
     {
-        use octa_force::glam::ivec3;
-
-        use crate::{util::vector::Ve, voxel::{dag64::lod_heuristic::{LODHeuristicNone, LinearLODHeuristicSphere, PowHeuristicSphere}, palette::palette::MATERIAL_ID_BASE}};
-
-        let scene = SceneWorker::new(&engine.context)?.run_worker(engine.context.clone(), 10);
-
-        let palette = SharedPalette::new();
-        let renderer = SceneRenderer::new(
-            &engine.context, 
-            &engine.swapchain, 
-            &logic_state.camera,
-            scene.render_data.clone(),
-            palette.clone(),
-            true,
-        )?;
-
-        let factor = 3.0;
-        let mut csg = CSGTree::<u8, IVec3, i32, 3>::new_sphere_float(Vec3A::ZERO, 
-            100.0 * factor, MATERIAL_ID_BASE);
-        csg.cut_with_sphere(vec3a(70.0 * factor, 0.0, 0.0), 70.0 * factor, MATERIAL_ID_BASE);
-        
-        let now = Instant::now();
-
-        let mut dag = VoxelDAG64::new(
-            1000000, 
-            64, 
-            PowHeuristicSphere {
-                center: (logic_state.camera.get_position_in_meters() * VOXELS_PER_METER as f32).as_ivec3(),
-                render_dist: 15.0,
-            }
-        );
-        let mut dag = dag.parallel();
-        let key = dag.add_pos_query_volume(&csg)?;
-
-        /*
-        csg.cut_with_sphere(vec3a(70.0, 0.0, 0.0), 70.0, MATERIAL_ID_BASE);
-        csg.calculate_bounds();
-
-        let key = dag.update_pos_query_volume(&csg, key)?;
-        */        
-
-        let elapsed = now.elapsed();
-        info!("Tree Build took {:.2?}", elapsed);
-
-        let dag_key = scene.send.add_dag(dag.clone()).result_blocking();
-        let object_key = scene.send.add_dag_object(
-            Mat4::from_scale_rotation_translation(
-                Vec3::ONE,
-                Quat::IDENTITY,
-                vec3(0.0, 0.0, 0.0)
-            ),
-            dag_key,
-            dag.get_entry(key),
-        ).result_blocking();
-        
+        let tree_renderer = Tree64Renderer::new(engine, &logic_state.camera)?;
+         
         Ok(RenderState {
-            csg,
-            scene,
-            renderer,
-            dag,
-            dag_key,
-            object_key
+            tree_renderer,
         })
     }
 
@@ -234,7 +175,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         })
     }
 
-    #[cfg(not(any(feature="scene", feature="graph")))]
+    #[cfg(not(any(feature="voxel", feature="graph")))]
     {
         Ok(RenderState { })
     }
@@ -255,34 +196,11 @@ pub fn update(
     logic_state.camera.update(&engine.controls, delta_time);
     //info!("Camera Pos: {} Dir: {}", logic_state.camera.get_position_in_meters(), logic_state.camera.direction);
     
-    #[cfg(any(feature="scene"))]
-    if engine.controls.f2 {
-        use crate::voxel::dag64::lod_heuristic::{LinearLODHeuristicSphere, PowHeuristicSphere};
-
-        render_state.scene.send.remove_object(render_state.object_key);
-        
-        render_state.dag.lod.center = (logic_state.camera.get_position_in_meters() * VOXELS_PER_METER as f32).as_ivec3();
-
-        let key = render_state.dag.add_pos_query_volume(&render_state.csg)?;
-        render_state.object_key = render_state.scene.send.add_dag_object(
-            Mat4::from_scale_rotation_translation(
-                Vec3::ONE,
-                Quat::IDENTITY,
-                vec3(0.0, 0.0, 0.0)
-            ),
-            render_state.dag_key,
-            render_state.dag.get_entry(key),
-        ).result_blocking();
+    #[cfg(any(feature="voxel"))]
+    {
+        render_state.tree_renderer.update(engine, &logic_state.camera)?;
     }
-
-    #[cfg(any(feature="scene"))]
-    render_state.renderer.update(
-        &logic_state.camera, 
-        &engine.context, 
-        engine.get_resolution(), 
-        engine.get_current_in_flight_frame_index(), 
-        engine.get_current_frame_index())?;
-
+    
     
     #[cfg(feature="graph")]
     {
@@ -326,26 +244,28 @@ pub fn record_render_commands(
 
     let command_buffer = engine.get_current_command_buffer();
     
-    #[cfg(any(feature="scene"))]
-    render_state.renderer.render(UVec2::ZERO, command_buffer, &engine, &logic_state.camera)?;
+    #[cfg(any(feature="voxel"))]
+    {
+        render_state.tree_renderer.render(command_buffer, engine, &logic_state.camera)?;
+
+        command_buffer.swapchain_image_render_barrier(&engine.get_current_swapchain_image_and_view().image)?;
+    }
 
     #[cfg(any(feature="graph"))]
-    render_state.scene.render(UVec2::ZERO, command_buffer, &engine, &logic_state.camera)?;
-    
-    #[cfg(any(feature="graph"))]
-    render_state.mesh_scene.render(
-        command_buffer, 
-        &logic_state.camera,
-        engine, 
-        render_state.composer.render_panel_size.as_vec2(),
-        &render_state.scene.voxel_renderer.palette_buffer,
-    );
-    // TODO: Move Palette Code
+    {
+        render_state.scene.render(UVec2::ZERO, command_buffer, &engine, &logic_state.camera)?;
 
+        render_state.mesh_scene.render(
+            command_buffer, 
+            &logic_state.camera,
+            engine, 
+            render_state.composer.render_panel_size.as_vec2(),
+            &render_state.scene.voxel_renderer.palette_buffer,
+        );
 
-    #[cfg(not(any(feature="scene", feature="graph")))]
-    command_buffer.swapchain_image_render_barrier(&engine.get_current_swapchain_image_and_view().image)?;
-
+        command_buffer.swapchain_image_render_barrier(&engine.get_current_swapchain_image_and_view().image)?;
+    }
+   
     Ok(())
 }
 
@@ -355,7 +275,7 @@ pub fn record_ui_commands(
     logic_state: &mut LogicState,
     render_state: &mut RenderState,
 ) -> OctaResult<()> {
-    #[cfg(any(feature="scene", feature="graph"))]
+    #[cfg(any(feature="graph"))]
     render_state.scene.render_ui(ctx);
 
     #[cfg(any(feature="graph"))]
@@ -383,14 +303,8 @@ pub fn on_recreate_swapchain(
 ) -> OctaResult<()> {
     logic_state.camera.set_screen_size(engine.swapchain.size.as_vec2());
 
-    #[cfg(any(feature="scene"))]
-    render_state
-        .renderer
-            .on_size_changed(
-                engine.swapchain.size,
-                &engine.context,
-                &engine.swapchain,
-            )?;
+    #[cfg(any(feature="voxel"))]
+    render_state.tree_renderer.on_size_changed(engine)?;
 
 
     trace!("On recreate swapchain done");
