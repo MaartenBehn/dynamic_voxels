@@ -1,5 +1,5 @@
 { mkEnv, ... }: {
-  mkShell = cross@{ pkgs, ... }:  
+  mkShell = cross@{ pkgs, pkgs_2505, ... }:  
     pkgs.mkShell ((mkEnv cross) // {
       name = "dynamic_voxels";
 
@@ -13,7 +13,8 @@
         cmake
 
         # For performance profile
-        perf
+        # perf --call-graph dwarf is buggy on 2511
+        pkgs_2505.linuxPackages_latest.perf
         hotspot
 
         # For dependency graph

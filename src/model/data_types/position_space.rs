@@ -6,7 +6,7 @@ use octa_force::{anyhow::bail, glam::{Mat4, Vec3, Vec3A}, OctaResult};
 use slotmap::{new_key_type, SecondaryMap, SlotMap};
 use smallvec::SmallVec;
 
-use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::Collapser, template_changed::MatchValueData}, composer::{ModelComposer, graph::ComposerGraph, make_template::MakeTemplateData, nodes::ComposeNode}, data_types::data_type::{ComposeDataType, ComposeNodeType, TemplateValue}, template::Template}, util::{aabb::AABB, default_types::T, iter_merger::IM3, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
+use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::GetValueData, collapser::{Collapser, Sequences}, template_changed::MatchValueData}, composer::{ModelComposer, graph::ComposerGraph, make_template::MakeTemplateData, nodes::ComposeNode}, data_types::data_type::{ComposeDataType, ComposeNodeType, TemplateValue}, template::Template}, util::{aabb::AABB, default_types::T, iter_merger::IM3, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
 
 use super::{number::{NumberValue, ValueIndexNumber}, position::{PositionValue, ValueIndexPosition}, volume::{ValueIndexVolume, VolumeValue}};
 
@@ -155,6 +155,7 @@ impl PositionSpaceValue {
     pub fn get_value<V: Ve<T, D>, const D: usize>(
         &self,
         get_value_data: GetValueData,
+        seq: &mut Sequences,
         collapser: &Collapser,
     ) -> (Vec<V>, bool) {
         match &self {
@@ -193,8 +194,7 @@ impl PositionSpaceValue {
                     let samples = samples.to_usize();
                     let tries = samples * LEAF_SPREAD_MAX_SAMPLES_MULTIPLYER;
 
-                    let seed = fastrand::u64(0..=u64::MAX);
-                    let mut seq = quasi_rd::Sequence::new_with_offset(D, seed);
+                    let seq = if D == 2 { &mut seq.seq_2d } else { &mut seq.seq_3d };
                     let mut fi = iter::from_fn(move || Some(seq.next_f32()));
 
                     let pos_iter = iter::from_fn(move || {

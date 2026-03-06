@@ -1,4 +1,4 @@
-{ lib, targets_configs, nixpkgs, crane, fenix, ... }:
+{ lib, targets_configs, nixpkgs, nixpkgs_2505, crane, fenix, ... }:
 let
   # eachSystem [system] (system: ...)
   #
@@ -39,8 +39,20 @@ let
       crossSystem.config = targets_configs.${targetSystem}.crossSystemConfig;
     }));
 
+  mkPkgs_2505 = buildSystem: targetSystem: import nixpkgs_2505 ({
+    system = buildSystem;
+  } // (if targetSystem == null then {} else {
+      # The nixpkgs cache doesn't have any packages where cross-compiling has
+      # been enabled, even if the target platform is actually the same as the
+      # build platform (and therefore it's not really cross-compiling). So we
+      # only set up the cross-compiling config if the target platform is
+      # different.
+      crossSystem.config = targets_configs.${targetSystem}.crossSystemConfig;
+    }));
+
   mkConfig = buildSystem: { 
     pkgs = mkPkgs buildSystem null; 
+    pkgs_2505 = mkPkgs_2505 buildSystem null; 
     rustTarget = targets_configs.${buildSystem}.rustTarget;
   };
 

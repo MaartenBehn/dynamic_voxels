@@ -21,6 +21,8 @@ pub struct Collapser {
     pub template: Template,
     pub external_input: ExternalInput,
     pub state: OutputState,
+
+    pub seq: Option<Sequences>,
 }
 
 #[derive(Debug, Clone)]
@@ -32,6 +34,12 @@ pub struct CollapseNode {
     pub child_key: CollapseChildKey,
     pub data: CollapseValue,
     pub next_reset: CollapseNodeKey,
+}
+
+#[derive(Debug, Clone)]
+pub struct Sequences {
+    pub seq_2d: quasi_rd::Sequence,
+    pub seq_3d: quasi_rd::Sequence,
 }
 
 #[enum_dispatch]
@@ -66,13 +74,19 @@ impl Collapser {
 ) -> Self {
         let inital_capacity = 1000;
 
+        let seq = Sequences {
+            seq_2d: quasi_rd::Sequence::new_with_offset(2, fastrand::u64(0..=u64::MAX)),
+            seq_3d: quasi_rd::Sequence::new_with_offset(3, fastrand::u64(0..=u64::MAX)),
+        };
+
         let mut collapser = Self {
             nodes: SlotMap::with_capacity_and_key(inital_capacity),
             pending: PendingOperations::new(template.max_level),
             nodes_per_template_index: vec![SmallVec::new(); template.nodes.len()],
             template,
             external_input,
-            state
+            state,
+            seq: Some(seq),
         };
 
         collapser.add_node(
@@ -120,6 +134,7 @@ impl Collapser {
             depends_loop: &template_node.depends_loop,
             external_input: self.external_input,
         }; 
+        let mut seq = self.seq.take().unwrap();
 
         let needs_recompute = match value {
             TemplateValue::None => false,
@@ -139,7 +154,7 @@ impl Collapser {
                 r
             },
             TemplateValue::PositionSet2D(position_set_template) => {
-                let (new_positions, r) = position_set_template.get_value(get_value_data, &self);
+                let (new_positions, r) = position_set_template.get_value(get_value_data, &mut seq,&self);
 
                 let data = match &mut self.nodes[node_index].data {
                     CollapseValue::PositionSet2D(space) => space,
@@ -150,7 +165,7 @@ impl Collapser {
                 r
             },
             TemplateValue::PositionSet3D(position_set_template) => {
-                let (new_positions, r) = position_set_template.get_value(get_value_data, &self);
+                let (new_positions, r) = position_set_template.get_value(get_value_data, &mut seq, &self);
 
                 let data = match &mut self.nodes[node_index].data {
                     CollapseValue::PositionSet3D(space) => space,
@@ -161,7 +176,7 @@ impl Collapser {
                 r
             },
             TemplateValue::PositionPairSet2D(position_set_template) => {
-                let (new_positions, r) = position_set_template.get_value(get_value_data, &self);
+                let (new_positions, r) = position_set_template.get_value(get_value_data, &mut seq, &self);
 
                 let data = match &mut self.nodes[node_index].data {
                     CollapseValue::PositionPairSet2D(space) => space,
@@ -172,7 +187,7 @@ impl Collapser {
                 r
             },
             TemplateValue::PositionPairSet3D(position_set_template) => {
-                let (new_positions, r) = position_set_template.get_value(get_value_data, &self);
+                let (new_positions, r) = position_set_template.get_value(get_value_data, &mut seq, &self);
 
                 let data = match &mut self.nodes[node_index].data {
                     CollapseValue::PositionPairSet3D(space) => space,
@@ -223,7 +238,9 @@ impl Collapser {
                 false
             },
             _ => unreachable!(),
-        };   
+        };  
+
+        self.seq = Some(seq);
 
         if needs_recompute {
             self.pending.push_later_collpase(template_node.level, node_index);

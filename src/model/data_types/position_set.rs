@@ -6,7 +6,7 @@ use octa_force::glam::{ivec2, IVec2, IVec3, Vec2, Vec3A};
 use slotmap::SlotMap;
 use smallvec::SmallVec;
 
-use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::{GetNewChildrenData, GetValueData}, collapser::{CollapseChildKey, CollapseNodeKey, CollapseValueT, Collapser}, template_changed::MatchValueData}, composer::{ModelComposer, nodes::ComposeNode, output_state::OutputState}, template::{self, Template, TemplateIndex}}, util::{default_types::T, iter_merger::IM2, math_config::MC, number::Nu, vector::Ve}};
+use crate::{csg::csg_tree::tree::CSGTree, model::{collapse::{add_nodes::{GetNewChildrenData, GetValueData}, collapser::{CollapseChildKey, CollapseNodeKey, CollapseValueT, Collapser, Sequences}, template_changed::MatchValueData}, composer::{ModelComposer, nodes::ComposeNode, output_state::OutputState}, template::{self, Template, TemplateIndex}}, util::{default_types::T, iter_merger::IM2, math_config::MC, number::Nu, vector::Ve}};
 
 use crate::util::vector;
 use crate::util::math_config;
@@ -40,12 +40,13 @@ impl PositionSetValue {
     pub fn get_value<V: Ve<T, D>, const D: usize>(
         &self, 
         get_value_data: GetValueData,
+        seq: &mut Sequences,
         collapser: &Collapser,
     ) -> (Vec<V>, bool) {
         match self {
             PositionSetValue::All(space) => {
                 collapser.template.get_position_space_value(*space)
-                    .get_value(get_value_data, collapser)
+                    .get_value(get_value_data, seq, collapser)
             },
         }
     }

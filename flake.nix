@@ -6,9 +6,10 @@
     fenix.url = "github:nix-community/fenix";
     crane.url = "github:ipetkov/crane";
     nixpkgs.url = "github:nixos/nixpkgs/release-25.11";
+    nixpkgs_2505.url = "github:nixos/nixpkgs/release-25.05";
   };
 
-  outputs = { self, nixpkgs, crane, fenix }@c:
+  outputs = { self, nixpkgs, crane, fenix, nixpkgs_2505 }@c:
     let  
       config = builtins.foldl' 
         (c: a: c // (import a c) )    # extend config with configs from paths
