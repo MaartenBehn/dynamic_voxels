@@ -1,29 +1,17 @@
 pub mod static_dag64_buffer;
 
-use std::mem;
-use std::time::Duration;
-
 use octa_force::anyhow::Result;
 use octa_force::camera::Camera;
-use octa_force::egui::{Align, Frame, Layout};
 use octa_force::engine::Engine;
-use octa_force::glam::{uvec3, UVec2, Vec2, Vec3};
-use octa_force::image::{GenericImageView, ImageReader};
-use octa_force::log::info;
-use octa_force::puffin_egui::puffin;
-use octa_force::vulkan::ash::vk::{self, BufferDeviceAddressInfo, Format, PushConstantRange, ShaderStageFlags};
-use octa_force::vulkan::descriptor_heap::{DescriptorHandleValue, ImageDescriptorHeap};
-use octa_force::vulkan::gpu_allocator::MemoryLocation;
-use octa_force::vulkan::sampler_pool::{SamplerPool, SamplerSetHandle};
+use octa_force::glam::UVec2;
 use octa_force::vulkan::{
-    Buffer, CommandBuffer, ComputePipeline, ComputePipelineCreateInfo, Context, DescriptorPool, DescriptorSet, DescriptorSetLayout, ImageAndView, PipelineLayout, Swapchain, WriteDescriptorSet, WriteDescriptorSetKind
+    CommandBuffer, Context, Swapchain
 };
-use octa_force::{egui, in_flight_frames, OctaResult};
+use octa_force::{egui, OctaResult};
 use static_dag64_buffer::{StaticDAG64Buffer, StaticDAG64Data};
 
 use crate::voxel::palette::shared::SharedPalette;
 use crate::voxel::renderer::{RayManagerData, VoxelRenderer};
-use crate::NUM_FRAMES_IN_FLIGHT;
 
 use super::StaticVoxelDAG64;
 

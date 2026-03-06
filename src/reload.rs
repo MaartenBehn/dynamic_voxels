@@ -19,22 +19,12 @@ use scene::renderer::SceneRenderer;
 use octa_force::camera::Camera;
 use octa_force::egui_winit::winit::event::WindowEvent;
 use octa_force::glam::{vec3, UVec2, Vec3};
-use octa_force::log::{debug, error, info, trace, LevelFilter, Log};
+use octa_force::log::{debug, info, trace, LevelFilter, Log};
 use octa_force::logger::setup_logger;
 use octa_force::puffin_egui::puffin;
-use octa_force::vulkan::ash::vk::AttachmentLoadOp;
-use octa_force::vulkan::{Context, Fence, ImageBarrier};
 use octa_force::{egui, log, OctaResult};
-use util::profiler::ShaderProfiler;
-use volume::{VolumeBounds};
-use voxel::dag64::VoxelDAG64;
 use voxel::palette::shared::SharedPalette;
-use voxel::static_dag64::renderer::StaticDAG64Renderer;
-use voxel::static_dag64::StaticVoxelDAG64;
-use std::f32::consts::PI;
-use std::sync::Arc;
 use std::time::{Duration, Instant};
-use std::{default, env};
 
 #[cfg(any(feature="graph"))]
 use crate::mesh::scene::MeshScene;
@@ -141,7 +131,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         let palette = SharedPalette::new();
         let mesh_scene = MeshScene::new(&engine.context, &engine.swapchain);
 
-        let mut scene = SceneRenderer::new(
+        let scene = SceneRenderer::new(
             engine, 
             &logic_state.camera,
             palette.clone(),

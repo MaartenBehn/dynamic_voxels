@@ -10,7 +10,7 @@ use octa_force::OctaResult;
 use reload::{
     new_logic_state, new_render_state, on_recreate_swapchain, on_window_event, record_render_commands, update, LogicState, RenderState, NUM_FRAMES_IN_FLIGHT, USE_PROFILE
 };
-use std::{env, usize};
+use std::env;
 use std::time::Duration;
 
 const WIDTH: u32 = 1920;

@@ -1,6 +1,6 @@
-use std::mem;
+use std::{mem, time::Instant};
 
-use octa_force::{OctaResult, camera::Camera, egui, engine::Engine, glam::{UVec2, Vec3}, log::info, vulkan::{Buffer, CommandBuffer, CommandPool, Context, Fence, Swapchain, ash::vk::{self, AttachmentLoadOp}, gpu_allocator::MemoryLocation}};
+use octa_force::{OctaResult, camera::Camera, egui, engine::Engine, glam::{UVec2, Vec3}, log::{debug, info}, vulkan::{Buffer, CommandBuffer, CommandPool, Context, Fence, Swapchain, ash::vk::{self, AttachmentLoadOp}, gpu_allocator::MemoryLocation}};
 use crate::{VOXELS_PER_METER, scene::{staging_copies::SceneStaging, worker::SceneWorkerRef}, util::math::to_mb, voxel::{palette::shared::SharedPalette, renderer::{RayManagerData, VoxelRenderer}}};
 
 use super::{worker::{SceneWorker}};
@@ -22,6 +22,7 @@ pub struct SceneRenderer {
     staging_fence: Fence,
     staging_command_pool: CommandPool,
     staging_command_buffer: CommandBuffer,
+    start_staging_copy_time: Instant,
 
     pub voxel_renderer: VoxelRenderer,
     pub render_data: SceneData,
@@ -125,6 +126,7 @@ impl SceneRenderer {
             staging_fence,
             staging_command_pool,
             staging_command_buffer,
+            start_staging_copy_time: Instant::now(),
 
             voxel_renderer,
             render_data,
@@ -168,6 +170,7 @@ impl SceneRenderer {
             StagingState::Inactive => {
                 if let Ok(staging) = self.worker_ref.render_r.try_recv() { 
                     
+                    self.start_staging_copy_time = Instant::now();
                     self.copy_staging(&staging, engine)?;
 
                     self.current_staging = Some(staging);
@@ -178,6 +181,9 @@ impl SceneRenderer {
                 if self.staging_fence.is_done()? {
                     self.staging_fence.reset()?;
 
+                    let took = self.start_staging_copy_time.elapsed();
+                    debug!("First buffer copy took: {took:?}");
+
                     self.rendered_gpu_buffer_index = (self.rendered_gpu_buffer_index + 1) % NUM_SCENE_GPU_BUFFERS;
                     self.copy_gpu_buffer_index = (self.copy_gpu_buffer_index + 1) % NUM_SCENE_GPU_BUFFERS;
 
@@ -186,6 +192,7 @@ impl SceneRenderer {
                     self.render_data.bvh_offset = staging.bvh_offset;
                     self.render_data.bvh_len = staging.bvh_len;
                     
+                    self.start_staging_copy_time = Instant::now();
                     self.copy_staging(staging, engine)?;
                     
                     self.staging_state = StagingState::CopyToSecond;
@@ -194,6 +201,9 @@ impl SceneRenderer {
             StagingState::CopyToSecond => {
                 if self.staging_fence.is_done()? {
                     self.staging_fence.reset()?;
+
+                    let took = self.start_staging_copy_time.elapsed();
+                    debug!("Second buffer copy took: {took:?}");
 
                     let staging = self.current_staging.take().unwrap();
                     self.worker_ref.send.free_staging_buffer(staging.buffer);
