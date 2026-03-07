@@ -19,7 +19,7 @@ pub trait Ve<T: Nu, const D: usize>:
     + Mul<T, Output = Self>
     + Div<Output = Self>
     + Div<T, Output = Self>
-    + Neg<Output = Self>
+    //+ Neg<Output = Self>
     + Index<usize, Output = T>
     + PartialEq
     + MC<Self, T, D>
@@ -451,3 +451,74 @@ impl MC<IVec2, i32, 2> for IVec2 {
     fn to_vector_f(v: Self) -> Self::VectorF { v.as_vec2() }
 }
 
+impl Ve<u32, 3> for UVec3 {
+    const ZERO: Self = UVec3::ZERO;
+    const ONE: Self = UVec3::ONE;
+    const MIN: Self = UVec3::MIN;
+    const MAX: Self = UVec3::MAX;
+
+    fn new(v: [u32; 3]) -> Self { UVec3::from_array(v) }
+    fn from_iter<I: Iterator<Item = u32>>(iter: &mut I) -> Self {
+        let mut v = UVec3::ZERO;
+        v.x = iter.next().unwrap();
+        v.y = iter.next().unwrap();
+        v.z = iter.next().unwrap();
+        v
+    }
+
+    fn dot(self, other: Self) -> u32 { UVec3::dot(self, other) }
+    fn length_squared(self) -> u32 { UVec3::length_squared(self) }
+    fn length(self) -> u32 { self.as_vec3a().length() as u32 }
+    fn normalize(self) -> UVec3 { self.as_vec3a().normalize().as_uvec3() }
+    fn element_sum(self) -> u32 { UVec3::element_sum(self) }
+    fn signum(self) -> UVec3 { unreachable!() }
+
+    fn min(self, other: Self) -> Self { UVec3::min(self, other) }
+    fn max(self, other: Self) -> Self { UVec3::max(self, other) }
+
+    fn lt(self, other: Self) -> Self { UVec3::from(UVec3::cmplt(self, other)) }
+    fn gt(self, other: Self) -> Self { UVec3::from(UVec3::cmpgt(self, other)) }
+    
+    fn cmp(self, other: Self) -> Ordering { self.x.cmp(&other.x).then(self.y.cmp(&other.y)).then(self.z.cmp(&other.z)) }
+
+    fn cmplt_any(self, other: Self) -> bool { self.cmplt(other).any() }
+    fn cmpgt_any(self, other: Self) -> bool { self.cmpgt(other).any() }
+    fn cmple_any(self, other: Self) -> bool { self.cmple(other).any() }
+    fn cmpge_any(self, other: Self) -> bool { self.cmpge(other).any() }
+    fn cmpeq_any(self, other: Self) -> bool { self.cmpeq(other).any() }
+    fn cmpne_any(self, other: Self) -> bool { self.cmpne(other).any() }
+    fn cmplt_all(self, other: Self) -> bool { self.cmplt(other).all() }
+    fn cmpgt_all(self, other: Self) -> bool { self.cmpgt(other).all() }
+    fn cmple_all(self, other: Self) -> bool { self.cmple(other).all() }
+    fn cmpge_all(self, other: Self) -> bool { self.cmpge(other).all() }
+    fn cmpeq_all(self, other: Self) -> bool { self.cmpeq(other).all() }
+    fn cmpne_all(self, other: Self) -> bool { self.cmpne(other).all() }
+
+    fn to_vecf<V: Ve<f32, 3>>(self) -> V { V::from_uvec3(self) }
+    fn from_vecf<V: Ve<f32, 3>>(v: V) -> Self { v.to_uvec3() }
+
+    fn to_vec3a(self) -> Vec3A { self.as_vec3a() }
+    fn to_vec3(self) -> Vec3 { self.as_vec3() }
+    fn to_vec2(self) -> Vec2 { unreachable!() }
+    fn to_ivec3(self) -> IVec3 { self.as_ivec3() }
+    fn to_ivec2(self) -> IVec2 { unreachable!() }
+    fn to_uvec3(self) -> UVec3 { self }
+    
+    fn from_vec4h(v: Vec4) -> Self { v.xyz().as_uvec3() }
+    fn from_vec3a(v: Vec3A) -> Self { v.as_uvec3() }
+    fn from_vec3(v: Vec3) -> Self { v.as_uvec3() }
+    fn from_vec2(v:  Vec2) -> Self { unreachable!() }
+    fn from_ivec3(v: IVec3) -> Self { v.as_uvec3() }
+    fn from_ivec2(v: IVec2) -> Self { unreachable!() }
+    fn from_uvec3(v: UVec3) -> Self { v }
+
+    fn to_array(&self) -> [u32; 3] { Self::to_array(self) }
+}
+
+impl MC<UVec3, u32, 3> for UVec3 {
+    type Matrix = Mat4;
+    type VectorF = Vec3A;
+
+    fn to_vector(v: Self::VectorF) -> Self { v.as_uvec3() }
+    fn to_vector_f(v: Self) -> Self::VectorF { v.as_vec3a() }
+}

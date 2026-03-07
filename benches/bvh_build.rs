@@ -23,7 +23,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         |b, csg| {
             let mut csg = csg.to_owned();
             b.iter(|| black_box({
-                csg.changed = true;
+                csg.needs_bounds_recompute = true;
                 csg.calculate_bounds();
             }));
         });

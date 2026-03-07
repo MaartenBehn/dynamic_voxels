@@ -954,6 +954,7 @@ dependencies = [
  "smol",
  "spirq 0.2.2",
  "spirv-struct-layout",
+ "tree64",
 ]
 
 [[package]]
@@ -1473,6 +1474,12 @@ dependencies = [
  "mint",
  "serde",
 ]
+
+[[package]]
+name = "glam"
+version = "0.29.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8babf46d4c1c9d92deac9f7be466f76dfc4482b6452fc5024b5e8daf6ffeb3ee"
 
 [[package]]
 name = "gpu-allocator"
@@ -2561,7 +2568,7 @@ dependencies = [
  "egui_extras",
  "egui_plot",
  "fps_clock",
- "glam",
+ "glam 0.27.0",
  "gpu-allocator",
  "image",
  "index-pool",
@@ -3977,6 +3984,16 @@ name = "tracing-core"
 version = "0.1.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9d12581f227e93f094d3af2ae690a574abb8a2b9b7a96e7cfe9647b2b617678"
+
+[[package]]
+name = "tree64"
+version = "0.1.0"
+source = "git+https://github.com/expenses/tree64.git#aad709c8f27a3fb3207878dc8238947dabf1a525"
+dependencies = [
+ "arrayvec",
+ "bytemuck",
+ "glam 0.29.3",
+]
 
 [[package]]
 name = "ttf-parser"

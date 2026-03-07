@@ -16,7 +16,7 @@ pub struct BVHNodeCSGUnion<V: Ve<T, D>, T: Nu, const D: usize> {
 pub struct CSGTreeUnion<V: Ve<T, D>, T: Nu, const D: usize> {
     pub indecies: Vec<CSGTreeIndex>,
     pub bvh: Bvh<BVHNodeCSGUnion<V, T, D>, V::VectorF, f32, D>,
-    pub changed: bool,
+    pub needs_bounds_recompute: bool,
 }
 
 impl<V: Ve<T, D>, T: Nu, const D: usize> CSGTreeUnion<V, T, D> {
@@ -24,13 +24,13 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> CSGTreeUnion<V, T, D> {
         Self {
             indecies,
             bvh: Bvh::empty(),
-            changed: true,
+            needs_bounds_recompute: true,
         }
     }
 
     pub fn add_node(&mut self, index: CSGTreeIndex) {
         self.indecies.push(index);
-        self.changed = true;
+        self.needs_bounds_recompute = true;
     }
 
     pub fn shift_indecies(&mut self, ammount: usize) {
@@ -72,7 +72,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> Default for CSGTreeUnion<V, T, D> {
         Self { 
             indecies: Default::default(), 
             bvh: Bvh::empty(), 
-            changed: Default::default() 
+            needs_bounds_recompute: Default::default() 
         }
     }
 }

@@ -175,7 +175,7 @@ impl VolumeValue {
         }
     }
 
-    pub fn get_value<V: Ve<T, D>, M: Base, const D: usize>(
+    pub fn get_value<V: Ve<T, D>, M: Base + Send + Sync, const D: usize>(
         &self, 
         get_value_data: GetValueData,
         collapser: &Collapser,
@@ -194,7 +194,7 @@ impl VolumeValue {
         (tree, r)
     }
 
-    pub fn get_value_inner<V: Ve<T, D>, M: Base, const D: usize>(
+    pub fn get_value_inner<V: Ve<T, D>, M: Base + Send + Sync, const D: usize>(
         &self, 
         get_value_data: GetValueData,
         collapser: &Collapser,

@@ -28,8 +28,9 @@ pub struct CSGTreeNode<M, V: Ve<T, D>, T: Nu, const D: usize> {
 #[derive(Debug, Clone, Default)]
 pub struct CSGTree<M, V: Ve<T, D>, T: Nu, const D: usize> {
     pub nodes: Vec<CSGTreeNode<M, V, T, D>>,
-    pub changed: bool,
     pub root: CSGTreeIndex,
+    pub needs_bounds_recompute: bool,
+    pub changed_bounds: AABB<V, T, D>,
 }
 
 pub struct UnionResult {
@@ -43,45 +44,7 @@ pub struct CutResult {
     pub new_object_index: CSGTreeIndex,
 }
 
-impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {  
-    pub fn from_node(node: CSGTreeNode<M, V, T, D>) -> Self {
-        Self {
-            nodes: vec![node],
-            changed: true,
-            root: 0,
-        }
-    }
-        
-    pub fn add_node(&mut self, node: CSGTreeNode<M, V, T, D>) -> usize {
-        self.changed = true;
-
-        let i = self.nodes.len();
-        self.nodes.push(node); 
-        i
-    }
-
-    pub fn add_union_node(&mut self, indecies: Vec<usize>) -> usize {
-        self.changed = true;
-
-        let i = self.nodes.len();
-        self.nodes.push(CSGTreeNode::new_union(indecies)); 
-        i
-    }
-
-    pub fn add_cut_node(&mut self, base: usize, cut: usize) -> usize {
-        self.changed = true;
-
-        let i = self.nodes.len();
-        self.nodes.push(CSGTreeNode::new_cut(base, cut)); 
-        i
-    }
-
-    pub fn set_root(&mut self, root: usize) {
-        self.changed = true;
-
-        self.root = root;
-    }
-
+impl<M: Base + Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {   
     pub fn union_at_root(&mut self, other: &[CSGTreeNode<M, V, T, D>], other_root: usize) -> UnionResult {   
         if other.is_empty() {
             return UnionResult {
@@ -90,29 +53,19 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
             };
         }
 
-        self.changed = true;
-
-        if self.nodes.is_empty() {
+        if self.nodes.is_empty() || matches!(&self.nodes[self.root].data, CSGTreeNodeData::None) {
             self.nodes.extend_from_slice(other);
             self.root = other_root;
+
+            self.calculate_bounds_index(self.root);
+            self.changed_bounds = self.get_bounds_index(self.root);
 
             return UnionResult {
                 union_node_index: other_root,
                 new_object_index: other_root,
             };
         }
-
-        if let CSGTreeNodeData::None = &self.nodes[self.root].data {
-            self.nodes = Vec::with_capacity(other.len());
-            self.nodes.extend_from_slice(other);
-            self.root = other_root;
-
-            return UnionResult {
-                union_node_index: other_root,
-                new_object_index: other_root,
-            };
-        }
-
+ 
         let length = self.nodes.len();
         let new_index = other_root + length;
         self.nodes.extend_from_slice(other);
@@ -120,8 +73,12 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
 
         let root_node = &mut self.nodes[self.root];
         if let CSGTreeNodeData::Union(union) = &mut root_node.data {
+            
+            //TODO: Handle case where other nodes is also a Union
             union.add_node(new_index);
             self.nodes[new_index].parent = self.root;
+
+            self.index_changed(new_index);
             
             return UnionResult {
                 union_node_index: self.root,
@@ -131,11 +88,13 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
 
         let union_index = self.nodes.len();
         self.nodes.push(CSGTreeNode::new_union(vec![self.root, new_index]));
-        
+
         self.nodes[new_index].parent = union_index;
         self.nodes[self.root].parent = union_index;
 
         self.root = union_index;
+
+        self.index_changed(new_index);
         
         UnionResult { 
             union_node_index: union_index, 
@@ -144,7 +103,12 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
     }
 
     pub fn union_at_index(&mut self, index: CSGTreeIndex, other: &[CSGTreeNode<M, V, T, D>], other_root: usize) -> UnionResult {
-        self.changed = true;
+        let res = self.union_at_index_internal(index, other, other_root);
+        self.index_changed(res.new_object_index);
+        res
+    }
+
+    fn union_at_index_internal(&mut self, index: CSGTreeIndex, other: &[CSGTreeNode<M, V, T, D>], other_root: usize) -> UnionResult {
 
         let length = self.nodes.len();
         let new_index = other_root + length;
@@ -153,6 +117,8 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
 
         let current_node = &mut self.nodes[index];
         if let CSGTreeNodeData::Union(union) = &mut current_node.data {
+            
+            //TODO: Handle case where other nodes is also a Union
             union.add_node(new_index);
             self.nodes[new_index].parent = index;
 
@@ -187,8 +153,6 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
             };
         }
 
-        self.changed = true;
-
         if self.nodes.is_empty() {
             self.nodes.push(CSGTreeNode::new_none());
         }
@@ -199,6 +163,8 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
             let base_index = cut.base;
             let res = self.union_at_index(remove_index, other, other_root);
             self.nodes[res.union_node_index].parent = self.root;
+
+            self.index_changed(res.new_object_index); 
 
             return CutResult {
                 cut_node_index: self.root,
@@ -223,6 +189,8 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
 
         self.root = cut_index;
 
+        self.index_changed(new_index);
+
         CutResult {
             cut_node_index: cut_index,
             base_index,
@@ -231,7 +199,7 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
     }
 
     pub fn cut_at_index(&mut self, index: CSGTreeIndex, other: &[CSGTreeNode<M, V, T, D>], other_root: usize) -> CutResult {
-        self.changed = true;
+        self.needs_bounds_recompute = true;
 
         let current_node = &self.nodes[index];
         if let CSGTreeNodeData::Cut(cut) = &current_node.data {
@@ -239,6 +207,8 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
             let base_index = cut.base;
             let res = self.union_at_index(remove_index, other, other_root);
             self.nodes[res.union_node_index].parent = index;
+
+            self.index_changed(res.new_object_index); 
 
             return CutResult {
                 cut_node_index: index,
@@ -264,6 +234,8 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
         
         self.nodes[new_index].parent = cut_index;
         self.nodes[index].parent = cut_index;
+
+        self.index_changed(new_index); 
         
         CutResult {
             cut_node_index: cut_index,
@@ -293,6 +265,13 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
             },
             _ => unreachable!()
         }
+    }
+
+    fn index_changed(&mut self, index: usize) {
+        self.calculate_bounds_index(index);
+        self.calculate_bounds_parents(self.nodes[index].parent);
+
+        self.changed_bounds = self.changed_bounds.union(self.get_bounds_index(index));
     }
 }
 
