@@ -1,7 +1,9 @@
-use bvh::{aabb::{Aabb, Bounded}, bounding_hierarchy::{BHShape, BoundingHierarchy}, bvh::Bvh};
+use std::mem::ManuallyDrop;
+
+use itertools::Itertools;
 use octa_force::{OctaResult, anyhow::anyhow, glam::Vec3, vulkan::Buffer};
 
-use crate::{scene::{dag_store::SceneDAGStore, dag64::SceneDAGObject, staging_copies::SceneStagingBuilder, worker::{SceneObjectKey, SceneWorker}}, util::{aabb::AABB3, vector::Ve}};
+use crate::{bvh::{Bvh, node::BHNode, shape::{BHShape, Shapes}}, scene::{dag_store::SceneDAGStore, dag64::SceneDAGObject, staging_copies::SceneStagingBuilder, worker::{SceneObjectKey, SceneWorker}}, util::aabb::{AABB, AABB3}};
 
 
 #[derive(Debug)]
@@ -11,12 +13,15 @@ pub struct SceneObject {
     pub data: SceneObjectType,
 }
 
+#[derive(Clone, Copy)]
+pub struct BVHObject<'a> (&'a SceneObject);
+
 #[derive(Debug)]
 pub enum SceneObjectType {
     DAG64(SceneDAGObject)
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct SceneObjectData {
     min: Vec3,
@@ -39,43 +44,22 @@ impl SceneWorker {
     }
 
     pub fn update_bvh(&mut self, builder: &mut SceneStagingBuilder) -> OctaResult<()> {
-        let mut objects = self.objects.values_mut().collect::<Vec<_>>();
-        self.bvh = Bvh::build_par(&mut objects);
+        let objects = self.objects.values().into_iter().map(|o| BVHObject (o)).collect_vec();
+        let mut indecies = (0..objects.len()).into_iter().collect_vec();
 
-        let flat_bvh = self.bvh.flatten_custom(&|aabb, index, exit, shape| {
-            let leaf = shape != u32::MAX;
+        self.bvh = Bvh::build_par(
+            &objects, 
+            &mut indecies);
 
-            if leaf {
-                let object = &objects[shape as usize];
-                let nr = object.get_nr();
-                let aabb = object.get_aabb();
-                
-                SceneObjectData {
-                    min: aabb.min().to_vec3(),
-                    child: (object.get_start() as u32) << 1 | 1,
-                    max: aabb.max().to_vec3(),
-                    exit: exit << 1 | nr,
-                }
-            } else {
-                let aabb: AABB3 = aabb.into();
-                SceneObjectData {
-                    min: aabb.min().to_vec3(),
-                    child: index << 1,
-                    max: aabb.max().to_vec3(),
-                    exit: exit,
-                }
-            } 
-        });
-
-        self.bvh_len = flat_bvh.len();
-        let flat_bvh_size =  flat_bvh.len() * size_of::<SceneObjectData>();
+        self.bvh_len = self.bvh.nodes.len();
+        let flat_bvh_size =  self.bvh_len * size_of::<SceneObjectData>();
 
         if self.bvh_allocation.size() < flat_bvh_size {
             self.allocator.dealloc(self.bvh_allocation)?;
             self.bvh_allocation = self.allocator.alloc(flat_bvh_size)?;
         }
 
-        builder.push(&flat_bvh, self.bvh_allocation.start());
+        builder.push(&self.bvh.nodes, self.bvh_allocation.start());
         builder.update_bvh(self.bvh_allocation.start() as u32, self.bvh_len as u32);
 
         self.needs_bvh_update = false;
@@ -111,19 +95,38 @@ impl SceneObject {
     }
 }
 
+pub union SUnion<'a, S> {
+    a: ManuallyDrop<S>,
+    b: BVHObject<'a>
+}
 
-impl Bounded<f32,3> for SceneObject {
-    fn aabb(&self) -> Aabb<f32,3> {
-        self.get_aabb().into()
+impl BHNode<Vec3, f32, 3> for SceneObjectData {
+    fn new<S>(aabb: AABB<Vec3, f32, 3>, exit_index: usize, shape_index: Option<(usize, &S)>) -> Self {
+
+        if let Some((_, shape)) = shape_index {
+
+            // Safety because we use BVHObject wehn building. 
+            let shape = unsafe { SUnion { a: ManuallyDrop::new(shape) }.b };
+
+            Self {
+                min: aabb.min(),
+                child: (shape.0.get_start() as u32) << 1 | 1,
+                max: aabb.max(),
+                exit: (exit_index as u32) << 1 | shape.0.get_nr(),
+            }
+        } else {
+            Self {
+                min: aabb.min(),
+                child: 0,
+                max: aabb.max(),
+                exit: exit_index as u32,
+            }
+        }
     }
 }
 
-impl BHShape<f32,3> for SceneObject {
-    fn set_bh_node_index(&mut self, index: usize) {
-        self.bvh_index = index;
-    }
-
-    fn bh_node_index(&self) -> usize {
-        self.bvh_index
+impl<'a> BHShape<Vec3, f32, 3> for BVHObject<'a> {
+    fn aabb(&self, shapes: &Shapes<Self, Vec3, f32, 3>) -> AABB<Vec3, f32, 3> {
+        self.0.get_aabb().to_f()
     }
 }

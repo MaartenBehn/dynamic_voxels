@@ -1,13 +1,12 @@
 use core::fmt;
 use std::{ops::Deref, sync::Arc};
 
-use bvh::bvh::Bvh;
 use octa_force::{OctaResult, camera::Camera, glam::{Mat4, Vec3, Vec3A}, log::{debug, trace, warn}, vulkan::{Buffer, Context, ash::vk, gpu_allocator::MemoryLocation}};
 use parking_lot::Mutex;
 use slotmap::{SlotMap, new_key_type};
 use smol::{channel::Sender, future::FutureExt};
 
-use crate::{VOXELS_PER_METER, mesh::Mesh, scene::{dag_store::SceneDAGStore, object::{SceneObject, SceneObjectData}, staging_copies::OptimalBufferCopyAlligment}, util::{buddy_allocator::{BuddyAllocator, ManualBuddyAllocation}, default_types::{LODType, Volume}, worker_response::{WithRespose, WorkerRespose}}, voxel::dag64::{DAG64Entry, VoxelDAG64, lod_heuristic::LODHeuristicT, parallel::ParallelVoxelDAG64}};
+use crate::{VOXELS_PER_METER, bvh::Bvh, mesh::Mesh, scene::{dag_store::SceneDAGStore, object::{BVHObject, SceneObject, SceneObjectData}, staging_copies::OptimalBufferCopyAlligment}, util::{buddy_allocator::{BuddyAllocator, ManualBuddyAllocation}, default_types::{LODType, Volume}, worker_response::{WithRespose, WorkerRespose}}, voxel::dag64::{DAG64Entry, VoxelDAG64, lod_heuristic::LODHeuristicT, parallel::ParallelVoxelDAG64}};
 
 use super::{dag64::{SceneAddDAGObject}, dag_store::SceneDAGKey, staging_copies::SceneStaging};
 
@@ -26,7 +25,7 @@ pub struct SceneWorker {
     pub objects: SlotMap<SceneObjectKey, SceneObject>,
     
     pub allocator: BuddyAllocator,
-    pub bvh: Bvh<f32, 3>,
+    pub bvh: Bvh<SceneObjectData, Vec3, f32, 3>,
     pub bvh_allocation: ManualBuddyAllocation,
     pub bvh_len: usize,
     pub needs_bvh_update: bool,
@@ -70,7 +69,7 @@ impl SceneWorker {
         let optimal_alignment = OptimalBufferCopyAlligment::new(context);
 
         let mut allocator = BuddyAllocator::new(buffer_size, 32);
-        let bvh = Bvh::build::<SceneObject>(&mut []);
+        let bvh = Bvh::empty();
         let bvh_allocation = allocator.alloc(1024)?;
 
         let mut dag_store = SceneDAGStore::new();

@@ -3,7 +3,6 @@ use std::{hint::unreachable_unchecked, iter};
 use itertools::Itertools;
 use octa_force::{anyhow::{anyhow, bail}, glam::Vec3, log::{debug, info}, OctaResult};
 use slotmap::Key;
-use tree64::Node;
 
 use crate::{model::{collapse::collapser::CollapseNode, data_types::data_type::{CollapseValue, TemplateValue}, template::{Template, TemplateIndex, dependency_tree::DependencyPath, nodes::{Creates, CreatesType}}}, util::{number::Nu, vector::Ve}};
 

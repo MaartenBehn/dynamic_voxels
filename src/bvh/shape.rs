@@ -8,7 +8,7 @@ pub struct Shapes<'a, S: BHShape<V, T, D>, V: Ve<T, D>, T: Nu, const D: usize> {
     p2: PhantomData<T>,
 }
 
-pub trait BHShape<V: Ve<T, D>, T: Nu, const D: usize>: Send + Sync + Sized {
+pub trait BHShape<V: Ve<T, D>, T: Nu, const D: usize>: Sized {
     fn aabb(&self, shapes: &Shapes<Self, V, T, D>) -> AABB<V, T, D>;
 }
 

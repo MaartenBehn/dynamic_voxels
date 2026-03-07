@@ -5,8 +5,8 @@ use crate::util::{aabb::AABB, number::Nu, vector::Ve};
 use super::{bucket::{Bucket, BUCKETS, NUM_BUCKETS}, helper::{joint_aabb_of_shapes, BvhNodeBuildArgs}, shape::{BHShape, Shapes}};
 
 
-pub trait BHNode<V: Ve<T, D>, T: Nu, const D: usize>: Default + Send {
-    fn new(aabb: AABB<V, T, D>, exit_index: usize, shape_index: Option<usize>) -> Self;
+pub trait BHNode<V: Ve<T, D>, T: Nu, const D: usize>: Sized {
+    fn new<S: BHShape<V, T, D>>(aabb: AABB<V, T, D>, exit_index: usize, shape: Option<(usize, &S)>) -> Self;
 
     fn build<S: BHShape<V, T, D>>(args: BvhNodeBuildArgs<S, Self, V, T, D>) {
         if let Some((left, right)) = Self::prep_build(args) {
@@ -39,7 +39,7 @@ pub trait BHNode<V: Ve<T, D>, T: Nu, const D: usize>: Default + Send {
         // If there is only one element left, don't split anymore
         if indices.len() == 1 {
             let shape_index = indices[0];
-            nodes[0].write(Self::new(aabb_bounds, exit_index, Some(shape_index)));
+            nodes[0].write(Self::new::<S>(aabb_bounds, exit_index, Some((shape_index, &shapes.get(shape_index)))));
             // Let the shape know the index of the node that represents it.
             //shapes.set_node_index(shape_index, node_index);
             return None;
@@ -88,7 +88,7 @@ pub trait BHNode<V: Ve<T, D>, T: Nu, const D: usize>: Default + Send {
         let after_subtree_index = child_r_index + rigth_len;
       
         // Construct the actual data structure and replace the dummy node.
-        nodes[0].write(Self::new(aabb_bounds, exit_index, None));
+        nodes[0].write(Self::new::<S>(aabb_bounds, exit_index, None));
 
         // Remove the current node from the future build steps.
         let next_nodes = &mut nodes[1..];

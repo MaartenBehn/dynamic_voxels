@@ -451,10 +451,3 @@ impl MC<IVec2, i32, 2> for IVec2 {
     fn to_vector_f(v: Self) -> Self::VectorF { v.as_vec2() }
 }
 
-pub fn vector_to_nalgebra<V: Ve<f32, D>, const D: usize>(v: V) -> nalgebra::OPoint<f32, nalgebra::Const<D>> {
-    nalgebra::OPoint::from_slice(&v.to_array())
-}
-
-pub fn nalgebra_to_vector<V: Ve<f32, D>, const D: usize>(v: nalgebra::OPoint<f32, nalgebra::Const<D>>) -> V {
-    V::from_iter(&mut v.iter().copied())
-}

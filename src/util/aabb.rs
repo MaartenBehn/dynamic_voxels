@@ -3,7 +3,9 @@ use std::{iter, marker::PhantomData};
 use itertools::Either;
 use octa_force::glam::{ivec2, ivec3, vec2, vec3a, vec4, IVec2, IVec3, Vec2, Vec3, Vec3A};
 
-use super::{math::{nalgebra_point_to_vec3a, vec3a_to_nalgebra_point}, matrix::Ma, number::Nu, vector::{nalgebra_to_vector, vector_to_nalgebra, Ve}};
+use crate::util::vector::Ve;
+
+use super::{matrix::Ma, number::Nu};
 
 #[derive(Clone, Copy, Debug)]
 pub struct AABB<V: Ve<T, D>, T: Nu, const D: usize> {
@@ -354,14 +356,3 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> Default for AABB<V, T, D> {
     }
 }
 
-impl<V: Ve<f32, D>, const D: usize> From<&bvh::aabb::Aabb<f32, D>> for AABB<V, f32, D> {
-    fn from(value: &bvh::aabb::Aabb<f32, D>) -> Self {
-        AABB::new(nalgebra_to_vector(value.min), nalgebra_to_vector(value.max))
-    }
-}
-
-impl<V: Ve<f32, D>, const D: usize> Into<bvh::aabb::Aabb<f32, D>> for AABB<V, f32, D> {
-    fn into(self) -> bvh::aabb::Aabb<f32, D> {
-        bvh::aabb::Aabb { min: vector_to_nalgebra(self.min), max: vector_to_nalgebra(self.max) }
-    }
-}

@@ -6,7 +6,7 @@ use smallvec::ToSmallVec;
 
 use crate::{bvh::Bvh, util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, volume::VolumeBounds, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid}};
 
-use super::{tree::{CSGTreeNode, CSGTreeNodeData, CSGTree, CSGTreeIndex}, union::{BVHNodeV2, CSGTreeUnion}};
+use super::{tree::{CSGTreeNode, CSGTreeNodeData, CSGTree, CSGTreeIndex}, union::{BVHNodeCSGUnion, CSGTreeUnion}};
 
 impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> VolumeBounds<V, T, D> for CSGTree<M, V, T, D> {
     fn calculate_bounds(&mut self) {
@@ -84,7 +84,7 @@ impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
             self.calculate_bounds_index(*index);
         }
  
-        union.bvh = Bvh::<BVHNodeV2<V, T, D>, V::VectorF, f32, D>::build_par(
+        union.bvh = Bvh::<BVHNodeCSGUnion<V, T, D>, V::VectorF, f32, D>::build_par(
             &self.nodes, 
             &mut union.indecies);
     }

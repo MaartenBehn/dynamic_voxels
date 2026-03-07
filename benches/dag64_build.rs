@@ -1,38 +1,34 @@
 use std::hint::black_box;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use octa_force::glam::{IVec3, UVec3, Vec3, Vec3A};
-use reload::{csg::{csg_tree::tree::CSGTree, sphere::CSGSphere}, util::{number::Nu, vector::Ve}, volume::{VolumeQureyAABB, VolumeQureyPosValue}, voxel::{dag64::VoxelDAG64, grid::VoxelGrid, static_dag64::StaticVoxelDAG64}};
+use reload::{csg::{csg_tree::tree::CSGTree, sphere::CSGSphere}, util::{number::Nu, vector::Ve}, volume::{VolumeQureyAABB, VolumeQureyPosValue}, voxel::{dag64::{VoxelDAG64, lod_heuristic::LODHeuristicNone}, grid::VoxelGrid}};
 
 fn build_from_pos_query<V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3>>(model: &M) -> VoxelDAG64 {
     let mut dag = VoxelDAG64::new(100000, 64);
-    dag.add_pos_query_volume(model).unwrap();
+    dag.add_pos_query_volume(model, &LODHeuristicNone {}).unwrap();
     dag
 }
 
 fn build_from_aabb_query<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>>(model: &M) -> VoxelDAG64 {
     let mut dag = VoxelDAG64::new(100000, 64);
-    dag.add_aabb_query_volume(model).unwrap();
+    dag.add_aabb_query_volume(model, &LODHeuristicNone {}).unwrap();
     dag
 }
 
 fn build_from_pos_query_par<V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3> + Sync + Send>(model: &M) -> VoxelDAG64 {
     let dag = VoxelDAG64::new(1000000, 64);
     let mut dag = dag.parallel();
-    dag.add_pos_query_volume(model).unwrap();
+    dag.add_pos_query_volume(model, &LODHeuristicNone {}).unwrap();
     dag.single()
 }
 
 fn build_from_aabb_query_par<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3> + Sync + Send>(model: &M) -> VoxelDAG64 {
     let dag = VoxelDAG64::new(1000000, 64);
     let mut dag = dag.parallel();
-    dag.add_aabb_query_volume(model).unwrap();
+    dag.add_aabb_query_volume(model, &LODHeuristicNone {}).unwrap();
     dag.single()
 }
 
-fn build_from_grid(grid: &VoxelGrid) -> StaticVoxelDAG64 {
-    let tree64: StaticVoxelDAG64 = grid.into();
-    tree64
-}
 
 fn criterion_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("Sphere 100");
@@ -40,12 +36,6 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     let mut grid = VoxelGrid::empty(UVec3::ONE * 4_u32.pow(4)); 
     grid.set_example_sphere();
-
-    group.bench_with_input(
-        BenchmarkId::new("tree 64 from grid", "pos int"), 
-        &grid, 
-        |b, grid| b.iter(|| build_from_grid(black_box(grid))));
-    
 
     let sphere = CSGSphere::<u8, IVec3, i32, 3>::new_sphere(Vec3A::ZERO, 100.0, 1);
 

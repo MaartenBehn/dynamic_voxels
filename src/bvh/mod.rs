@@ -3,7 +3,6 @@
 pub mod shape;
 pub mod node;
 pub mod helper;
-pub mod traits;
 pub mod bucket;
 
 use std::{marker::PhantomData, mem::MaybeUninit};
@@ -14,7 +13,7 @@ use shape::{BHShape, Shapes};
 
 use crate::util::{aabb::AABB, number::Nu, vector::Ve};
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct Bvh<N: BHNode<V, T, D>, V: Ve<T, D>, T: Nu, const D: usize> {
     pub nodes: Vec<N>,
     p1: PhantomData<V>,
@@ -22,11 +21,20 @@ pub struct Bvh<N: BHNode<V, T, D>, V: Ve<T, D>, T: Nu, const D: usize> {
 }
 
 impl<N: BHNode<V, T, D>, V: Ve<T, D>, T: Nu, const D: usize> Bvh<N, V, T, D> { 
+    pub fn empty() -> Self {
+        Bvh { 
+            nodes: vec![],
+            p1: Default::default(),
+            p2: Default::default(),
+        }
+    }
 
-    pub fn build_par<Shape: BHShape<V, T, D> + Send>(shapes: &[Shape], leafs: &mut [usize]) -> Self
+    pub fn build_par<S>(shapes: &[S], leafs: &mut [usize]) -> Self
     where
         T: Send,
         Self: Sized,
+        S: BHShape<V, T, D> + Send + Sync,
+        N: Send,
     {
         Self::build_with_executor(shapes, leafs, rayon_executor)
     }
@@ -37,7 +45,11 @@ impl<N: BHNode<V, T, D>, V: Ve<T, D>, T: Nu, const D: usize> Bvh<N, V, T, D> {
         executor: impl FnMut(BvhNodeBuildArgs<S, N, V, T, D>, BvhNodeBuildArgs<S, N, V, T, D>),
     ) -> Bvh<N, V, T, D> {
         if shapes.is_empty() {
-            return Bvh { nodes: Vec::new(), ..Default::default() };
+            return Bvh { 
+                nodes: Vec::new(), 
+                p1: Default::default(),
+                p2: Default::default(),
+            };
         }
 
         let tree_len = indices.len() * 2 - 1;
@@ -72,16 +84,21 @@ impl<N: BHNode<V, T, D>, V: Ve<T, D>, T: Nu, const D: usize> Bvh<N, V, T, D> {
         unsafe {
             nodes.set_len(tree_len);
         }
-        Bvh { nodes, ..Default::default() }
+        Bvh { 
+            nodes,
+            p1: Default::default(),
+            p2: Default::default(),
+        }
     }
 }
 
 
-pub fn rayon_executor<S, N: BHNode<V, T, D>, V: Ve<T, D>, T: Send + Nu, const D: usize>(
+pub fn rayon_executor<S, N, V: Ve<T, D>, T: Send + Nu, const D: usize>(
     left: BvhNodeBuildArgs<S, N, V, T, D>,
     right: BvhNodeBuildArgs<S, N, V, T, D>,
 ) where
-    S: BHShape<V, T, D> + Send,
+    S: BHShape<V, T, D> + Send + Sync,
+    N: BHNode<V, T, D> + Send,
 {
     // 64 was found experimentally. Calling join() has overhead that makes the build slower without this.
     if left.node_count() + right.node_count() < 64 {

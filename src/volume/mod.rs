@@ -18,8 +18,9 @@ pub trait VolumeBounds<V: Ve<T, D>, T: Nu, const D: usize> {
     }
 }
 
-pub trait VolumeRandomPos {
-    fn get_random_valid_position(&self, search_size: f32) -> Option<Vec3>;
+pub trait VolumeChangeBounds<V: Ve<T, D>, T: Nu, const D: usize>: VolumeBounds<V, T, D> {
+    fn calculate_change_bounds(&mut self);
+    fn get_change_bounds(&self) -> AABB<V, T, D>;
 }
 
 pub trait VolumeGradient<V: Ve<f32, D>, const D: usize> {
@@ -58,6 +59,8 @@ impl VolumeQureyAABBResult {
         }
     }
 }
+
+
 
 
 

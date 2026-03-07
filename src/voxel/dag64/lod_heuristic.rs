@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 
-use nalgebra::ComplexField;
 use octa_force::glam::{IVec3, Vec3Swizzles};
 
 use crate::util::vector::Ve;

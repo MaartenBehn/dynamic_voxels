@@ -10,7 +10,6 @@ public struct SceneObject {
 
   public property bool leaf { get { return bool(child & 1); } }
   public property uint leaf_nr { get { return exit & 1; } }
-  public property uint child_nodes { get { return child >> 1; } }
   public property uint object_start { get { return child >> 1; } }
   public property uint node_exit { get { return exit; } }
   public property uint leaf_exit { get { return exit >> 1; } }

@@ -1,8 +1,6 @@
 use core::fmt;
 use std::{ops::{Add, AddAssign, Deref, Div, DivAssign, Mul, MulAssign, Sub, SubAssign}};
 
-use bvh::bounding_hierarchy::BHValue;
-
 pub trait Nu: 
     Copy 
     + Default

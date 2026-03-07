@@ -61,14 +61,6 @@ pub fn to_kb(size: usize) -> f32 {
     size as f32 * 0.001
 }
 
-pub fn vec3a_to_nalgebra_point(v: Vec3A) -> nalgebra::Point3<f32> {
-    nalgebra::Point3::new(v.x, v.y, v.z)
-}
-
-pub fn nalgebra_point_to_vec3a(v: nalgebra::Point3<f32>) -> Vec3A {
-    vec3a(v.x, v.y, v.y)
-}
-
 /*
 pub fn sphere_aabb_intersection(aabb: AABB)
 {
