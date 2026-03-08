@@ -1,23 +1,23 @@
 use octa_force::{glam::{vec3a, IVec3, UVec3, Vec3A, Vec4Swizzles}, log::debug, OctaResult};
 use smallvec::{SmallVec, ToSmallVec};
 
-use crate::{util::{aabb::AABB, math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::VolumeQureyPosValue, voxel::dag64::lod_heuristic::LODHeuristicT};
+use crate::{util::{aabb::AABB, math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeChangeBounds, VolumeQureyPosValue}, voxel::dag64::lod_heuristic::LODHeuristicT};
 
 use super::{node::VoxelDAG64Node, DAG64Entry, DAG64EntryKey, VoxelDAG64};
 
 
 impl VoxelDAG64 {  
     
-    pub fn update_pos_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3>, LOD: LODHeuristicT>(
+    pub fn update_pos_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3> + VolumeChangeBounds<V, T, 3>, LOD: LODHeuristicT>(
         &mut self, 
         model: &M,
         lod: &LOD,
         based_on_entry: DAG64EntryKey,
     ) -> OctaResult<DAG64EntryKey> {
-        let model_aabb = model.get_bounds();
-        let mut entry_data = self.expand_to_include_aabb(based_on_entry, model_aabb)?;
+        let change_aabb = model.get_change_bounds();
+        let mut entry_data = self.expand_to_include_aabb(based_on_entry, change_aabb)?;
 
-        let root = self.update_pos_recursive(model, lod, model_aabb, entry_data.levels, entry_data.offset, entry_data.root_index)?;
+        let root = self.update_pos_recursive(model, lod, change_aabb, entry_data.levels, entry_data.offset, entry_data.root_index)?;
         entry_data.root_index = self.nodes.push(&[root])?;
 
         let key = self.entry_points.insert(entry_data);
