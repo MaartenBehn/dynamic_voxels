@@ -47,7 +47,7 @@ impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
                     self.calculate_bounds_index(*index);
                 }
 
-                union.bvh = Bvh::<BVHNodeCSGUnion<V, T, D>, V::VectorF, f32, D>::build_par(
+                union.bvh = Bvh::<BVHNodeCSGUnion<V, T, D>, (), V::VectorF, f32, D>::build_par(
                     &self.nodes, 
                     &mut union.indecies);
 
@@ -80,7 +80,7 @@ impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
 
                 let mut union = mem::take(d);
                 
-                union.bvh = Bvh::<BVHNodeCSGUnion<V, T, D>, V::VectorF, f32, D>::build_par(
+                union.bvh = Bvh::<BVHNodeCSGUnion<V, T, D>, (), V::VectorF, f32, D>::build_par(
                     &self.nodes, 
                     &mut union.indecies);
 

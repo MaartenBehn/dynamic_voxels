@@ -15,7 +15,7 @@ pub struct BVHNodeCSGUnion<V: Ve<T, D>, T: Nu, const D: usize> {
 #[derive(Debug, Clone)]
 pub struct CSGTreeUnion<V: Ve<T, D>, T: Nu, const D: usize> {
     pub indecies: Vec<CSGTreeIndex>,
-    pub bvh: Bvh<BVHNodeCSGUnion<V, T, D>, V::VectorF, f32, D>,
+    pub bvh: Bvh<BVHNodeCSGUnion<V, T, D>, (), V::VectorF, f32, D>,
     pub needs_bounds_recompute: bool,
 }
 
@@ -40,8 +40,8 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> CSGTreeUnion<V, T, D> {
     }
 } 
 
-impl<V: Ve<T, D>, T: Nu, const D: usize> BHNode<V::VectorF, f32, D> for BVHNodeCSGUnion<V, T, D> {
-    fn new<S>(aabb: AABB<V::VectorF, f32, D>, exit_index: usize, shape_index: Option<(usize, &S)>) -> Self {
+impl<V: Ve<T, D>, T: Nu, const D: usize> BHNode<(), V::VectorF, f32, D> for BVHNodeCSGUnion<V, T, D> {
+    fn new<S>(aabb: AABB<V::VectorF, f32, D>, exit_index: usize, shape_index: Option<(usize, ())>) -> Self {
         Self {
             aabb: AABB::from_f(aabb),
             exit: exit_index,
@@ -50,8 +50,8 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> BHNode<V::VectorF, f32, D> for BVHNodeC
     }
 }
 
-impl<M, V: Ve<T, D>, T: Nu, const D: usize> BHShape<V::VectorF, f32, D> for CSGTreeNode<M, V, T, D> {
-    fn aabb(&self, shapes: &Shapes<Self, V::VectorF, f32, D>) -> AABB<V::VectorF, f32, D> {
+impl<M, V: Ve<T, D>, T: Nu, const D: usize> BHShape<(), V::VectorF, f32, D> for CSGTreeNode<M, V, T, D> {
+    fn aabb(&self, shapes: &Shapes<(), Self, V::VectorF, f32, D>) -> AABB<V::VectorF, f32, D> {
         match &self.data {
             CSGTreeNodeData::None => AABB::default(),
             CSGTreeNodeData::Union(d) => d.get_bounds().to_f(),
@@ -64,6 +64,10 @@ impl<M, V: Ve<T, D>, T: Nu, const D: usize> BHShape<V::VectorF, f32, D> for CSGT
             CSGTreeNodeData::OffsetVoxelGrid(d) => d.get_bounds(),
             CSGTreeNodeData::SharedVoxelGrid(d) => d.get_bounds(),
         }
+    }
+
+    fn extra_data(&self, shapes: &Shapes<(), Self, V::VectorF, f32, D>) -> () {
+        ()
     }
 }
 

@@ -2,17 +2,19 @@ use std::marker::PhantomData;
 
 use crate::util::{aabb::AABB, number::Nu, vector::Ve};
 
-pub struct Shapes<'a, S: BHShape<V, T, D>, V: Ve<T, D>, T: Nu, const D: usize> {
+pub struct Shapes<'a, E, S: BHShape<E, V, T, D>, V: Ve<T, D>, T: Nu, const D: usize> {
     shapes: &'a [S],
+    p0: PhantomData<E>,
     p1: PhantomData<V>,
     p2: PhantomData<T>,
 }
 
-pub trait BHShape<V: Ve<T, D>, T: Nu, const D: usize>: Sized {
-    fn aabb(&self, shapes: &Shapes<Self, V, T, D>) -> AABB<V, T, D>;
+pub trait BHShape<E, V: Ve<T, D>, T: Nu, const D: usize>: Sized {
+    fn aabb(&self, shapes: &Shapes<E, Self, V, T, D>) -> AABB<V, T, D>;
+    fn extra_data(&self, shapes: &Shapes<E, Self, V, T, D>) -> E;
 }
 
-impl<S: BHShape<V, T, D>, V: Ve<T, D>, T: Nu, const D: usize> Shapes<'_, S, V, T, D> {
+impl<E, S: BHShape<E, V, T, D>, V: Ve<T, D>, T: Nu, const D: usize> Shapes<'_, E, S, V, T, D> {
     /// Returns a reference to the Shape found at shape_index.
     pub fn get(&self, shape_index: usize) -> &S {
         &self.shapes[shape_index]
@@ -23,9 +25,14 @@ impl<S: BHShape<V, T, D>, V: Ve<T, D>, T: Nu, const D: usize> Shapes<'_, S, V, T
     }
 
     /// Creates a [`Shapes`] that inherits its lifetime from the slice.
-    pub(crate) fn from_slice(slice: &[S]) -> Shapes<'_, S, V, T, D>
+    pub(crate) fn from_slice(slice: &[S]) -> Shapes<'_, E, S, V, T, D>
     {
-        Shapes { shapes: &slice, p1: Default::default(), p2: Default::default() }
+        Shapes { 
+            shapes: &slice, 
+            p0: PhantomData, 
+            p1: PhantomData, 
+            p2: PhantomData 
+        }
     }
 }
 

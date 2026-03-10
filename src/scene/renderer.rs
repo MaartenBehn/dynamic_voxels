@@ -168,8 +168,8 @@ impl SceneRenderer {
 
         match self.staging_state {
             StagingState::Inactive => {
-                if let Ok(staging) = self.worker_ref.render_r.try_recv() { 
-                    
+                if let Ok(staging) = self.worker_ref.render_r.try_recv() {
+
                     self.start_staging_copy_time = Instant::now();
                     self.copy_staging(&staging, engine)?;
 

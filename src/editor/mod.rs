@@ -15,7 +15,7 @@ impl Editor {
         scene_send: SceneWorkerSend,
     ) -> OctaResult<Self> {
         
-        let factor = 20.0;
+        let factor = 30.0;
         let mut csg = Volume::new_sphere_float(Vec3A::ZERO, 
             100.0 * factor, MATERIAL_ID_BASE);
         csg.cut_with_sphere(vec3a(70.0 * factor, 0.0, 0.0), 70.0 * factor, MATERIAL_ID_BASE);

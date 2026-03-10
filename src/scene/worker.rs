@@ -6,13 +6,13 @@ use parking_lot::Mutex;
 use slotmap::{SlotMap, new_key_type};
 use smol::{channel::Sender, future::FutureExt};
 
-use crate::{VOXELS_PER_METER, bvh::Bvh, mesh::Mesh, scene::{dag_store::SceneDAGStore, object::{BVHObject, SceneObject, SceneObjectData}, staging_copies::OptimalBufferCopyAlligment}, util::{buddy_allocator::{BuddyAllocator, ManualBuddyAllocation}, default_types::{LODType, Volume}, worker_response::{WithRespose, WorkerRespose}}, voxel::dag64::{DAG64Entry, VoxelDAG64, lod_heuristic::LODHeuristicT, parallel::ParallelVoxelDAG64}};
+use crate::{VOXELS_PER_METER, bvh::Bvh, mesh::Mesh, scene::{dag_store::SceneDAGStore, object::{BVHExtraData, BVHObject, SceneObject, SceneObjectData}, staging_copies::OptimalBufferCopyAlligment}, util::{buddy_allocator::{BuddyAllocator, ManualBuddyAllocation}, default_types::{LODType, Volume}, worker_response::{WithRespose, WorkerRespose}}, voxel::dag64::{DAG64Entry, VoxelDAG64, lod_heuristic::LODHeuristicT, parallel::ParallelVoxelDAG64}};
 
 use super::{dag64::{SceneAddDAGObject}, dag_store::SceneDAGKey, staging_copies::SceneStaging};
 
 new_key_type! { pub struct SceneObjectKey; }
 
-const INITAL_STAGING_BUFFER_AMMOUNT: usize = 2;
+const INITAL_STAGING_BUFFER_AMMOUNT: usize = 5;
 const INITAL_STAGING_BUFFER_SIZE: usize = 2;
 
 const SCENE_TASK_QUEUE_SIZE: usize = 10;
@@ -25,7 +25,7 @@ pub struct SceneWorker {
     pub objects: SlotMap<SceneObjectKey, SceneObject>,
     
     pub allocator: BuddyAllocator,
-    pub bvh: Bvh<SceneObjectData, Vec3, f32, 3>,
+    pub bvh: Bvh<SceneObjectData, BVHExtraData, Vec3, f32, 3>,
     pub bvh_allocation: ManualBuddyAllocation,
     pub bvh_len: usize,
     pub needs_bvh_update: bool,
@@ -182,6 +182,9 @@ impl SceneWorker {
         if self.needs_bvh_update {
             self.update_bvh(&mut builder)?;
         }
+
+        #[cfg(debug_assertions)]
+        debug!("Scene Worker: Sending Staging Buffer");
 
         render_s.send(builder.build()).await?;
 

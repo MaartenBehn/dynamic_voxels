@@ -29,8 +29,8 @@ fn main() {
 
         ray_tracing: EngineFeatureValue::NotUsed,
         compute_rendering: EngineFeatureValue::Needed,
-        validation_layers: EngineFeatureValue::Wanted,
-        shader_debug_printing: EngineFeatureValue::Wanted,
+        validation_layers: EngineFeatureValue::NotUsed,
+        shader_debug_printing: EngineFeatureValue::NotUsed,
         shader_debug_clock: if USE_PROFILE {
             EngineFeatureValue::Needed
         } else {

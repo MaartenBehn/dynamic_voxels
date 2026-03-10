@@ -66,6 +66,8 @@ impl SceneWorker {
     }
 
     pub fn rebuild_all_dag_objects(&mut self) {
+        debug!("rebuild_all_dag_objects");
+
         for dag_object in self.objects.values_mut() {
             match &mut dag_object.data {
                 SceneObjectType::DAG64(scene_dagobject) => {
@@ -91,7 +93,6 @@ impl SceneWorker {
 
 impl SceneDAGObject {
     pub fn update(&self, dag_store: &SceneDAGStore, builder: &mut SceneStagingBuilder) {
-
         let mat = self.entry.calc_mat(self.mat);
         let inv_mat = mat.inverse();
 
@@ -111,9 +112,6 @@ impl SceneDAGObject {
 
     pub fn get_aabb(&self) -> AABB3 {
         
-        // Idk why we need this but somehow the AABB is to small sometimes
-        let padding = self.entry.offset.as_vec3a().abs() * 0.2; 
-
         let size = self.entry.get_size();
         let aabb = AABB3::from_min_max(
             &self.mat,

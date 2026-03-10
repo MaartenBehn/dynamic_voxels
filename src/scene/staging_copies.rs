@@ -46,6 +46,10 @@ impl SceneStagingBuilder {
     }
 
     pub fn push<T: Copy>(&mut self, data: &[T], gpu_offset: usize) {
+        if (data.is_empty()) {
+            return;
+        }
+
         let data_size = size_of::<T>() * data.len();
         let size = if (data_size % self.optimal_alignment.0) == 0 {
             data_size

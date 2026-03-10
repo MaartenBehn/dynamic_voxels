@@ -5,28 +5,28 @@ use crate::util::{aabb::AABB, number::Nu, vector::Ve};
 use super::{bucket::{Bucket, BUCKETS, NUM_BUCKETS}, helper::{joint_aabb_of_shapes, BvhNodeBuildArgs}, shape::{BHShape, Shapes}};
 
 
-pub trait BHNode<V: Ve<T, D>, T: Nu, const D: usize>: Sized {
-    fn new<S: BHShape<V, T, D>>(aabb: AABB<V, T, D>, exit_index: usize, shape: Option<(usize, &S)>) -> Self;
+pub trait BHNode<E, V: Ve<T, D>, T: Nu, const D: usize>: Sized {
+    fn new<S: BHShape<E, V, T, D>>(aabb: AABB<V, T, D>, exit_index: usize, shape: Option<(usize, E)>) -> Self;
 
-    fn build<S: BHShape<V, T, D>>(args: BvhNodeBuildArgs<S, Self, V, T, D>) {
+    fn build<S: BHShape<E, V, T, D>>(args: BvhNodeBuildArgs<E, S, Self, V, T, D>) {
         if let Some((left, right)) = Self::prep_build(args) {
             Self::build(left);
             Self::build(right);
         }
     }
 
-    fn build_with_executor<S: BHShape<V, T, D>>(
-        args: BvhNodeBuildArgs<S, Self, V, T, D>,
-        mut executor: impl FnMut(BvhNodeBuildArgs<S, Self, V, T, D>, BvhNodeBuildArgs<S, Self,  V, T, D>),
+    fn build_with_executor<S: BHShape<E, V, T, D>>(
+        args: BvhNodeBuildArgs<E, S, Self, V, T, D>,
+        mut executor: impl FnMut(BvhNodeBuildArgs<E, S, Self, V, T, D>, BvhNodeBuildArgs<E, S, Self,  V, T, D>),
     ) {
         if let Some((left, right)) = Self::prep_build(args) {
             executor(left, right);
         }
     }
 
-    fn prep_build<S: BHShape<V, T, D>>(
-        args: BvhNodeBuildArgs<S, Self, V, T, D>,
-    ) -> Option<(BvhNodeBuildArgs<S, Self, V, T, D>, BvhNodeBuildArgs<S, Self, V, T, D>)> {
+    fn prep_build<S: BHShape<E, V, T, D>>(
+        args: BvhNodeBuildArgs<E, S, Self, V, T, D>,
+    ) -> Option<(BvhNodeBuildArgs<E, S, Self, V, T, D>, BvhNodeBuildArgs<E, S, Self, V, T, D>)> {
         let BvhNodeBuildArgs {
             shapes,
             indices,
@@ -39,7 +39,8 @@ pub trait BHNode<V: Ve<T, D>, T: Nu, const D: usize>: Sized {
         // If there is only one element left, don't split anymore
         if indices.len() == 1 {
             let shape_index = indices[0];
-            nodes[0].write(Self::new::<S>(aabb_bounds, exit_index, Some((shape_index, &shapes.get(shape_index)))));
+            nodes[0].write(Self::new::<S>(aabb_bounds, exit_index, 
+                Some((shape_index, shapes.get(shape_index).extra_data(shapes)))));
             // Let the shape know the index of the node that represents it.
             //shapes.set_node_index(shape_index, node_index);
             return None;
@@ -118,8 +119,8 @@ pub trait BHNode<V: Ve<T, D>, T: Nu, const D: usize>: Sized {
     }
 
     #[allow(clippy::type_complexity)]
-    fn build_buckets<'a, S: BHShape<V, T, D>>(
-        shapes: &Shapes<S, V, T, D>,
+    fn build_buckets<'a, S: BHShape<E, V, T, D>>(
+        shapes: &Shapes<E, S, V, T, D>,
         indices: &'a mut [usize],
         split_axis: usize,
         split_axis_size: T,

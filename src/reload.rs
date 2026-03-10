@@ -338,7 +338,7 @@ pub fn on_recreate_swapchain(
     render_state: &mut RenderState,
     engine: &mut Engine,
 ) -> OctaResult<()> {
-    logic_state.camera.set_screen_size(engine.swapchain.size.as_vec2());
+    logic_state.camera.set_screen_size(engine.get_resolution().as_vec2());
 
     #[cfg(any(feature="game"))]
     render_state.scene.on_size_changed(engine.get_resolution(), &engine.context, &engine.swapchain)?;
@@ -346,7 +346,5 @@ pub fn on_recreate_swapchain(
     #[cfg(any(feature="voxel"))]
     render_state.tree_renderer.on_size_changed(engine)?;
 
-
-    trace!("On recreate swapchain done");
     Ok(())
 }

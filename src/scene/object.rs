@@ -1,7 +1,7 @@
 use std::mem::ManuallyDrop;
 
 use itertools::Itertools;
-use octa_force::{OctaResult, anyhow::anyhow, glam::Vec3, vulkan::Buffer};
+use octa_force::{OctaResult, anyhow::anyhow, glam::Vec3, log::debug, vulkan::Buffer};
 
 use crate::{bvh::{Bvh, node::BHNode, shape::{BHShape, Shapes}}, scene::{dag_store::SceneDAGStore, dag64::SceneDAGObject, staging_copies::SceneStagingBuilder, worker::{SceneObjectKey, SceneWorker}}, util::aabb::{AABB, AABB3}};
 
@@ -13,8 +13,14 @@ pub struct SceneObject {
     pub data: SceneObjectType,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct BVHObject<'a> (&'a SceneObject);
+
+#[derive(Clone, Copy, Debug)]
+pub struct BVHExtraData {
+    pub start: usize, 
+    pub nr: u32,
+}
 
 #[derive(Debug)]
 pub enum SceneObjectType {
@@ -44,6 +50,9 @@ impl SceneWorker {
     }
 
     pub fn update_bvh(&mut self, builder: &mut SceneStagingBuilder) -> OctaResult<()> {
+        #[cfg(debug_assertions)]
+        debug!("Scene Worker: Update BVH");
+
         let objects = self.objects.values().into_iter().map(|o| BVHObject (o)).collect_vec();
         let mut indecies = (0..objects.len()).into_iter().collect_vec();
 
@@ -95,24 +104,16 @@ impl SceneObject {
     }
 }
 
-pub union SUnion<'a, S> {
-    a: ManuallyDrop<S>,
-    b: BVHObject<'a>
-}
+impl BHNode<BVHExtraData, Vec3, f32, 3> for SceneObjectData {
+    fn new<S>(aabb: AABB<Vec3, f32, 3>, exit_index: usize, shape_index: Option<(usize, BVHExtraData)>) -> Self {
 
-impl BHNode<Vec3, f32, 3> for SceneObjectData {
-    fn new<S>(aabb: AABB<Vec3, f32, 3>, exit_index: usize, shape_index: Option<(usize, &S)>) -> Self {
-
-        if let Some((_, shape)) = shape_index {
-
-            // Safety because we use BVHObject wehn building. 
-            let shape = unsafe { SUnion { a: ManuallyDrop::new(shape) }.b };
+        if let Some((_, extra_data)) = shape_index {
 
             Self {
                 min: aabb.min(),
-                child: (shape.0.get_start() as u32) << 1 | 1,
+                child: (extra_data.start as u32) << 1 | 1,
                 max: aabb.max(),
-                exit: (exit_index as u32) << 1 | shape.0.get_nr(),
+                exit: (exit_index as u32) << 1 | extra_data.nr,
             }
         } else {
             Self {
@@ -125,8 +126,15 @@ impl BHNode<Vec3, f32, 3> for SceneObjectData {
     }
 }
 
-impl<'a> BHShape<Vec3, f32, 3> for BVHObject<'a> {
-    fn aabb(&self, shapes: &Shapes<Self, Vec3, f32, 3>) -> AABB<Vec3, f32, 3> {
+impl<'a> BHShape<BVHExtraData, Vec3, f32, 3> for BVHObject<'a> {
+    fn aabb(&self, shapes: &Shapes<BVHExtraData, Self, Vec3, f32, 3>) -> AABB<Vec3, f32, 3> {
         self.0.get_aabb().to_f()
+    }
+
+    fn extra_data(&self, shapes: &Shapes<BVHExtraData, Self, Vec3, f32, 3>) -> BVHExtraData {
+        BVHExtraData {
+            start: self.0.get_start(),
+            nr: self.0.get_nr(),
+        }
     }
 }
