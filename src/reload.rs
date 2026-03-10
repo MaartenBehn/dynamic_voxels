@@ -1,4 +1,4 @@
-#![forbid(unused_must_use)]
+
 
 extern crate self as dynamic_voxels;
 
@@ -12,6 +12,7 @@ pub mod voxel;
 pub mod bvh;
 pub mod mesh;
 pub mod marching_cubes;
+pub mod editor;
 
 use model::composer::ModelComposer;
 use octa_force::engine::Engine;
@@ -26,6 +27,8 @@ use octa_force::{egui, log, OctaResult};
 use voxel::palette::shared::SharedPalette;
 use std::time::{Duration, Instant};
 
+#[cfg(any(feature="game"))]
+use crate::editor::Editor;
 #[cfg(any(feature="graph"))]
 use crate::mesh::scene::MeshScene;
 #[cfg(any(feature="voxel"))]
@@ -65,6 +68,16 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
     log::info!("Creating Camera");
     let mut camera = Camera::default();
  
+    #[cfg(feature="game")]
+    {
+        camera.set_meter_per_unit(METERS_PER_SHADER_UNIT as f32);
+        camera.set_position_in_meters(Vec3::new(228.99355, 269.8007, 114.694595)); 
+        camera.direction = Vec3::new(-0.6110025, -0.7362994, -0.29075617).normalize();
+        
+        camera.speed = 500.0;
+        camera.z_near = 0.001;
+    }
+
     #[cfg(feature="voxel")]
     {
         camera.set_meter_per_unit(METERS_PER_SHADER_UNIT as f32);
@@ -96,11 +109,14 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
 
 
 #[derive(Debug)]
-pub struct RenderState {    
+pub struct RenderState {   
+    #[cfg(any(feature="game"))]
+    pub editor: Editor,
+
     #[cfg(any(feature="voxel"))]
     pub tree_renderer: Tree64Renderer,
     
-    #[cfg(any(feature="graph"))]
+    #[cfg(any(feature="graph", feature="game"))]
     pub scene: SceneRenderer,
     
     #[cfg(any(feature="graph"))]
@@ -114,6 +130,28 @@ pub struct RenderState {
 pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> OctaResult<RenderState> {
     #[cfg(debug_assertions)]
     puffin::profile_function!();
+
+    #[cfg(feature="game")]
+    {
+        use crate::{editor::Editor, mesh::scene::MeshScene};
+
+        let palette = SharedPalette::new();
+        let mesh_scene = MeshScene::new(&engine.context, &engine.swapchain);
+
+        let scene = SceneRenderer::new(
+            engine, 
+            &logic_state.camera,
+            palette.clone(),
+            false,
+        )?;
+
+        let editor = Editor::new(&logic_state.camera, scene.worker_ref.send.clone())?;
+
+        Ok(RenderState {
+            scene,
+            editor,
+        })
+    }
        
     #[cfg(feature="voxel")]
     {
@@ -152,7 +190,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         })
     }
 
-    #[cfg(not(any(feature="voxel", feature="graph")))]
+    #[cfg(not(any(feature="voxel", feature="graph", feature="game")))]
     {
         Ok(RenderState { })
     }
@@ -173,6 +211,11 @@ pub fn update(
     logic_state.camera.update(&engine.controls, delta_time);
     //info!("Camera Pos: {} Dir: {}", logic_state.camera.get_position_in_meters(), logic_state.camera.direction);
     
+    #[cfg(any(feature="game"))]
+    {
+        render_state.scene.update(engine, &logic_state.camera, engine.get_resolution())?;
+    }
+
     #[cfg(any(feature="voxel"))]
     {
         render_state.tree_renderer.update(engine, &logic_state.camera)?;
@@ -221,6 +264,12 @@ pub fn record_render_commands(
 
     let command_buffer = engine.get_current_command_buffer();
     
+    #[cfg(any(feature="game"))]
+    { 
+        render_state.scene.render(UVec2::ZERO, command_buffer, &engine, &logic_state.camera)?;
+        command_buffer.swapchain_image_render_barrier(&engine.get_current_swapchain_image_and_view().image)?;
+    }
+
     #[cfg(any(feature="voxel"))]
     {
         render_state.tree_renderer.render(command_buffer, engine, &logic_state.camera)?;
@@ -252,14 +301,22 @@ pub fn record_ui_commands(
     logic_state: &mut LogicState,
     render_state: &mut RenderState,
 ) -> OctaResult<()> {
+    #[cfg(any(feature="game"))]
+    {
+        render_state.scene.render_ui(ctx);
+    }
+
     #[cfg(any(feature="voxel"))]
-    render_state.tree_renderer.render_ui(ctx);
+    {
+        render_state.tree_renderer.render_ui(ctx);
+    }
     
     #[cfg(any(feature="graph"))]
-    render_state.scene.render_ui(ctx);
+    {
+        render_state.scene.render_ui(ctx);
 
-    #[cfg(any(feature="graph"))]
-    render_state.composer.render(ctx);
+        render_state.composer.render(ctx);
+    }
 
     Ok(())
 }
@@ -282,6 +339,9 @@ pub fn on_recreate_swapchain(
     engine: &mut Engine,
 ) -> OctaResult<()> {
     logic_state.camera.set_screen_size(engine.swapchain.size.as_vec2());
+
+    #[cfg(any(feature="game"))]
+    render_state.scene.on_size_changed(engine.get_resolution(), &engine.context, &engine.swapchain)?;
 
     #[cfg(any(feature="voxel"))]
     render_state.tree_renderer.on_size_changed(engine)?;
