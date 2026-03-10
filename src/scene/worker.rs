@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{ops::Deref, sync::Arc};
 
-use octa_force::{OctaResult, camera::Camera, glam::{Mat4, Vec3, Vec3A}, log::{debug, trace, warn}, vulkan::{Buffer, Context, ash::vk, gpu_allocator::MemoryLocation}};
+use octa_force::{OctaResult, anyhow::bail, camera::Camera, glam::{Mat4, Vec3, Vec3A}, log::{debug, error, trace, warn}, vulkan::{Buffer, Context, ash::vk, gpu_allocator::MemoryLocation}};
 use parking_lot::Mutex;
 use slotmap::{SlotMap, new_key_type};
 use smol::{channel::Sender, future::FutureExt};
@@ -44,6 +44,9 @@ pub struct SceneWorkerRef {
 pub enum SceneTask {
     AddDAGObject(WithRespose<SceneAddDAGObject, SceneObjectKey>),
     RemoveObject(SceneObjectKey),
+    GetObjectMat(WithRespose<SceneObjectKey, Mat4>),
+    UpdateObjectMat((SceneObjectKey, Mat4)),
+    UpdateModel(WithRespose<(SceneObjectKey, Volume), ()>),
 
     FreeStagingBuffer(Buffer),
     CameraPosition(Vec3),
@@ -75,7 +78,7 @@ impl SceneWorker {
         let mut dag_store = SceneDAGStore::new();
 
         let mut dag = VoxelDAG64::new(
-            10000000, 
+            20000000, 
             4000000, 
         ).parallel();
         dag_store.add_dag(dag, &mut allocator).expect("Failed to add DAG to Store");
@@ -118,7 +121,7 @@ impl SceneWorker {
                             },
                             SceneTask::CameraPosition(pos) => {
                                 self.lod.set_center((pos * VOXELS_PER_METER as f32).as_ivec3());
-                                
+    
                                 self.rebuild_all_dag_objects();
                                 self.update(&render_s).await.unwrap();
                             }
@@ -140,6 +143,43 @@ impl SceneWorker {
 
                                 self.update(&render_s).await.unwrap();
                             },
+                            SceneTask::GetObjectMat(worker_message) => {
+                                let (key, awnser) = worker_message.unwarp();
+                                
+                                if let Some(o) = self.objects.get(key) {
+                                    awnser(o.get_mat());
+                                } else {
+                                    error!("GetObjectMat: Invalid key");
+                                }
+                            },
+                            SceneTask::UpdateObjectMat((key, mat)) => {
+                                if let Some(o) = self.objects.get_mut(key) {
+                                    o.update_mat(mat);
+                                } else {
+                                    error!("UpdateObjectMat: Invalid key");
+                                }
+
+                                self.needs_bvh_update = true;
+                                self.update(&render_s).await.unwrap();
+                            },
+                            SceneTask::UpdateModel(worker_message) => {
+                                let ((key, model), awnser) = worker_message.unwarp();
+                                
+                                if let Some(o) = self.objects.get_mut(key) {
+                                    let dag_o = o.get_dag_object_mut();
+                                    dag_o.model = model;
+                                    dag_o.rebuild_changed(&mut self.dag_store, &self.lod);
+                                    o.needs_update = true;
+                                } else {
+                                    error!("UpdateModel: Invalid key");
+                                }
+
+                                awnser(());
+
+                                self.needs_bvh_update = true;
+                                self.update(&render_s).await.unwrap();
+                            },
+
                         }
                     },
 
@@ -237,6 +277,22 @@ impl SceneWorkerSend {
     pub fn remove_object(&self, object: SceneObjectKey) {
         self.send_task(SceneTask::RemoveObject(object));
     }
+
+    pub fn get_object_mat(&self, object: SceneObjectKey) -> WorkerRespose<Mat4> {
+        let (message, res) = WithRespose::new(object);
+        self.send_task(SceneTask::GetObjectMat(message));
+        res
+    }  
+
+    pub fn update_object_mat(&self, object: SceneObjectKey, mat: Mat4) {
+        self.send_task(SceneTask::UpdateObjectMat((object, mat)));
+    } 
+    
+    pub fn update_model(&self, object: SceneObjectKey, model: Volume) ->  WorkerRespose<()> {
+        let (message, res) = WithRespose::new((object, model));
+        self.send_task(SceneTask::UpdateModel(message));
+        res
+    }   
 }
 
 impl fmt::Debug for SceneTask {
@@ -246,6 +302,9 @@ impl fmt::Debug for SceneTask {
             Self::RemoveObject(arg0) => f.debug_tuple("RemoveObject").finish(),
             Self::FreeStagingBuffer(arg0) => f.debug_tuple("FreeStagingBuffer").finish(),
             Self::CameraPosition(arg0) => f.debug_tuple("CameraPosition").finish(),
+            Self::GetObjectMat(arg0) => f.debug_tuple("GetObjectMat").finish(),
+            Self::UpdateObjectMat(arg0) => f.debug_tuple("UpdateObjectMat").finish(),
+            Self::UpdateModel(arg0) => f.debug_tuple("UpdateModel").finish(),
         }
     }
 }

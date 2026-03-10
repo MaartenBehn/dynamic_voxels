@@ -213,6 +213,7 @@ pub fn update(
     
     #[cfg(any(feature="game"))]
     {
+        render_state.editor.update(time.as_secs_f32());
         render_state.scene.update(engine, &logic_state.camera, engine.get_resolution())?;
     }
 

@@ -1,7 +1,7 @@
 use std::mem::ManuallyDrop;
 
 use itertools::Itertools;
-use octa_force::{OctaResult, anyhow::anyhow, glam::Vec3, log::debug, vulkan::Buffer};
+use octa_force::{OctaResult, anyhow::anyhow, glam::{Mat4, Vec3}, log::debug, vulkan::Buffer};
 
 use crate::{bvh::{Bvh, node::BHNode, shape::{BHShape, Shapes}}, scene::{dag_store::SceneDAGStore, dag64::SceneDAGObject, staging_copies::SceneStagingBuilder, worker::{SceneObjectKey, SceneWorker}}, util::aabb::{AABB, AABB3}};
 
@@ -95,12 +95,39 @@ impl SceneObject {
         }
     }
 
+    // TODO: Move mat into general Body
+    pub fn get_mat(&self) -> Mat4 {
+        match &self.data {
+            SceneObjectType::DAG64(o) => o.mat,
+        }
+    }
+
+    pub fn update_mat(&mut self, mat: Mat4) {
+        match &mut self.data {
+            SceneObjectType::DAG64(o) => {
+                o.mat = mat
+            },
+        }
+    }
+
     pub fn update(&mut self, dag_store: &SceneDAGStore, builder: &mut SceneStagingBuilder) {
         match &self.data {
             SceneObjectType::DAG64(o) => o.update(dag_store, builder),
         }
 
         self.needs_update = false;
+    }
+
+    pub fn get_dag_object(&self) -> &SceneDAGObject {
+        match &self.data {
+            SceneObjectType::DAG64(o) => o,
+        }
+    }
+
+    pub fn get_dag_object_mut(&mut self) -> &mut SceneDAGObject {
+        match &mut self.data {
+            SceneObjectType::DAG64(o) => o,
+        }
     }
 }
 

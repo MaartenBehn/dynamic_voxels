@@ -5,6 +5,7 @@ pub struct WithRespose<S, R> {
     back_s: oneshot::Sender<R>
 }
 
+#[derive(Debug)]
 pub struct WorkerRespose<R> {
     back_r: oneshot::Receiver<R>
 }

@@ -91,7 +91,7 @@ impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
             | CSGTreeNodeData::Box(_)
             | CSGTreeNodeData::Sphere(_)
             | CSGTreeNodeData::OffsetVoxelGrid(_) 
-            | CSGTreeNodeData::SharedVoxelGrid(_) => unreachable!()
+            | CSGTreeNodeData::SharedVoxelGrid(_) => {}
         }
 
         if index != self.root {

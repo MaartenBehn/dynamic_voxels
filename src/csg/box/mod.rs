@@ -17,6 +17,14 @@ impl<M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGBox<M, V, T, D> {
             v: mat,
         }
     }
+
+    pub fn get_mat(&self) -> V::Matrix {
+        self.mat
+    }
+
+    pub fn set_mat(&mut self, mat: V::Matrix) {
+        self.mat = mat;
+    }
 }
 
 impl<M, V: Ve<T, D>, T: Nu, const D: usize> VolumeBounds<V, T, D> for CSGBox<M, V, T, D> {

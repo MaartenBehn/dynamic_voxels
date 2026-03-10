@@ -59,7 +59,7 @@ impl SceneRenderer {
         allways_fullscreen: bool,
     ) -> OctaResult<SceneRenderer> {
 
-        let gpu_buffer_size = 2_usize.pow(29);
+        let gpu_buffer_size = 2_usize.pow(30);
         info!("Scene Buffer size: {:.04} MB", to_mb(gpu_buffer_size));
   
         let flags = vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS_KHR | vk::BufferUsageFlags::TRANSFER_DST;

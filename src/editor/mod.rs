@@ -1,12 +1,17 @@
 use std::time::Instant;
 
-use octa_force::{OctaResult, camera::Camera, glam::{Mat4, Vec3A, vec3a}, log::info};
+use octa_force::{OctaResult, camera::Camera, glam::{Mat4, Vec3A, vec3, vec3a}, log::info};
 
-use crate::{VOXELS_PER_METER, scene::worker::SceneWorkerSend, util::default_types::{LODType, Volume}, voxel::{dag64::VoxelDAG64, palette::palette::MATERIAL_ID_BASE}};
+use crate::{VOXELS_PER_METER, scene::worker::{SceneObjectKey, SceneWorkerSend}, util::{default_types::{LODType, Volume}, worker_response::WorkerRespose}, voxel::{dag64::VoxelDAG64, grid::offset, palette::palette::MATERIAL_ID_BASE}};
 
 #[derive(Debug)]
 pub struct Editor {
     scene_send: SceneWorkerSend,
+    key: SceneObjectKey,
+    model: Volume,
+    index: usize,
+    mat: Mat4,
+    respose: Option<WorkerRespose<()>>
 }
 
 impl Editor {
@@ -16,14 +21,45 @@ impl Editor {
     ) -> OctaResult<Self> {
         
         let factor = 30.0;
-        let mut csg = Volume::new_sphere_float(Vec3A::ZERO, 
+        let mut model = Volume::new_sphere_float(Vec3A::ZERO, 
             100.0 * factor, MATERIAL_ID_BASE);
-        csg.cut_with_sphere(vec3a(70.0 * factor, 0.0, 0.0), 70.0 * factor, MATERIAL_ID_BASE);
+        let res = model.cut_with_sphere(
+            vec3a(80.0 * factor, 0.0, 0.0), 
+            30.0 * factor, 
+            MATERIAL_ID_BASE);
 
-        scene_send.add_dag_object(Mat4::IDENTITY, csg);
+        let mat = model.get_mat(res.new_object_index);
+
+        let key = scene_send.add_dag_object(Mat4::IDENTITY, model.clone()).result_blocking();
 
         Ok(Self {
-            scene_send
+            scene_send,
+            key,
+            model,
+            index: res.new_object_index,
+            mat,
+            respose: None,
         })
+    }
+
+    pub fn update(&mut self, time: f32) {
+
+        if let Some(res) = self.respose.as_ref() {
+            if !res.has_result() {
+                return;
+            }
+        }
+
+        let interval = 10.0;
+        let size = 200.0;
+        let t = ((time % interval) / 10.0);
+        let t = simple_easing::cubic_in_out(simple_easing::roundtrip(t));
+
+        let new_mat = self.mat.mul_mat4(&Mat4::from_translation(vec3(t * size, 0.0, 0.0)));
+        
+        self.model.reset_changed_bounds();
+        self.model.set_mat(self.index, new_mat);
+
+    self.respose = Some(self.scene_send.update_model(self.key, self.model.clone()));
     }
 }

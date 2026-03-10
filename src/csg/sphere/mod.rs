@@ -24,6 +24,15 @@ impl<M, V: Ve<T, D>, T: Nu, const D: usize> CSGSphere<M, V, T, D> {
             p: Default::default(),
         }
     }
+
+    
+    pub fn get_mat(&self) -> V::Matrix {
+        self.mat
+    }
+
+    pub fn set_mat(&mut self, mat: V::Matrix) {
+        self.mat = mat;
+    }
 }
 
 impl<M: Base, V: Ve<T, 3>, T: Nu> CSGSphere<M, V, T, 3> {
