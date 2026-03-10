@@ -44,10 +44,10 @@ impl Tree64Renderer {
 
         let now = Instant::now();
 
-        let mut dag = VoxelDAG64::new(
+        let mut dag = ParallelVoxelDAG64::new(
             100000000, 
             64, 
-        ).parallel();
+        );
         let key = dag.add_aabb_query_volume(&csg, &lod)?;
 
         let elapsed = now.elapsed();

@@ -21,28 +21,15 @@ pub struct ParallelVoxelDAG64 {
     pub entry_points: Arc<Mutex<SlotMap<DAG64EntryKey, DAG64Entry>>>,
 }
 
-impl VoxelDAG64 { 
-    pub fn parallel(self) -> ParallelVoxelDAG64 {
 
-        let nodes = self.nodes.parallel();
-        let data = self.data.parallel();
-        let entry_points = Arc::new(Mutex::new(self.entry_points));
-
-        ParallelVoxelDAG64 {
-            nodes,
-            data,
-            entry_points,
-        }
-    }
-}
 
 impl ParallelVoxelDAG64 {
-    pub fn single(self) -> VoxelDAG64 {
-        let nodes = self.nodes.single();
-        let data = self.data.single();
-        let entry_points = Arc::try_unwrap(self.entry_points).unwrap().into_inner();
-
-        VoxelDAG64 { nodes, data, entry_points }
+    pub fn new(nodes_capacity: usize, data_capacity: usize) -> Self {
+        Self {
+            nodes: ParallelVec::new(nodes_capacity),
+            data: ParallelVec::new(data_capacity),
+            entry_points: Default::default(),
+        }
     }
 
     pub fn print_memory_info(&self) { 

@@ -62,7 +62,7 @@ impl ParallelVoxelDAG64 {
                         .enumerate()
                         .map(move |(i, pos)| {
                             let pos = offset + pos * new_scale;
-                            let res = self.add_aabb_query_recursive(
+                            let res = self.add_aabb_query_recursive_par(
                                 model,
                                 lod,
                                 pos, 

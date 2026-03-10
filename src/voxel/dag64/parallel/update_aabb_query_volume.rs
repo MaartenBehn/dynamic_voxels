@@ -63,21 +63,21 @@ impl ParallelVoxelDAG64 {
                 let index_in_children = node.get_index_in_children_unchecked(i as u32);
                 let new_node = if !node.is_occupied(i as u32) {
 
-                    (self.add_aabb_query_recursive(
+                    (self.add_aabb_query_recursive_par(
                         model, 
                         lod,
                         node_aabb.min().to_ivec3(),
                         new_level,
                     )?.check_empty(), true)
                 } else if aabb.contains_aabb(node_aabb) {
-                    (Some(self.add_aabb_query_recursive(
+                    (Some(self.add_aabb_query_recursive_par(
                         model,
                         lod,
                         node_aabb.min().to_ivec3(),
                         new_level,
                     )?), false)
                 } else {
-                    (Some(self.update_aabb_recursive(
+                    (Some(self.update_aabb_recursive_par(
                         model,
                         lod,
                         aabb,
@@ -109,7 +109,7 @@ impl ParallelVoxelDAG64 {
 
         if !new_children.is_empty() {
             let mut bitmask = node.pop_mask;
-            let mut children = self.nodes.get_range::<64>(node.range());
+            let mut children: SmallVec<[_; 64]> = self.nodes.get_range(node.range()).to_smallvec();
             let mut j = children.len();
             let mut k = new_children.len();
 
@@ -191,7 +191,7 @@ impl ParallelVoxelDAG64 {
                     }
 
                     if new_children.is_empty() {
-                        new_children = self.nodes.get_range::<64>(node.range());
+                        new_children = self.nodes.get_range(node.range()).to_smallvec();
                     }
 
                     new_children.insert(index_in_children as usize, new_child_node);
@@ -219,7 +219,7 @@ impl ParallelVoxelDAG64 {
                 };
 
                 if new_children.is_empty() {
-                    new_children = self.nodes.get_range::<64>(node.range());
+                    new_children = self.nodes.get_range(node.range()).to_smallvec();
                 }
                 new_children[index_in_children as usize] = new_child_node;
             }           

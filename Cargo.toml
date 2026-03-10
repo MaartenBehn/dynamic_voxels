@@ -69,6 +69,8 @@ rayon = "1.10"
 hashbrown = { version = "0.15", features = [ "rayon" ] }
 fnv = "1.0.7"
 parking_lot = { version = "0.12" }
+dashmap = "6.1.0"
+nohash-hasher = "0.2.0"
 
 # For importing magica voxel models
 dot_vox = "5"
