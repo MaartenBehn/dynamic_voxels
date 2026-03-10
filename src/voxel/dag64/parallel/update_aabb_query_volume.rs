@@ -2,7 +2,7 @@ use octa_force::{anyhow, glam::{vec3a, IVec3, UVec3, Vec3A, Vec4Swizzles}, log::
 use rayon::prelude::*;
 use smallvec::{SmallVec, ToSmallVec};
 
-use crate::{new_logic_state, util::{aabb::AABB, math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeChangeBounds, VolumeQureyAABB}, voxel::dag64::{lod_heuristic::LODHeuristicT, node::VoxelDAG64Node}};
+use crate::{new_logic_state, util::{aabb::AABB, math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeChangeBounds, VolumeQureyAABB}, voxel::dag64::{lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, parallel::MIN_PAR_LEVEL}};
 
 use super::{DAG64Entry, DAG64EntryKey, ParallelVoxelDAG64, VoxelDAG64};
 
@@ -64,30 +64,62 @@ impl ParallelVoxelDAG64 {
 
                 let index_in_children = node.get_index_in_children_unchecked(i as u32);
                 let new_node = if !node.is_occupied(i as u32) {
-
-                    self.add_aabb_query_recursive_par(
-                        model, 
-                        lod,
-                        node_aabb.min().to_ivec3(),
-                        new_level,
-                    )?.check_empty()
-
+                   
+                    if node_level > MIN_PAR_LEVEL {
+                        self.add_aabb_query_recursive_par(
+                            model, 
+                            lod,
+                            node_aabb.min().to_ivec3(),
+                            new_level,
+                        )?.check_empty()
+                    } else {
+                        self.add_aabb_query_recursive(
+                            model, 
+                            lod,
+                            node_aabb.min().to_ivec3(),
+                            new_level,
+                        )?.check_empty()
+                    }
+                    
                 } else if aabb.contains_aabb(node_aabb) {
-                    Some(self.add_aabb_query_recursive_par(
-                        model,
-                        lod,
-                        node_aabb.min().to_ivec3(),
-                        new_level,
-                    )?)
+
+                    if node_level > MIN_PAR_LEVEL {
+                        Some(self.add_aabb_query_recursive_par(
+                            model,
+                            lod,
+                            node_aabb.min().to_ivec3(),
+                            new_level,
+                        )?)
+                    } else {
+                        Some(self.add_aabb_query_recursive(
+                            model,
+                            lod,
+                            node_aabb.min().to_ivec3(),
+                            new_level,
+                        )?)
+                    }
+
                 } else {
-                    Some(self.update_aabb_recursive_par(
-                        model,
-                        lod,
-                        aabb,
-                        new_level,
-                        node_aabb.min().to_ivec3(),
-                        node.ptr() + index_in_children,
-                    )?)
+
+                    if node_level > MIN_PAR_LEVEL {
+                        Some(self.update_aabb_recursive_par(
+                            model,
+                            lod,
+                            aabb,
+                            new_level,
+                            node_aabb.min().to_ivec3(),
+                            node.ptr() + index_in_children,
+                        )?)
+                    } else {
+                        Some(self.update_aabb_recursive(
+                            model,
+                            lod,
+                            aabb,
+                            new_level,
+                            node_aabb.min().to_ivec3(),
+                            node.ptr() + index_in_children,
+                        )?)
+                    }
                 };
 
                 Ok(new_node)

@@ -14,14 +14,14 @@ use crate::{multi_data_buffer::parallel_vec::ParallelVec, util::math::to_mb, vox
 
 use super::{node::VoxelDAG64Node, DAG64Entry, DAG64EntryKey, VoxelDAG64};
 
+pub const MIN_PAR_LEVEL: u8 = 3;
+
 #[derive(Debug, Clone)]
 pub struct ParallelVoxelDAG64 {
     pub nodes: ParallelVec<VoxelDAG64Node>,
     pub data: ParallelVec<u8>,
     pub entry_points: Arc<Mutex<SlotMap<DAG64EntryKey, DAG64Entry>>>,
 }
-
-
 
 impl ParallelVoxelDAG64 {
     pub fn new(nodes_capacity: usize, data_capacity: usize) -> Self {
