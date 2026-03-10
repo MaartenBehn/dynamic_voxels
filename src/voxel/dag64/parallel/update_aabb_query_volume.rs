@@ -48,83 +48,73 @@ impl ParallelVoxelDAG64 {
         }
         
         let new_level = node_level -1;
-        let new_scale = 4_i32.pow(new_level as u32);
+        let new_scale = 1 << (2 * new_level);
 
-        let (new_children, new_bitmask) = get_dag_node_children_xzy_i()
+        let new_children: Vec<_> = get_dag_node_children_xzy_i()
             .into_par_iter()
             .enumerate()
             .map(|(i, pos)| {
                 let min = offset + pos * new_scale;
                 let max = min + new_scale;
-                (i, AABB::new(V::from_ivec3(min), V::from_ivec3(max)))
-            })
-            .filter(|(_, node_aabb)| aabb.collides_aabb(*node_aabb))
-            .map(|(i, node_aabb)| {
+                let node_aabb = AABB::new(V::from_ivec3(min), V::from_ivec3(max));
+
+                if !aabb.collides_aabb(node_aabb) {
+                    return Ok(None);
+                }
+
                 let index_in_children = node.get_index_in_children_unchecked(i as u32);
                 let new_node = if !node.is_occupied(i as u32) {
 
-                    (self.add_aabb_query_recursive_par(
+                    self.add_aabb_query_recursive_par(
                         model, 
                         lod,
                         node_aabb.min().to_ivec3(),
                         new_level,
-                    )?.check_empty(), true)
+                    )?.check_empty()
+
                 } else if aabb.contains_aabb(node_aabb) {
-                    (Some(self.add_aabb_query_recursive_par(
+                    Some(self.add_aabb_query_recursive_par(
                         model,
                         lod,
                         node_aabb.min().to_ivec3(),
                         new_level,
-                    )?), false)
+                    )?)
                 } else {
-                    (Some(self.update_aabb_recursive_par(
+                    Some(self.update_aabb_recursive_par(
                         model,
                         lod,
                         aabb,
                         new_level,
                         node_aabb.min().to_ivec3(),
                         node.ptr() + index_in_children,
-                    )?), false)
+                    )?)
                 };
 
-                Ok::<_, anyhow::Error>((i, new_node))
+                Ok(new_node)
             })
-            .try_fold(|| (SmallVec::<[_; 64]>::new(), 0_u64), 
-                |(mut children, mut bitmask), a| {
-                    let (i, (new_node, insert)) = a?;
-                    if let Some(new_node) = new_node  {
-                        children.push(new_node);
-                        bitmask |= 1 << i;
-                    }
-                    Ok::<_, anyhow::Error>((children, bitmask))
-                })
-            .try_reduce(|| (SmallVec::new(), 0_u64), 
-                |(mut children_a, mut bitmask_a), (children_b, bitmask_b)| {
-                    children_a.extend_from_slice(&children_b);
-                    bitmask_a |= bitmask_b;
-                    Ok((children_a, bitmask_a))
-                })?;
-
-
+            .collect();
 
         if !new_children.is_empty() {
             let mut bitmask = node.pop_mask;
             let mut children: SmallVec<[_; 64]> = self.nodes.get_range(node.range()).to_smallvec();
             let mut j = children.len();
-            let mut k = new_children.len();
 
-            for i in (0..64).rev() {
+            for (i, new_child) in new_children.into_iter().enumerate().rev() {
+                if new_child.is_err() {
+                    return Err(new_child.unwrap_err());
+                }
+
                 let child_present = (bitmask & (1 << i)) != 0;
-                let new_child_present = (new_bitmask & (1 << i)) != 0; 
 
-                if child_present && new_child_present {
-                    j -= 1;
-                    k -= 1;
-                    children[j] = new_children[k];
-                } else if new_child_present {
-                    k -= 1;
-                    children.insert(j, new_children[k]);
-                    bitmask |= 1 << i as u64;
+                if let Some(new_child) = new_child.unwrap() {
+
+                    if child_present {
+                        j -= 1;
+                        children[j] = new_child;
+                    } else {
+                        children.insert(j, new_child);
+                        bitmask |= 1 << i as u64;
+                    }
                 } else if child_present {
                     j -= 1;
                 }

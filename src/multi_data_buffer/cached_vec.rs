@@ -5,6 +5,8 @@ use rayon::{iter::empty, prelude::*};
 
 use octa_force::{anyhow::bail, itertools::Itertools, log::{debug, error}, vulkan::Buffer, OctaResult};
 
+use crate::scene::staging_copies::SceneStagingBuilder;
+
 
 #[derive(Debug)]
 pub struct CachedVec<T, Hasher = fnv::FnvBuildHasher> {
@@ -170,6 +172,10 @@ impl<T: Copy + Default + fmt::Debug + Eq + std::hash::Hash, Hasher: std::hash::B
 
     pub fn flush(&mut self, buffer: &mut Buffer) {
         buffer.copy_data_to_buffer_without_aligment(&self.data, 0);
+    }
+
+    pub fn push_scene_builder(&self, builder: &mut SceneStagingBuilder, offset: usize) {
+        builder.push(&self.data, offset);
     }
 
     pub fn get_memory_size(&self) -> usize {
