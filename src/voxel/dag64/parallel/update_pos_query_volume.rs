@@ -46,7 +46,7 @@ impl ParallelVoxelDAG64 {
         }
         
         let new_level = node_level -1;
-        let new_scale = 4_i32.pow(new_level as u32);
+        let new_scale = 1 << (2 * new_level);
 
         let (new_children, new_bitmask) = get_dag_node_children_xzy_i()
             .into_par_iter()

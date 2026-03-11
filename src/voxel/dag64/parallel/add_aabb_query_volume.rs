@@ -40,7 +40,8 @@ impl ParallelVoxelDAG64 {
         if node_level <= lod.lod_level(offset) {
             self.add_aabb_query_leaf(model, offset, node_level)
         } else {
-            let scale = 4_i32.pow(node_level as u32);
+
+            let scale = 1 << (2 * node_level);
             let aabb = AABB::new(
                 V::from_ivec3(offset), 
                 V::from_ivec3(offset + scale));
@@ -57,7 +58,8 @@ impl ParallelVoxelDAG64 {
                 },
                 VolumeQureyAABBResult::Mixed =>  {
                     let new_level = node_level - 1;
-                    let new_scale = 4_i32.pow(new_level  as u32);
+                    let new_scale = 1 << (2 * new_level);
+
                     let (vec, bitmask) = get_dag_node_children_xzy_i().into_par_iter()
                         .enumerate()
                         .map(move |(i, pos)| {
@@ -114,7 +116,7 @@ impl ParallelVoxelDAG64 {
         if node_level <= lod.lod_level(offset) {
             self.add_aabb_query_leaf(model, offset, node_level)
         } else {
-            let scale = 4_i32.pow(node_level as u32);
+            let scale = 1 << (2 * node_level);
             let aabb = AABB::new(
                 V::from_ivec3(offset), 
                 V::from_ivec3(offset + scale));
@@ -131,7 +133,8 @@ impl ParallelVoxelDAG64 {
                 },
                 VolumeQureyAABBResult::Mixed =>  {
                     let new_level = node_level -1;
-                    let new_scale = 4_i32.pow(new_level as u32);
+                    let new_scale = 1 << (2 * new_level);
+                    
                     let mut nodes = SmallVec::<[_; 64]>::new();
                     let mut bitmask = 0;
 
@@ -160,7 +163,7 @@ impl ParallelVoxelDAG64 {
         offset: IVec3,
         node_level: u8,
     ) -> VoxelDAG64Node {
-        let scale = 4_i32.pow(node_level as u32);
+        let scale = 1 << (2 * node_level);
         let aabb = AABB::new(
                 V::from_ivec3(offset), 
                 V::from_ivec3(offset + scale));

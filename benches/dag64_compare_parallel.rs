@@ -27,13 +27,11 @@ fn criterion_benchmark(c: &mut Criterion) {
     }
     csg.calculate_bounds();
 
-    /*
     group.bench_with_input(
         BenchmarkId::new("dag 64 from csg", "1000 x sphere 10 pos par"), 
         &csg, 
         |b, csg| 
         b.iter(|| build_par(csg)));
-    */
 
     let mut dag = ParallelVoxelDAG64::new(100000, 20000);
     let key = dag.add_aabb_query_volume(&csg, &LODHeuristicNone {});
