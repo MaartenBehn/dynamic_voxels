@@ -12,16 +12,16 @@ impl ParallelVoxelDAG64 {
         model: &M,
         lod: &LOD,
         based_on_entry: DAG64EntryKey,
-    ) -> OctaResult<DAG64EntryKey> {
+    ) -> DAG64EntryKey {
         let change_aabb = model.get_change_bounds();
-        let mut entry_data = self.expand_to_include_aabb(based_on_entry, change_aabb)?;
+        let mut entry_data = self.expand_to_include_aabb(based_on_entry, change_aabb);
 
-        let root = self.update_pos_recursive_par(model, lod, change_aabb, entry_data.levels, entry_data.offset, entry_data.root_index)?;
-        entry_data.root_index = self.nodes.push(&[root])?;
+        let root = self.update_pos_recursive_par(model, lod, change_aabb, entry_data.levels, entry_data.offset, entry_data.root_index);
+        entry_data.root_index = self.nodes.push(&[root]);
 
         let key = self.entry_points.lock().insert(entry_data);
 
-        Ok(key)
+        key
     }
 
     pub(super) fn update_pos_recursive_par<V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3> + Send + Sync, LOD: LODHeuristicT>(
@@ -32,7 +32,7 @@ impl ParallelVoxelDAG64 {
         node_level: u8, 
         offset: IVec3, 
         index: u32
-    ) -> OctaResult<VoxelDAG64Node> {
+    ) -> VoxelDAG64Node {
         let node = self.nodes.get(index);
 
         if node.is_leaf() {
@@ -40,9 +40,9 @@ impl ParallelVoxelDAG64 {
                 model, 
                 offset,
                 node_level,
-            )?;
+            );
 
-            return Ok(new_node);
+            return new_node;
         }
         
         let new_level = node_level -1;
@@ -66,14 +66,14 @@ impl ParallelVoxelDAG64 {
                         lod,
                         node_aabb.min().to_ivec3(),
                         new_level,
-                    )?.check_empty(), true)
+                    ).check_empty(), true)
                 } else if aabb.contains_aabb(node_aabb) {
                     (Some(self.add_pos_query_recursive(
                         model, 
                         lod,
                         node_aabb.min().to_ivec3(),
                         new_level,
-                    )?), false)
+                    )), false)
                 } else {
                     (Some(self.update_pos_recursive(
                         model,
@@ -82,26 +82,26 @@ impl ParallelVoxelDAG64 {
                         new_level,
                         node_aabb.min().to_ivec3(),
                         node.ptr() + index_in_children,
-                    )?), false)
+                    )), false)
                 };
 
-                Ok::<_, anyhow::Error>((i, new_node))
+                (i, new_node)
             })
-            .try_fold(|| (SmallVec::<[_; 64]>::new(), 0_u64), 
+            .fold(|| (SmallVec::<[_; 64]>::new(), 0_u64), 
                 |(mut children, mut bitmask), a| {
-                    let (i, (new_node, insert)) = a?;
+                    let (i, (new_node, insert)) = a;
                     if let Some(new_node) = new_node  {
                         children.push(new_node);
                         bitmask |= 1 << i;
                     }
-                    Ok::<_, anyhow::Error>((children, bitmask))
+                    (children, bitmask)
                 })
-            .try_reduce(|| (SmallVec::new(), 0_u64), 
+            .reduce(|| (SmallVec::new(), 0_u64), 
                 |(mut children_a, mut bitmask_a), (children_b, bitmask_b)| {
                     children_a.extend_from_slice(&children_b);
                     bitmask_a |= bitmask_b;
-                    Ok((children_a, bitmask_a))
-                })?;
+                    (children_a, bitmask_a)
+                });
 
 
 
@@ -130,12 +130,12 @@ impl ParallelVoxelDAG64 {
 
             let new_node = VoxelDAG64Node::new(
                 false, 
-                self.nodes.push(&children)? as u32, 
+                self.nodes.push(&children) as u32, 
                 bitmask);
 
-            Ok(new_node)
+            new_node
         } else {
-            Ok(node)
+            node
         }
     }
 
@@ -147,7 +147,7 @@ impl ParallelVoxelDAG64 {
         node_level: u8, 
         offset: IVec3, 
         index: u32
-    ) -> OctaResult<VoxelDAG64Node> {
+    ) -> VoxelDAG64Node {
         let node = self.nodes.get(index);
 
         if node.is_leaf() {
@@ -155,16 +155,17 @@ impl ParallelVoxelDAG64 {
                 model, 
                 offset,
                 node_level,
-            )?;
+            );
 
-            return Ok(new_node);
+            return new_node;
         }
 
         let mut new_children: SmallVec<[_; 64]> = SmallVec::new();
         let mut new_bitmask = node.pop_mask;
         
         let new_level = node_level -1;
-        let new_scale = 4_i32.pow(new_level as u32);
+        let new_scale = 1 << (2 * new_level);
+        
         for (i, pos) in get_dag_node_children_xzy_i().into_iter()
             .enumerate()
             .rev() {
@@ -182,7 +183,7 @@ impl ParallelVoxelDAG64 {
                         lod,
                         min,
                         new_level,
-                    )?;
+                    );
 
                     if new_child_node.is_empty() {
                         continue;
@@ -204,7 +205,7 @@ impl ParallelVoxelDAG64 {
                         lod,
                         min,
                         new_level,
-                    )?
+                    )
                 } else {
                     self.update_pos_recursive(
                         model,
@@ -213,7 +214,7 @@ impl ParallelVoxelDAG64 {
                         new_level,
                         min,
                         node.ptr() + index_in_children,
-                    )?
+                    )
                 };
 
                 if new_children.is_empty() {
@@ -226,12 +227,12 @@ impl ParallelVoxelDAG64 {
         if !new_children.is_empty() {
             let new_node = VoxelDAG64Node::new(
                 false, 
-                self.nodes.push(&new_children)? as u32, 
+                self.nodes.push(&new_children) as u32, 
                 new_bitmask);
 
-            Ok(new_node)
+            new_node
         } else {
-            Ok(node)
+            node
         }
     }
 }

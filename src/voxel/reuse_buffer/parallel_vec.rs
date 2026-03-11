@@ -40,9 +40,9 @@ impl<T: Copy + Default + fmt::Debug + Eq + std::hash::Hash> ParallelVec<T> {
         unsafe { &mut *self.inner.data.get() }
     }
 
-    pub fn push(&self, values: &[T]) -> OctaResult<u32> {
+    pub fn push(&self, values: &[T]) -> u32 {
         if values.is_empty() {
-            return Ok(0);
+            return 0;
         }
 
         let mut hasher = fnv::FnvBuildHasher::default();
@@ -55,7 +55,7 @@ impl<T: Copy + Default + fmt::Debug + Eq + std::hash::Hash> ParallelVec<T> {
                 let vec = e.get_mut();
 
                 if let Some(r) = vec.iter().find(|r| &data[r.as_range()] == values) {
-                    return Ok(r.start);
+                    return r.start;
                 }
                 
                 self.insert_data(values, vec, hash)
@@ -69,7 +69,7 @@ impl<T: Copy + Default + fmt::Debug + Eq + std::hash::Hash> ParallelVec<T> {
         }
     }
 
-    fn insert_data(&self, values: &[T], vec: &mut SmallVec<[CompactRange; 2]>, hash: u64) -> OctaResult<u32> {
+    fn insert_data(&self, values: &[T], vec: &mut SmallVec<[CompactRange; 2]>, hash: u64) -> u32 {
         
         let start = self.inner.write_head.fetch_add(values.len(), Ordering::Relaxed);
         let end = start + values.len();
@@ -82,7 +82,7 @@ impl<T: Copy + Default + fmt::Debug + Eq + std::hash::Hash> ParallelVec<T> {
             length: values.len() as _,
         });
 
-        return Ok(start as _);
+        return start as _;
     }
     
     pub fn get(&self, index: u32) -> T {

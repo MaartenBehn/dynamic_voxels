@@ -12,22 +12,22 @@ impl ParallelVoxelDAG64 {
         &mut self, 
         model: &M,
         lod: &LOD,
-    ) -> OctaResult<DAG64EntryKey> {
+    ) -> DAG64EntryKey {
         let (offset, levels) = get_dag_offset_levels(model);
         if levels == 0 {
             return self.empty_entry();
         }
 
-        let root = self.add_aabb_query_recursive_par(model, lod, offset, levels)?;
+        let root = self.add_aabb_query_recursive_par(model, lod, offset, levels);
 
-        let root_index = self.nodes.push(&[root])?;
+        let root_index = self.nodes.push(&[root]);
         let key = self.entry_points.lock().insert(DAG64Entry { 
             levels, 
             root_index, 
             offset, 
         });
 
-        Ok(key)
+        key
     }
     
     pub(super) fn add_aabb_query_recursive_par<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3> + Send + Sync, LOD: LODHeuristicT>(
@@ -36,7 +36,7 @@ impl ParallelVoxelDAG64 {
         lod: &LOD,
         offset: IVec3,
         node_level: u8,
-    ) -> OctaResult<VoxelDAG64Node> {
+    ) -> VoxelDAG64Node {
         if node_level <= lod.lod_level(offset) {
             self.add_aabb_query_leaf(model, offset, node_level)
         } else {
@@ -50,9 +50,9 @@ impl ParallelVoxelDAG64 {
             match res {
                 VolumeQureyAABBResult::Full(v) => {
                     if v == 0 {
-                        Ok(VoxelDAG64Node::new(true, 0, 0))
+                        VoxelDAG64Node::new(true, 0, 0)
                     } else {
-                        Ok(VoxelDAG64Node::new(true, self.data.push(&[v; 64])? as u32, u64::MAX))
+                        VoxelDAG64Node::new(true, self.data.push(&[v; 64]) as u32, u64::MAX)
                     }
                 },
                 VolumeQureyAABBResult::Mixed =>  {
@@ -76,33 +76,29 @@ impl ParallelVoxelDAG64 {
                                     new_level) 
                             };
 
-                            if let Ok(res) = res {
-                                if res.is_empty() {
-                                    None
-                                } else {
-                                    Some(Ok((i, res)))
-                                }
+                            if res.is_empty() {
+                                None
                             } else {
-                                Some(Err(res.unwrap_err()))
+                                Some((i, res))
                             }
                         })
                         .flatten()
-                        .try_fold(|| (SmallVec::<[_; 64]>::new(), 0_u64), 
+                        .fold(|| (SmallVec::<[_; 64]>::new(), 0_u64), 
                             |(mut vec, mut bitmask), a| {
-                                let (i, n) = a?;
+                                let (i, n) = a;
                                 vec.push(n);
                                 bitmask |= 1 << i;
-                                Ok::<_, anyhow::Error>((vec, bitmask))
+                                (vec, bitmask)
                             })
-                        .try_reduce(|| (SmallVec::<[_; 64]>::new(), 0_u64), 
+                        .reduce(|| (SmallVec::<[_; 64]>::new(), 0_u64), 
                             |(mut vec_a, mut bitmask_a), (vec_b, bitmask_b)| {
                                 vec_a.extend_from_slice(&vec_b);
                                 bitmask_a |= bitmask_b;
-                                Ok((vec_a, bitmask_a))
-                            })?;
+                                (vec_a, bitmask_a)
+                            });
 
-                    let ptr = self.nodes.push(&vec)?;
-                    Ok(VoxelDAG64Node::new(false, ptr, bitmask))
+                    let ptr = self.nodes.push(&vec);
+                    VoxelDAG64Node::new(false, ptr, bitmask)
                 },
             }
         }
@@ -114,7 +110,7 @@ impl ParallelVoxelDAG64 {
         lod: &LOD,
         offset: IVec3,
         node_level: u8,
-    ) -> OctaResult<VoxelDAG64Node> {
+    ) -> VoxelDAG64Node {
         if node_level <= lod.lod_level(offset) {
             self.add_aabb_query_leaf(model, offset, node_level)
         } else {
@@ -128,9 +124,9 @@ impl ParallelVoxelDAG64 {
             match res {
                 VolumeQureyAABBResult::Full(v) => {
                     if v == 0 {
-                        Ok(VoxelDAG64Node::new(true, 0, 0))
+                        VoxelDAG64Node::new(true, 0, 0)
                     } else {
-                        Ok(VoxelDAG64Node::new(true, self.data.push(&[v; 64])? as u32, u64::MAX))
+                        VoxelDAG64Node::new(true, self.data.push(&[v; 64]) as u32, u64::MAX)
                     }
                 },
                 VolumeQureyAABBResult::Mixed =>  {
@@ -145,14 +141,14 @@ impl ParallelVoxelDAG64 {
                             lod,
                             offset + pos * new_scale,
                             new_level,
-                        )?;
+                        );
                         if !child.is_empty() {
                             nodes.push(child);
                             bitmask |= 1 << i as u64;
                         }
                     }
 
-                    Ok(VoxelDAG64Node::new(false, self.nodes.push(&nodes)? as u32, bitmask))
+                    VoxelDAG64Node::new(false, self.nodes.push(&nodes) as u32, bitmask)
                 },
             }
         }
@@ -163,7 +159,7 @@ impl ParallelVoxelDAG64 {
         model: &M,
         offset: IVec3,
         node_level: u8,
-    ) -> OctaResult<VoxelDAG64Node> {
+    ) -> VoxelDAG64Node {
         let scale = 4_i32.pow(node_level as u32);
         let aabb = AABB::new(
                 V::from_ivec3(offset), 
@@ -174,9 +170,9 @@ impl ParallelVoxelDAG64 {
         match res {
             VolumeQureyAABBResult::Full(v) => {
                 if v == 0 {
-                    Ok(VoxelDAG64Node::new(true, 0, 0))
+                    VoxelDAG64Node::new(true, 0, 0)
                 } else {
-                    Ok(VoxelDAG64Node::new(true, self.data.push(&[v; 64])? as u32, u64::MAX))
+                    VoxelDAG64Node::new(true, self.data.push(&[v; 64]) as u32, u64::MAX)
                 }
             },
             VolumeQureyAABBResult::Mixed =>  {

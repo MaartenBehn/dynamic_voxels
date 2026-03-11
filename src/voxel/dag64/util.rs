@@ -36,16 +36,16 @@ impl VoxelDAG64 {
 }
 
 impl ParallelVoxelDAG64 { 
-    pub(super) fn empty_entry(&mut self) -> OctaResult<DAG64EntryKey> {
+    pub(super) fn empty_entry(&mut self) -> DAG64EntryKey {
 
-        let root_index = self.nodes.push(&[VoxelDAG64Node::new(true, 0, 0)])?;
+        let root_index = self.nodes.push(&[VoxelDAG64Node::new(true, 0, 0)]);
         let key = self.entry_points.lock().insert(DAG64Entry { 
             levels: 1, 
             root_index, 
             offset: IVec3::ZERO, 
         });
 
-        Ok(key)
+        key
     }
 }
 

@@ -48,7 +48,7 @@ impl Tree64Renderer {
             100000000, 
             64, 
         );
-        let key = dag.add_aabb_query_volume(&csg, &lod)?;
+        let key = dag.add_aabb_query_volume(&csg, &lod);
 
         let elapsed = now.elapsed();
         info!("Tree Build took {:.2?}", elapsed);
@@ -60,7 +60,7 @@ impl Tree64Renderer {
 
         //csg.calculate_bounds();
         //let key = dag.update_aabb_query_volume(&csg, &lod, key)?; 
-        let key = dag.update_aabb_query_volume(&csg, &lod, key)?; 
+        let key = dag.update_aabb_query_volume(&csg, &lod, key); 
         
         let elapsed = now.elapsed();
         info!("Tree Update took {:.2?}", elapsed);
@@ -122,7 +122,7 @@ impl Tree64Renderer {
 
             let now = Instant::now();
 
-            let key = self.dag.add_aabb_query_volume(&self.csg, &lod)?;
+            let key = self.dag.add_aabb_query_volume(&self.csg, &lod);
 
             let elapsed = now.elapsed();
             info!("Tree Build took {:.2?}", elapsed);

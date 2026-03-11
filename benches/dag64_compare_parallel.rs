@@ -7,7 +7,11 @@ use reload::{csg::csg_tree::tree::CSGTree, util::vector::Ve, volume::{VolumeBoun
 
 fn build_par<V: Ve<i32, 3>, M: VolumeQureyAABB<V, i32, 3> + Sync + Send>(model: &M) -> ParallelVoxelDAG64 {
     let mut dag = ParallelVoxelDAG64::new(100000, 20000);
-    dag.add_aabb_query_volume(model, &LODHeuristicNone {}).unwrap();
+    dag.add_aabb_query_volume(model, &LODHeuristicNone {});
+    dag
+}
+
+fn update_par<V: Ve<i32, 3>, M: VolumeQureyAABB<V, i32, 3> + Sync + Send>(model: &M, dag: ParallelVoxelDAG64) -> ParallelVoxelDAG64 {
     dag
 }
 
@@ -23,11 +27,28 @@ fn criterion_benchmark(c: &mut Criterion) {
     }
     csg.calculate_bounds();
 
+    /*
     group.bench_with_input(
         BenchmarkId::new("dag 64 from csg", "1000 x sphere 10 pos par"), 
         &csg, 
         |b, csg| 
         b.iter(|| build_par(csg)));
+    */
+
+    let mut dag = ParallelVoxelDAG64::new(100000, 20000);
+    let key = dag.add_aabb_query_volume(&csg, &LODHeuristicNone {});
+
+    csg.reset_changed_bounds();
+    csg.cut_with_sphere(vec3a(0.0, 0.0, 0.0), 300.0, 1);
+
+    group.bench_with_input(
+        BenchmarkId::new("dag 64 from csg", "update par"), 
+        &(csg, dag, key), 
+        |b, (csg, dag, key)| 
+        b.iter(|| {
+                dag.clone().update_aabb_query_volume(csg, &LODHeuristicNone {}, *key);
+        }));
+
 }
 
 criterion_group!(benches, criterion_benchmark);
