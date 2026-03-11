@@ -75,6 +75,7 @@ impl SceneWorker {
                     o.rebuild(&mut self.dag_store, &self.lod);
                 },
             }
+            dag_object.needs_update = true;
         }
 
     }

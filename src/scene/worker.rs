@@ -124,6 +124,7 @@ impl SceneWorker {
     
                                 self.rebuild_all_dag_objects();
                                 self.update(&render_s).await.unwrap();
+                                self.clean();
                             }
                             SceneTask::AddDAGObject(worker_message) => {
                                 let (data, awnser) = worker_message.unwarp();
