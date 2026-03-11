@@ -65,7 +65,7 @@ impl ParallelVoxelDAG64 {
                 let index_in_children = node.get_index_in_children_unchecked(i as u32);
                 let new_node = if !node.is_occupied(i as u32) {
                    
-                    if node_level > MIN_PAR_LEVEL {
+                    if new_level > MIN_PAR_LEVEL {
                         self.add_aabb_query_recursive_par(
                             model, 
                             lod,
@@ -83,7 +83,7 @@ impl ParallelVoxelDAG64 {
                     
                 } else if aabb.contains_aabb(node_aabb) {
 
-                    if node_level > MIN_PAR_LEVEL {
+                    if new_level > MIN_PAR_LEVEL {
                         Some(self.add_aabb_query_recursive_par(
                             model,
                             lod,
@@ -101,7 +101,7 @@ impl ParallelVoxelDAG64 {
 
                 } else {
 
-                    if node_level > MIN_PAR_LEVEL {
+                    if new_level > MIN_PAR_LEVEL {
                         Some(self.update_aabb_recursive_par(
                             model,
                             lod,

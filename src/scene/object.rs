@@ -50,6 +50,10 @@ impl SceneWorker {
     }
 
     pub fn update_bvh(&mut self, builder: &mut SceneStagingBuilder) -> OctaResult<()> {
+        if !self.needs_bvh_update {
+            return Ok(());
+        }
+
         #[cfg(debug_assertions)]
         debug!("Scene Worker: Update BVH");
 
@@ -111,6 +115,10 @@ impl SceneObject {
     }
 
     pub fn update(&mut self, dag_store: &SceneDAGStore, builder: &mut SceneStagingBuilder) {
+        if !self.needs_update {
+            return;
+        }
+
         match &self.data {
             SceneObjectType::DAG64(o) => o.update(dag_store, builder),
         }

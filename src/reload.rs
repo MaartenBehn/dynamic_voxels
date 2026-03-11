@@ -4,7 +4,6 @@ extern crate self as dynamic_voxels;
 
 pub mod csg;
 pub mod model;
-pub mod multi_data_buffer;
 pub mod scene;
 pub mod util;
 pub mod volume;

@@ -1,7 +1,7 @@
 use std::hint::black_box;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use octa_force::glam::{IVec3, UVec3, Vec3};
-use reload::{util::vector::Ve, volume::{VolumeQureyAABB, VolumeQureyPosValue, magica_voxel::MagicaVoxelModel}, voxel::{dag64::{VoxelDAG64, lod_heuristic::LODHeuristicNone}, grid::{VoxelGrid, shared::SharedVoxelGrid}, palette::palette::LocalPalette}};
+use reload::{util::vector::Ve, volume::{VolumeQureyAABB, VolumeQureyPosValue, magica_voxel::MagicaVoxelModel}, voxel::{dag64::{VoxelDAG64, lod_heuristic::LODHeuristicNone, parallel::ParallelVoxelDAG64}, grid::{VoxelGrid, shared::SharedVoxelGrid}, palette::palette::LocalPalette}};
 
 fn build_from_pos_query<V: Ve<i32, 3>, M: VolumeQureyPosValue<V, i32, 3>>(model: &M) -> VoxelDAG64 {
     let mut dag = VoxelDAG64::new(1000000, 1000000);
@@ -9,11 +9,10 @@ fn build_from_pos_query<V: Ve<i32, 3>, M: VolumeQureyPosValue<V, i32, 3>>(model:
     dag
 }
 
-fn build_from_pos_query_par<V: Ve<i32, 3>, M: VolumeQureyPosValue<V, i32, 3> + Sync + Send>(model: &M) -> VoxelDAG64 {
-    let dag = VoxelDAG64::new(1000000, 1000000);
-    let mut dag = dag.parallel();
+fn build_from_pos_query_par<V: Ve<i32, 3>, M: VolumeQureyPosValue<V, i32, 3> + Sync + Send>(model: &M) -> ParallelVoxelDAG64 {
+    let mut dag = ParallelVoxelDAG64::new(1000000, 1000000);
     dag.add_pos_query_volume(model, &LODHeuristicNone {}).unwrap();
-    dag.single()
+    dag
 }
 
 fn pos_query(c: &mut Criterion) {

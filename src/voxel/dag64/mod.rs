@@ -14,7 +14,7 @@ use node::VoxelDAG64Node;
 use octa_force::{OctaResult, glam::{IVec3, Mat4, Quat, Vec3, Vec3A}, log::{debug, info}};
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{VOXELS_PER_SHADER_UNIT, multi_data_buffer::cached_vec::CachedVec, util::{math::to_mb, number::Nu, vector::Ve}, volume::{VolumeQureyAABB, VolumeQureyPosValue}, voxel::dag64::lod_heuristic::{LODHeuristicNone, LODHeuristicT}};
+use crate::{VOXELS_PER_SHADER_UNIT, util::{math::to_mb, number::Nu, vector::Ve}, volume::{VolumeQureyAABB, VolumeQureyPosValue}, voxel::{dag64::lod_heuristic::{LODHeuristicNone, LODHeuristicT}, reuse_buffer::cached_vec::CachedVec}};
 
 new_key_type! { pub struct DAG64EntryKey; }
 

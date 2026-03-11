@@ -85,6 +85,8 @@ impl SceneDAGObject {
     pub fn rebuild(&mut self, store: &mut SceneDAGStore, lod: &LODType) {
         let dag = store.get_dag_mut(self.dag_key);
 
+        let old_key = self.entry_key;
+        
         let now = Instant::now();
         self.entry_key = dag.add_aabb_query_volume(&self.model, lod)
             .expect("Could not add DAG Entry!");
@@ -93,11 +95,15 @@ impl SceneDAGObject {
         info!("Voxel DAG Build took: {:?}", elapsed);
 
         self.entry = dag.get_entry(self.entry_key); 
+        dag.remove_entry(old_key);
+        
         store.mark_changed(self.dag_key);
     }
 
     pub fn rebuild_changed(&mut self, store: &mut SceneDAGStore, lod: &LODType) {
         let dag = store.get_dag_mut(self.dag_key);
+        
+        let old_key = self.entry_key;
 
         let now = Instant::now();
         self.entry_key = dag.update_aabb_query_volume(&self.model, lod, self.entry_key)
@@ -107,6 +113,8 @@ impl SceneDAGObject {
         info!("Voxel DAG Update took: {:?}", elapsed);
 
         self.entry = dag.get_entry(self.entry_key); 
+        dag.remove_entry(old_key);
+
         store.mark_changed(self.dag_key);
     } 
 

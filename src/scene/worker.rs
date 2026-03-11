@@ -134,6 +134,7 @@ impl SceneWorker {
                                 awnser(key);
 
                                 self.update(&render_s).await.unwrap();
+                                self.clean();
                             },
                             SceneTask::RemoveObject(key) => {
                                 let res = self.remove_object(key);
@@ -178,6 +179,7 @@ impl SceneWorker {
 
                                 self.needs_bvh_update = true;
                                 self.update(&render_s).await.unwrap();
+                                self.clean();
                             },
 
                         }
@@ -209,19 +211,13 @@ impl SceneWorker {
 
         let mut builder = self.new_staging_builder();
 
-        if self.dag_store.needs_update {
-            self.dag_store.update(&mut builder); 
-        }
+        self.dag_store.update(&mut builder); 
 
         for object in self.objects.values_mut() {
-            if object.needs_update {
-                object.update(&self.dag_store, &mut builder);
-            }
+            object.update(&self.dag_store, &mut builder);
         }
 
-        if self.needs_bvh_update {
-            self.update_bvh(&mut builder)?;
-        }
+        self.update_bvh(&mut builder)?;
 
         #[cfg(debug_assertions)]
         debug!("Scene Worker: Sending Staging Buffer");
@@ -229,6 +225,10 @@ impl SceneWorker {
         render_s.send(builder.build()).await?;
 
         Ok(())
+    }
+
+    fn clean(&mut self) {
+        self.dag_store.clean(&mut self.objects);
     }
 }
 
