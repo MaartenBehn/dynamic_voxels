@@ -116,8 +116,8 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
     pub fn from_min_max<M: Ma<D>>(mat: &M, min: V, max: V) -> Self { 
         match D {
             2 => {
-                let min = min.to_vec2();
-                let max = max.to_vec2();
+                let min: Vec2 = min.ve_into();
+                let max: Vec2 = max.ve_into();
 
                 let corners = [
                     vec3a(min[0],min[1], 1.0),
@@ -136,11 +136,11 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
                     max = max.max(transformed_corner);
                 }
 
-                Self::new(V::from_vec3a(min), V::from_vec3a(max))
+                Self::new(V::ve_from(min), V::ve_from(max))
             }
             3 => {
-                let min = min.to_vec3a();
-                let max = max.to_vec3a();
+                let min: Vec3A = min.ve_into();
+                let max: Vec3A = max.ve_into();
 
                 let corners = [
                     vec4(min[0],min[1], min[2], 1.0),
@@ -163,7 +163,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
                     max = max.max(transformed_corner);
                 }
 
-                Self::new(V::from_vec4h(min), V::from_vec4h(max))
+                Self::new(V::ve_from(min), V::ve_from(max))
             }
             _ => unreachable!()
         }
@@ -192,7 +192,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
                     max = max.max(transformed_corner);
                 }
  
-                Self::new(V::from_vec3a(min), V::from_vec3a(max))
+                Self::new(V::ve_from(min), V::ve_from(max))
             }
             3 => {
                 let min = Vec3::splat(-0.5);
@@ -219,7 +219,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
                     max = max.max(transformed_corner);
                 }
  
-                Self::new(V::from_vec4h(min), V::from_vec4h(max))
+                Self::new(V::ve_from(min), V::ve_from(max))
             }
             _ => unreachable!()
         }
@@ -237,7 +237,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
 
                 let b = vec3a(mat.z_axis.x, mat.z_axis.y, 1.0);
 
-                Self::new(V::from_vec3a(b - a), V::from_vec3a(b + a))
+                Self::new(V::ve_from(b - a), V::ve_from(b + a))
             }
             3 => {
                 let mat = mat.to_mat4();
@@ -249,7 +249,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
                 );
                 let b = vec4(mat.w_axis.x, mat.w_axis.y, mat.w_axis.z, 1.0);
 
-                Self::new(V::from_vec4h(b - a), V::from_vec4h(b + a))
+                Self::new(V::ve_from(b - a), V::ve_from(b + a))
             }
             _ => unreachable!()
         }
@@ -280,21 +280,21 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
 
         match D {
             2 => {
-                let min = min.to_ivec2();
-                let max = max.to_ivec2();
+                let min: IVec2 = min.ve_into();
+                let max: IVec2 = max.ve_into();
 
                 Either::Right(Either::Left((min.x..=max.x)
                     .flat_map(move |x| iter::repeat(x).zip(min.y..=max.y))
-                    .map(move |(x, y)| V::from_ivec2(ivec2(x, y)) * step)))
+                    .map(move |(x, y)| V::ve_from(ivec2(x, y)) * step)))
             }
             3 => {
-                let min = min.to_ivec3();
-                let max = max.to_ivec3();
+                let min: IVec3 = min.ve_into();
+                let max: IVec3 = max.ve_into();
 
                 Either::Right(Either::Right((min.x..=max.x)
                     .flat_map(move |x| iter::repeat(x).zip(min.y..=max.y))
                     .flat_map(move |(x, y)| iter::repeat((x, y)).zip(min.z..=max.z))
-                    .map(move |((x, y), z)| V::from_ivec3(ivec3(x, y, z)) * step)))
+                    .map(move |((x, y), z)| V::ve_from(ivec3(x, y, z)) * step)))
             }
             _ => unreachable!()
         }
@@ -316,7 +316,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
     pub fn to_f2d(self) -> AABB2 {
         match D {
             2 => {
-                AABB::new(self.min().to_vec2(), self.max().to_vec2())
+                AABB2::new(self.min().ve_into(), self.max().ve_into())
             }
             _ => unreachable!()
         }
@@ -325,7 +325,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
     pub fn to_f3d(self) -> AABB3 {
         match D {
             3 => {
-                AABB::new(self.min().to_vec3a(), self.max().to_vec3a())
+                AABB3::new(self.min().ve_into(), self.max().ve_into())
             }
             _ => unreachable!()
         }
@@ -334,7 +334,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
     pub fn to_i2d(self) -> IAABB2 {
         match D {
             2 => {
-                AABB::new(self.min().to_ivec2(), self.max().to_ivec2())
+                IAABB2::new(self.min().ve_into(), self.max().ve_into())
             }
             _ => unreachable!()
         }
@@ -343,7 +343,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
     pub fn to_i3d(self) -> IAABB3 {
         match D {
             3 => {
-                AABB::new(self.min().to_ivec3(), self.max().to_ivec3())
+                IAABB3::new(self.min().ve_into(), self.max().ve_into())
             }
             _ => unreachable!()
         }

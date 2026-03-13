@@ -66,8 +66,8 @@ impl<V: Ve<f32, 3>> VolumeBounds<V, f32, 3> for Mesh {
 
     fn get_bounds(&self) -> AABB<V, f32, 3> {
         AABB::new(
-            V::from_vec3a(self.aabb.min()), 
-            V::from_vec3a(self.aabb.max()))
+            V::ve_from(self.aabb.min()), 
+            V::ve_from(self.aabb.max()))
     }
 }
 

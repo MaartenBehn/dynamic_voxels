@@ -1,3 +1,5 @@
+pub mod gizmo;
+
 use std::time::Instant;
 
 use octa_force::{OctaResult, camera::Camera, glam::{Mat4, Vec3A, vec3, vec3a}, log::info};
@@ -60,6 +62,6 @@ impl Editor {
         self.model.reset_changed_bounds();
         self.model.set_mat(self.index, new_mat);
 
-    self.respose = Some(self.scene_send.update_model(self.key, self.model.clone()));
+        self.respose = Some(self.scene_send.update_model(self.key, self.model.clone()));
     }
 }

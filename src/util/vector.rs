@@ -23,6 +23,31 @@ pub trait Ve<T: Nu, const D: usize>:
     + Index<usize, Output = T>
     + PartialEq
     + MC<Self, T, D>
+    + CastFrom<Vec2>
+    + CastFrom<IVec2>
+    + CastFrom<Vec3>
+    + CastFrom<Vec3A>
+    + CastFrom<IVec3>
+    + CastFrom<UVec3>
+    + CastInto<Vec2>
+    + CastInto<IVec2>
+    + CastInto<Vec3>
+    + CastInto<Vec3A>
+    + CastInto<IVec3>
+    + CastInto<UVec3>
+    + FromT<Vec2>
+    + FromT<IVec2>
+    + FromT<Vec3>
+    + FromT<Vec3A>
+    + FromT<IVec3>
+    + FromT<UVec3>
+    + FromT<Vec4>
+    + IntoT<Vec2>
+    + IntoT<IVec2>
+    + IntoT<Vec3>
+    + IntoT<Vec3A>
+    + IntoT<IVec3>
+    + IntoT<UVec3>
     + 'static
 {
     const ZERO: Self;
@@ -63,21 +88,6 @@ pub trait Ve<T: Nu, const D: usize>:
     fn to_vecf<V: Ve<f32, D>>(self) -> V;
     fn from_vecf<V: Ve<f32, D>>(v: V) -> Self;
     
-    fn to_vec3a(self) -> Vec3A;
-    fn to_vec3(self) -> Vec3;
-    fn to_vec2(self) -> Vec2;
-    fn to_ivec3(self) -> IVec3;
-    fn to_ivec2(self) -> IVec2;
-    fn to_uvec3(self) -> UVec3;
-   
-    fn from_vec4h(v: Vec4) -> Self;
-    fn from_vec3a(v: Vec3A) -> Self;
-    fn from_vec3(v: Vec3) -> Self;
-    fn from_vec2(v: Vec2) -> Self;
-    fn from_ivec3(v: IVec3) -> Self;
-    fn from_ivec2(v: IVec2) -> Self;
-    fn from_uvec3(v: UVec3) -> Self;
-
     fn to_array(&self) -> [T; D];
 
     fn max_value(self) -> (usize, T) {
@@ -94,6 +104,22 @@ pub trait Ve<T: Nu, const D: usize>:
 
         (i_max, e_max)
     } 
+}
+
+pub trait CastFrom<T> {
+    fn cast_from(t: T) -> Self;
+}
+
+pub trait CastInto<T> {
+    fn cast_into(self) -> T;
+}
+
+pub trait FromT<T> {
+    fn ve_from(t: T) -> Self;
+}
+
+pub trait IntoT<T> {
+    fn ve_into(self) -> T;
 }
 
 impl Ve<f32, 2> for Vec2 {
@@ -137,24 +163,8 @@ impl Ve<f32, 2> for Vec2 {
     fn cmpeq_all(self, other: Self) -> bool { self.cmpeq(other).all() }
     fn cmpne_all(self, other: Self) -> bool { self.cmpne(other).all() }
 
-    fn to_vecf<V: Ve<f32, 2>>(self) -> V { V::from_vec2(self) }
-    fn from_vecf<V: Ve<f32, 2>>(v: V) -> Self { v.to_vec2() }
-
-    fn to_vec3a(self) -> Vec3A { unreachable!() }
-    fn to_vec3(self) -> Vec3 { unreachable!() }
-    fn to_vec2(self) -> Vec2 { self }
-    fn to_ivec3(self) -> IVec3 { unreachable!() }
-    fn to_ivec2(self) -> IVec2 { self.as_ivec2() }
-    fn to_uvec3(self) -> UVec3 { unreachable!() }
-
-    fn from_vec4h(v: Vec4) -> Self { unreachable!() }
-    fn from_vec3a(v: Vec3A) -> Self { v.xy() }
-    fn from_vec3(v: Vec3) -> Self { unreachable!() }
-    fn from_vec2(v:  Vec2) -> Self { v }
-    fn from_ivec3(v: IVec3) -> Self { unreachable!() }
-    fn from_ivec2(v: IVec2) -> Self { v.as_vec2() }
-    fn from_uvec3(v: UVec3) -> Self { unreachable!() }
-
+    fn to_vecf<V: Ve<f32, 2>>(self) -> V { V::ve_from(self) }
+    fn from_vecf<V: Ve<f32, 2>>(v: V) -> Self { v.ve_into() }
     fn to_array(&self) -> [f32; 2] { Self::to_array(self) }
 }
 
@@ -165,6 +175,35 @@ impl MC<Vec2, f32, 2> for Vec2 {
     fn to_vector(v: Self::VectorF) -> Self { v }
     fn to_vector_f(v: Self) -> Self::VectorF { v }
 }
+
+impl CastFrom<Vec2> for Vec2 { fn cast_from(t: Vec2) -> Self { t } }
+impl CastFrom<IVec2> for Vec2 { fn cast_from(t: IVec2) -> Self { unsafe { cast_failed(); } unreachable!() } }
+impl CastFrom<Vec3> for Vec2 { fn cast_from(t: Vec3) -> Self { unsafe { cast_failed(); } unreachable!() } }
+impl CastFrom<Vec3A> for Vec2 { fn cast_from(t: Vec3A) -> Self { unsafe { cast_failed(); } unreachable!() } }
+impl CastFrom<IVec3> for Vec2 { fn cast_from(t: IVec3) -> Self { unsafe { cast_failed(); } unreachable!() } }
+impl CastFrom<UVec3> for Vec2 { fn cast_from(t: UVec3) -> Self { unsafe { cast_failed(); } unreachable!() } }
+
+impl CastInto<Vec2> for Vec2 { fn cast_into(self) -> Vec2 { self } }
+impl CastInto<IVec2> for Vec2 { fn cast_into(self) -> IVec2 { unsafe { cast_failed(); } unreachable!() } }
+impl CastInto<Vec3> for Vec2 { fn cast_into(self) -> Vec3 { unsafe { cast_failed(); } unreachable!() } }
+impl CastInto<Vec3A> for Vec2 { fn cast_into(self) -> Vec3A { unsafe { cast_failed(); } unreachable!() } }
+impl CastInto<IVec3> for Vec2 { fn cast_into(self) -> IVec3 { unsafe { cast_failed(); } unreachable!() } }
+impl CastInto<UVec3> for Vec2 { fn cast_into(self) -> UVec3 { unsafe { cast_failed(); } unreachable!() } }
+
+impl FromT<Vec2> for Vec2 { fn ve_from(t: Vec2) -> Self { t } } 
+impl FromT<IVec2> for Vec2 { fn ve_from(t: IVec2) -> Self { Self::new(t.x as _, t.y as _) } }
+impl FromT<Vec3> for Vec2 { fn ve_from(t: Vec3) -> Self { Self::new(t.x as _, t.y as _) } }
+impl FromT<Vec3A> for Vec2 { fn ve_from(t: Vec3A) -> Self { Self::new(t.x as _, t.y as _) } }
+impl FromT<IVec3> for Vec2 { fn ve_from(t: IVec3) -> Self { Self::new(t.x as _, t.y as _) } }
+impl FromT<UVec3> for Vec2 { fn ve_from(t: UVec3) -> Self { Self::new(t.x as _, t.y as _) } }
+impl FromT<Vec4> for Vec2 { fn ve_from(t: Vec4) -> Self { Self::new(t.x as _, t.y as _) } }
+
+impl IntoT<Vec2> for Vec2 { fn ve_into(self) -> Vec2 { self }  }
+impl IntoT<IVec2> for Vec2 { fn ve_into(self) -> IVec2 { IVec2::new(self.x as _, self.y as _) }  }
+impl IntoT<Vec3> for Vec2 { fn ve_into(self) -> Vec3 { Vec3::new(self.x as _, self.y as _, 0.0) } }
+impl IntoT<Vec3A> for Vec2 { fn ve_into(self) -> Vec3A { Vec3A::new(self.x as _, self.y as _, 0.0) } }
+impl IntoT<IVec3> for Vec2 { fn ve_into(self) -> IVec3 { IVec3::new(self.x as _, self.y as _, 0) } }
+impl IntoT<UVec3> for Vec2 { fn ve_into(self) -> UVec3 { UVec3::new(self.x as _, self.y as _, 0) } }
 
 impl Ve<f32, 3> for Vec3 {
     const ZERO: Self = Vec3::ZERO;
@@ -208,24 +247,8 @@ impl Ve<f32, 3> for Vec3 {
     fn cmpeq_all(self, other: Self) -> bool { self.cmpeq(other).all() }
     fn cmpne_all(self, other: Self) -> bool { self.cmpne(other).all() }
 
-    fn to_vecf<V: Ve<f32, 3>>(self) -> V { V::from_vec3(self) }
-    fn from_vecf<V: Ve<f32, 3>>(v: V) -> Self { v.to_vec3() }
-
-    fn to_vec3a(self) -> Vec3A { Vec3A::from(self) }
-    fn to_vec3(self) -> Vec3 { self }
-    fn to_vec2(self) -> Vec2 { unreachable!() }
-    fn to_ivec3(self) -> IVec3 { self.as_ivec3() }
-    fn to_ivec2(self) -> IVec2 { unreachable!() }
-    fn to_uvec3(self) -> UVec3 { self.as_uvec3() }
-
-    fn from_vec4h(v: Vec4) -> Self { v.xyz() }
-    fn from_vec3a(v: Vec3A) -> Self { Vec3::from(v) }
-    fn from_vec3(v: Vec3) -> Self { v }
-    fn from_vec2(v:  Vec2) -> Self { unreachable!() }
-    fn from_ivec3(v: IVec3) -> Self { v.as_vec3() }
-    fn from_ivec2(v: IVec2) -> Self { unreachable!() }
-    fn from_uvec3(v: UVec3) -> Self { v.as_vec3() }
-
+    fn to_vecf<V: Ve<f32, 3>>(self) -> V { V::ve_from(self) }
+    fn from_vecf<V: Ve<f32, 3>>(v: V) -> Self { v.ve_into() }
     fn to_array(&self) -> [f32; 3] { Self::to_array(self) }
 }
 
@@ -236,6 +259,35 @@ impl MC<Vec3, f32, 3> for Vec3 {
     fn to_vector(v: Self::VectorF) -> Self { v }
     fn to_vector_f(v: Self) -> Self::VectorF { v }
 }
+
+impl CastFrom<Vec2> for Vec3 { fn cast_from(t: Vec2) -> Self { unsafe { cast_failed(); } unreachable!() } }
+impl CastFrom<IVec2> for Vec3 { fn cast_from(t: IVec2) -> Self { unsafe { cast_failed(); } unreachable!() } }
+impl CastFrom<Vec3> for Vec3 { fn cast_from(t: Vec3) -> Self { t } }
+impl CastFrom<Vec3A> for Vec3 { fn cast_from(t: Vec3A) -> Self { unsafe { cast_failed(); } unreachable!() } }
+impl CastFrom<IVec3> for Vec3 { fn cast_from(t: IVec3) -> Self { unsafe { cast_failed(); } unreachable!() } }
+impl CastFrom<UVec3> for Vec3 { fn cast_from(t: UVec3) -> Self { unsafe { cast_failed(); } unreachable!() } }
+
+impl CastInto<Vec2> for Vec3 { fn cast_into(self) -> Vec2 { unsafe { cast_failed(); } unreachable!() } }
+impl CastInto<IVec2> for Vec3 { fn cast_into(self) -> IVec2 { unsafe { cast_failed(); } unreachable!() } }
+impl CastInto<Vec3> for Vec3 { fn cast_into(self) -> Vec3 { self } }
+impl CastInto<Vec3A> for Vec3 { fn cast_into(self) -> Vec3A { unsafe { cast_failed(); } unreachable!() } }
+impl CastInto<IVec3> for Vec3 { fn cast_into(self) -> IVec3 { unsafe { cast_failed(); } unreachable!() } }
+impl CastInto<UVec3> for Vec3 { fn cast_into(self) -> UVec3 { unsafe { cast_failed(); } unreachable!() } }
+
+impl FromT<Vec2> for Vec3 { fn ve_from(t: Vec2) -> Self { Self::new(t.x as _, t.y as _, 0.0) } } 
+impl FromT<IVec2> for Vec3 { fn ve_from(t: IVec2) -> Self { Self::new(t.x as _, t.y as _, 0.0) } }
+impl FromT<Vec3> for Vec3 { fn ve_from(t: Vec3) -> Self { t } }
+impl FromT<Vec3A> for Vec3 { fn ve_from(t: Vec3A) -> Self { Self::new(t.x as _, t.y as _, t.z as _) } }
+impl FromT<IVec3> for Vec3 { fn ve_from(t: IVec3) -> Self { Self::new(t.x as _, t.y as _, t.z as _) } }
+impl FromT<UVec3> for Vec3 { fn ve_from(t: UVec3) -> Self { Self::new(t.x as _, t.y as _, t.z as _) } }
+impl FromT<Vec4> for Vec3 { fn ve_from(t: Vec4) -> Self { Self::new(t.x as _, t.y as _, t.z as _) } }
+
+impl IntoT<Vec2> for Vec3 { fn ve_into(self) -> Vec2 { Vec2::new(self.x as _, self.y as _) }  }
+impl IntoT<IVec2> for Vec3 { fn ve_into(self) -> IVec2 { IVec2::new(self.x as _, self.y as _) }  }
+impl IntoT<Vec3> for Vec3 { fn ve_into(self) -> Vec3 { self } }
+impl IntoT<Vec3A> for Vec3 { fn ve_into(self) -> Vec3A { Vec3A::new(self.x as _, self.y as _, self.z as _) } }
+impl IntoT<IVec3> for Vec3 { fn ve_into(self) -> IVec3 { IVec3::new(self.x as _, self.y as _, self.z as _) } }
+impl IntoT<UVec3> for Vec3 { fn ve_into(self) -> UVec3 { UVec3::new(self.x as _, self.y as _, self.z as _) } }
 
 impl Ve<f32, 3> for Vec3A {
     const ZERO: Self = Vec3A::ZERO;
@@ -279,24 +331,8 @@ impl Ve<f32, 3> for Vec3A {
     fn cmpeq_all(self, other: Self) -> bool { self.cmpeq(other).all() }
     fn cmpne_all(self, other: Self) -> bool { self.cmpne(other).all() }
 
-    fn to_vecf<V: Ve<f32, 3>>(self) -> V { V::from_vec3a(self) }
-    fn from_vecf<V: Ve<f32, 3>>(v: V) -> Self { v.to_vec3a() }
-
-    fn to_vec3a(self) -> Vec3A { self }
-    fn to_vec3(self) -> Vec3 { Vec3::from(self) }
-    fn to_vec2(self) -> Vec2 { unreachable!() }
-    fn to_ivec3(self) -> IVec3 { self.as_ivec3() }
-    fn to_ivec2(self) -> IVec2 { unreachable!() }
-    fn to_uvec3(self) -> UVec3 { self.as_uvec3() }
-
-    fn from_vec4h(v: Vec4) -> Self { Vec3A::from(v) }
-    fn from_vec3a(v: Vec3A) -> Self { v }
-    fn from_vec3(v: Vec3) -> Self { Vec3A::from(v) }
-    fn from_vec2(v:  Vec2) -> Self { unreachable!() }
-    fn from_ivec3(v: IVec3) -> Self { v.as_vec3a() }
-    fn from_ivec2(v: IVec2) -> Self { unreachable!() }
-    fn from_uvec3(v: UVec3) -> Self { v.as_vec3a() }
-
+    fn to_vecf<V: Ve<f32, 3>>(self) -> V { V::ve_from(self) }
+    fn from_vecf<V: Ve<f32, 3>>(v: V) -> Self { v.ve_into() }
     fn to_array(&self) -> [f32; 3] { Self::to_array(self) } 
 }
 
@@ -307,6 +343,37 @@ impl MC<Vec3A, f32, 3> for Vec3A {
     fn to_vector(v: Self::VectorF) -> Self { v }
     fn to_vector_f(v: Self) -> Self::VectorF { v }
 }
+
+impl CastFrom<Vec2> for Vec3A { fn cast_from(t: Vec2) -> Self { unsafe { cast_failed(); } unreachable!() } }
+impl CastFrom<IVec2> for Vec3A { fn cast_from(t: IVec2) -> Self { unsafe { cast_failed(); } unreachable!() } }
+impl CastFrom<Vec3> for Vec3A { fn cast_from(t: Vec3) -> Self { unsafe { cast_failed(); } unreachable!() } }
+impl CastFrom<Vec3A> for Vec3A { fn cast_from(t: Vec3A) -> Self { t } }
+impl CastFrom<IVec3> for Vec3A { fn cast_from(t: IVec3) -> Self { unsafe { cast_failed(); } unreachable!() } }
+impl CastFrom<UVec3> for Vec3A { fn cast_from(t: UVec3) -> Self { unsafe { cast_failed(); } unreachable!() } }
+
+impl CastInto<Vec2> for Vec3A { fn cast_into(self) -> Vec2 { unsafe { cast_failed(); } unreachable!() } }
+impl CastInto<IVec2> for Vec3A { fn cast_into(self) -> IVec2 { unsafe { cast_failed(); } unreachable!() } }
+impl CastInto<Vec3> for Vec3A { fn cast_into(self) -> Vec3 { unsafe { cast_failed(); } unreachable!() } }
+impl CastInto<Vec3A> for Vec3A { fn cast_into(self) -> Vec3A { self } }
+impl CastInto<IVec3> for Vec3A { fn cast_into(self) -> IVec3 { unsafe { cast_failed(); } unreachable!() } }
+impl CastInto<UVec3> for Vec3A { fn cast_into(self) -> UVec3 { unsafe { cast_failed(); } unreachable!() } }
+
+impl FromT<Vec2> for Vec3A { fn ve_from(t: Vec2) -> Self { Self::new(t.x, t.y, 0.0) } } 
+impl FromT<IVec2> for Vec3A { fn ve_from(t: IVec2) -> Self { Self::new(t.x as _, t.y as _, 0.0) } }
+impl FromT<Vec3> for Vec3A { fn ve_from(t: Vec3) -> Self { Self::new(t.x, t.y, t.z) } }
+impl FromT<Vec3A> for Vec3A { fn ve_from(t: Vec3A) -> Self { t } }
+impl FromT<IVec3> for Vec3A { fn ve_from(t: IVec3) -> Self { Self::new(t.x as _, t.y as _, t.z as _) } }
+impl FromT<UVec3> for Vec3A { fn ve_from(t: UVec3) -> Self { Self::new(t.x as _, t.y as _, t.z as _) } }
+impl FromT<Vec4> for Vec3A { fn ve_from(t: Vec4) -> Self { Self::new(t.x as _, t.y as _, t.z as _) } }
+
+
+impl IntoT<Vec2> for Vec3A { fn ve_into(self) -> Vec2 { Vec2::new(self.x as _, self.y as _) }  }
+impl IntoT<IVec2> for Vec3A { fn ve_into(self) -> IVec2 { IVec2::new(self.x as _, self.y as _) }  }
+impl IntoT<Vec3> for Vec3A { fn ve_into(self) -> Vec3 { Vec3::new(self.x as _, self.y as _, self.z as _) } }
+impl IntoT<Vec3A> for Vec3A { fn ve_into(self) -> Vec3A { self } }
+impl IntoT<IVec3> for Vec3A { fn ve_into(self) -> IVec3 { IVec3::new(self.x as _, self.y as _, self.z as _) } }
+impl IntoT<UVec3> for Vec3A { fn ve_into(self) -> UVec3 { UVec3::new(self.x as _, self.y as _, self.z as _) } }
+
 
 impl Ve<i32, 3> for IVec3 {
     const ZERO: Self = IVec3::ZERO;
@@ -351,24 +418,8 @@ impl Ve<i32, 3> for IVec3 {
     fn cmpeq_all(self, other: Self) -> bool { self.cmpeq(other).all() }
     fn cmpne_all(self, other: Self) -> bool { self.cmpne(other).all() }
 
-    fn to_vecf<V: Ve<f32, 3>>(self) -> V { V::from_ivec3(self) }
-    fn from_vecf<V: Ve<f32, 3>>(v: V) -> Self { v.to_ivec3() }
-
-    fn to_vec3a(self) -> Vec3A { self.as_vec3a() }
-    fn to_vec3(self) -> Vec3 { self.as_vec3() }
-    fn to_vec2(self) -> Vec2 { unreachable!() }
-    fn to_ivec3(self) -> IVec3 { self }
-    fn to_ivec2(self) -> IVec2 { unreachable!() }
-    fn to_uvec3(self) -> UVec3 { self.as_uvec3() }
-    
-    fn from_vec4h(v: Vec4) -> Self { v.xyz().as_ivec3() }
-    fn from_vec3a(v: Vec3A) -> Self { v.as_ivec3() }
-    fn from_vec3(v: Vec3) -> Self { v.as_ivec3() }
-    fn from_vec2(v:  Vec2) -> Self { unreachable!() }
-    fn from_ivec3(v: IVec3) -> Self { v }
-    fn from_ivec2(v: IVec2) -> Self { unreachable!() }
-    fn from_uvec3(v: UVec3) -> Self { v.as_ivec3() }
-
+    fn to_vecf<V: Ve<f32, 3>>(self) -> V { V::ve_from(self) }
+    fn from_vecf<V: Ve<f32, 3>>(v: V) -> Self { v.ve_into() }
     fn to_array(&self) -> [i32; 3] { Self::to_array(self) }
 }
 
@@ -379,6 +430,38 @@ impl MC<IVec3, i32, 3> for IVec3 {
     fn to_vector(v: Self::VectorF) -> Self { v.as_ivec3() }
     fn to_vector_f(v: Self) -> Self::VectorF { v.as_vec3a() }
 }
+
+impl CastFrom<Vec2> for IVec3 { fn cast_from(t: Vec2) -> Self { unsafe { cast_failed(); } unreachable!() } }
+impl CastFrom<IVec2> for IVec3 { fn cast_from(t: IVec2) -> Self { unsafe { cast_failed(); } unreachable!() } }
+impl CastFrom<Vec3> for IVec3 { fn cast_from(t: Vec3) -> Self { unsafe { cast_failed(); } unreachable!() } }
+impl CastFrom<Vec3A> for IVec3 { fn cast_from(t: Vec3A) -> Self { unsafe { cast_failed(); } unreachable!() } }
+impl CastFrom<IVec3> for IVec3 { fn cast_from(t: IVec3) -> Self { t } }
+impl CastFrom<UVec3> for IVec3 { fn cast_from(t: UVec3) -> Self { unsafe { cast_failed(); } unreachable!() } }
+
+impl CastInto<Vec2> for IVec3 { fn cast_into(self) -> Vec2 { unsafe { cast_failed(); } unreachable!() } }
+impl CastInto<IVec2> for IVec3 { fn cast_into(self) -> IVec2 { unsafe { cast_failed(); } unreachable!() } }
+impl CastInto<Vec3> for IVec3 { fn cast_into(self) -> Vec3 { unsafe { cast_failed(); } unreachable!() } }
+impl CastInto<Vec3A> for IVec3 { fn cast_into(self) -> Vec3A { unsafe { cast_failed(); } unreachable!() } }
+impl CastInto<IVec3> for IVec3 { fn cast_into(self) -> IVec3 { self } }
+impl CastInto<UVec3> for IVec3 { fn cast_into(self) -> UVec3 { unsafe { cast_failed(); } unreachable!() } }
+
+impl FromT<Vec2> for IVec3 { fn ve_from(t: Vec2) -> Self { Self::new(t.x as _, t.y as _, 0) } } 
+impl FromT<IVec2> for IVec3 { fn ve_from(t: IVec2) -> Self { Self::new(t.x as _, t.y as _, 0) } }
+impl FromT<Vec3> for IVec3 { fn ve_from(t: Vec3) -> Self { Self::new(t.x as _, t.y as _, t.z as _) } }
+impl FromT<Vec3A> for IVec3 { fn ve_from(t: Vec3A) -> Self { Self::new(t.x as _, t.y as _, t.z as _) } }
+impl FromT<IVec3> for IVec3 { fn ve_from(t: IVec3) -> Self { t } }
+impl FromT<UVec3> for IVec3 { fn ve_from(t: UVec3) -> Self { Self::new(t.x as _, t.y as _, t.z as _) } }
+impl FromT<Vec4> for IVec3 { fn ve_from(t: Vec4) -> Self { Self::new(t.x as _, t.y as _, t.z as _) } }
+
+
+impl IntoT<Vec2> for IVec3 { fn ve_into(self) -> Vec2 { Vec2::new(self.x as _, self.y as _) }  }
+impl IntoT<IVec2> for IVec3 { fn ve_into(self) -> IVec2 { IVec2::new(self.x as _, self.y as _) }  }
+impl IntoT<Vec3> for IVec3 { fn ve_into(self) -> Vec3 { Vec3::new(self.x as _, self.y as _, self.z as _) } }
+impl IntoT<Vec3A> for IVec3 { fn ve_into(self) -> Vec3A { Vec3A::new(self.x as _, self.y as _, self.z as _) } }
+impl IntoT<IVec3> for IVec3 { fn ve_into(self) -> IVec3 { self } }
+impl IntoT<UVec3> for IVec3 { fn ve_into(self) -> UVec3 { UVec3::new(self.x as _, self.y as _, self.z as _) } }
+
+
 
 impl Ve<i32, 2> for IVec2 {
     const ZERO: Self = IVec2::ZERO;
@@ -422,24 +505,8 @@ impl Ve<i32, 2> for IVec2 {
     fn cmpeq_all(self, other: Self) -> bool { self.cmpeq(other).all() }
     fn cmpne_all(self, other: Self) -> bool { self.cmpne(other).all() }
 
-    fn to_vecf<V: Ve<f32, 2>>(self) -> V { V::from_ivec2(self) }
-    fn from_vecf<V: Ve<f32, 2>>(v: V) -> Self { v.to_ivec2() }
-
-    fn to_vec3a(self) -> Vec3A { unreachable!()  }
-    fn to_vec3(self) -> Vec3 { unreachable!()  }
-    fn to_vec2(self) -> Vec2 { self.as_vec2() }
-    fn to_ivec3(self) -> IVec3 { unreachable!() }
-    fn to_ivec2(self) -> IVec2 { self }
-    fn to_uvec3(self) -> UVec3 { unreachable!() }
-    
-    fn from_vec4h(v: Vec4) -> Self { unreachable!() }
-    fn from_vec3a(v: Vec3A) -> Self { v.xy().as_ivec2() }
-    fn from_vec3(v: Vec3) -> Self { unreachable!() }
-    fn from_vec2(v:  Vec2) -> Self { v.as_ivec2() }
-    fn from_ivec3(v: IVec3) -> Self { unreachable!() }
-    fn from_ivec2(v: IVec2) -> Self { v }
-    fn from_uvec3(v: UVec3) -> Self { unreachable!() }
-
+    fn to_vecf<V: Ve<f32, 2>>(self) -> V { V::ve_from(self) }
+    fn from_vecf<V: Ve<f32, 2>>(v: V) -> Self { v.ve_into() }
     fn to_array(&self) -> [i32; 2] { Self::to_array(self) }
 }
 
@@ -450,6 +517,38 @@ impl MC<IVec2, i32, 2> for IVec2 {
     fn to_vector(v: Self::VectorF) -> Self { v.as_ivec2() }
     fn to_vector_f(v: Self) -> Self::VectorF { v.as_vec2() }
 }
+
+impl CastFrom<Vec2> for IVec2 { fn cast_from(t: Vec2) -> Self { unsafe { cast_failed(); } unreachable!() } }
+impl CastFrom<IVec2> for IVec2 { fn cast_from(t: IVec2) -> Self { t } }
+impl CastFrom<Vec3> for IVec2 { fn cast_from(t: Vec3) -> Self { unsafe { cast_failed(); } unreachable!() } }
+impl CastFrom<Vec3A> for IVec2 { fn cast_from(t: Vec3A) -> Self { unsafe { cast_failed(); } unreachable!() } }
+impl CastFrom<IVec3> for IVec2 { fn cast_from(t: IVec3) -> Self { unsafe { cast_failed(); } unreachable!() } }
+impl CastFrom<UVec3> for IVec2 { fn cast_from(t: UVec3) -> Self { unsafe { cast_failed(); } unreachable!() } }
+
+impl CastInto<Vec2> for IVec2 { fn cast_into(self) -> Vec2 { unsafe { cast_failed(); } unreachable!() } }
+impl CastInto<IVec2> for IVec2 { fn cast_into(self) -> IVec2 { self } }
+impl CastInto<Vec3> for IVec2 { fn cast_into(self) -> Vec3 { unsafe { cast_failed(); } unreachable!() } }
+impl CastInto<Vec3A> for IVec2 { fn cast_into(self) -> Vec3A { unsafe { cast_failed(); } unreachable!() } }
+impl CastInto<IVec3> for IVec2 { fn cast_into(self) -> IVec3 { unsafe { cast_failed(); } unreachable!() } }
+impl CastInto<UVec3> for IVec2 { fn cast_into(self) -> UVec3 { unsafe { cast_failed(); } unreachable!() } }
+
+impl FromT<Vec2> for IVec2 { fn ve_from(t: Vec2) -> Self { Self::new(t.x as _, t.y as _) } } 
+impl FromT<IVec2> for IVec2 { fn ve_from(t: IVec2) -> Self { t } }
+impl FromT<Vec3> for IVec2 { fn ve_from(t: Vec3) -> Self { Self::new(t.x as _, t.y as _) } }
+impl FromT<Vec3A> for IVec2 { fn ve_from(t: Vec3A) -> Self { Self::new(t.x as _, t.y as _) } }
+impl FromT<IVec3> for IVec2 { fn ve_from(t: IVec3) -> Self { Self::new(t.x as _, t.y as _) } }
+impl FromT<UVec3> for IVec2 { fn ve_from(t: UVec3) -> Self { Self::new(t.x as _, t.y as _) } }
+impl FromT<Vec4> for IVec2 { fn ve_from(t: Vec4) -> Self { Self::new(t.x as _, t.y as _) } }
+
+
+impl IntoT<Vec2> for IVec2 { fn ve_into(self) -> Vec2 { Vec2::new(self.x as _, self.y as _) }  }
+impl IntoT<IVec2> for IVec2 { fn ve_into(self) -> IVec2 { self }  }
+impl IntoT<Vec3> for IVec2 { fn ve_into(self) -> Vec3 { Vec3::new(self.x as _, self.y as _, 0.0) } }
+impl IntoT<Vec3A> for IVec2 { fn ve_into(self) -> Vec3A { Vec3A::new(self.x as _, self.y as _, 0.0) } }
+impl IntoT<IVec3> for IVec2 { fn ve_into(self) -> IVec3 { IVec3::new(self.x as _, self.y as _, 0) } }
+impl IntoT<UVec3> for IVec2 { fn ve_into(self) -> UVec3 { UVec3::new(self.x as _, self.y as _, 0) } }
+
+
 
 impl Ve<u32, 3> for UVec3 {
     const ZERO: Self = UVec3::ZERO;
@@ -494,24 +593,8 @@ impl Ve<u32, 3> for UVec3 {
     fn cmpeq_all(self, other: Self) -> bool { self.cmpeq(other).all() }
     fn cmpne_all(self, other: Self) -> bool { self.cmpne(other).all() }
 
-    fn to_vecf<V: Ve<f32, 3>>(self) -> V { V::from_uvec3(self) }
-    fn from_vecf<V: Ve<f32, 3>>(v: V) -> Self { v.to_uvec3() }
-
-    fn to_vec3a(self) -> Vec3A { self.as_vec3a() }
-    fn to_vec3(self) -> Vec3 { self.as_vec3() }
-    fn to_vec2(self) -> Vec2 { unreachable!() }
-    fn to_ivec3(self) -> IVec3 { self.as_ivec3() }
-    fn to_ivec2(self) -> IVec2 { unreachable!() }
-    fn to_uvec3(self) -> UVec3 { self }
-    
-    fn from_vec4h(v: Vec4) -> Self { v.xyz().as_uvec3() }
-    fn from_vec3a(v: Vec3A) -> Self { v.as_uvec3() }
-    fn from_vec3(v: Vec3) -> Self { v.as_uvec3() }
-    fn from_vec2(v:  Vec2) -> Self { unreachable!() }
-    fn from_ivec3(v: IVec3) -> Self { v.as_uvec3() }
-    fn from_ivec2(v: IVec2) -> Self { unreachable!() }
-    fn from_uvec3(v: UVec3) -> Self { v }
-
+    fn to_vecf<V: Ve<f32, 3>>(self) -> V { V::ve_from(self) }
+    fn from_vecf<V: Ve<f32, 3>>(v: V) -> Self { v.ve_into() }
     fn to_array(&self) -> [u32; 3] { Self::to_array(self) }
 }
 
@@ -522,3 +605,43 @@ impl MC<UVec3, u32, 3> for UVec3 {
     fn to_vector(v: Self::VectorF) -> Self { v.as_uvec3() }
     fn to_vector_f(v: Self) -> Self::VectorF { v.as_vec3a() }
 }
+
+impl CastFrom<Vec2> for UVec3 { fn cast_from(t: Vec2) -> Self { unsafe { cast_failed(); } unreachable!() } }
+impl CastFrom<IVec2> for UVec3 { fn cast_from(t: IVec2) -> Self { unsafe { cast_failed(); } unreachable!() } }
+impl CastFrom<Vec3> for UVec3 { fn cast_from(t: Vec3) -> Self { unsafe { cast_failed(); } unreachable!() } }
+impl CastFrom<Vec3A> for UVec3 { fn cast_from(t: Vec3A) -> Self { unsafe { cast_failed(); } unreachable!() } }
+impl CastFrom<IVec3> for UVec3 { fn cast_from(t: IVec3) -> Self { unsafe { cast_failed(); } unreachable!() } }
+impl CastFrom<UVec3> for UVec3 { fn cast_from(t: UVec3) -> Self { t } }
+
+impl CastInto<Vec2> for UVec3 { fn cast_into(self) -> Vec2 { unsafe { cast_failed(); } unreachable!() } }
+impl CastInto<IVec2> for UVec3 { fn cast_into(self) -> IVec2 { unsafe { cast_failed(); } unreachable!() } }
+impl CastInto<Vec3> for UVec3 { fn cast_into(self) -> Vec3 { unsafe { cast_failed(); } unreachable!() } }
+impl CastInto<Vec3A> for UVec3 { fn cast_into(self) -> Vec3A { unsafe { cast_failed(); } unreachable!() } }
+impl CastInto<IVec3> for UVec3 { fn cast_into(self) -> IVec3 { unsafe { cast_failed(); } unreachable!() } }
+impl CastInto<UVec3> for UVec3 { fn cast_into(self) -> UVec3 { self } }
+
+impl FromT<Vec2> for UVec3 { fn ve_from(t: Vec2) -> Self { Self::new(t.x as _, t.y as _, 0) } } 
+impl FromT<IVec2> for UVec3 { fn ve_from(t: IVec2) -> Self { Self::new(t.x as _, t.y as _, 0) } }
+impl FromT<Vec3> for UVec3 { fn ve_from(t: Vec3) -> Self { Self::new(t.x as _, t.y as _, t.z as _) } }
+impl FromT<Vec3A> for UVec3 { fn ve_from(t: Vec3A) -> Self { Self::new(t.x as _, t.y as _, t.z as _) } }
+impl FromT<IVec3> for UVec3 { fn ve_from(t: IVec3) -> Self { Self::new(t.x as _, t.y as _, t.z as _) } }
+impl FromT<UVec3> for UVec3 { fn ve_from(t: UVec3) -> Self { t } }
+impl FromT<Vec4> for UVec3 { fn ve_from(t: Vec4) -> Self { Self::new(t.x as _, t.y as _, t.z as _) } }
+
+
+impl IntoT<Vec2> for UVec3 { fn ve_into(self) -> Vec2 { Vec2::new(self.x as _, self.y as _) }  }
+impl IntoT<IVec2> for UVec3 { fn ve_into(self) -> IVec2 { IVec2::new(self.x as _, self.y as _) }  }
+impl IntoT<Vec3> for UVec3 { fn ve_into(self) -> Vec3 { Vec3::new(self.x as _, self.y as _, self.z as _) } }
+impl IntoT<Vec3A> for UVec3 { fn ve_into(self) -> Vec3A { Vec3A::new(self.x as _, self.y as _, self.z as _) } }
+impl IntoT<IVec3> for UVec3 { fn ve_into(self) -> IVec3 { IVec3::new(self.x as _, self.y as _, self.z as _) } }
+impl IntoT<UVec3> for UVec3 { fn ve_into(self) -> UVec3 { self } }
+
+
+fn cast_failed() {}
+
+/*
+unsafe extern "C" {
+    #[link_name = "\n\nERROR: Invalid cast!\n"]
+    fn cast_failed();
+}
+*/

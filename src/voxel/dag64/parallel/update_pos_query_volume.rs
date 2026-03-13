@@ -54,7 +54,7 @@ impl ParallelVoxelDAG64 {
             .map(|(i, pos)| {
                 let min = offset + pos * new_scale;
                 let max = min + new_scale;
-                (i, AABB::new(V::from_ivec3(min), V::from_ivec3(max)))
+                (i, AABB::new(V::ve_from(min), V::ve_from(max)))
             })
             .filter(|(_, node_aabb)| aabb.collides_aabb(*node_aabb))
             .map(|(i, node_aabb)| {
@@ -64,14 +64,14 @@ impl ParallelVoxelDAG64 {
                     (self.add_pos_query_recursive(
                         model, 
                         lod,
-                        node_aabb.min().to_ivec3(),
+                        node_aabb.min().ve_into(),
                         new_level,
                     ).check_empty(), true)
                 } else if aabb.contains_aabb(node_aabb) {
                     (Some(self.add_pos_query_recursive(
                         model, 
                         lod,
-                        node_aabb.min().to_ivec3(),
+                        node_aabb.min().ve_into(),
                         new_level,
                     )), false)
                 } else {
@@ -80,7 +80,7 @@ impl ParallelVoxelDAG64 {
                         lod,
                         aabb,
                         new_level,
-                        node_aabb.min().to_ivec3(),
+                        node_aabb.min().ve_into(),
                         node.ptr() + index_in_children,
                     )), false)
                 };
@@ -171,7 +171,7 @@ impl ParallelVoxelDAG64 {
             .rev() {
             let min = offset + pos * new_scale;
             let max = min + new_scale;
-            let node_aabb = AABB::new(V::from_ivec3(min), V::from_ivec3(max));
+            let node_aabb = AABB::new(V::ve_from(min), V::ve_from(max));
 
             if aabb.collides_aabb(node_aabb) {
 

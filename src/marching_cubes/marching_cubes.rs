@@ -1,4 +1,4 @@
-use octa_force::glam::Vec3;
+use octa_force::glam::{IVec3, Vec3};
 
 use crate::METERS_PER_SHADER_UNIT;
 use crate::mesh::Vertex;
@@ -25,8 +25,8 @@ pub fn marching_cubes<S, V, FI, FV>(
 {
 
     let aabb = source.get_bounds();
-    let min = aabb.min().to_ivec3();
-    let max = aabb.max().to_ivec3();
+    let min: IVec3 = aabb.min().ve_into();
+    let max: IVec3 = aabb.max().ve_into();
     let size = (max - min).as_uvec3() + 1;
     let size_x = size.x as usize;
 

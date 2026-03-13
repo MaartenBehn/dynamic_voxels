@@ -123,7 +123,7 @@ impl ParallelVoxelDAG64 {
         // engine
         for (i, pos) in get_dag_node_children_xzy_i().into_iter().enumerate() {
             let pos = offset + pos;
-            let value = model.get_value(V::from_ivec3(pos));
+            let value = model.get_value(V::ve_from(pos));
 
             if value != 0 {
                 vec.push(value);

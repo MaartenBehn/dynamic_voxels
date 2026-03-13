@@ -4,8 +4,8 @@ use crate::{util::{math_config::MC, number::Nu, vector::Ve}, volume::{VolumeBoun
 use super::{node::VoxelDAG64Node, parallel::ParallelVoxelDAG64, DAG64Entry, DAG64EntryKey, VoxelDAG64};
 
 pub fn get_dag_offset_levels<V: Ve<T, 3>, T: Nu, M: VolumeBounds<V, T, 3>>(model: &M) -> (IVec3, u8) {
-    let offset = model.get_offset().to_ivec3();
-    let dims = model.get_size().to_uvec3();
+    let offset: IVec3 = model.get_offset().ve_into();
+    let dims: UVec3 = model.get_size().ve_into();
     if dims == UVec3::ZERO {
         return (IVec3::ZERO, 0);
     }

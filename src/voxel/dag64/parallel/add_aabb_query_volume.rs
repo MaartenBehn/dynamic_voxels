@@ -43,8 +43,8 @@ impl ParallelVoxelDAG64 {
 
             let scale = 1 << (2 * node_level);
             let aabb = AABB::new(
-                V::from_ivec3(offset), 
-                V::from_ivec3(offset + scale));
+                V::ve_from(offset), 
+                V::ve_from(offset + scale));
 
             let res = model.get_aabb_value(aabb); 
 
@@ -118,8 +118,8 @@ impl ParallelVoxelDAG64 {
         } else {
             let scale = 1 << (2 * node_level);
             let aabb = AABB::new(
-                V::from_ivec3(offset), 
-                V::from_ivec3(offset + scale));
+                V::ve_from(offset), 
+                V::ve_from(offset + scale));
 
             let res = model.get_aabb_value(aabb); 
 
@@ -165,8 +165,8 @@ impl ParallelVoxelDAG64 {
     ) -> VoxelDAG64Node {
         let scale = 1 << (2 * node_level);
         let aabb = AABB::new(
-                V::from_ivec3(offset), 
-                V::from_ivec3(offset + scale));
+                V::ve_from(offset), 
+                V::ve_from(offset + scale));
 
         let res = model.get_aabb_value(aabb);
 

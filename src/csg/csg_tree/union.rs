@@ -66,9 +66,7 @@ impl<M, V: Ve<T, D>, T: Nu, const D: usize> BHShape<(), V::VectorF, f32, D> for 
         }
     }
 
-    fn extra_data(&self, shapes: &Shapes<(), Self, V::VectorF, f32, D>) -> () {
-        ()
-    }
+    fn extra_data(&self, shapes: &Shapes<(), Self, V::VectorF, f32, D>) -> () { () }
 }
 
 impl<V: Ve<T, D>, T: Nu, const D: usize> Default for CSGTreeUnion<V, T, D> {

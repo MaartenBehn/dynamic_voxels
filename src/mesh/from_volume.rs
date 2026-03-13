@@ -14,12 +14,12 @@ impl Mesh {
         let mut vertices = vec![];
         let mut indices = vec![];
         marching_cubes(vol, |pos, val| {
-                let grad = vol.get_gradient_at_position(V::from_vec3(pos));
+                let grad: Vec3 = vol.get_gradient_at_position(V::ve_from(pos)).normalize().ve_into();
 
                 vertices.push(Vertex::new(
                 pos.yxz() / VOXELS_PER_SHADER_UNIT as f32, 
                 val, 
-                grad.normalize().to_vec3().yxz()));
+                grad));
 
             }, |i| {
                 indices.push(i);

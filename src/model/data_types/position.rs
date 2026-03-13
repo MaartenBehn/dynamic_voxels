@@ -349,7 +349,7 @@ impl<V: Ve<T, D>, const D: usize> PositionValue<V, D> {
                 (p.collect(), r)
             },
             PositionValue::Cam => {
-                let pos = V::from_vec3(get_value_data.external_input.cam_position);
+                let pos = V::ve_from(get_value_data.external_input.cam_position);
                 (smallvec::smallvec![pos], false)
             },
             PositionValue::Position2DTo3D((p, n)) => {

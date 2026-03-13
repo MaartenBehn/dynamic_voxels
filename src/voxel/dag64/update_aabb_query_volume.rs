@@ -56,7 +56,7 @@ impl VoxelDAG64 {
             .rev() {
             let min = offset + pos * new_scale;
             let max = min + new_scale;
-            let node_aabb = AABB::new(V::from_ivec3(min), V::from_ivec3(max));
+            let node_aabb = AABB::new(V::ve_from(min), V::ve_from(max));
 
             if aabb.collides_aabb(node_aabb) {
 

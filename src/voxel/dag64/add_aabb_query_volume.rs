@@ -42,8 +42,8 @@ impl VoxelDAG64 {
         } else {
             let scale = 4_i32.pow(node_level as u32);
             let aabb = AABB::new(
-                V::from_ivec3(offset), 
-                V::from_ivec3(offset + scale));
+                V::ve_from(offset), 
+                V::ve_from(offset + scale));
 
             let res = model.get_aabb_value(aabb); 
 
@@ -87,8 +87,8 @@ impl VoxelDAG64 {
     ) -> OctaResult<VoxelDAG64Node> {
         let scale = 4_i32.pow(node_level as u32);
         let aabb = AABB::new(
-                V::from_ivec3(offset), 
-                V::from_ivec3(offset + scale));
+                V::ve_from(offset), 
+                V::ve_from(offset + scale));
 
         let res = model.get_aabb_value(aabb);
 

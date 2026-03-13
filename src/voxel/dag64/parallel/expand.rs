@@ -1,4 +1,4 @@
-use octa_force::{glam::UVec3, OctaResult};
+use octa_force::{OctaResult, glam::{IVec3, UVec3}};
 
 use crate::{util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, voxel::dag64::{DAG64Entry, DAG64EntryKey, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node}};
 use super::ParallelVoxelDAG64;
@@ -12,7 +12,7 @@ impl ParallelVoxelDAG64 {
         let mut entry_data = self.entry_points.lock()[based_on_entry].to_owned(); 
 
         let mut size = 4_i32.pow(entry_data.levels as u32);
-        let mut tree_aabb = AABB::new(V::from_ivec3(entry_data.offset), V::from_ivec3(entry_data.offset + size));
+        let mut tree_aabb = AABB::new(V::ve_from(entry_data.offset), V::ve_from(entry_data.offset + size));
 
         let model_center = aabb.center();
 
@@ -24,7 +24,8 @@ impl ParallelVoxelDAG64 {
 
             // The + 2 says that the 3rd cell is the center so the old tree will placed in the
             // middle of the new level.
-            let child_pos = ((model_center - tree_aabb.min()).to_ivec3() / size) + 2;
+            let diff: IVec3 = (model_center - tree_aabb.min()).ve_into(); 
+            let child_pos = (diff / size) + 2;
             let child_index = child_pos.as_uvec3().dot(UVec3::new(1, 4, 16));
 
             let new_root = VoxelDAG64Node::new(false, entry_data.root_index, 1 << child_index as u64);
@@ -33,7 +34,7 @@ impl ParallelVoxelDAG64 {
             entry_data.offset = entry_data.offset - child_pos * size; 
             entry_data.levels += 1;
             size = 4_i32.pow(entry_data.levels as u32);
-            tree_aabb = AABB::new(V::from_ivec3(entry_data.offset), V::from_ivec3(entry_data.offset + size));
+            tree_aabb = AABB::new(V::ve_from(entry_data.offset), V::ve_from(entry_data.offset + size));
         }
         
         entry_data
