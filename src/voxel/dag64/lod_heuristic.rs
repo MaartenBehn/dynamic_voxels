@@ -69,7 +69,7 @@ impl LODHeuristicT for PowHeuristicSphere {
 
 impl Default for PowHeuristicSphere {
     fn default() -> Self {
-        Self { center: Default::default(), render_dist: 20.0 }
+        Self { center: Default::default(), render_dist: 30.0 }
     }
 }
 

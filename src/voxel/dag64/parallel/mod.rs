@@ -38,9 +38,11 @@ impl ParallelVoxelDAG64 {
     }
 
     pub fn print_memory_info(&self) { 
-        info!("VoxelDAG64: nodes {} MB, data {} MB", 
+        info!("VoxelDAG64: nodes {} MB {}%, data {} MB {}%", 
             to_mb(self.nodes.get_memory_size()),
+            self.nodes.filled() * 100.0,
             to_mb(self.data.get_memory_size()),
+            self.data.filled() * 100.0,
         );
     }
 
