@@ -19,6 +19,7 @@ impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
             
             CSGTreeNodeData::Box(d) => d.is_position_valid(pos),
             CSGTreeNodeData::Sphere(d) => d.is_position_valid(pos),
+            CSGTreeNodeData::Cylinder(d) => d.is_position_valid(pos),
             CSGTreeNodeData::OffsetVoxelGrid(d) => todo!(),
             CSGTreeNodeData::SharedVoxelGrid(d) => todo!(),
         }

@@ -26,6 +26,7 @@ fn main() {
         name: APP_NAME.to_string(),
         start_size: uvec2(WIDTH, HEIGHT),
         num_frames_in_flight: NUM_FRAMES_IN_FLIGHT,
+        max_fps: 100,
 
         ray_tracing: EngineFeatureValue::NotUsed,
         compute_rendering: EngineFeatureValue::Needed,

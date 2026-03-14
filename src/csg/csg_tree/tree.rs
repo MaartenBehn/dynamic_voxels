@@ -1,6 +1,6 @@
 use octa_force::glam::Mat4;
 
-use crate::{csg::{r#box::CSGBox, sphere::CSGSphere, Base}, util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid}};
+use crate::{csg::{Base, primitves::{CSGPrimitive, r#box::CSGBox, cylinder::CSGCylinder, sphere::CSGSphere}}, util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid}};
 
 use super::{remove::CSGTreeRemove, union::CSGTreeUnion};
 
@@ -13,8 +13,9 @@ pub enum CSGTreeNodeData<M, V: Ve<T, D>, T: Nu, const D: usize> {
     Cut(CSGTreeRemove),
    
     None,
-    Box(CSGBox<M, V, T, D>),
-    Sphere(CSGSphere<M, V, T, D>),
+    Box(CSGPrimitive<CSGBox, M, V, T, D>),
+    Sphere(CSGPrimitive<CSGSphere, M, V, T, D>),
+    Cylinder(CSGPrimitive<CSGCylinder, M, V, T, D>),
     OffsetVoxelGrid(OffsetVoxelGrid),
     SharedVoxelGrid(SharedVoxelGrid),
 }

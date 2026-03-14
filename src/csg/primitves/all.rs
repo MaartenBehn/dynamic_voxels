@@ -1,8 +1,6 @@
 use octa_force::glam::{IVec3, UVec3, Vec3A};
 
-use crate::{util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyAABB, VolumeQureyAABBResult, VolumeQureyPosValid, VolumeQureyPosValue}};
-
-use super::Base;
+use crate::{csg::Base, util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyAABB, VolumeQureyAABBResult, VolumeQureyPosValid, VolumeQureyPosValue}};
 
 #[derive(Clone, Copy, Debug)]
 pub struct CSGAll<V> {

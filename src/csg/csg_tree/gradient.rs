@@ -16,6 +16,7 @@ impl<M, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
             
             CSGTreeNodeData::Box(d) => d.get_gradient_at_position(pos),
             CSGTreeNodeData::Sphere(d) => d.get_gradient_at_position(pos),
+            CSGTreeNodeData::Cylinder(d) => d.get_gradient_at_position(pos),
             CSGTreeNodeData::OffsetVoxelGrid(d) => todo!(),
             CSGTreeNodeData::SharedVoxelGrid(d) => todo!(),
         }

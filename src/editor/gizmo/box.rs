@@ -1,7 +1,7 @@
 use itertools::Itertools;
-use octa_force::glam::{Vec2, Vec3, vec3a, vec4};
+use octa_force::glam::{Mat3, Mat4, Vec2, Vec3, vec3a, vec4};
 
-use crate::{csg::csg_tree::tree::CSGTree, util::{matrix::Ma as _, vector::Ve}, voxel::palette::palette::MATERIAL_ID_BASE};
+use crate::{csg::csg_tree::tree::CSGTree, util::{matrix::Ma as _, vector::{CastInto, Ve}}, voxel::palette::palette::MATERIAL_ID_BASE};
 
 pub struct BoxGizmo<V: Ve<f32, D>, const D: usize> {
     mat: V::Matrix,
@@ -30,7 +30,8 @@ impl<V: Ve<f32, D>, const D: usize> BoxGizmo<V, D> {
                     vec3a(max[0],min[1], 1.0),
                     vec3a(max[0],max[1], 1.0),
                 ].map(|p| {
-                        V::ve_from(mat.to_mat3().mul_vec3a(p))
+                        let mat: Mat3 = mat.cast_into();
+                        V::ve_from(mat.mul_vec3a(p))
                     }), [(0, 1), (2, 3), (0, 2), (1, 3)])
             }
             3 => {
@@ -47,7 +48,8 @@ impl<V: Ve<f32, D>, const D: usize> BoxGizmo<V, D> {
                     vec4(max[0],max[1], min[2], 1.0),
                     vec4(max[0],max[1], max[2], 1.0),
                 ].map(|p| {
-                        V::ve_from(mat.to_mat4().mul_vec4(p))
+                        let mat: Mat4 = mat.cast_into();
+                        V::ve_from(mat.mul_vec4(p))
                     }), [
                         (0, 1), (2, 3), (4, 5), (6, 7), 
                         (0, 2), (1, 3), (4, 6), (5, 7), 

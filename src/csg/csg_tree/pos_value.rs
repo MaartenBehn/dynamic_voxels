@@ -19,6 +19,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> CSGTree<u8, V, T, D> {
             
             CSGTreeNodeData::Box(d) => d.get_value(pos),
             CSGTreeNodeData::Sphere(d) => d.get_value(pos),
+            CSGTreeNodeData::Cylinder(d) => d.get_value(pos),
             CSGTreeNodeData::OffsetVoxelGrid(d) => d.get_value(pos),
             CSGTreeNodeData::SharedVoxelGrid(d) => d.get_value(pos),
         }

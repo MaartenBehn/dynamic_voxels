@@ -42,7 +42,7 @@ impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
                 d.needs_bounds_recompute = false;
 
                 let mut union = mem::take(d);
-                
+    
                 for index in union.indecies.iter() {
                     self.calculate_bounds_index(*index);
                 }
@@ -61,6 +61,7 @@ impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
             },
             CSGTreeNodeData::Box(d) => d.calculate_bounds(),
             CSGTreeNodeData::Sphere(d) => d.calculate_bounds(),
+            CSGTreeNodeData::Cylinder(d) => d.calculate_bounds(),
             CSGTreeNodeData::OffsetVoxelGrid(d) => 
             <OffsetVoxelGrid as VolumeBounds<V, T, D>>::calculate_bounds(d),
             CSGTreeNodeData::SharedVoxelGrid(d) => 
@@ -90,6 +91,7 @@ impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
             CSGTreeNodeData::None
             | CSGTreeNodeData::Box(_)
             | CSGTreeNodeData::Sphere(_)
+            | CSGTreeNodeData::Cylinder(_)
             | CSGTreeNodeData::OffsetVoxelGrid(_) 
             | CSGTreeNodeData::SharedVoxelGrid(_) => {}
         }
@@ -111,6 +113,7 @@ impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
             },
             CSGTreeNodeData::Box(d) => d.get_bounds(),
             CSGTreeNodeData::Sphere(d) => d.get_bounds(),
+            CSGTreeNodeData::Cylinder(d) => d.get_bounds(),
             CSGTreeNodeData::OffsetVoxelGrid(d) => d.get_bounds(),
             CSGTreeNodeData::SharedVoxelGrid(d) => d.get_bounds(),
         }

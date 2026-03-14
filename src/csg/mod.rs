@@ -3,9 +3,7 @@ use std::fmt::Debug;
 use crate::voxel::palette::palette::MATERIAL_ID_BASE;
 
 pub mod csg_tree;
-pub mod sphere;
-pub mod r#box;
-pub mod all;
+pub mod primitves;
 
 pub trait Base: Copy + Default + fmt::Debug + 'static {
     fn base() -> Self;

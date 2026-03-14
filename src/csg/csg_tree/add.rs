@@ -1,4 +1,4 @@
-use crate::{csg::{Base, csg_tree::tree::CSG_TREE_INDEX_INVALID}, util::{number::Nu, vector::Ve}, voxel::grid::shared::SharedVoxelGrid};
+use crate::{csg::{Base, csg_tree::tree::CSG_TREE_INDEX_INVALID, primitves::CSGPrimitive}, util::{number::Nu, vector::Ve}, voxel::grid::shared::SharedVoxelGrid};
 
 use super::tree::{CSGTree, CSGTreeIndex, CSGTreeNode, CSGTreeNodeData};
 
@@ -7,46 +7,46 @@ impl<M: Base + Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T,
 
         
     pub fn union_sphere(&mut self, center: V::VectorF, radius: f32, mat: M) -> UnionResult {
-        self.union_at_root(&[CSGTreeNode::new_sphere(center, radius, mat)], 0)
+        self.union_at_root(&[CSGTreeNode::new_sphere(CSGPrimitive::new_sphere(center, radius, mat))], 0)
     }
 
     pub fn cut_with_sphere(&mut self, center: V::VectorF, radius: f32, mat: M) -> CutResult {
-        self.cut_at_root(&[CSGTreeNode::new_sphere(center, radius, mat)], 0)
+        self.cut_at_root(&[CSGTreeNode::new_sphere(CSGPrimitive::new_sphere(center, radius, mat))], 0)
     }
 
     pub fn union_sphere_at_index(&mut self, center: V::VectorF, radius: f32, mat: M, index: CSGTreeIndex) -> UnionResult { 
-        self.union_at_index(index, &[CSGTreeNode::new_sphere(center, radius, mat)], 0)
+        self.union_at_index(index, &[CSGTreeNode::new_sphere(CSGPrimitive::new_sphere(center, radius, mat))], 0)
     }
 
     pub fn cut_with_sphere_at_index(&mut self, center: V::VectorF, radius: f32, mat: M, index: CSGTreeIndex) -> CutResult { 
-        self.cut_at_index(index, &[CSGTreeNode::new_sphere(center, radius, mat)], 0)
+        self.cut_at_index(index, &[CSGTreeNode::new_sphere(CSGPrimitive::new_sphere(center, radius, mat))], 0)
     }
  
     pub fn union_box_at_index(&mut self, center: V::VectorF, size: V::VectorF, mat: M, index: CSGTreeIndex) -> UnionResult { 
-        self.union_at_index(index, &[CSGTreeNode::new_box(center, size, mat)], 0)
+        self.union_at_index(index, &[CSGTreeNode::new_box(CSGPrimitive::new_box(center, size, mat))], 0)
     }
 
 }
 
 impl<M: Base + Send + Sync, V: Ve<T, 3>, T: Nu> CSGTree<M, V, T, 3> {
     pub fn add_disk(&mut self, center: V::VectorF, radius: f32, height: f32, mat: M) -> usize {
-        self.add_node(CSGTreeNode::new_disk(center, radius, height, mat)) 
+        self.add_node(CSGTreeNode::new_sphere(CSGPrimitive::new_disk(center, radius, height, mat))) 
     }
 
     pub fn union_disk(&mut self, center: V::VectorF, radius: f32, height: f32, mat: M) -> UnionResult {
-        self.union_at_root(&[CSGTreeNode::new_disk(center, radius, height, mat)], 0)
+        self.union_at_root(&[CSGTreeNode::new_sphere(CSGPrimitive::new_disk(center, radius, height, mat))], 0)
     }
 
     pub fn cut_with_disk(&mut self, center: V::VectorF, radius: f32, height: f32, mat: M) -> CutResult {
-        self.cut_at_root(&[CSGTreeNode::new_disk(center, radius, height, mat)], 0)
+        self.cut_at_root(&[CSGTreeNode::new_sphere(CSGPrimitive::new_disk(center, radius, height, mat))], 0)
     }
 
     pub fn union_disk_at_index(&mut self, center: V::VectorF, radius: f32, height: f32, mat: M, index: CSGTreeIndex) -> UnionResult {
-        self.union_at_index(index, &[CSGTreeNode::new_disk(center, radius, height, mat)], 0)
+        self.union_at_index(index, &[CSGTreeNode::new_sphere(CSGPrimitive::new_disk(center, radius, height, mat))], 0)
     }
 
     pub fn cut_with_disk_at_index(&mut self, center: V::VectorF, radius: f32, height: f32, mat: M, index: CSGTreeIndex) -> CutResult {
-        self.cut_at_index(index, &[CSGTreeNode::new_disk(center, radius, height, mat)], 0)
+        self.cut_at_index(index, &[CSGTreeNode::new_sphere(CSGPrimitive::new_disk(center, radius, height, mat))], 0)
     }
 
     pub fn add_shared_grid(&mut self, grid: SharedVoxelGrid) -> usize {

@@ -1,7 +1,7 @@
 use std::{iter, marker::PhantomData};
 
 use itertools::Either;
-use octa_force::glam::{ivec2, ivec3, vec2, vec3a, vec4, IVec2, IVec3, Vec2, Vec3, Vec3A};
+use octa_force::glam::{IVec2, IVec3, Mat3, Mat4, Vec2, Vec3, Vec3A, ivec2, ivec3, vec2, vec3a, vec4};
 
 use crate::util::vector::Ve;
 
@@ -116,6 +116,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
     pub fn from_min_max<M: Ma<D>>(mat: &M, min: V, max: V) -> Self { 
         match D {
             2 => {
+                let mat: Mat3 = mat.cast_into();
                 let min: Vec2 = min.ve_into();
                 let max: Vec2 = max.ve_into();
 
@@ -130,7 +131,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
                 let mut max = vec3a(f32::NEG_INFINITY, f32::NEG_INFINITY, 1.0);
 
                 for corner in corners {
-                    let transformed_corner = mat.to_mat3().mul_vec3a(corner);
+                    let transformed_corner = mat.mul_vec3a(corner);
 
                     min = min.min(transformed_corner);
                     max = max.max(transformed_corner);
@@ -139,6 +140,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
                 Self::new(V::ve_from(min), V::ve_from(max))
             }
             3 => {
+                let mat: Mat4 = mat.cast_into();
                 let min: Vec3A = min.ve_into();
                 let max: Vec3A = max.ve_into();
 
@@ -157,7 +159,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
                 let mut max = vec4(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY, 1.0);
 
                 for corner in corners {
-                    let transformed_corner = mat.to_mat4().mul_vec4(corner);
+                    let transformed_corner = mat.mul_vec4(corner);
 
                     min = min.min(transformed_corner);
                     max = max.max(transformed_corner);
@@ -168,108 +170,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
             _ => unreachable!()
         }
     }
-
-    pub fn from_box<M: Ma<D>>(mat: &M) -> Self {
-        match D {
-            2 => {
-                let min = Vec2::splat(-0.5);
-                let max = Vec2::splat(0.5);
-
-                let corners = [
-                    vec3a(min[0],min[1], 1.0),
-                    vec3a(min[0],max[1], 1.0),
-                    vec3a(max[0],min[1], 1.0),
-                    vec3a(max[0],max[1], 1.0),
-                ];
-
-                let mut min = vec3a(f32::INFINITY, f32::INFINITY, 1.0);
-                let mut max = vec3a(f32::NEG_INFINITY, f32::NEG_INFINITY, 1.0);
-
-                for corner in corners {
-                    let transformed_corner = mat.to_mat3().mul_vec3a(corner);
-
-                    min = min.min(transformed_corner);
-                    max = max.max(transformed_corner);
-                }
- 
-                Self::new(V::ve_from(min), V::ve_from(max))
-            }
-            3 => {
-                let min = Vec3::splat(-0.5);
-                let max = Vec3::splat(0.5);
-
-                let corners = [
-                    vec4(min[0],min[1], min[2], 1.0),
-                    vec4(min[0],min[1], max[2], 1.0),
-                    vec4(min[0],max[1], min[2], 1.0),
-                    vec4(min[0],max[1], max[2], 1.0),
-                    vec4(max[0],min[1], min[2], 1.0),
-                    vec4(max[0],min[1], max[2], 1.0),
-                    vec4(max[0],max[1], min[2], 1.0),
-                    vec4(max[0],max[1], max[2], 1.0),
-                ];
-
-                let mut min = vec4(f32::INFINITY, f32::INFINITY, f32::INFINITY, 1.0);
-                let mut max = vec4(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY, 1.0);
-
-                for corner in corners {
-                    let transformed_corner = mat.to_mat4().mul_vec4(corner);
-
-                    min = min.min(transformed_corner);
-                    max = max.max(transformed_corner);
-                }
- 
-                Self::new(V::ve_from(min), V::ve_from(max))
-            }
-            _ => unreachable!()
-        }
-    }
-
-    pub fn from_sphere<M: Ma<D>>(mat: &M) -> Self {
-        match D {
-            2 => {
-                let mat = mat.to_mat3();
-                let a = vec3a(
-                    f32::sqrt(mat.x_axis.x * mat.x_axis.x + mat.x_axis.y * mat.x_axis.y + mat.x_axis.z * mat.x_axis.z),
-                    f32::sqrt(mat.y_axis.x * mat.y_axis.x + mat.y_axis.y * mat.y_axis.y + mat.y_axis.z * mat.y_axis.z),
-                    0.0
-                );
-
-                let b = vec3a(mat.z_axis.x, mat.z_axis.y, 1.0);
-
-                Self::new(V::ve_from(b - a), V::ve_from(b + a))
-            }
-            3 => {
-                let mat = mat.to_mat4();
-                let a = vec4(
-                    f32::sqrt(mat.x_axis.x * mat.x_axis.x + mat.x_axis.y * mat.x_axis.y + mat.x_axis.z * mat.x_axis.z),
-                    f32::sqrt(mat.y_axis.x * mat.y_axis.x + mat.y_axis.y * mat.y_axis.y + mat.y_axis.z * mat.y_axis.z),
-                    f32::sqrt(mat.z_axis.x * mat.z_axis.x + mat.z_axis.y * mat.z_axis.y + mat.z_axis.z * mat.z_axis.z),
-                    0.0
-                );
-                let b = vec4(mat.w_axis.x, mat.w_axis.y, mat.w_axis.z, 1.0);
-
-                Self::new(V::ve_from(b - a), V::ve_from(b + a))
-            }
-            _ => unreachable!()
-        }
-    }
-
-    pub fn collides_unit_sphere(self) -> (bool, bool) {
-
-        let a = self.min * self.min;
-        let b = self.max * self.max;
-        let dmax = a.max(b).element_sum();
-        let dmin = 
-            (V::ZERO.lt(self.min) * a 
-           + V::ZERO.gt(self.max) * b).element_sum();
-
-        let min = dmin <= T::ONE;
-        let max = dmax <= T::ONE;
-
-        (min, max)
-    }
-
+    
     pub fn get_sampled_positions(self, step: T) -> impl Iterator<Item = V> {
         if step <= T::ZERO || !self.valid() {
             return Either::Left(iter::empty())
@@ -302,7 +203,32 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
 
     
     pub fn mul_mat<M: Ma<D>, VF: Ve<f32, D>>(&self, mat: &M) -> AABB<VF, f32, D> {
-        AABB::new(mat.mul_vector(self.min.to_vecf()), mat.mul_vector(self.max.to_vecf()))
+        match D {
+            2 => todo!(),
+            3 => {
+                let min: Vec3 = self.min.ve_into();
+                let max: Vec3 = self.max.ve_into();
+                let mat: Mat4 = mat.cast_into();
+
+                let center = (min + max) * 0.5;
+                let extent = (max - min) * 0.5;
+
+                let new_center = mat.transform_point3(center);
+
+                let mx = mat.x_axis.truncate().abs();
+                let my = mat.y_axis.truncate().abs();
+                let mz = mat.z_axis.truncate().abs();
+
+                let new_extent = Vec3::new(
+                    mx.x * extent.x + my.x * extent.y + mz.x * extent.z,
+                    mx.y * extent.x + my.y * extent.y + mz.y * extent.z,
+                    mx.z * extent.x + my.z * extent.y + mz.z * extent.z,
+                );
+
+                AABB::new(VF::ve_from(new_center - new_extent), VF::ve_from(new_center + new_extent))
+            },
+            _ => unreachable!()
+        }
     }
 
     pub fn to_f<V2: Ve<f32, D>>(self) -> AABB<V2, f32, D> {

@@ -61,6 +61,7 @@ impl<M, V: Ve<T, D>, T: Nu, const D: usize> BHShape<(), V::VectorF, f32, D> for 
             },
             CSGTreeNodeData::Box(d) => d.get_bounds().to_f(),
             CSGTreeNodeData::Sphere(d) => d.get_bounds().to_f(),
+            CSGTreeNodeData::Cylinder(d) => d.get_bounds().to_f(),
             CSGTreeNodeData::OffsetVoxelGrid(d) => d.get_bounds(),
             CSGTreeNodeData::SharedVoxelGrid(d) => d.get_bounds(),
         }

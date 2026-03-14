@@ -1,8 +1,8 @@
 use std::time::Instant;
 
-use octa_force::{OctaResult, camera::Camera, egui, engine::Engine, glam::{Mat4, UVec2, Vec3A, vec3a}, log::info, vulkan::{Buffer, CommandBuffer, Context, Swapchain, ash::vk}};
+use octa_force::{OctaResult, camera::Camera, egui, engine::Engine, glam::{Mat4, UVec2, Vec3, Vec3A, vec3, vec3a}, log::info, vulkan::{Buffer, CommandBuffer, Context, Swapchain, ash::vk}};
 
-use crate::{VOXELS_PER_METER, util::{aabb::AABB, default_types::{LODType, Volume}}, volume::VolumeBounds, voxel::{dag64::{DAG64Entry, VoxelDAG64, lod_heuristic::{LODHeuristicT, PowHeuristicSphere}, parallel::ParallelVoxelDAG64}, palette::{Palette, palette::MATERIAL_ID_BASE, shared::SharedPalette}, renderer::{RayManagerData, VoxelRenderer}}};
+use crate::{VOXELS_PER_METER, csg::primitves::{CSGPrimitive, cylinder::CSGCylinder}, util::{aabb::AABB, default_types::{LODType, Volume}}, volume::VolumeBounds, voxel::{dag64::{DAG64Entry, VoxelDAG64, lod_heuristic::{LODHeuristicT, PowHeuristicSphere}, parallel::ParallelVoxelDAG64}, palette::{Palette, palette::MATERIAL_ID_BASE, shared::SharedPalette}, renderer::{RayManagerData, VoxelRenderer}}};
 
 #[derive(Debug)]
 pub struct Tree64Renderer {
@@ -35,9 +35,12 @@ impl Tree64Renderer {
     pub fn new(engine: &Engine, camera: &Camera) -> OctaResult<Self> {
 
         let factor = 100.0;
-        let mut csg = Volume::new_sphere_float(Vec3A::ZERO, 
+        /*let mut csg = Volume::new_sphere_float(Vec3A::ZERO, 
             100.0 * factor, MATERIAL_ID_BASE);
-        csg.cut_with_sphere(vec3a(70.0 * factor, 0.0, 0.0), 70.0 * factor, MATERIAL_ID_BASE);
+        csg.cut_with_sphere(vec3a(70.0 * factor, 0.0, 0.0), 70.0 * factor, MATERIAL_ID_BASE);*/
+
+        let mut csg = Volume::new_primitive::<CSGCylinder>(CSGPrimitive::new_cylinder_from_a_to_b(
+            Vec3A::ZERO, vec3a(10.0 * factor, 1.0 + factor, 3.0 * factor), 5.0 * factor, MATERIAL_ID_BASE));
 
         let mut lod = PowHeuristicSphere::default();
         lod.render_dist = 50.0;
