@@ -13,9 +13,9 @@ impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> VolumeBounds<V, T, D> f
         if !self.needs_bounds_recompute {
             return;
         }
-        self.needs_bounds_recompute = false;
 
         self.calculate_bounds_index(self.root);
+        self.needs_bounds_recompute = false;
     }
 
     fn get_bounds(&self) -> AABB<V, T, D> {

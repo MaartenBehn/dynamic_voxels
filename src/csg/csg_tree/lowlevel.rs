@@ -1,6 +1,6 @@
 use octa_force::glam::Mat4;
 
-use crate::{csg::{Base, csg_tree::tree::{CSGTree, CSGTreeNode}, primitves::CSGPrimitive}, util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid}};
+use crate::{csg::{Base, csg_tree::tree::{CSGTree, CSGTreeNode}, primitves::{CSGPrimitive, PrimitiveType}}, util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid}};
 
 use super::{remove::CSGTreeRemove, union::CSGTreeUnion};
 
@@ -21,6 +21,10 @@ impl<M: Base + Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T,
         csg.changed_bounds = csg.get_bounds_index(0);
 
         csg
+    }
+
+    pub fn add_primitive<P: PrimitiveType + 'static>(&mut self, p: CSGPrimitive<P, M, V::VectorF, D>) -> usize {
+        self.add_node(CSGTreeNode::new_primitive(p))
     }
 
     pub fn add_sphere(&mut self, center: V::VectorF, radius: f32, mat: M) -> usize {

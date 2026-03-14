@@ -1,14 +1,14 @@
 use itertools::Itertools;
 use octa_force::glam::{Mat3, Mat4, Vec2, Vec3, vec3a, vec4};
 
-use crate::{csg::csg_tree::tree::CSGTree, util::{matrix::Ma as _, vector::{CastInto, Ve}}, voxel::palette::palette::MATERIAL_ID_BASE};
+use crate::{csg::{csg_tree::tree::CSGTree, primitves::CSGPrimitive}, util::{matrix::Ma as _, vector::{CastInto, Ve}}, volume::VolumeBounds, voxel::palette::palette::MATERIAL_ID_BASE};
 
 pub struct BoxGizmo<V: Ve<f32, D>, const D: usize> {
     mat: V::Matrix,
-    csg: CSGTree<u8, V, f32, D>,
+    pub csg: CSGTree<u8, V, f32, D>,
 }
 
-impl<V: Ve<f32, D>, const D: usize> BoxGizmo<V, D> {
+impl<V: Ve<f32, D, VectorF = V>, const D: usize> BoxGizmo<V, D> {
     pub fn new(mat: V::Matrix) -> Self {
         let csg = Self::make_csg(mat);
 
@@ -61,11 +61,19 @@ impl<V: Ve<f32, D>, const D: usize> BoxGizmo<V, D> {
     }
 
     fn make_csg_inner<const NC: usize, const NE: usize>(corners: [V; NC], edges: [(usize, usize); NE]) -> CSGTree<u8, V, f32, D> {
-        let mut csg = CSGTree::default();
+        let mut csg = CSGTree::<_, V, f32, D>::default();
 
-        let keys = corners.map(|v| csg.add_sphere(v.to_vecf(), 10.0, MATERIAL_ID_BASE));
+        let keys = corners.map(|v| csg.add_sphere(v.to_vecf(), 100.0, MATERIAL_ID_BASE));
+        let edge_keys = edges.map(|(a, b)| {
+            let (a, b) = (corners[a], corners[b]);
+            csg.add_primitive(CSGPrimitive::new_cylinder_from_a_to_b(a, b, 100.0, MATERIAL_ID_BASE))
+        });
 
-        csg.add_union_node(keys.to_vec());
+        let mut keys = keys.to_vec(); 
+        keys.extend_from_slice(&edge_keys);
+        let root_key = csg.add_union_node(keys);
+        csg.set_root(root_key);
+        csg.calculate_bounds();
 
         csg
     }

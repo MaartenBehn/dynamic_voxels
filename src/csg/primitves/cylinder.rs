@@ -6,24 +6,30 @@ use crate::util::vector::CastFrom;
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CSGCylinder {}
 
-impl<M, V: Ve<f32, 3>> CSGPrimitive<CSGCylinder, M, V, 3> {
+impl<M, V: Ve<f32, D>, const D: usize> CSGPrimitive<CSGCylinder, M, V, D> {
     pub fn new_cylinder_from_a_to_b(a: V, b: V, r: f32, mat: M) -> Self {
          CSGPrimitive::new( cylinder_between(a, b, r), mat)
     }
 }
 
-pub fn cylinder_between<V: Ve<f32, 3>>(a: V, b: V, r: f32) -> V::Matrix {
+pub fn cylinder_between<V: Ve<f32, D>, const D: usize>(a: V, b: V, r: f32) -> V::Matrix {
     let axis = b - a;
     let len = axis.length();
     let dir = axis / len;
 
     let center = (a + b) * 0.5;
 
-    let rot = Quat::from_rotation_arc(Vec3::Z, dir.ve_into());
+    match D {
+        2 => todo!(),
+        3 => {
+            let rot = Quat::from_rotation_arc(Vec3::Z, dir.ve_into());
 
-    V::Matrix::cast_from(Mat4::from_translation(center.ve_into())
-        * Mat4::from_quat(rot)
-        * Mat4::from_scale(Vec3::new(r, r, len * 0.5)))
+            V::Matrix::cast_from(Mat4::from_translation(center.ve_into())
+                * Mat4::from_quat(rot)
+                * Mat4::from_scale(Vec3::new(r, r, len * 0.5)))
+        },
+        _ => unreachable!()
+    }
 }
 
 impl PrimitiveType for CSGCylinder {
