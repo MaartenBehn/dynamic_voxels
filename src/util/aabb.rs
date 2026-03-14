@@ -201,10 +201,29 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> AABB<V, T, D>  {
         }
     }
 
-    
+    #[inline(always)]
     pub fn mul_mat<M: Ma<D>, VF: Ve<f32, D>>(&self, mat: &M) -> AABB<VF, f32, D> {
         match D {
-            2 => todo!(),
+            2 => {
+                let min: Vec2 = self.min.ve_into();
+                let max: Vec2 = self.max.ve_into();
+                let mat: Mat3 = mat.cast_into();
+
+                let center = (min + max) * 0.5;
+                let extent = (max - min) * 0.5;
+
+                let new_center = (mat * center.extend(1.0)).truncate();
+
+                let mx = mat.x_axis.truncate().abs();
+                let my = mat.y_axis.truncate().abs();
+
+                let new_extent = Vec2::new(
+                    mx.x * extent.x + my.x * extent.y,
+                    mx.y * extent.x + my.y * extent.y,
+                );
+
+                AABB::new(VF::ve_from(new_center - new_extent), VF::ve_from(new_center + new_extent))
+            },
             3 => {
                 let min: Vec3 = self.min.ve_into();
                 let max: Vec3 = self.max.ve_into();

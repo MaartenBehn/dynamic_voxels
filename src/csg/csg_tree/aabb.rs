@@ -4,7 +4,7 @@ use itertools::Itertools;
 use octa_force::{egui::emath::Numeric, glam::Vec3A};
 use smallvec::ToSmallVec;
 
-use crate::{bvh::Bvh, util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, volume::VolumeBounds, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid}};
+use crate::{bvh::Bvh, csg::primitves::{CSGPrimitive, r#box::CSGBox, cylinder::CSGCylinder, sphere::CSGSphere}, util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, volume::VolumeBounds, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid}};
 
 use super::{tree::{CSGTreeNode, CSGTreeNodeData, CSGTree, CSGTreeIndex}, union::{BVHNodeCSGUnion, CSGTreeUnion}};
 
@@ -59,9 +59,12 @@ impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
                 self.calculate_bounds_index(base);
                 self.calculate_bounds_index(remove);
             },
-            CSGTreeNodeData::Box(d) => d.calculate_bounds(),
-            CSGTreeNodeData::Sphere(d) => d.calculate_bounds(),
-            CSGTreeNodeData::Cylinder(d) => d.calculate_bounds(),
+            CSGTreeNodeData::Box(d) 
+                => <CSGPrimitive<CSGBox, M, V::VectorF, D> as VolumeBounds<V, T, D>>::calculate_bounds(d),
+            CSGTreeNodeData::Sphere(d) 
+                => <CSGPrimitive<CSGSphere, M, V::VectorF, D> as VolumeBounds<V, T, D>>::calculate_bounds(d),
+            CSGTreeNodeData::Cylinder(d) 
+                => <CSGPrimitive<CSGCylinder, M, V::VectorF, D> as VolumeBounds<V, T, D>>::calculate_bounds(d),
             CSGTreeNodeData::OffsetVoxelGrid(d) => 
             <OffsetVoxelGrid as VolumeBounds<V, T, D>>::calculate_bounds(d),
             CSGTreeNodeData::SharedVoxelGrid(d) => 

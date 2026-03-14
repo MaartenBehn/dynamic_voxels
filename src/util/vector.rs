@@ -64,6 +64,7 @@ pub trait Ve<T: Nu, const D: usize>:
     fn normalize(self) -> Self;
     fn element_sum(self) -> T;
     fn signum(self) -> Self;
+    fn abs(self) -> Self;
 
     fn min(self, other: Self) -> Self;
     fn max(self, other: Self) -> Self;
@@ -142,6 +143,7 @@ impl Ve<f32, 2> for Vec2 {
     fn normalize(self) -> Vec2 { Vec2::normalize(self) }
     fn element_sum(self) -> f32 { Vec2::element_sum(self) }
     fn signum(self) -> Vec2 { Vec2::signum(self) }
+    fn abs(self) -> Vec2 { Vec2::abs(self) }
 
     fn min(self, other: Self) -> Self { Vec2::min(self, other) }
     fn max(self, other: Self) -> Self { Vec2::max(self, other) }
@@ -226,6 +228,7 @@ impl Ve<f32, 3> for Vec3 {
     fn normalize(self) -> Vec3 { Vec3::normalize(self) }
     fn element_sum(self) -> f32 { Vec3::element_sum(self) }
     fn signum(self) -> Vec3 { Vec3::signum(self) }
+    fn abs(self) -> Vec3 { Vec3::abs(self) }
 
     fn min(self, other: Self) -> Self { Vec3::min(self, other) }
     fn max(self, other: Self) -> Self { Vec3::max(self, other) }
@@ -310,6 +313,7 @@ impl Ve<f32, 3> for Vec3A {
     fn normalize(self) -> Vec3A { Vec3A::normalize(self) }
     fn element_sum(self) -> f32 { Vec3A::element_sum(self) }
     fn signum(self) -> Vec3A { Vec3A::signum(self) }
+    fn abs(self) -> Vec3A { Vec3A::abs(self) }
 
     fn min(self, other: Self) -> Self { Vec3A::min(self, other) }
     fn max(self, other: Self) -> Self { Vec3A::max(self, other) }
@@ -396,6 +400,7 @@ impl Ve<i32, 3> for IVec3 {
     fn normalize(self) -> IVec3 { self.as_vec3a().normalize().as_ivec3() }
     fn element_sum(self) -> i32 { IVec3::element_sum(self) }
     fn signum(self) -> IVec3 { IVec3::signum(self) }
+    fn abs(self) -> IVec3 { IVec3::abs(self) }
 
     fn min(self, other: Self) -> Self { IVec3::min(self, other) }
     fn max(self, other: Self) -> Self { IVec3::max(self, other) }
@@ -483,6 +488,7 @@ impl Ve<i32, 2> for IVec2 {
     fn normalize(self) -> IVec2 { self.as_vec2().normalize().as_ivec2() }
     fn element_sum(self) -> i32 { IVec2::element_sum(self) }
     fn signum(self) -> IVec2 { IVec2::signum(self) }
+    fn abs(self) -> IVec2 { IVec2::abs(self) }
     
     fn min(self, other: Self) -> Self { IVec2::min(self, other) }
     fn max(self, other: Self) -> Self { IVec2::max(self, other) }
@@ -571,6 +577,7 @@ impl Ve<u32, 3> for UVec3 {
     fn normalize(self) -> UVec3 { self.as_vec3a().normalize().as_uvec3() }
     fn element_sum(self) -> u32 { UVec3::element_sum(self) }
     fn signum(self) -> UVec3 { unreachable!() }
+    fn abs(self) -> UVec3 { self }
 
     fn min(self, other: Self) -> Self { UVec3::min(self, other) }
     fn max(self, other: Self) -> Self { UVec3::max(self, other) }

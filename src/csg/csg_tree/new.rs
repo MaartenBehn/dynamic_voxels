@@ -8,7 +8,7 @@ use super::{remove::CSGTreeRemove, tree::{CSGTree, CSGTreeIndex, CSGTreeNode, CS
 
 
 impl<M: Base + Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
-    pub fn new_primitive<P: PrimitiveType + 'static>(p: CSGPrimitive<P, M, V, T, D>) -> Self {
+    pub fn new_primitive<P: PrimitiveType + 'static>(p: CSGPrimitive<P, M, V::VectorF, D>) -> Self {
         Self::from_node(CSGTreeNode::new_primitive(p))
     }
 
@@ -39,9 +39,9 @@ impl<M: Base + Send + Sync, V: Ve<T, 3>, T: Nu> CSGTree<M, V, T, 3> {
     }
 }
 
-union CSGPrimitiveUnion<PA: PrimitiveType, PB: PrimitiveType, M: Copy, V: Ve<T, D>, T: Nu, const D: usize> {
-    a: CSGPrimitive<PA, M, V, T, D>,
-    b: CSGPrimitive<PB, M, V, T, D>
+union CSGPrimitiveUnion<PA: PrimitiveType, PB: PrimitiveType, M: Copy, V: Ve<f32, D>, const D: usize> {
+    a: CSGPrimitive<PA, M, V, D>,
+    b: CSGPrimitive<PB, M, V, D>
 }
 
 impl <M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTreeNode<M, V, T, D> {
@@ -49,7 +49,7 @@ impl <M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTreeNode<M, V, T, D> {
         CSGTreeNode::new(CSGTreeNodeData::None, CSG_TREE_INDEX_INVALID)
     }
 
-    pub fn new_primitive<P: PrimitiveType + 'static>(p: CSGPrimitive<P, M, V, T, D>) -> Self {
+    pub fn new_primitive<P: PrimitiveType + 'static>(p: CSGPrimitive<P, M, V::VectorF, D>) -> Self {
         
         let data = if TypeId::of::<P>() == TypeId::of::<CSGSphere>() {
              CSGTreeNodeData::Sphere(unsafe { CSGPrimitiveUnion { a: p }.b })
@@ -64,11 +64,11 @@ impl <M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTreeNode<M, V, T, D> {
         CSGTreeNode::new(data, CSG_TREE_INDEX_INVALID)
     }
 
-    pub fn new_sphere(p: CSGPrimitive<CSGSphere, M, V, T, D>) -> Self {
+    pub fn new_sphere(p: CSGPrimitive<CSGSphere, M, V::VectorF, D>) -> Self {
         CSGTreeNode::new(CSGTreeNodeData::Sphere(p), CSG_TREE_INDEX_INVALID)
     }
 
-    pub fn new_box(p: CSGPrimitive<CSGBox, M, V, T, D>) -> Self {
+    pub fn new_box(p: CSGPrimitive<CSGBox, M, V::VectorF, D>) -> Self {
         CSGTreeNode::new(CSGTreeNodeData::Box(p), CSG_TREE_INDEX_INVALID)
     }
     

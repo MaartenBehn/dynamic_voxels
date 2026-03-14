@@ -13,9 +13,9 @@ pub enum CSGTreeNodeData<M, V: Ve<T, D>, T: Nu, const D: usize> {
     Cut(CSGTreeRemove),
    
     None,
-    Box(CSGPrimitive<CSGBox, M, V, T, D>),
-    Sphere(CSGPrimitive<CSGSphere, M, V, T, D>),
-    Cylinder(CSGPrimitive<CSGCylinder, M, V, T, D>),
+    Box(CSGPrimitive<CSGBox, M, V::VectorF, D>),
+    Sphere(CSGPrimitive<CSGSphere, M, V::VectorF, D>),
+    Cylinder(CSGPrimitive<CSGCylinder, M, V::VectorF, D>),
     OffsetVoxelGrid(OffsetVoxelGrid),
     SharedVoxelGrid(SharedVoxelGrid),
 }

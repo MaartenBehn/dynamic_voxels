@@ -5,14 +5,14 @@ use crate::{csg::primitves::{CSGPrimitive, PrimitiveType}, util::{aabb::AABB, ma
 #[derive(Clone, Copy, Debug)]
 pub struct CSGBox {}
 
-impl<M, V: Ve<T, D>, T: Nu, const D: usize> CSGPrimitive<CSGBox, M, V, T, D> {
-    pub fn new_box(pos: V::VectorF, size: V::VectorF, mat: M) -> Self {
+impl<M, V: Ve<f32, D>, const D: usize> CSGPrimitive<CSGBox, M, V, D> {
+    pub fn new_box(pos: V, size: V, mat: M) -> Self {
         CSGPrimitive::new(V::Matrix::from_scale_translation(size, pos), mat)
     }
 }
 
 impl PrimitiveType for CSGBox {
-    fn calculate_bounds<V: Ve<T, D>, T: Nu, const D: usize>(mat: &V::Matrix, inv_mat: &V::Matrix) -> AABB<V, T, D> {
+    fn calculate_bounds<V: Ve<f32, D>, const D: usize>(mat: &V::Matrix) -> AABB<V, f32, D> {
         match D {
             2 => {
                 let min = Vec2::splat(-0.5);
@@ -70,22 +70,19 @@ impl PrimitiveType for CSGBox {
         }
     }
 
-    fn sample_pos<V: Ve<T, D>, T: Nu, const D: usize>(mat: &V::Matrix, inv_mat: &V::Matrix, pos: V) -> bool {
-        let pos = mat.mul_vector(V::to_vector_f(pos));
-
-        let aabb = AABB::<V::VectorF, f32, D>::new(
-            V::VectorF::new([-0.5; D]), 
-            V::VectorF::new([0.5; D]));
+    fn sample_pos<V: Ve<f32, D>, const D: usize>(pos: V) -> bool {
+        let aabb = AABB::<V, f32, D>::new(
+            V::new([-0.5; D]), 
+            V::new([0.5; D]));
 
         aabb.pos_in_aabb(pos)
     }
 
-    fn sample_aabb<V: Ve<T, D>, T: Nu, const D: usize>(mat: &V::Matrix, inv_mat: &V::Matrix, aabb: AABB<V, T, D>) -> super::SampleAABBResult {
-        let aabb = aabb.mul_mat(mat);
+    fn sample_aabb<V: Ve<f32, D>, const D: usize>(aabb: AABB<V, f32, D>) -> super::SampleAABBResult {
 
-        let b = AABB::<V::VectorF, f32, D>::new(
-            V::VectorF::new([-0.5; D]), 
-            V::VectorF::new([0.5; D]));
+        let b = AABB::<V, f32, D>::new(
+            V::new([-0.5; D]), 
+            V::new([0.5; D]));
 
         if b.contains_aabb(aabb) {
             super::SampleAABBResult::Full

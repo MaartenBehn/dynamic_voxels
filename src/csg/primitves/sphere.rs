@@ -6,26 +6,26 @@ use crate::{csg::primitves::{CSGPrimitive, PrimitiveType}, util::{aabb::AABB, ma
 pub struct CSGSphere {}
 
 
-impl<M, V: Ve<T, D>, T: Nu, const D: usize> CSGPrimitive<CSGSphere, M, V, T, D> {
-    pub fn new_sphere(center: V::VectorF, radius: f32, mat: M) -> Self {
+impl<M, V: Ve<f32, D>, const D: usize> CSGPrimitive<CSGSphere, M, V, D> {
+    pub fn new_sphere(center: V, radius: f32, mat: M) -> Self {
         CSGPrimitive::new(V::Matrix::from_scale_translation(
-                V::VectorF::ONE * radius,
+                V::ONE * radius,
                 center,
             ), mat)
     }
 }
 
-impl<M, V: Ve<T, 3>, T: Nu> CSGPrimitive<CSGSphere, M, V, T, 3> {
-    pub fn new_disk(center: V::VectorF, radius: f32, height: f32, mat: M) -> Self {
+impl<M, V: Ve<f32, 3>> CSGPrimitive<CSGSphere, M, V, 3> {
+    pub fn new_disk(center: V, radius: f32, height: f32, mat: M) -> Self {
         CSGPrimitive::new( V::Matrix::from_scale_translation(
-                V::VectorF::new([radius, radius, height]),
+                V::new([radius, radius, height]),
                 center,
             ), mat)
     }
 }
 
 impl PrimitiveType for CSGSphere {
-    fn calculate_bounds<V: Ve<T, D>, T: Nu, const D: usize>(mat: &V::Matrix, inv_mat: &V::Matrix) -> AABB<V, T, D> {
+    fn calculate_bounds<V: Ve<f32, D>, const D: usize>(mat: &V::Matrix) -> AABB<V, f32, D> {
         match D {
             2 => {
                 let mat: Mat3 = mat.cast_into();
@@ -53,18 +53,15 @@ impl PrimitiveType for CSGSphere {
         }
     }
 
-    fn sample_pos<V: Ve<T, D>, T: Nu, const D: usize>(mat: &V::Matrix, inv_mat: &V::Matrix, pos: V) -> bool {
-        let pos = inv_mat.mul_vector(V::to_vector_f(pos));
+    fn sample_pos<V: Ve<f32, D>, const D: usize>(pos: V) -> bool {
         pos.length_squared() < 1.0
     }
 
-    fn sample_aabb<V: Ve<T, D>, T: Nu, const D: usize>(mat: &V::Matrix, inv_mat: &V::Matrix, aabb: AABB<V, T, D>) -> super::SampleAABBResult {
-        let aabb: AABB<V::VectorF, f32, D> = aabb.mul_mat(inv_mat);
-
+    fn sample_aabb<V: Ve<f32, D>, const D: usize>(aabb: AABB<V, f32, D>) -> super::SampleAABBResult {
         let a = aabb.min() * aabb.min();
         let b = aabb.max() * aabb.max();
         let dmax = a.max(b).element_sum();
-        let dmin = (V::VectorF::ZERO.lt(aabb.min()) * a + V::VectorF::ZERO.gt(aabb.max()) * b).element_sum();
+        let dmin = (V::ZERO.lt(aabb.min()) * a + V::ZERO.gt(aabb.max()) * b).element_sum();
 
         if dmax <= 1.0 {
             super::SampleAABBResult::Full

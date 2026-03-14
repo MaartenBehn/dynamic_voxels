@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::{bvh::{node::BHNode, shape::{BHShape, Shapes}, Bvh}, util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
+use crate::{bvh::{Bvh, node::BHNode, shape::{BHShape, Shapes}}, csg::primitves::{CSGPrimitive, r#box::CSGBox, cylinder::CSGCylinder, sphere::CSGSphere}, util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeBounds, VolumeQureyPosValid}};
 
 use super::tree::{CSGTreeNode, CSGTreeNodeData, CSGTree, CSGTreeIndex};
 
@@ -59,9 +59,12 @@ impl<M, V: Ve<T, D>, T: Nu, const D: usize> BHShape<(), V::VectorF, f32, D> for 
                 let base = csgtree_remove.base;
                 shapes.aabb(base)
             },
-            CSGTreeNodeData::Box(d) => d.get_bounds().to_f(),
-            CSGTreeNodeData::Sphere(d) => d.get_bounds().to_f(),
-            CSGTreeNodeData::Cylinder(d) => d.get_bounds().to_f(),
+            CSGTreeNodeData::Box(d) 
+                => <CSGPrimitive<CSGBox, M, V::VectorF, D> as VolumeBounds<V, T, D>>::get_bounds(d).to_f(),
+            CSGTreeNodeData::Sphere(d) 
+                => <CSGPrimitive<CSGSphere, M, V::VectorF, D> as VolumeBounds<V, T, D>>::get_bounds(d).to_f(),
+            CSGTreeNodeData::Cylinder(d) 
+                => <CSGPrimitive<CSGCylinder, M, V::VectorF, D> as VolumeBounds<V, T, D>>::get_bounds(d).to_f(),
             CSGTreeNodeData::OffsetVoxelGrid(d) => d.get_bounds(),
             CSGTreeNodeData::SharedVoxelGrid(d) => d.get_bounds(),
         }

@@ -20,16 +20,23 @@ pub trait Ma<const D: usize>:
     + CastInto<Mat4>
 {
     fn index(&self, i: usize, j: usize) -> f32;
+    fn truc_col(&self, i: usize) -> [f32; D];
     fn from_scale<V: Ve<f32, D>>(scale: V) -> Self;
     fn from_scale_translation<V: Ve<f32, D>>(scale: V, translation: V) -> Self;
 
     fn inverse(&self) -> Self;
     fn mul_vector<V: Ve<f32, D>>(&self, v: V) -> V;
+
+    fn cast<M: Ma<D>>(self) -> M;
 }
 
 impl Ma<3> for Mat4 {
     fn index(&self, i: usize, j: usize) -> f32 {
         self.col(i)[j]
+    }
+
+    fn truc_col(&self, i: usize) -> [f32; 3] {
+        self.col(i).truncate().to_array()
     }
 
     fn from_scale<V: Ve<f32, 3>>(scale: V) -> Self {
@@ -46,6 +53,11 @@ impl Ma<3> for Mat4 {
         let v: Vec3 = v.ve_into();
         V::ve_from(self.mul_vec4(Vec4::from((v, 1.0)))) 
     }
+
+    fn cast<M: Ma<3>>(self) -> M {
+        M::cast_from(self)
+    }
+
 }
 
 impl CastFrom<Mat3> for Mat3 { fn cast_from(t: Mat3) -> Self { t } }
@@ -59,6 +71,10 @@ impl Ma<2> for Mat3 {
         self.col(i)[j]
     }
 
+    fn truc_col(&self, i: usize) -> [f32; 2] {
+        self.col(i).truncate().to_array()
+    }
+
     fn from_scale<V: Ve<f32, 2>>(scale: V) -> Self {
         Mat3::from_scale_angle_translation(scale.ve_into(), 0.0, Vec2::ZERO)
     }
@@ -70,6 +86,10 @@ impl Ma<2> for Mat3 {
     fn inverse(&self) -> Self { Mat3::inverse(&self) }
 
     fn mul_vector<V: Ve<f32, 2>>(&self, v: V) -> V { V::ve_from(self.mul_vec3a(Vec3A::from((v.ve_into(), 1.0)))) }
+
+    fn cast<M: Ma<2>>(self) -> M {
+        M::cast_from(self)
+    }
 }
 
 impl CastFrom<Mat3> for Mat4 { fn cast_from(t: Mat3) -> Self { unreachable!() } }

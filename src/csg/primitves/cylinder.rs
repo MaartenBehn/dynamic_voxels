@@ -6,13 +6,13 @@ use crate::util::vector::CastFrom;
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CSGCylinder {}
 
-impl<M, V: Ve<T, 3>, T: Nu> CSGPrimitive<CSGCylinder, M, V, T, 3> {
-    pub fn new_cylinder_from_a_to_b(a: V::VectorF, b: V::VectorF, r: f32, mat: M) -> Self {
-         CSGPrimitive::new( cylinder_between::<V, _>(a, b, r), mat)
+impl<M, V: Ve<f32, 3>> CSGPrimitive<CSGCylinder, M, V, 3> {
+    pub fn new_cylinder_from_a_to_b(a: V, b: V, r: f32, mat: M) -> Self {
+         CSGPrimitive::new( cylinder_between(a, b, r), mat)
     }
 }
 
-pub fn cylinder_between<V: Ve<T, 3>, T: Nu>(a: V::VectorF, b: V::VectorF, r: f32) -> V::Matrix {
+pub fn cylinder_between<V: Ve<f32, 3>>(a: V, b: V, r: f32) -> V::Matrix {
     let axis = b - a;
     let len = axis.length();
     let dir = axis / len;
@@ -27,7 +27,7 @@ pub fn cylinder_between<V: Ve<T, 3>, T: Nu>(a: V::VectorF, b: V::VectorF, r: f32
 }
 
 impl PrimitiveType for CSGCylinder {
-    fn calculate_bounds<V: Ve<T, D>, T: Nu, const D: usize>(mat: &V::Matrix, inv_mat: &V::Matrix) -> AABB<V, T, D> {
+    fn calculate_bounds<V: Ve<f32, D>, const D: usize>(mat: &V::Matrix) -> AABB<V, f32, D> {
         match D {
             2 => {
                 let mat: Mat3 = mat.cast_into();
@@ -63,9 +63,7 @@ impl PrimitiveType for CSGCylinder {
         }
     }
 
-    fn sample_pos<V: Ve<T, D>, T: Nu, const D: usize>(mat: &V::Matrix, inv_mat: &V::Matrix, pos: V) -> bool {
-        let pos = inv_mat.mul_vector(V::to_vector_f(pos));
-      
+    fn sample_pos<V: Ve<f32, D>, const D: usize>(pos: V) -> bool {
         let arr = pos.to_array();
 
         // height check
@@ -82,9 +80,7 @@ impl PrimitiveType for CSGCylinder {
         radial <= 1.0
     }
 
-    fn sample_aabb<V: Ve<T, D>, T: Nu, const D: usize>(mat: &V::Matrix, inv_mat: &V::Matrix, aabb: AABB<V, T, D>) -> super::SampleAABBResult {
-        let aabb: AABB<V::VectorF, f32, D> = aabb.mul_mat(inv_mat);
-       
+    fn sample_aabb<V: Ve<f32, D>, const D: usize>(aabb: AABB<V, f32, D>) -> super::SampleAABBResult {
         let min = aabb.min().to_array();
         let max = aabb.max().to_array();
         // height check
