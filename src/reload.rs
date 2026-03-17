@@ -12,6 +12,7 @@ pub mod bvh;
 pub mod mesh;
 pub mod marching_cubes;
 pub mod editor;
+pub mod gi;
 
 use model::composer::ModelComposer;
 use octa_force::engine::Engine;

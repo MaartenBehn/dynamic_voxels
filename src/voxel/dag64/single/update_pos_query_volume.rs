@@ -1,9 +1,7 @@
 use octa_force::{glam::{vec3a, IVec3, UVec3, Vec3A, Vec4Swizzles}, log::debug, OctaResult};
 use smallvec::{SmallVec, ToSmallVec};
 
-use crate::{util::{aabb::AABB, math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeChangeBounds, VolumeQureyPosValue}, voxel::dag64::lod_heuristic::LODHeuristicT};
-
-use super::{node::VoxelDAG64Node, DAG64Entry, DAG64EntryKey, VoxelDAG64};
+use crate::{util::{aabb::AABB, math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeChangeBounds, VolumeQureyPosValue}, voxel::dag64::{entry::DAG64EntryKey, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, single::VoxelDAG64}};
 
 
 impl VoxelDAG64 {  
@@ -99,7 +97,7 @@ impl VoxelDAG64 {
                         aabb,
                         new_level,
                         min,
-                        node.ptr() + index_in_children,
+                        node.index() + index_in_children,
                     )?
                 };
 
@@ -111,7 +109,7 @@ impl VoxelDAG64 {
         }
 
         if !new_children.is_empty() {
-            let new_node = VoxelDAG64Node::new(
+            let new_node = VoxelDAG64Node::single(
                 false, 
                 self.nodes.push(&new_children)? as u32, 
                 new_bitmask);

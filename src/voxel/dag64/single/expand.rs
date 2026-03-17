@@ -1,9 +1,6 @@
 use octa_force::{OctaResult, glam::{IVec3, UVec3, Vec3A}};
 
-use crate::{util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, voxel::dag64::lod_heuristic::LODHeuristicT};
-
-use super::{node::VoxelDAG64Node, DAG64Entry, DAG64EntryKey, VoxelDAG64};
-
+use crate::{util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, voxel::dag64::{entry::{DAG64Entry, DAG64EntryKey}, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, single::VoxelDAG64}};
 
 impl VoxelDAG64 {  
     pub(super) fn expand_to_include_aabb<V: Ve<T, 3>, T: Nu>(&mut self, based_on_entry: DAG64EntryKey, aabb: AABB<V, T, 3>) -> OctaResult<DAG64Entry> {
@@ -26,9 +23,9 @@ impl VoxelDAG64 {
             let child_pos = (diff / size) + 2;
             let child_index = child_pos.as_uvec3().dot(UVec3::new(1, 4, 16));
 
-            let new_root = VoxelDAG64Node::new(false, entry_data.root_index, 1 << child_index as u64);
+            let new_root = VoxelDAG64Node::single(false, entry_data.root_index, 1 << child_index as u64);
             entry_data.root_index = self.nodes.push(&[new_root])?;
-            
+             
             entry_data.offset = entry_data.offset - child_pos * size; 
             entry_data.levels += 1;
             size = 4_i32.pow(entry_data.levels as u32);

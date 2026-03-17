@@ -2,10 +2,7 @@ use octa_force::{anyhow, glam::{vec3a, IVec3, UVec3, Vec3A, Vec4Swizzles}, log::
 use rayon::prelude::*;
 use smallvec::{SmallVec, ToSmallVec};
 
-use crate::{new_logic_state, util::{aabb::AABB, math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeChangeBounds, VolumeQureyAABB}, voxel::dag64::{lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, parallel::MIN_PAR_LEVEL}};
-
-use super::{DAG64Entry, DAG64EntryKey, ParallelVoxelDAG64, VoxelDAG64};
-
+use crate::{new_logic_state, util::{aabb::AABB, math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeChangeBounds, VolumeQureyAABB}, voxel::dag64::{entry::DAG64EntryKey, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, parallel::{MIN_PAR_LEVEL, ParallelVoxelDAG64}, util::get_voxel_size}};
 
 impl ParallelVoxelDAG64 {
 
@@ -31,7 +28,7 @@ impl ParallelVoxelDAG64 {
         model: &M, 
         lod: &LOD,
         aabb: AABB<V, T, 3>, 
-        node_level: u8, 
+        level: u8, 
         offset: IVec3, 
         index: u32
     ) -> VoxelDAG64Node {
@@ -41,21 +38,21 @@ impl ParallelVoxelDAG64 {
             let new_node = self.add_aabb_query_leaf(
                 model, 
                 offset,
-                node_level,
+                level,
             );
 
             return new_node;
         }
         
-        let new_level = node_level -1;
-        let new_scale = 1 << (2 * new_level);
+        let new_level = level -1;
+        let new_size = get_voxel_size(new_level);
 
         let new_children: SmallVec<[_; 64]> = get_dag_node_children_xzy_i()
             .into_par_iter()
             .enumerate()
             .map(|(i, pos)| {
-                let min = offset + pos * new_scale;
-                let max = min + new_scale;
+                let min = offset + pos * new_size;
+                let max = min + new_size;
                 let node_aabb = AABB::new(V::ve_from(min), V::ve_from(max));
 
                 if !aabb.collides_aabb(node_aabb) {
@@ -108,7 +105,7 @@ impl ParallelVoxelDAG64 {
                             aabb,
                             new_level,
                             node_aabb.min().ve_into(),
-                            node.ptr() + index_in_children,
+                            node.index() + index_in_children,
                         )
                     } else {
                         self.update_aabb_recursive(
@@ -117,7 +114,7 @@ impl ParallelVoxelDAG64 {
                             aabb,
                             new_level,
                             node_aabb.min().ve_into(),
-                            node.ptr() + index_in_children,
+                            node.index() + index_in_children,
                         )
                     }
                 };
@@ -159,7 +156,7 @@ impl ParallelVoxelDAG64 {
             }
         }
 
-        VoxelDAG64Node::new(
+        VoxelDAG64Node::single(
             false, 
             self.nodes.push(&children) as u32, 
             bitmask)
@@ -170,7 +167,7 @@ impl ParallelVoxelDAG64 {
         model: &M, 
         lod: &LOD,
         aabb: AABB<V, T, 3>, 
-        node_level: u8, 
+        level: u8, 
         offset: IVec3, 
         index: u32
     ) -> VoxelDAG64Node {
@@ -180,7 +177,7 @@ impl ParallelVoxelDAG64 {
             let new_node = self.add_aabb_query_leaf(
                 model, 
                 offset,
-                node_level,
+                level,
             );
 
             return new_node;
@@ -189,13 +186,13 @@ impl ParallelVoxelDAG64 {
         let mut new_children: SmallVec<[_; 64]> = self.nodes.get_range(node.range()).to_smallvec();
         let mut new_bitmask = node.pop_mask;
         
-        let new_level = node_level -1;
-        let new_scale = 1 << (2 * new_level);
+        let new_level = level -1;
+        let new_size = get_voxel_size(new_level);
 
         let j = new_children.len(); 
         for (i, pos) in get_dag_node_children_xzy_i().into_iter().enumerate().rev() {
-            let min = offset + pos * new_scale;
-            let max = min + new_scale;
+            let min = offset + pos * new_size;
+            let max = min + new_size;
             let node_aabb = AABB::new(V::ve_from(min), V::ve_from(max));
 
             if !aabb.collides_aabb(node_aabb) {
@@ -219,7 +216,7 @@ impl ParallelVoxelDAG64 {
                         aabb,
                         new_level,
                         min,
-                        node.ptr() + index_in_children,
+                        node.index() + index_in_children,
                     )
                 };
 
@@ -249,7 +246,7 @@ impl ParallelVoxelDAG64 {
             new_bitmask |= 1 << i as u64; 
         }
 
-        VoxelDAG64Node::new(
+        VoxelDAG64Node::single(
             false, 
             self.nodes.push(&new_children) as u32, 
             new_bitmask)

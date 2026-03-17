@@ -6,11 +6,11 @@ import debug;
 import perf_counters;
 
 public struct Node {
-  uint PackedData[3];
+  uint PackedData[4];
 
   property bool IsLeaf { get { return (PackedData[0] & 1) != 0; } }
   property uint ChildPtr { get { return PackedData[0] >> 1; } }
-  property uint64_t PopMask { get { return PackedData[1] | uint64_t(PackedData[2]) << 32; } }
+  property uint64_t PopMask { get { return PackedData[2] | uint64_t(PackedData[3]) << 32; } }
 }
 
 public struct Tree64 {

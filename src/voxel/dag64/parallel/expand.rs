@@ -1,6 +1,6 @@
 use octa_force::{OctaResult, glam::{IVec3, UVec3}};
 
-use crate::{util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, voxel::dag64::{DAG64Entry, DAG64EntryKey, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node}};
+use crate::{util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, voxel::dag64::{entry::{DAG64Entry, DAG64EntryKey}, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, util::get_voxel_size}};
 use super::ParallelVoxelDAG64;
 
 impl ParallelVoxelDAG64 {
@@ -11,7 +11,7 @@ impl ParallelVoxelDAG64 {
     ) -> DAG64Entry {
         let mut entry_data = self.entry_points.lock()[based_on_entry].to_owned(); 
 
-        let mut size = 4_i32.pow(entry_data.levels as u32);
+        let mut size = get_voxel_size(entry_data.levels);
         let mut tree_aabb = AABB::new(V::ve_from(entry_data.offset), V::ve_from(entry_data.offset + size));
 
         let model_center = aabb.center();
@@ -28,12 +28,12 @@ impl ParallelVoxelDAG64 {
             let child_pos = (diff / size) + 2;
             let child_index = child_pos.as_uvec3().dot(UVec3::new(1, 4, 16));
 
-            let new_root = VoxelDAG64Node::new(false, entry_data.root_index, 1 << child_index as u64);
+            let new_root = VoxelDAG64Node::single(false, entry_data.root_index, 1 << child_index as u64);
             entry_data.root_index = self.nodes.push(&[new_root]);
             
             entry_data.offset = entry_data.offset - child_pos * size; 
             entry_data.levels += 1;
-            size = 4_i32.pow(entry_data.levels as u32);
+            size = get_voxel_size(entry_data.levels);
             tree_aabb = AABB::new(V::ve_from(entry_data.offset), V::ve_from(entry_data.offset + size));
         }
         

@@ -2,9 +2,7 @@ use octa_force::{glam::{vec3, vec3a, IVec3, UVec3, Vec3, Vec3A}, log::debug, Oct
 use smallvec::SmallVec;
 
 
-use crate::{util::{aabb::AABB, math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeQureyAABB, VolumeQureyAABBResult}, voxel::dag64::lod_heuristic::LODHeuristicT};
-
-use super::{node::VoxelDAG64Node, util::get_dag_offset_levels, DAG64Entry, DAG64EntryKey, VoxelDAG64};
+use crate::{util::{aabb::AABB, math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeQureyAABB, VolumeQureyAABBResult}, voxel::dag64::{entry::{DAG64Entry, DAG64EntryKey}, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, single::VoxelDAG64, util::get_dag_offset_levels}};
 
 impl VoxelDAG64 {  
     pub fn add_aabb_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>, LOD: LODHeuristicT>(
@@ -50,9 +48,9 @@ impl VoxelDAG64 {
             match res {
                 VolumeQureyAABBResult::Full(v) => {
                     if v == 0 {
-                        Ok(VoxelDAG64Node::new(true, 0, 0))
+                        Ok(VoxelDAG64Node::single(true, 0, 0))
                     } else {
-                        Ok(VoxelDAG64Node::new(true, self.data.push(&[v; 64])? as u32, u64::MAX))
+                        Ok(VoxelDAG64Node::single(true, self.data.push(&[v; 64])? as u32, u64::MAX))
                     }
                 },
                 VolumeQureyAABBResult::Mixed =>  {
@@ -73,7 +71,7 @@ impl VoxelDAG64 {
                         }
                     }
 
-                    Ok(VoxelDAG64Node::new(false, self.nodes.push(&nodes)? as u32, bitmask))
+                    Ok(VoxelDAG64Node::single(false, self.nodes.push(&nodes)? as u32, bitmask))
                 },
             }
         }
@@ -95,9 +93,9 @@ impl VoxelDAG64 {
         match res {
             VolumeQureyAABBResult::Full(v) => {
                 if v == 0 {
-                    Ok(VoxelDAG64Node::new(true, 0, 0))
+                    Ok(VoxelDAG64Node::single(true, 0, 0))
                 } else {
-                    Ok(VoxelDAG64Node::new(true, self.data.push(&[v; 64])? as u32, u64::MAX))
+                    Ok(VoxelDAG64Node::single(true, self.data.push(&[v; 64])? as u32, u64::MAX))
                 }
             },
             VolumeQureyAABBResult::Mixed =>  {

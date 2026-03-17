@@ -2,9 +2,7 @@ use octa_force::{glam::{IVec3, UVec3, Vec3A}, log::debug, OctaResult};
 use smallvec::SmallVec;
 
 
-use crate::{util::{math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::VolumeQureyPosValue, voxel::dag64::lod_heuristic::LODHeuristicT};
-
-use super::{node::VoxelDAG64Node, util::get_dag_offset_levels, DAG64Entry, DAG64EntryKey, VoxelDAG64};
+use crate::{util::{math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::VolumeQureyPosValue, voxel::dag64::{entry::{DAG64Entry, DAG64EntryKey}, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, single::VoxelDAG64, util::get_dag_offset_levels}};
 
 impl VoxelDAG64 { 
     pub fn add_pos_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3>, LOD: LODHeuristicT>(
@@ -57,7 +55,7 @@ impl VoxelDAG64 {
                 }
             }
 
-            Ok(VoxelDAG64Node::new(false, self.nodes.push(&nodes)? as u32, bitmask))
+            Ok(VoxelDAG64Node::single(false, self.nodes.push(&nodes)? as u32, bitmask))
         }
     }
 
@@ -83,6 +81,6 @@ impl VoxelDAG64 {
         } 
 
         let ptr = self.data.push(&vec)?;
-        Ok(VoxelDAG64Node::new(true, ptr, bitmask))
+        Ok(VoxelDAG64Node::single(true, ptr, bitmask))
     }
 }

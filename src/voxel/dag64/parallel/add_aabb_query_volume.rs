@@ -1,7 +1,7 @@
 use itertools::Either;
 use octa_force::{anyhow::{self, anyhow}, glam::{IVec3, Vec3Swizzles}, OctaResult};
 use smallvec::SmallVec;
-use crate::{util::{aabb::AABB, math::{get_dag_node_children, get_dag_node_children_xzy_i}, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeQureyAABB, VolumeQureyAABBResult}, voxel::dag64::{DAG64Entry, DAG64EntryKey, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, parallel::MIN_PAR_LEVEL, util::get_dag_offset_levels}};
+use crate::{util::{aabb::AABB, math::{get_dag_node_children, get_dag_node_children_xzy_i}, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeQureyAABB, VolumeQureyAABBResult}, voxel::dag64::{entry::{DAG64Entry, DAG64EntryKey}, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, parallel::MIN_PAR_LEVEL, util::{get_dag_offset_levels, get_voxel_size}}};
 use super::ParallelVoxelDAG64;
 use rayon::iter::{walk_tree_postfix};
 use rayon::prelude::*;
@@ -35,36 +35,36 @@ impl ParallelVoxelDAG64 {
         model: &M,
         lod: &LOD,
         offset: IVec3,
-        node_level: u8,
+        level: u8,
     ) -> VoxelDAG64Node {
-        if node_level <= lod.lod_level(offset) {
-            self.add_aabb_query_leaf(model, offset, node_level)
+        if level <= lod.lod_level(offset) {
+            self.add_aabb_query_leaf(model, offset, level)
         } else {
 
-            let scale = 1 << (2 * node_level);
+            let size = get_voxel_size(level);
             let aabb = AABB::new(
                 V::ve_from(offset), 
-                V::ve_from(offset + scale));
+                V::ve_from(offset + size));
 
             let res = model.get_aabb_value(aabb); 
 
             match res {
                 VolumeQureyAABBResult::Full(v) => {
                     if v == 0 {
-                        VoxelDAG64Node::new(true, 0, 0)
+                        VoxelDAG64Node::single(true, 0, 0)
                     } else {
-                        VoxelDAG64Node::new(true, self.data.push(&[v; 64]) as u32, u64::MAX)
+                        VoxelDAG64Node::single(true, self.data.push(&[v; 64]) as u32, u64::MAX)
                     }
                 },
                 VolumeQureyAABBResult::Mixed =>  {
-                    let new_level = node_level - 1;
-                    let new_scale = 1 << (2 * new_level);
+                    let new_level = level - 1;
+                    let new_size = get_voxel_size(new_level);
 
                     let (vec, bitmask) = get_dag_node_children_xzy_i().into_par_iter()
                         .enumerate()
                         .map(move |(i, pos)| {
-                            let pos = offset + pos * new_scale;
-                            let res = if node_level > MIN_PAR_LEVEL {
+                            let pos = offset + pos * new_size;
+                            let res = if level > MIN_PAR_LEVEL {
                                 self.add_aabb_query_recursive_par(
                                     model,
                                     lod,
@@ -100,7 +100,7 @@ impl ParallelVoxelDAG64 {
                             });
 
                     let ptr = self.nodes.push(&vec);
-                    VoxelDAG64Node::new(false, ptr, bitmask)
+                    VoxelDAG64Node::single(false, ptr, bitmask)
                 },
             }
         }
@@ -111,29 +111,29 @@ impl ParallelVoxelDAG64 {
         model: &M,
         lod: &LOD,
         offset: IVec3,
-        node_level: u8,
+        level: u8,
     ) -> VoxelDAG64Node {
-        if node_level <= lod.lod_level(offset) {
-            self.add_aabb_query_leaf(model, offset, node_level)
+        if level <= lod.lod_level(offset) {
+            self.add_aabb_query_leaf(model, offset, level)
         } else {
-            let scale = 1 << (2 * node_level);
+            let size = get_voxel_size(level);
             let aabb = AABB::new(
                 V::ve_from(offset), 
-                V::ve_from(offset + scale));
+                V::ve_from(offset + size));
 
             let res = model.get_aabb_value(aabb); 
 
             match res {
                 VolumeQureyAABBResult::Full(v) => {
                     if v == 0 {
-                        VoxelDAG64Node::new(true, 0, 0)
+                        VoxelDAG64Node::single(true, 0, 0)
                     } else {
-                        VoxelDAG64Node::new(true, self.data.push(&[v; 64]) as u32, u64::MAX)
+                        VoxelDAG64Node::single(true, self.data.push(&[v; 64]) as u32, u64::MAX)
                     }
                 },
                 VolumeQureyAABBResult::Mixed =>  {
-                    let new_level = node_level -1;
-                    let new_scale = 1 << (2 * new_level);
+                    let new_level = level -1;
+                    let new_size = get_voxel_size(new_level);
                     
                     let mut nodes = SmallVec::<[_; 64]>::new();
                     let mut bitmask = 0;
@@ -142,7 +142,7 @@ impl ParallelVoxelDAG64 {
                         let child = self.add_aabb_query_recursive(
                             model,
                             lod,
-                            offset + pos * new_scale,
+                            offset + pos * new_size,
                             new_level,
                         );
                         if !child.is_empty() {
@@ -151,7 +151,7 @@ impl ParallelVoxelDAG64 {
                         }
                     }
 
-                    VoxelDAG64Node::new(false, self.nodes.push(&nodes) as u32, bitmask)
+                    VoxelDAG64Node::single(false, self.nodes.push(&nodes) as u32, bitmask)
                 },
             }
         }
@@ -173,9 +173,9 @@ impl ParallelVoxelDAG64 {
         match res {
             VolumeQureyAABBResult::Full(v) => {
                 if v == 0 {
-                    VoxelDAG64Node::new(true, 0, 0)
+                    VoxelDAG64Node::single(true, 0, 0)
                 } else {
-                    VoxelDAG64Node::new(true, self.data.push(&[v; 64]) as u32, u64::MAX)
+                    VoxelDAG64Node::single(true, self.data.push(&[v; 64]) as u32, u64::MAX)
                 }
             },
             VolumeQureyAABBResult::Mixed =>  {

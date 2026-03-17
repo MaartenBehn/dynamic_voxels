@@ -9,35 +9,28 @@ use rayon::{iter::empty, prelude::*};
 use octa_force::{anyhow::bail, itertools::Itertools, log::{debug, error}, vulkan::Buffer, OctaResult};
 use smallvec::{SmallVec, ToSmallVec, smallvec};
 
-use crate::{model::template::value, scene::staging_copies::SceneStagingBuilder, voxel::reuse_buffer::cached_vec::CompactRange};
-
-use super::cached_vec::CachedVec;
-
-#[derive(Debug, Clone)]
-pub struct ParallelVec<T> {
-    inner: Arc<InnerParallelVec<T>>,
-}
+use crate::{scene::staging_copies::SceneStagingBuilder, util::reuse_buffer::CompactRange};
 
 #[derive(Debug)]
-struct InnerParallelVec<T> {
+pub struct ParallelReUseBuffer<T> {
     data: UnsafeCell<Vec<T>>,
     write_head: AtomicUsize,
     flushed: AtomicUsize,
     cache: DashMap<u64, SmallVec<[CompactRange; 2]>, nohash_hasher::BuildNoHashHasher<u64>>,
 }
 
-impl<T: Copy + Default + fmt::Debug + Eq + std::hash::Hash> ParallelVec<T> {
-    pub fn new(size: usize) -> ParallelVec<T>{
-        ParallelVec { inner: Arc::new(InnerParallelVec { 
+impl<T: Copy + Default + fmt::Debug + Eq + std::hash::Hash> ParallelReUseBuffer<T> {
+    pub fn new(size: usize) -> ParallelReUseBuffer<T>{
+        ParallelReUseBuffer { 
             data: UnsafeCell::new(vec![T::default(); size]), 
             write_head: AtomicUsize::new(0),
             flushed: AtomicUsize::new(0),
             cache: DashMap::with_hasher(nohash_hasher::BuildNoHashHasher::new()),
-        }) }
+        }
     }
 
     fn get_data(&self) -> &mut [T] {
-        unsafe { &mut *self.inner.data.get() }
+        unsafe { &mut *self.data.get() }
     }
 
     pub fn push(&self, values: &[T]) -> u32 {
@@ -50,7 +43,7 @@ impl<T: Copy + Default + fmt::Debug + Eq + std::hash::Hash> ParallelVec<T> {
         
         let data = self.get_data();
 
-        match self.inner.cache.entry(hash) {
+        match self.cache.entry(hash) {
             Entry::Occupied(mut e) => {
                 let vec = e.get_mut();
 
@@ -71,10 +64,10 @@ impl<T: Copy + Default + fmt::Debug + Eq + std::hash::Hash> ParallelVec<T> {
 
     fn insert_data(&self, values: &[T], vec: &mut SmallVec<[CompactRange; 2]>, hash: u64) -> u32 {
         
-        let start = self.inner.write_head.fetch_add(values.len(), Ordering::Relaxed);
+        let start = self.write_head.fetch_add(values.len(), Ordering::Relaxed);
         let end = start + values.len();
 
-        let data = unsafe { &mut *self.inner.data.get() };
+        let data = unsafe { &mut *self.data.get() };
         data[start..end].copy_from_slice(values);
 
         vec.push(CompactRange {
@@ -95,9 +88,9 @@ impl<T: Copy + Default + fmt::Debug + Eq + std::hash::Hash> ParallelVec<T> {
 
     pub fn push_scene_builder(&self, builder: &mut SceneStagingBuilder, offset: usize) {
         
-        let flushed = self.inner.flushed.load(Ordering::Relaxed);
-        let head = self.inner.write_head.load(Ordering::Relaxed);
-        self.inner.flushed.store(head, Ordering::Relaxed);
+        let flushed = self.flushed.load(Ordering::Relaxed);
+        let head = self.write_head.load(Ordering::Relaxed);
+        self.flushed.store(head, Ordering::Relaxed);
 
         builder.push(&self.get_data()[flushed..head], offset + flushed * size_of::<T>());
     }
@@ -111,15 +104,15 @@ impl<T: Copy + Default + fmt::Debug + Eq + std::hash::Hash> ParallelVec<T> {
     }
 
     pub fn filled(&self) -> f32 {
-        let head = self.inner.write_head.load(Ordering::Relaxed) as f32;
+        let head = self.write_head.load(Ordering::Relaxed) as f32;
         head / self.get_data().len() as f32
     }
 
     pub fn reset(&mut self) { 
-        self.inner.write_head.store(0, Ordering::Relaxed);
-        self.inner.flushed.store(0, Ordering::Relaxed);
-        self.inner.cache.clear();
+        self.write_head.store(0, Ordering::Relaxed);
+        self.flushed.store(0, Ordering::Relaxed);
+        self.cache.clear();
     }
 }
 
-unsafe impl<T: Send> Sync for InnerParallelVec<T> {}
+unsafe impl<T: Send> Sync for ParallelReUseBuffer<T> {}

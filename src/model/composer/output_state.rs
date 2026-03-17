@@ -1,7 +1,6 @@
 use octa_force::camera::Camera;
 
-use crate::{mesh::scene::MeshSceneSend, scene::{dag_store::{SceneDAGKey}, worker::SceneWorkerSend}, voxel::{dag64::{VoxelDAG64, lod_heuristic::{LODHeuristicNone, LinearLODHeuristicSphere, PowHeuristicSphere}, parallel::ParallelVoxelDAG64}, palette::shared::SharedPalette}};
-
+use crate::{mesh::scene::MeshSceneSend, scene::worker::SceneWorkerSend, voxel::palette::shared::SharedPalette};
 
 #[derive(Debug, Clone)]
 pub struct OutputState {

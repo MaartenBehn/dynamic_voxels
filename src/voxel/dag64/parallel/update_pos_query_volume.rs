@@ -2,21 +2,22 @@ use octa_force::{anyhow, glam::{vec3a, IVec3, UVec3, Vec3A, Vec4Swizzles}, log::
 use rayon::prelude::*;
 use smallvec::{SmallVec, ToSmallVec};
 
-use crate::{new_logic_state, util::{aabb::AABB, math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeChangeBounds, VolumeQureyPosValue}, voxel::dag64::{lod_heuristic::LODHeuristicT, node::VoxelDAG64Node}};
+use crate::{gi::probe_pool::GIPool, new_logic_state, util::{aabb::AABB, math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeChangeBounds, VolumeQureyPosValue}, voxel::dag64::{entry::DAG64EntryKey, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, parallel::ParallelVoxelDAG64, util::get_voxel_size}};
 
-use super::{DAG64Entry, DAG64EntryKey, ParallelVoxelDAG64, VoxelDAG64};
 
 impl ParallelVoxelDAG64 {
     pub fn update_pos_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3> + VolumeChangeBounds<V, T, 3> + Send + Sync, LOD: LODHeuristicT>(
         &mut self, 
         model: &M,
         lod: &LOD,
+        gi_pool: &GIPool,
         based_on_entry: DAG64EntryKey,
     ) -> DAG64EntryKey {
         let change_aabb = model.get_change_bounds();
         let mut entry_data = self.expand_to_include_aabb(based_on_entry, change_aabb);
 
-        let root = self.update_pos_recursive_par(model, lod, change_aabb, entry_data.levels, entry_data.offset, entry_data.root_index);
+        let root = self.update_pos_recursive_par(model, lod, gi_pool, 
+            change_aabb, entry_data.levels, entry_data.offset, entry_data.root_index);
         entry_data.root_index = self.nodes.push(&[root]);
 
         let key = self.entry_points.lock().insert(entry_data);
@@ -28,8 +29,9 @@ impl ParallelVoxelDAG64 {
         &self, 
         model: &M, 
         lod: &LOD,
+        gi_pool: &GIPool,
         aabb: AABB<V, T, 3>, 
-        node_level: u8, 
+        level: u8, 
         offset: IVec3, 
         index: u32
     ) -> VoxelDAG64Node {
@@ -39,14 +41,14 @@ impl ParallelVoxelDAG64 {
             let new_node = self.add_pos_query_leaf(
                 model, 
                 offset,
-                node_level,
+                level,
             );
 
             return new_node;
         }
         
-        let new_level = node_level -1;
-        let new_scale = 1 << (2 * new_level);
+        let new_level = level -1;
+        let new_scale = get_voxel_size(level);
 
         let (new_children, new_bitmask) = get_dag_node_children_xzy_i()
             .into_par_iter()
@@ -64,6 +66,7 @@ impl ParallelVoxelDAG64 {
                     (self.add_pos_query_recursive(
                         model, 
                         lod,
+                        gi_pool,
                         node_aabb.min().ve_into(),
                         new_level,
                     ).check_empty(), true)
@@ -71,6 +74,7 @@ impl ParallelVoxelDAG64 {
                     (Some(self.add_pos_query_recursive(
                         model, 
                         lod,
+                        gi_pool,
                         node_aabb.min().ve_into(),
                         new_level,
                     )), false)
@@ -78,10 +82,11 @@ impl ParallelVoxelDAG64 {
                     (Some(self.update_pos_recursive(
                         model,
                         lod,
+                        gi_pool,
                         aabb,
                         new_level,
                         node_aabb.min().ve_into(),
-                        node.ptr() + index_in_children,
+                        node.index() + index_in_children,
                     )), false)
                 };
 
@@ -106,13 +111,13 @@ impl ParallelVoxelDAG64 {
 
 
         if !new_children.is_empty() {
-            let mut bitmask = node.pop_mask;
+            let mut pop_mask = node.pop_mask;
             let mut children: SmallVec<[_; 64]> = self.nodes.get_range(node.range()).to_smallvec();
             let mut j = children.len();
             let mut k = new_children.len();
 
             for i in (0..64).rev() {
-                let child_present = (bitmask & (1 << i)) != 0;
+                let child_present = (pop_mask & (1 << i)) != 0;
                 let new_child_present = (new_bitmask & (1 << i)) != 0; 
 
                 if child_present && new_child_present {
@@ -122,18 +127,15 @@ impl ParallelVoxelDAG64 {
                 } else if new_child_present {
                     k -= 1;
                     children.insert(j, new_children[k]);
-                    bitmask |= 1 << i as u64;
+                    pop_mask |= 1 << i as u64;
                 } else if child_present {
                     j -= 1;
                 }
             }
 
-            let new_node = VoxelDAG64Node::new(
-                false, 
-                self.nodes.push(&children) as u32, 
-                bitmask);
-
-            new_node
+            let index = self.nodes.push(&children);
+            let gi_index = gi_pool.new_probe_index(offset, level, pop_mask, &children); 
+            VoxelDAG64Node::new(false, index, pop_mask, gi_index)
         } else {
             node
         }
@@ -143,8 +145,9 @@ impl ParallelVoxelDAG64 {
         &self, 
         model: &M, 
         lod: &LOD,
+        gi_pool: &GIPool,
         aabb: AABB<V, T, 3>, 
-        node_level: u8, 
+        level: u8, 
         offset: IVec3, 
         index: u32
     ) -> VoxelDAG64Node {
@@ -154,23 +157,23 @@ impl ParallelVoxelDAG64 {
             let new_node = self.add_pos_query_leaf(
                 model, 
                 offset,
-                node_level,
+                level,
             );
 
             return new_node;
         }
 
         let mut new_children: SmallVec<[_; 64]> = SmallVec::new();
-        let mut new_bitmask = node.pop_mask;
+        let mut new_pop_mask = node.pop_mask;
         
-        let new_level = node_level -1;
-        let new_scale = 1 << (2 * new_level);
+        let new_level = level -1;
+        let new_size = get_voxel_size(new_level);
         
         for (i, pos) in get_dag_node_children_xzy_i().into_iter()
             .enumerate()
             .rev() {
-            let min = offset + pos * new_scale;
-            let max = min + new_scale;
+            let min = offset + pos * new_size;
+            let max = min + new_size;
             let node_aabb = AABB::new(V::ve_from(min), V::ve_from(max));
 
             if aabb.collides_aabb(node_aabb) {
@@ -181,6 +184,7 @@ impl ParallelVoxelDAG64 {
                     let new_child_node = self.add_pos_query_recursive(
                         model,
                         lod,
+                        gi_pool,
                         min,
                         new_level,
                     );
@@ -194,7 +198,7 @@ impl ParallelVoxelDAG64 {
                     }
 
                     new_children.insert(index_in_children as usize, new_child_node);
-                    new_bitmask |= 1 << i as u64; 
+                    new_pop_mask |= 1 << i as u64; 
 
                     continue;
                 } 
@@ -203,6 +207,7 @@ impl ParallelVoxelDAG64 {
                     self.add_pos_query_recursive(
                         model, 
                         lod,
+                        gi_pool,
                         min,
                         new_level,
                     )
@@ -210,10 +215,11 @@ impl ParallelVoxelDAG64 {
                     self.update_pos_recursive(
                         model,
                         lod,
+                        gi_pool,
                         aabb,
                         new_level,
                         min,
-                        node.ptr() + index_in_children,
+                        node.index() + index_in_children,
                     )
                 };
 
@@ -225,12 +231,11 @@ impl ParallelVoxelDAG64 {
         }
 
         if !new_children.is_empty() {
-            let new_node = VoxelDAG64Node::new(
-                false, 
-                self.nodes.push(&new_children) as u32, 
-                new_bitmask);
 
-            new_node
+            let index = self.nodes.push(&new_children);
+            let gi_index = gi_pool.new_probe_index(offset, level, new_pop_mask, &new_children); 
+
+            VoxelDAG64Node::new(false, index, new_pop_mask, gi_index)
         } else {
             node
         }

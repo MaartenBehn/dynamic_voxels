@@ -9,7 +9,7 @@ use crate::scene::staging_copies::SceneStagingBuilder;
 
 
 #[derive(Debug)]
-pub struct CachedVec<T, Hasher = fnv::FnvBuildHasher> {
+pub struct ReUseBuffer<T, Hasher = fnv::FnvBuildHasher> {
     pub data: Vec<T>,
     pub used_ranges: Vec<(usize, usize)>,
     pub cache: hashbrown::HashTable<CompactRange>,
@@ -29,7 +29,7 @@ impl CompactRange {
 }
 
 impl<T: Copy + Default + fmt::Debug + Eq + std::hash::Hash, Hasher: std::hash::BuildHasher + Default + fmt::Debug> 
-    CachedVec<T, Hasher> {
+    ReUseBuffer<T, Hasher> {
     pub fn new(size: usize) -> Self {
         Self { 
             data: vec![T::default(); size],
@@ -183,7 +183,7 @@ impl<T: Copy + Default + fmt::Debug + Eq + std::hash::Hash, Hasher: std::hash::B
     }
 }
 
-impl<T: Eq> PartialEq for CachedVec<T> {
+impl<T: Eq> PartialEq for ReUseBuffer<T> {
     fn eq(&self, other: &Self) -> bool {
         self.data == other.data 
         && self.used_ranges == other.used_ranges 

@@ -88,7 +88,7 @@ float SqDistPointAABB( Point p, AABB b )
 */
 
 
-pub fn get_dag_node_children() -> [UVec3; 64] {
+pub const fn get_dag_node_children() -> [UVec3; 64] {
     [
         uvec3(0, 0, 0),
         uvec3(0, 0, 1),
@@ -157,7 +157,7 @@ pub fn get_dag_node_children() -> [UVec3; 64] {
     ]
 }
 
-pub fn get_dag_node_children_xzy_i() -> [IVec3; 64] {
+pub const fn get_dag_node_children_xzy_i() -> [IVec3; 64] {
     [
         ivec3(0, 0, 0),
         ivec3(0, 1, 0),

@@ -1,31 +1,37 @@
-use crate::util::math::count_ones_variable;
+use crate::{gi::probe_pool::GI_PROBE_INDEX_NONE, util::math::count_ones_variable};
 
 
 #[repr(C, packed)]
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct VoxelDAG64Node {
-    pub is_leaf_and_ptr: u32,
+    pub is_leaf_and_index: u32,
+    pub gi_index: u32,
     pub pop_mask: u64,
 }
 
 impl VoxelDAG64Node {
-    pub fn empty(is_leaf: bool) -> Self {
-        Self::new(is_leaf, 0, 0)
-    }
-
-    pub fn new(is_leaf: bool, ptr: u32, pop_mask: u64) -> Self {
+    pub fn new(is_leaf: bool, index: u32, pop_mask: u64, gi_index: u32) -> Self {
         Self {
-            is_leaf_and_ptr: (ptr << 1) | (is_leaf as u32),
+            is_leaf_and_index: (index << 1) | (is_leaf as u32),
             pop_mask,
+            gi_index
+        }
+    }
+   
+    pub fn single(is_leaf: bool, index: u32, pop_mask: u64) -> Self {
+        Self {
+            is_leaf_and_index: (index << 1) | (is_leaf as u32),
+            pop_mask,
+            gi_index: GI_PROBE_INDEX_NONE,
         }
     }
 
     pub fn is_leaf(&self) -> bool {
-        (self.is_leaf_and_ptr & 1) == 1
+        (self.is_leaf_and_index & 1) == 1
     }
 
-    pub fn ptr(&self) -> u32 {
-        self.is_leaf_and_ptr >> 1
+    pub fn index(&self) -> u32 {
+        self.is_leaf_and_index >> 1
     }
 
     pub fn is_occupied(&self, index: u32) -> bool {
@@ -33,7 +39,7 @@ impl VoxelDAG64Node {
     }
 
     pub fn get_index_for_child(&self, child: u32) -> Option<u32> {
-        Some(self.ptr() + self.get_index_in_children(child)?)
+        Some(self.index() + self.get_index_in_children(child)?)
     }
 
     pub fn get_index_in_children(&self, index: u32) -> Option<u32> {
@@ -50,7 +56,7 @@ impl VoxelDAG64Node {
 
 
     pub fn range(&self) -> std::ops::Range<usize> {
-        self.ptr() as usize..self.ptr() as usize + self.pop_mask.count_ones() as usize
+        self.index() as usize..self.index() as usize + self.pop_mask.count_ones() as usize
     }
 
     pub fn is_empty(&self) -> bool {
@@ -61,5 +67,4 @@ impl VoxelDAG64Node {
         Some(*self).filter(|node| !node.is_empty())
     }
 }
-
 

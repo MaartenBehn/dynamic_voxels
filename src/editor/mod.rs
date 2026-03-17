@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use octa_force::{OctaResult, camera::Camera, glam::{Mat4, Vec3A, vec3, vec3a}, log::info};
 
-use crate::{VOXELS_PER_METER, scene::worker::{SceneObjectKey, SceneWorkerSend}, util::{default_types::{LODType, Volume}, worker_response::WorkerRespose}, voxel::{dag64::VoxelDAG64, grid::offset, palette::palette::MATERIAL_ID_BASE}};
+use crate::{VOXELS_PER_METER, scene::worker::{SceneObjectKey, SceneWorkerSend}, util::{default_types::{LODType, Volume}, worker_response::WorkerRespose}, voxel::{grid::offset, palette::palette::MATERIAL_ID_BASE}};
 
 #[derive(Debug)]
 pub struct Editor {

@@ -7,34 +7,46 @@ pub mod clean;
 
 use std::sync::Arc;
 
-use octa_force::log::info;
+use octa_force::{glam::IVec3, log::info};
 use parking_lot::Mutex;
 use slotmap::SlotMap;
 
-use crate::{util::math::to_mb, voxel::{dag64::lod_heuristic::LODHeuristicT, reuse_buffer::parallel_vec::ParallelVec}};
+use crate::{util::{math::to_mb, parallel_reuse_buffer::ParallelReUseBuffer}, voxel::dag64::{entry::{DAG64Entry, DAG64EntryKey}, lod_heuristic::LODHeuristicT}};
 
-use super::{node::VoxelDAG64Node, DAG64Entry, DAG64EntryKey, VoxelDAG64};
+use super::{node::VoxelDAG64Node};
 
 pub const MIN_PAR_LEVEL: u8 = 3;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ParallelVoxelDAG64 {
-    pub nodes: ParallelVec<VoxelDAG64Node>,
-    pub inactive_nodes: ParallelVec<VoxelDAG64Node>,
-    pub data: ParallelVec<u8>,
-    pub inactive_data: ParallelVec<u8>,
+    pub nodes: ParallelReUseBuffer<VoxelDAG64Node>,
+    pub inactive_nodes: ParallelReUseBuffer<VoxelDAG64Node>,
+    pub data: ParallelReUseBuffer<u8>,
+    pub inactive_data: ParallelReUseBuffer<u8>,
     pub entry_points: Arc<Mutex<SlotMap<DAG64EntryKey, DAG64Entry>>>,
 }
 
 impl ParallelVoxelDAG64 {
     pub fn new(nodes_capacity: usize, data_capacity: usize) -> Self {
         Self {
-            nodes: ParallelVec::new(nodes_capacity),
-            inactive_nodes: ParallelVec::new(nodes_capacity),
-            data: ParallelVec::new(data_capacity),
-            inactive_data: ParallelVec::new(data_capacity),
+            nodes: ParallelReUseBuffer::new(nodes_capacity),
+            inactive_nodes: ParallelReUseBuffer::new(nodes_capacity),
+            data: ParallelReUseBuffer::new(data_capacity),
+            inactive_data: ParallelReUseBuffer::new(data_capacity),
             entry_points: Default::default(),
         }
+    }
+
+    pub(super) fn empty_entry(&mut self) -> DAG64EntryKey {
+
+        let root_index = self.nodes.push(&[VoxelDAG64Node::single(true, 0, 0)]);
+        let key = self.entry_points.lock().insert(DAG64Entry { 
+            levels: 1, 
+            root_index, 
+            offset: IVec3::ZERO, 
+        });
+
+        key
     }
 
     pub fn print_memory_info(&self) { 

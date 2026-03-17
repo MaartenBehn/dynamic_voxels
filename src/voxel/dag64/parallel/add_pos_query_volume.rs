@@ -1,7 +1,7 @@
 use itertools::Either;
 use octa_force::{anyhow::{self, anyhow}, glam::{IVec3, Vec3Swizzles}, OctaResult};
 use smallvec::SmallVec;
-use crate::{util::{math::{get_dag_node_children, get_dag_node_children_xzy_i}, math_config::MC, number::Nu, vector::Ve}, volume::VolumeQureyPosValue, voxel::dag64::{DAG64Entry, DAG64EntryKey, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, util::get_dag_offset_levels}};
+use crate::{gi::probe_pool::{GI_PROBE_MIN_LEVEL, GIPool}, util::{math::{get_dag_node_children, get_dag_node_children_xzy_i}, math_config::MC, number::Nu, vector::Ve}, volume::VolumeQureyPosValue, voxel::dag64::{entry::{DAG64Entry, DAG64EntryKey}, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, util::{get_dag_offset_levels, get_voxel_size}}};
 use super::ParallelVoxelDAG64;
 use rayon::iter::{walk_tree_postfix};
 use rayon::prelude::*;
@@ -12,13 +12,14 @@ impl ParallelVoxelDAG64 {
         &mut self, 
         model: &M,
         lod: &LOD,
+        gi_pool: &GIPool,
     ) -> DAG64EntryKey {
         let (offset, levels) = get_dag_offset_levels(model);
         if levels == 0 {
             return self.empty_entry();
         }
 
-        let root = self.add_pos_query_recursive_par(model, lod, offset, levels);
+        let root = self.add_pos_query_recursive_par(model, lod, gi_pool, offset, levels);
 
         let root_index = self.nodes.push(&[root]);
         let key = self.entry_points.lock().insert(DAG64Entry { 
@@ -34,21 +35,23 @@ impl ParallelVoxelDAG64 {
         &self,
         model: &M,
         lod: &LOD,
+        gi_pool: &GIPool,
         offset: IVec3,
-        node_level: u8,
+        level: u8,
     ) -> VoxelDAG64Node {
-        if node_level <= lod.lod_level(offset) {
-            self.add_pos_query_leaf(model, offset, node_level)
+        if level <= lod.lod_level(offset) {
+            self.add_pos_query_leaf(model, offset, level)
         } else { 
-            let new_level = node_level - 1;
-            let new_scale = 4_i32.pow(new_level  as u32);
-            let (vec, bitmask) = get_dag_node_children_xzy_i().into_par_iter()
+            let new_level = level - 1;
+            let new_size = get_voxel_size(new_level);
+            let (children, pop_mask) = get_dag_node_children_xzy_i().into_par_iter()
                 .enumerate()
                 .map(move |(i, pos)| {
-                    let pos = offset + pos * new_scale;
+                    let pos = offset + pos * new_size;
                     let res = self.add_pos_query_recursive(
                         model, 
-                        lod, 
+                        lod,
+                        gi_pool,
                         pos, 
                         new_level);
 
@@ -73,8 +76,9 @@ impl ParallelVoxelDAG64 {
                         (vec_a, bitmask_a)
                     });
 
-            let ptr = self.nodes.push(&vec);
-            VoxelDAG64Node::new(false, ptr, bitmask)
+            let index = self.nodes.push(&children);
+            let gi_index = gi_pool.new_probe_index(offset, level, pop_mask, &children);
+            VoxelDAG64Node::new(false, index, pop_mask, gi_index)
         }
     }
 
@@ -82,31 +86,35 @@ impl ParallelVoxelDAG64 {
         &self,
         model: &M,
         lod: &LOD,
+        gi_pool: &GIPool,
         offset: IVec3,
-        node_level: u8,
+        level: u8,
     ) -> VoxelDAG64Node {
-        if node_level <= lod.lod_level(offset) {
-            self.add_pos_query_leaf(model, offset, node_level)
+        if level <= lod.lod_level(offset) {
+            self.add_pos_query_leaf(model, offset, level)
         } else {
-            let new_level = node_level -1;
-            let new_scale = 4_i32.pow(new_level as u32);
-            let mut nodes = SmallVec::<[_; 64]>::new();
-            let mut bitmask = 0;
+            let new_level = level -1;
+            let new_scale = get_voxel_size(new_level);
+            let mut children = SmallVec::<[_; 64]>::new();
+            let mut pop_mask = 0;
 
             for (i, pos) in get_dag_node_children_xzy_i().into_iter().enumerate() {
                 let child = self.add_pos_query_recursive(
                     model,
                     lod,
+                    gi_pool,
                     offset + pos * new_scale,
                     new_level,
                 );
                 if !child.is_empty() {
-                    nodes.push(child);
-                    bitmask |= 1 << i  as u64;
+                    children.push(child);
+                    pop_mask |= 1 << i  as u64;
                 }
             }
 
-            VoxelDAG64Node::new(false, self.nodes.push(&nodes) as u32, bitmask)
+            let index = self.nodes.push(&children);
+            let gi_index = gi_pool.new_probe_index(offset, level, pop_mask, &children);
+            VoxelDAG64Node::new(false, index, pop_mask, gi_index)
         }
     }
 
@@ -132,7 +140,7 @@ impl ParallelVoxelDAG64 {
         } 
 
         let ptr = self.data.push(&vec);
-        VoxelDAG64Node::new(true, ptr, bitmask)
+        VoxelDAG64Node::single(true, ptr, bitmask)
     }
 }
 

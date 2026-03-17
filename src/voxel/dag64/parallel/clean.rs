@@ -30,7 +30,7 @@ impl ParallelVoxelDAG64 {
         let node = self.inactive_nodes.get(index);
         if node.is_leaf() {
             let data = self.inactive_data.get_range(node.range()); 
-            return VoxelDAG64Node::new(true, self.data.push(data) as u32, node.pop_mask)
+            return VoxelDAG64Node::single(true, self.data.push(data) as u32, node.pop_mask)
         }
 
         let new_level = node_level - 1;
@@ -54,14 +54,14 @@ impl ParallelVoxelDAG64 {
                     vec_a
                 }); 
                 
-        VoxelDAG64Node::new(false, self.nodes.push(&nodes) as u32, node.pop_mask)
+        VoxelDAG64Node::single(false, self.nodes.push(&nodes) as u32, node.pop_mask)
     }
 
     fn clean_recursive(&self, index: u32) -> VoxelDAG64Node {
         let node = self.inactive_nodes.get(index);
         if node.is_leaf() {
             let data = self.inactive_data.get_range(node.range()); 
-            return VoxelDAG64Node::new(true, self.data.push(data) as u32, node.pop_mask)
+            return VoxelDAG64Node::single(true, self.data.push(data) as u32, node.pop_mask)
         }
 
         let mut nodes = SmallVec::<[_; 64]>::new();
@@ -69,6 +69,6 @@ impl ParallelVoxelDAG64 {
             nodes.push(self.clean_recursive(i as u32));
         }
         
-        VoxelDAG64Node::new(false, self.nodes.push(&nodes) as u32, node.pop_mask)
+        VoxelDAG64Node::single(false, self.nodes.push(&nodes) as u32, node.pop_mask)
     }
 }
