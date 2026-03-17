@@ -2,21 +2,21 @@ use octa_force::{anyhow, glam::{vec3a, IVec3, UVec3, Vec3A, Vec4Swizzles}, log::
 use rayon::prelude::*;
 use smallvec::{SmallVec, ToSmallVec};
 
-use crate::{gi::probe_pool::GIPool, new_logic_state, util::{aabb::AABB, math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeChangeBounds, VolumeQureyPosValue}, voxel::dag64::{entry::DAG64EntryKey, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, parallel::ParallelVoxelDAG64, util::get_voxel_size}};
+use crate::{gi::gi_pool::{GI, GIPool}, new_logic_state, util::{aabb::AABB, math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeChangeBounds, VolumeQureyPosValue}, voxel::dag64::{entry::DAG64EntryKey, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, parallel::ParallelVoxelDAG64, util::get_voxel_size}};
 
 
 impl ParallelVoxelDAG64 {
-    pub fn update_pos_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3> + VolumeChangeBounds<V, T, 3> + Send + Sync, LOD: LODHeuristicT>(
+    pub fn update_pos_query_volume<G: GI, V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3> + VolumeChangeBounds<V, T, 3> + Send + Sync, LOD: LODHeuristicT>(
         &mut self, 
         model: &M,
         lod: &LOD,
-        gi_pool: &GIPool,
+        gi: G,
         based_on_entry: DAG64EntryKey,
     ) -> DAG64EntryKey {
         let change_aabb = model.get_change_bounds();
         let mut entry_data = self.expand_to_include_aabb(based_on_entry, change_aabb);
 
-        let root = self.update_pos_recursive_par(model, lod, gi_pool, 
+        let root = self.update_pos_recursive_par(model, lod, gi, 
             change_aabb, entry_data.levels, entry_data.offset, entry_data.root_index);
         entry_data.root_index = self.nodes.push(&[root]);
 
@@ -25,11 +25,11 @@ impl ParallelVoxelDAG64 {
         key
     }
 
-    pub(super) fn update_pos_recursive_par<V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3> + Send + Sync, LOD: LODHeuristicT>(
+    pub(super) fn update_pos_recursive_par<G: GI, V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3> + Send + Sync, LOD: LODHeuristicT>(
         &self, 
         model: &M, 
         lod: &LOD,
-        gi_pool: &GIPool,
+        gi: G,
         aabb: AABB<V, T, 3>, 
         level: u8, 
         offset: IVec3, 
@@ -66,7 +66,7 @@ impl ParallelVoxelDAG64 {
                     (self.add_pos_query_recursive(
                         model, 
                         lod,
-                        gi_pool,
+                        gi,
                         node_aabb.min().ve_into(),
                         new_level,
                     ).check_empty(), true)
@@ -74,7 +74,7 @@ impl ParallelVoxelDAG64 {
                     (Some(self.add_pos_query_recursive(
                         model, 
                         lod,
-                        gi_pool,
+                        gi,
                         node_aabb.min().ve_into(),
                         new_level,
                     )), false)
@@ -82,7 +82,7 @@ impl ParallelVoxelDAG64 {
                     (Some(self.update_pos_recursive(
                         model,
                         lod,
-                        gi_pool,
+                        gi,
                         aabb,
                         new_level,
                         node_aabb.min().ve_into(),
@@ -134,18 +134,18 @@ impl ParallelVoxelDAG64 {
             }
 
             let index = self.nodes.push(&children);
-            let gi_index = gi_pool.new_probe_index(offset, level, pop_mask, &children); 
+            let gi_index = gi.new_probe_index(offset, level, pop_mask, &children); 
             VoxelDAG64Node::new(false, index, pop_mask, gi_index)
         } else {
             node
         }
     }
 
-    fn update_pos_recursive<V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3>, LOD: LODHeuristicT>(
+    fn update_pos_recursive<G: GI, V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3>, LOD: LODHeuristicT>(
         &self, 
         model: &M, 
         lod: &LOD,
-        gi_pool: &GIPool,
+        gi: G,
         aabb: AABB<V, T, 3>, 
         level: u8, 
         offset: IVec3, 
@@ -184,7 +184,7 @@ impl ParallelVoxelDAG64 {
                     let new_child_node = self.add_pos_query_recursive(
                         model,
                         lod,
-                        gi_pool,
+                        gi,
                         min,
                         new_level,
                     );
@@ -207,7 +207,7 @@ impl ParallelVoxelDAG64 {
                     self.add_pos_query_recursive(
                         model, 
                         lod,
-                        gi_pool,
+                        gi,
                         min,
                         new_level,
                     )
@@ -215,7 +215,7 @@ impl ParallelVoxelDAG64 {
                     self.update_pos_recursive(
                         model,
                         lod,
-                        gi_pool,
+                        gi,
                         aabb,
                         new_level,
                         min,
@@ -233,7 +233,7 @@ impl ParallelVoxelDAG64 {
         if !new_children.is_empty() {
 
             let index = self.nodes.push(&new_children);
-            let gi_index = gi_pool.new_probe_index(offset, level, new_pop_mask, &new_children); 
+            let gi_index = gi.new_probe_index(offset, level, new_pop_mask, &new_children); 
 
             VoxelDAG64Node::new(false, index, new_pop_mask, gi_index)
         } else {

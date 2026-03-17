@@ -1,4 +1,4 @@
-use crate::{gi::probe_pool::GI_PROBE_INDEX_NONE, util::math::count_ones_variable};
+use crate::{gi::gi_pool::GI_PROBE_INDEX_NONE, util::math::count_ones_variable};
 
 
 #[repr(C, packed)]

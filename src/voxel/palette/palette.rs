@@ -5,6 +5,7 @@ use super::{material::Material, Palette};
 
 pub const MATERIAL_ID_NONE: u8 = 0; 
 pub const MATERIAL_ID_BASE: u8 = 1; 
+pub const MATERIAL_ID_DEBUG: u8 = 2; 
 
 #[derive(Debug)]
 pub struct LocalPalette {
@@ -20,6 +21,9 @@ impl LocalPalette {
         used.set(0, true);
         materials[1].set_simple_color([255, 255, 255]);
         used.set(1, true);
+        
+        materials[2].set_simple_color([255, 255, 0]);
+        used.set(2, true);
 
         Self { 
             materials,

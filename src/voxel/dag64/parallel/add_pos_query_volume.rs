@@ -1,25 +1,25 @@
 use itertools::Either;
 use octa_force::{anyhow::{self, anyhow}, glam::{IVec3, Vec3Swizzles}, OctaResult};
 use smallvec::SmallVec;
-use crate::{gi::probe_pool::{GI_PROBE_MIN_LEVEL, GIPool}, util::{math::{get_dag_node_children, get_dag_node_children_xzy_i}, math_config::MC, number::Nu, vector::Ve}, volume::VolumeQureyPosValue, voxel::dag64::{entry::{DAG64Entry, DAG64EntryKey}, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, util::{get_dag_offset_levels, get_voxel_size}}};
+use crate::{gi::gi_pool::{GI, GI_PROBE_MIN_LEVEL, GIPool}, util::{math::{get_dag_node_children, get_dag_node_children_xzy_i}, math_config::MC, number::Nu, vector::Ve}, volume::VolumeQureyPosValue, voxel::dag64::{entry::{DAG64Entry, DAG64EntryKey}, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, util::{get_dag_offset_levels, get_voxel_size}}};
 use super::ParallelVoxelDAG64;
 use rayon::iter::{walk_tree_postfix};
 use rayon::prelude::*;
 
 
 impl ParallelVoxelDAG64 {
-    pub fn add_pos_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3> + Sync + Send, LOD: LODHeuristicT>(
+    pub fn add_pos_query_volume<G: GI, V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3> + Sync + Send, LOD: LODHeuristicT>(
         &mut self, 
         model: &M,
         lod: &LOD,
-        gi_pool: &GIPool,
+        gi: G,
     ) -> DAG64EntryKey {
         let (offset, levels) = get_dag_offset_levels(model);
         if levels == 0 {
             return self.empty_entry();
         }
 
-        let root = self.add_pos_query_recursive_par(model, lod, gi_pool, offset, levels);
+        let root = self.add_pos_query_recursive_par(model, lod, gi, offset, levels);
 
         let root_index = self.nodes.push(&[root]);
         let key = self.entry_points.lock().insert(DAG64Entry { 
@@ -31,11 +31,11 @@ impl ParallelVoxelDAG64 {
         key
     }
 
-    pub(super) fn add_pos_query_recursive_par<V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3> + Sync + Send, LOD: LODHeuristicT>(
+    pub(super) fn add_pos_query_recursive_par<G: GI, V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3> + Sync + Send, LOD: LODHeuristicT>(
         &self,
         model: &M,
         lod: &LOD,
-        gi_pool: &GIPool,
+        gi: G,
         offset: IVec3,
         level: u8,
     ) -> VoxelDAG64Node {
@@ -51,7 +51,7 @@ impl ParallelVoxelDAG64 {
                     let res = self.add_pos_query_recursive(
                         model, 
                         lod,
-                        gi_pool,
+                        gi,
                         pos, 
                         new_level);
 
@@ -77,16 +77,16 @@ impl ParallelVoxelDAG64 {
                     });
 
             let index = self.nodes.push(&children);
-            let gi_index = gi_pool.new_probe_index(offset, level, pop_mask, &children);
+            let gi_index = gi.new_probe_index(offset, level, pop_mask, &children);
             VoxelDAG64Node::new(false, index, pop_mask, gi_index)
         }
     }
 
-    pub(super) fn add_pos_query_recursive<V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3>, LOD: LODHeuristicT>(
+    pub(super) fn add_pos_query_recursive<G: GI, V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3>, LOD: LODHeuristicT>(
         &self,
         model: &M,
         lod: &LOD,
-        gi_pool: &GIPool,
+        gi_pool: G,
         offset: IVec3,
         level: u8,
     ) -> VoxelDAG64Node {

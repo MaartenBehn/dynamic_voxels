@@ -75,4 +75,26 @@ impl<T: Default> ParallelPool<T> {
     pub fn get_mut(&self, index: usize) -> &mut T {
         unsafe { &mut *self.slots[index].get() }
     }
+    
+
+    /**
+    *   NOT THREAD SAFE
+    */
+    pub fn debug_iter_used_indices(&self) -> impl Iterator<Item = usize> {
+        let mut is_free = vec![false; self.slots.len()];
+
+        // Walk free list
+        let mut current = self.free_head.load(Ordering::Relaxed);
+
+        while current < self.slots.len() {
+            is_free[current] = true;
+            current = self.next[current].load(Ordering::Relaxed);
+        }
+
+        // Collect used slots
+        is_free
+            .into_iter()
+            .enumerate()
+            .filter_map(|(i, free)| if !free { Some(i) } else { None })
+    }
 }

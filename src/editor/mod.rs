@@ -32,7 +32,7 @@ impl Editor {
 
         let mat = model.get_mat(res.new_object_index);
 
-        let key = scene_send.add_dag_object(Mat4::IDENTITY, model.clone()).result_blocking();
+        let key = scene_send.add_object(Mat4::IDENTITY, model.clone()).result_blocking();
 
         Ok(Self {
             scene_send,

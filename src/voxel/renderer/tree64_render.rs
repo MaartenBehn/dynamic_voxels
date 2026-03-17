@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use octa_force::{OctaResult, camera::Camera, egui, engine::Engine, glam::{Mat4, UVec2, Vec3, Vec3A, vec3, vec3a}, log::info, vulkan::{Buffer, CommandBuffer, Context, Swapchain, ash::vk}};
 
-use crate::{VOXELS_PER_METER, csg::primitves::{CSGPrimitive, cylinder::CSGCylinder}, editor::gizmo::r#box::BoxGizmo, gi::probe_pool::GIPool, util::{aabb::AABB, default_types::{LODType, Volume}}, volume::VolumeBounds, voxel::{dag64::{lod_heuristic::{LODHeuristicT, PowHeuristicSphere}, parallel::ParallelVoxelDAG64}, palette::{Palette, palette::MATERIAL_ID_BASE, shared::SharedPalette}, renderer::{RayManagerData, VoxelRenderer}}};
+use crate::{VOXELS_PER_METER, csg::primitves::{CSGPrimitive, cylinder::CSGCylinder}, editor::gizmo::r#box::BoxGizmo, gi::{gi_pool_debugger::GINone, gi_pool::GIPool}, util::{aabb::AABB, default_types::{LODType, Volume}}, volume::VolumeBounds, voxel::{dag64::{lod_heuristic::{LODHeuristicT, PowHeuristicSphere}, parallel::ParallelVoxelDAG64}, palette::{Palette, palette::MATERIAL_ID_BASE, shared::SharedPalette}, renderer::{RayManagerData, VoxelRenderer}}};
 
 #[derive(Debug)]
 pub struct Tree64Renderer {

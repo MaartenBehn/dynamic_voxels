@@ -6,9 +6,9 @@ use parking_lot::Mutex;
 use slotmap::{SlotMap, new_key_type};
 use smol::{channel::Sender, future::FutureExt};
 
-use crate::{VOXELS_PER_METER, bvh::Bvh, mesh::Mesh, scene::{dag_store::SceneDAGStore, object::{BVHExtraData, BVHObject, SceneObject, SceneObjectData}, staging_copies::OptimalBufferCopyAlligment}, util::{buddy_allocator::{BuddyAllocator, ManualBuddyAllocation}, default_types::{LODType, Volume}, worker_response::{WithRespose, WorkerRespose}}, voxel::dag64::{lod_heuristic::LODHeuristicT, parallel::ParallelVoxelDAG64}};
+use crate::{VOXELS_PER_METER, bvh::Bvh, mesh::Mesh, scene::{bvh::{BVHExtraData, BVHObjectData}, dag_store::SceneDAGStore, debug::SceneDebugger, gi::SceneGI, object::{SceneAddObject, SceneObject}, staging_copies::OptimalBufferCopyAlligment}, util::{buddy_allocator::{BuddyAllocator, ManualBuddyAllocation}, default_types::{LODType, Volume}, worker_response::{WithRespose, WorkerRespose}}, voxel::dag64::{lod_heuristic::LODHeuristicT, parallel::ParallelVoxelDAG64}};
 
-use super::{dag64::{SceneAddDAGObject}, dag_store::SceneDAGKey, staging_copies::SceneStaging};
+use super::{dag_store::SceneDAGKey, staging_copies::SceneStaging};
 
 new_key_type! { pub struct SceneObjectKey; }
 
@@ -25,13 +25,15 @@ pub struct SceneWorker {
     pub objects: SlotMap<SceneObjectKey, SceneObject>,
     
     pub allocator: BuddyAllocator,
-    pub bvh: Bvh<SceneObjectData, BVHExtraData, Vec3, f32, 3>,
+    pub bvh: Bvh<BVHObjectData, BVHExtraData, Vec3, f32, 3>,
     pub bvh_allocation: ManualBuddyAllocation,
     pub bvh_len: usize,
     pub needs_bvh_update: bool,
     
     pub dag_store: SceneDAGStore,
     pub lod: LODType,
+    pub gi: SceneGI,
+    pub debug: SceneDebugger,
 }
 
 #[derive(Debug)]
@@ -42,7 +44,7 @@ pub struct SceneWorkerRef {
 }
 
 pub enum SceneTask {
-    AddDAGObject(WithRespose<SceneAddDAGObject, SceneObjectKey>),
+    AddObject(WithRespose<SceneAddObject, SceneObjectKey>),
     RemoveObject(SceneObjectKey),
     GetObjectMat(WithRespose<SceneObjectKey, Mat4>),
     UpdateObjectMat((SceneObjectKey, Mat4)),
@@ -85,6 +87,8 @@ impl SceneWorker {
 
         let lod = LODType::default();
 
+        let gi = SceneGI::new(&mut allocator)?;
+
         Ok(SceneWorker {
             staging_buffers,
             optimal_alignment,
@@ -99,6 +103,7 @@ impl SceneWorker {
 
             dag_store,
             lod,
+            gi,
         })
     }
 
@@ -126,10 +131,10 @@ impl SceneWorker {
                                 self.update(&render_s).await.unwrap();
                                 self.clean();
                             }
-                            SceneTask::AddDAGObject(worker_message) => {
+                            SceneTask::AddObject(worker_message) => {
                                 let (data, awnser) = worker_message.unwarp();
 
-                                let key = self.add_dag64_object(data)
+                                let key = self.add_object(data)
                                     .expect("Failed to add DAG Object");
 
                                 awnser(key);
@@ -149,14 +154,14 @@ impl SceneWorker {
                                 let (key, awnser) = worker_message.unwarp();
                                 
                                 if let Some(o) = self.objects.get(key) {
-                                    awnser(o.get_mat());
+                                    awnser(o.mat);
                                 } else {
                                     error!("GetObjectMat: Invalid key");
                                 }
                             },
                             SceneTask::UpdateObjectMat((key, mat)) => {
                                 if let Some(o) = self.objects.get_mut(key) {
-                                    o.update_mat(mat);
+                                    o.mat = mat;
                                 } else {
                                     error!("UpdateObjectMat: Invalid key");
                                 }
@@ -168,9 +173,8 @@ impl SceneWorker {
                                 let ((key, model), awnser) = worker_message.unwarp();
                                 
                                 if let Some(o) = self.objects.get_mut(key) {
-                                    let dag_o = o.get_dag_object_mut();
-                                    dag_o.model = model;
-                                    dag_o.rebuild_changed(&mut self.dag_store, &self.lod);
+                                    o.model = model;
+                                    o.rebuild_changed(&mut self.dag_store, &self.lod);
                                     o.needs_update = true;
                                 } else {
                                     error!("UpdateModel: Invalid key");
@@ -265,13 +269,13 @@ impl SceneWorkerSend {
         });
     }
 
-    pub fn add_dag_object(&self, mat: Mat4, model: Volume) -> WorkerRespose<SceneObjectKey> {
-        let (message, res) = WithRespose::new(SceneAddDAGObject {
+    pub fn add_object(&self, mat: Mat4, model: Volume) -> WorkerRespose<SceneObjectKey> {
+        let (message, res) = WithRespose::new(SceneAddObject {
             mat,
             model,
         });
 
-        self.send_task(SceneTask::AddDAGObject(message));
+        self.send_task(SceneTask::AddObject(message));
         res
     }
 
@@ -299,7 +303,7 @@ impl SceneWorkerSend {
 impl fmt::Debug for SceneTask {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::AddDAGObject(arg0) => f.debug_tuple("AddDAGObject").finish(),
+            Self::AddObject(arg0) => f.debug_tuple("AddObject").finish(),
             Self::RemoveObject(arg0) => f.debug_tuple("RemoveObject").finish(),
             Self::FreeStagingBuffer(arg0) => f.debug_tuple("FreeStagingBuffer").finish(),
             Self::CameraPosition(arg0) => f.debug_tuple("CameraPosition").finish(),

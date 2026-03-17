@@ -8,7 +8,6 @@ use crate::{scene::{object::SceneObject, staging_copies::SceneStagingBuilder, wo
 
 new_key_type! { pub struct SceneDAGKey; }
 
-
 #[derive(Debug)]
 pub struct SceneDAG {
     pub dag: ParallelVoxelDAG64,
@@ -111,7 +110,7 @@ impl SceneDAGStore {
                     debug!("DAG Clean took: {:?}", elapsed);
 
                     for object_key in dag.objects.iter() {
-                        let object = objects[*object_key].get_dag_object_mut();
+                        let object = &mut objects[*object_key];
                         object.entry = dag.dag.get_entry(object.entry_key);
                     }
                 }

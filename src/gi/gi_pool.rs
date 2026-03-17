@@ -21,6 +21,17 @@ pub struct GIPool {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct GIProbe {
     pub position: IVec3,
+    pub object_index: u32,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct GIExecutor<'a> {
+    pool: &'a GIPool,
+    object_index: u32,
+}
+
+pub trait GI: Send + Sync + Copy {
+    fn new_probe_index(&self, offset: IVec3, level: u8, pop_mask: u64, children: &[VoxelDAG64Node]) -> u32; 
 }
 
 impl GIPool {
@@ -39,7 +50,14 @@ impl GIPool {
         }
     }
 
-    pub fn new_probe_index(&self, offset: IVec3, level: u8, pop_mask: u64, children: &[VoxelDAG64Node]) -> u32 {
+    
+    pub fn get_memory_size(&self) -> usize {
+        32
+    }
+}
+
+impl<'a> GI for GIExecutor<'a> {
+    fn new_probe_index(&self, offset: IVec3, level: u8, pop_mask: u64, children: &[VoxelDAG64Node]) -> u32 {
         if level < GI_PROBE_MIN_LEVEL {
             return GI_PROBE_INDEX_NONE;
         }
@@ -49,17 +67,27 @@ impl GIPool {
             return GI_PROBE_INDEX_NONE;
         }
 
-        let gi_level = &self.pools[level as usize];
+        let gi_level = &self.pool.pools[level as usize];
         gi_level.insert(GIProbe {
             position: pos.unwrap(),
+            object_index: self.object_index
         }).expect(&format!("Probe pool full at level: {level}")) as u32
+    }
+}
+
+impl<'a> GIExecutor<'a> {
+    pub fn new(pool: &'a GIPool, object_index: u32) -> Self {
+        Self {
+            pool,
+            object_index,
+        }
     }
 
     fn find_position(&self, offset: IVec3, level: u8, pop_mask: u64, children: &[VoxelDAG64Node]) -> Option<IVec3> {
 
         if pop_mask != u64::MAX {
             let child_size = get_voxel_size(level - 1);
-            for (i, pos) in self.search_order {
+            for (i, pos) in self.pool.search_order {
                 if pop_mask >> i & 1 == 0 {
                     return Some(offset + pos * child_size);
                 } 
@@ -76,7 +104,7 @@ impl GIPool {
                 continue;
             }
 
-            for (i, pos) in self.search_order {
+            for (i, pos) in self.pool.search_order {
                 if child.pop_mask >> i & 1 == 0 {
                     return Some(offset + pos * child_size);
                 } 
@@ -87,6 +115,8 @@ impl GIPool {
         None
     }
 }
+
+
 
 
 fn search_order() -> [(usize, IVec3); 64] {
