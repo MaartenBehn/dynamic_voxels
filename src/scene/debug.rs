@@ -33,7 +33,7 @@ impl SceneWorker {
             return Ok(());
         }
 
-        let level = 5;
+        let level = 2;
 
         let mat = object.mat;
         let start = object.allocation.start() as u32;

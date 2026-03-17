@@ -21,7 +21,7 @@ impl Editor {
         scene_send: SceneWorkerSend,
     ) -> OctaResult<Self> {
         
-        let factor = 2.0;
+        let factor = 4.0;
         let mut model = Volume::new_sphere_float(Vec3A::new(0.0, 0.0, 0.0), 
             100.0 * factor, MATERIAL_ID_BASE);
         let res = model.cut_with_sphere(
