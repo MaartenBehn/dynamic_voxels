@@ -41,9 +41,7 @@ impl MeshScene {
     pub fn new(context: &Context, swapchain: &Swapchain) -> Self {
         let (mesh_s, mesh_r) = smol::channel::bounded(1);
 
-        debug!("test1");
         let renderer = MeshRenderer::new(context, swapchain.format, swapchain.depth_format);
-        debug!("test2");
         
         Self {
             meshes: Default::default(),

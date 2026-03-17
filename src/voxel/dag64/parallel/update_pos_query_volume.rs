@@ -2,7 +2,7 @@ use octa_force::{anyhow, glam::{vec3a, IVec3, UVec3, Vec3A, Vec4Swizzles}, log::
 use rayon::prelude::*;
 use smallvec::{SmallVec, ToSmallVec};
 
-use crate::{gi::gi_pool::{GI, GIPool}, new_logic_state, util::{aabb::AABB, math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeChangeBounds, VolumeQureyPosValue}, voxel::dag64::{entry::DAG64EntryKey, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, parallel::ParallelVoxelDAG64, util::get_voxel_size}};
+use crate::{gi::gi_pool::{GI, GIPool}, new_logic_state, util::{aabb::AABB, math::get_dag_node_children_i, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeChangeBounds, VolumeQureyPosValue}, voxel::dag64::{entry::DAG64EntryKey, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, parallel::ParallelVoxelDAG64, util::get_voxel_size}};
 
 
 impl ParallelVoxelDAG64 {
@@ -50,7 +50,7 @@ impl ParallelVoxelDAG64 {
         let new_level = level -1;
         let new_scale = get_voxel_size(level);
 
-        let (new_children, new_bitmask) = get_dag_node_children_xzy_i()
+        let (new_children, new_bitmask) = get_dag_node_children_i()
             .into_par_iter()
             .enumerate()
             .map(|(i, pos)| {
@@ -169,7 +169,7 @@ impl ParallelVoxelDAG64 {
         let new_level = level -1;
         let new_size = get_voxel_size(new_level);
         
-        for (i, pos) in get_dag_node_children_xzy_i().into_iter()
+        for (i, pos) in get_dag_node_children_i().into_iter()
             .enumerate()
             .rev() {
             let min = offset + pos * new_size;

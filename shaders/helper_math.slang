@@ -57,18 +57,18 @@ public float3 GetSphereDir(float2 sample) {
     return float3(sin(a) * sy, y, cos(a) * sy);
 }
 
-// Returns linear index for 3D grid in XZY order. Sizes **must** be power of two.
+// Returns linear index for 3D grid in XYZ order. Sizes **must** be power of two.
 public uint GetLinearIndex(uint3 pos, uint sizeXZ, uint sizeY) {
     return (pos.x & (sizeXZ - 1)) +
-           (pos.z & (sizeXZ - 1)) * sizeXZ +
-           (pos.y & (sizeY - 1)) * (sizeXZ * sizeXZ);
+           (pos.y & (sizeXZ - 1)) * sizeXZ +
+           (pos.z & (sizeY - 1)) * (sizeXZ * sizeXZ);
 }
-// Returns linear index for 3D grid in XZY order. Sizes **must** be constant otherwise this will generate divisions.
+// Returns linear index for 3D grid in XYZ order. Sizes **must** be constant otherwise this will generate divisions.
 public uint3 GetPosFromLinearIndex(uint idx, uint sizeXZ, uint sizeY) {
     uint3 pos;
     pos.x = idx % sizeXZ;
-    pos.z = (idx / sizeXZ) % sizeXZ;
-    pos.y = (idx / sizeXZ) / sizeXZ;
+    pos.y = (idx / sizeXZ) % sizeXZ;
+    pos.z = (idx / sizeXZ) / sizeXZ;
     return pos;
 }
 

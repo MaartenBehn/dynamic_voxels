@@ -2,7 +2,7 @@ use octa_force::{anyhow, glam::{vec3a, IVec3, UVec3, Vec3A, Vec4Swizzles}, log::
 use rayon::prelude::*;
 use smallvec::{SmallVec, ToSmallVec};
 
-use crate::{new_logic_state, util::{aabb::AABB, math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeChangeBounds, VolumeQureyAABB}, voxel::dag64::{entry::DAG64EntryKey, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, parallel::{MIN_PAR_LEVEL, ParallelVoxelDAG64}, util::get_voxel_size}};
+use crate::{new_logic_state, util::{aabb::AABB, math::get_dag_node_children_i, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeChangeBounds, VolumeQureyAABB}, voxel::dag64::{entry::DAG64EntryKey, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, parallel::{MIN_PAR_LEVEL, ParallelVoxelDAG64}, util::get_voxel_size}};
 
 impl ParallelVoxelDAG64 {
 
@@ -47,7 +47,7 @@ impl ParallelVoxelDAG64 {
         let new_level = level -1;
         let new_size = get_voxel_size(new_level);
 
-        let new_children: SmallVec<[_; 64]> = get_dag_node_children_xzy_i()
+        let new_children: SmallVec<[_; 64]> = get_dag_node_children_i()
             .into_par_iter()
             .enumerate()
             .map(|(i, pos)| {
@@ -190,7 +190,7 @@ impl ParallelVoxelDAG64 {
         let new_size = get_voxel_size(new_level);
 
         let j = new_children.len(); 
-        for (i, pos) in get_dag_node_children_xzy_i().into_iter().enumerate().rev() {
+        for (i, pos) in get_dag_node_children_i().into_iter().enumerate().rev() {
             let min = offset + pos * new_size;
             let max = min + new_size;
             let node_aabb = AABB::new(V::ve_from(min), V::ve_from(max));

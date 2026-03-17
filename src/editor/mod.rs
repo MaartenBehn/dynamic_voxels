@@ -13,7 +13,6 @@ pub struct Editor {
     model: Volume,
     index: usize,
     mat: Mat4,
-    respose: Option<WorkerRespose<()>>
 }
 
 impl Editor {
@@ -22,8 +21,8 @@ impl Editor {
         scene_send: SceneWorkerSend,
     ) -> OctaResult<Self> {
         
-        let factor = 30.0;
-        let mut model = Volume::new_sphere_float(Vec3A::ZERO, 
+        let factor = 2.0;
+        let mut model = Volume::new_sphere_float(Vec3A::new(0.0, 0.0, 0.0), 
             100.0 * factor, MATERIAL_ID_BASE);
         let res = model.cut_with_sphere(
             vec3a(80.0 * factor, 0.0, 0.0), 
@@ -33,6 +32,8 @@ impl Editor {
         let mat = model.get_mat(res.new_object_index);
 
         let key = scene_send.add_object(Mat4::IDENTITY, model.clone()).result_blocking();
+        
+        scene_send.debug_probes(key, true);
 
         Ok(Self {
             scene_send,
@@ -40,12 +41,12 @@ impl Editor {
             model,
             index: res.new_object_index,
             mat,
-            respose: None,
         })
     }
 
     pub fn update(&mut self, time: f32) {
 
+        /*
         if let Some(res) = self.respose.as_ref() {
             if !res.has_result() {
                 return;
@@ -63,5 +64,6 @@ impl Editor {
         self.model.set_mat(self.index, new_mat);
 
         self.respose = Some(self.scene_send.update_model(self.key, self.model.clone()));
+        */    
     }
 }

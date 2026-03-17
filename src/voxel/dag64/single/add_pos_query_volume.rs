@@ -2,7 +2,7 @@ use octa_force::{glam::{IVec3, UVec3, Vec3A}, log::debug, OctaResult};
 use smallvec::SmallVec;
 
 
-use crate::{util::{math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::VolumeQureyPosValue, voxel::dag64::{entry::{DAG64Entry, DAG64EntryKey}, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, single::VoxelDAG64, util::get_dag_offset_levels}};
+use crate::{util::{math::get_dag_node_children_i, math_config::MC, number::Nu, vector::Ve}, volume::VolumeQureyPosValue, voxel::dag64::{entry::{DAG64Entry, DAG64EntryKey}, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, single::VoxelDAG64, util::get_dag_offset_levels}};
 
 impl VoxelDAG64 { 
     pub fn add_pos_query_volume<V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3>, LOD: LODHeuristicT>(
@@ -42,7 +42,7 @@ impl VoxelDAG64 {
             let new_scale = 4_i32.pow(new_level as u32);
             let mut nodes = SmallVec::<[_; 64]>::new();
 
-            for (i, pos) in get_dag_node_children_xzy_i().into_iter().enumerate() {
+            for (i, pos) in get_dag_node_children_i().into_iter().enumerate() {
                 let child = self.add_pos_query_recursive(
                     model,
                     lod,
@@ -68,9 +68,7 @@ impl VoxelDAG64 {
         let mut vec = SmallVec::<[_; 64]>::new();
         let mut bitmask = 0;
 
-        // INFO: DAG Renderer works in XZY Space instead of XYZ like the rest of the
-        // engine
-        for (i, pos) in get_dag_node_children_xzy_i().into_iter().enumerate() {
+        for (i, pos) in get_dag_node_children_i().into_iter().enumerate() {
             let pos = offset + pos;
             let value = model.get_value(V::ve_from(pos));
 

@@ -47,6 +47,7 @@ game = []
 # Just very usefull
 enum_dispatch = "0.3.13"
 slotmap = "1.1.1"
+sharded-slab = "0.1.7"
 bitvec = "1"
 
 octa-force = { path = "../octa-force-rs" }

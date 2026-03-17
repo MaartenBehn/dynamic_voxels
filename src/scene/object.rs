@@ -1,8 +1,8 @@
 use std::time::Instant;
 
-use octa_force::{OctaResult, anyhow::anyhow, glam::{Mat4, Vec3A}, log::{debug, info}};
+use octa_force::{OctaResult, anyhow::anyhow, glam::{Mat4, Vec3, Vec3A}, log::{debug, info}};
 
-use crate::{VOXELS_PER_SHADER_UNIT, gi::gi_pool::GIExecutor, scene::{dag_store::{SceneDAGKey, SceneDAGStore}, debug::ObjectDebug, staging_copies::SceneStagingBuilder, worker::{SceneObjectKey, SceneWorker}}, util::{aabb::AABB3, buddy_allocator::ManualBuddyAllocation, default_types::{LODType, Volume}}, voxel::dag64::entry::{DAG64Entry, DAG64EntryKey}};
+use crate::{VOXELS_PER_SHADER_UNIT, gi::{gi_pool::GIExecutor, gi_pool_debugger::GINone}, scene::{dag_store::{SceneDAGKey, SceneDAGStore}, debug::ObjectDebug, staging_copies::SceneStagingBuilder, worker::{SceneObjectKey, SceneWorker}}, util::{aabb::AABB3, buddy_allocator::ManualBuddyAllocation, default_types::{LODType, Volume}}, volume::VolumeBounds, voxel::dag64::entry::{DAG64Entry, DAG64EntryKey}};
 
 #[derive(Debug)]
 pub struct SceneObject {
@@ -34,16 +34,20 @@ pub struct SceneAddObject {
 }
 
 impl SceneWorker {
-    pub fn add_object(&mut self, add_object: SceneAddObject) -> OctaResult<SceneObjectKey> {
+    pub fn add_object(&mut self, add_object: SceneAddObject, use_gi: bool) -> OctaResult<SceneObjectKey> {
         let dag_key = self.dag_store.active_dag();
         let dag = self.dag_store.get_dag_mut(dag_key);
 
         let allocation = self.allocator.alloc(size_of::<SceneObjectData>())?;
-        
-        let gi = GIExecutor::new(&self.gi.gi_pool, allocation.start() as u32);
-
+       
         let now = Instant::now();
-        let entry_key = dag.add_pos_query_volume(&add_object.model, &self.lod, gi);
+        
+        let entry_key = if use_gi {
+            let gi = GIExecutor::new(&self.gi.gi_pool, allocation.start() as u32);
+            dag.add_pos_query_volume(&add_object.model, &self.lod, gi)
+        } else {
+            dag.add_pos_query_volume(&add_object.model, &self.lod, GINone)
+        };
 
         let elapsed = now.elapsed();
         info!("Voxel DAG Build took: {:?}", elapsed);
@@ -62,6 +66,8 @@ impl SceneWorker {
             debug: Default::default(),
         });
         self.dag_store.mark_changed(dag_key);
+
+        self.needs_bvh_update = true;
         
         Ok(key)
     }

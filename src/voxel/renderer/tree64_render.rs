@@ -60,10 +60,8 @@ impl Tree64Renderer {
             10000, 
         );
         dag.print_memory_info();
-        
-        let gi_pool = GIPool::new(10);
 
-        let key = dag.add_pos_query_volume(&csg, &lod, &gi_pool);
+        let key = dag.add_pos_query_volume(&csg, &lod, GINone);
 
         let elapsed = now.elapsed();
         info!("Tree Build took {:.2?}", elapsed);

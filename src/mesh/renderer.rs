@@ -26,12 +26,10 @@ impl MeshRenderer {
             .size(size_of::<MeshDispatchParams>() as _)
             .stage_flags(ShaderStageFlags::VERTEX | ShaderStageFlags::FRAGMENT);
 
-        debug!("test");
         let pipeline_layout = context.create_pipeline_layout(
             &[], &[push_constant_range])
             .expect("Failed to create Pipeline Layout");
 
-        debug!("test3");
         let pipeline = context.create_graphics_pipeline::<Vertex>(
             &pipeline_layout,
             GraphicsPipelineCreateInfo {
@@ -64,7 +62,6 @@ impl MeshRenderer {
                 dynamic_states: Some(&[vk::DynamicState::SCISSOR, vk::DynamicState::VIEWPORT]),
             },
         ).expect("Failed to create Pipeline");
-        debug!("test4");
 
         Self {
             push_constant_range,

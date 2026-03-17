@@ -1,7 +1,7 @@
 use itertools::Either;
 use octa_force::{anyhow::{self, anyhow}, glam::{IVec3, Vec3Swizzles}, OctaResult};
 use smallvec::SmallVec;
-use crate::{gi::gi_pool::{GI, GI_PROBE_MIN_LEVEL, GIPool}, util::{math::{get_dag_node_children, get_dag_node_children_xzy_i}, math_config::MC, number::Nu, vector::Ve}, volume::VolumeQureyPosValue, voxel::dag64::{entry::{DAG64Entry, DAG64EntryKey}, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, util::{get_dag_offset_levels, get_voxel_size}}};
+use crate::{gi::gi_pool::{GI, GI_PROBE_MIN_LEVEL, GIPool}, util::{math::{get_dag_node_children, get_dag_node_children_i}, math_config::MC, number::Nu, vector::Ve}, volume::VolumeQureyPosValue, voxel::dag64::{entry::{DAG64Entry, DAG64EntryKey}, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, util::{get_dag_offset_levels, get_voxel_size}}};
 use super::ParallelVoxelDAG64;
 use rayon::iter::{walk_tree_postfix};
 use rayon::prelude::*;
@@ -44,7 +44,7 @@ impl ParallelVoxelDAG64 {
         } else { 
             let new_level = level - 1;
             let new_size = get_voxel_size(new_level);
-            let (children, pop_mask) = get_dag_node_children_xzy_i().into_par_iter()
+            let (children, pop_mask) = get_dag_node_children_i().into_par_iter()
                 .enumerate()
                 .map(move |(i, pos)| {
                     let pos = offset + pos * new_size;
@@ -98,7 +98,7 @@ impl ParallelVoxelDAG64 {
             let mut children = SmallVec::<[_; 64]>::new();
             let mut pop_mask = 0;
 
-            for (i, pos) in get_dag_node_children_xzy_i().into_iter().enumerate() {
+            for (i, pos) in get_dag_node_children_i().into_iter().enumerate() {
                 let child = self.add_pos_query_recursive(
                     model,
                     lod,
@@ -127,9 +127,7 @@ impl ParallelVoxelDAG64 {
         let mut vec = SmallVec::<[_; 64]>::new();
         let mut bitmask = 0;
 
-        // INFO: DAG Renderer works in XZY Space instead of XYZ like the rest of the
-        // engine
-        for (i, pos) in get_dag_node_children_xzy_i().into_iter().enumerate() {
+        for (i, pos) in get_dag_node_children_i().into_iter().enumerate() {
             let pos = offset + pos;
             let value = model.get_value(V::ve_from(pos));
 

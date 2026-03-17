@@ -1,7 +1,7 @@
 use octa_force::glam::{IVec3, Mat4, Quat, Vec3};
 use slotmap::new_key_type;
 
-use crate::VOXELS_PER_SHADER_UNIT;
+use crate::{VOXELS_PER_SHADER_UNIT, voxel::dag64::util::get_voxel_size};
 
 new_key_type! { pub struct DAG64EntryKey; }
 
@@ -14,7 +14,7 @@ pub struct DAG64Entry {
 
 impl DAG64Entry { 
     pub fn get_size(&self) -> u32 {
-        4_u32.pow(self.levels as u32)
+        get_voxel_size(self.levels) as u32
     }
 
     pub fn calc_mat(&self, mat: Mat4) -> Mat4 {

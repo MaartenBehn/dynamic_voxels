@@ -62,7 +62,7 @@ impl BHNode<BVHExtraData, Vec3, f32, 3> for BVHObjectData {
                 min: aabb.min(),
                 child: (extra_data.start as u32) << 1 | 1,
                 max: aabb.max(),
-                exit: (exit_index as u32) << 1,
+                exit: exit_index as u32,
             }
         } else {
             Self {

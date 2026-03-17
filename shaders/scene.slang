@@ -9,10 +9,9 @@ public struct SceneObject {
   uint exit;
 
   public property bool leaf { get { return bool(child & 1); } }
-  public property uint leaf_nr { get { return exit & 1; } }
   public property uint object_start { get { return child >> 1; } }
   public property uint node_exit { get { return exit; } }
-  public property uint leaf_exit { get { return exit >> 1; } }
+  public property uint leaf_exit { get { return exit; } }
 }
 
 public struct DAG64SceneObject {
@@ -45,30 +44,24 @@ public struct Scene {
 
       if (node.leaf) {
 
-        switch (node.leaf_nr) {
-          case 0: { 
-            DAG64SceneObject* tree_object = (DAG64SceneObject*)(start_ptr + node.object_start);
-            Tree64 tree = Tree64((Node*)(start_ptr + tree_object.node_alloc), start_ptr + tree_object.data_alloc, tree_object.root_index);
+        DAG64SceneObject* tree_object = (DAG64SceneObject*)(start_ptr + node.object_start);
+        Tree64 tree = Tree64((Node*)(start_ptr + tree_object.node_alloc), start_ptr + tree_object.data_alloc, tree_object.root_index);
 
-            float4x4 mat = tree_object.mat;
-            float3 object_ray_pos = mul(float4(ray_pos, 1.0), mat).xyz;
-            float3 object_ray_dir = mul(float4(ray_dir, 0.0), mat).xyz;
+        float4x4 mat = tree_object.mat;
+        float3 object_ray_pos = mul(float4(ray_pos, 1.0), mat).xyz;
+        float3 object_ray_dir = mul(float4(ray_dir, 0.0), mat).xyz;
 
-            HitInfo hit_new = tree.RayCast(object_ray_pos, object_ray_dir, bounce_no != 0);
+        HitInfo hit_new = tree.RayCast(object_ray_pos, object_ray_dir, bounce_no != 0);
 
-            float4x4 inv_mat = tree_object.inv_mat;
-            hit_new.Pos = mul(float4(hit_new.Pos, 1.0), inv_mat).xyz; 
-            hit_new.Normal = normalize(mul(float4(hit_new.Normal, 0.0), inv_mat).xyz);
+        float4x4 inv_mat = tree_object.inv_mat;
+        hit_new.Pos = mul(float4(hit_new.Pos, 1.0), inv_mat).xyz; 
+        hit_new.Normal = normalize(mul(float4(hit_new.Normal, 0.0), inv_mat).xyz);
 
-            if (!hit_new.Miss && (hit.t >= hit_new.t)) {
-              hit = hit_new;
-            } else {
-              // To debug BVH
-              //hit.MaterialId = 1;
-            }
-
-            break;
-          }
+        if (!hit_new.Miss && (hit.t >= hit_new.t)) {
+          hit = hit_new;
+        } else {
+          // To debug BVH
+          //hit.MaterialId = 1;
         }
 
         current = node.leaf_exit;

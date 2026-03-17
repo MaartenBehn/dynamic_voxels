@@ -25,7 +25,7 @@ public struct Tree64 {
   }
 
   public HitInfo RayCast(float3 rayPos, float3 rayDir, bool coarse) {
-    HitInfo hit = Traversal_OctMirror(rayPos, rayDir, coarse);
+    HitInfo hit = Traversal(rayPos, rayDir, coarse);
     return hit;
   }
 
@@ -433,7 +433,7 @@ public struct Tree64 {
 
   static int GetNodeCellIndex(float3 pos, int scale_exp) {
     uint3 cellPos = asuint(pos) >> scale_exp & 3;
-    return cellPos.x + cellPos.z * 4 + cellPos.y * 16;
+    return cellPos.x * 16 + cellPos.y * 4 + cellPos.z;
   }
   // floor(pos / scale) * scale
   static float3 FloorScale(float3 pos, int scale_exp) {

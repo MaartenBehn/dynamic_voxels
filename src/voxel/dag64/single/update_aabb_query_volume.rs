@@ -1,6 +1,6 @@
 use octa_force::{glam::{vec3a, IVec3, UVec3, Vec3A, Vec4Swizzles}, log::debug, OctaResult};
 
-use crate::{util::{aabb::AABB, math::get_dag_node_children_xzy_i, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeChangeBounds, VolumeQureyAABB}, voxel::dag64::{entry::DAG64EntryKey, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, single::VoxelDAG64}};
+use crate::{util::{aabb::AABB, math::get_dag_node_children_i, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeChangeBounds, VolumeQureyAABB}, voxel::dag64::{entry::DAG64EntryKey, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, single::VoxelDAG64}};
 
 
 impl VoxelDAG64 { 
@@ -48,7 +48,7 @@ impl VoxelDAG64 {
 
         let new_level = node_level - 1;
         let new_scale = 4_i32.pow(new_level as u32);
-        for (i, pos) in get_dag_node_children_xzy_i().into_iter()
+        for (i, pos) in get_dag_node_children_i().into_iter()
             .enumerate()
             .rev() {
             let min = offset + pos * new_scale;

@@ -27,6 +27,8 @@ pub struct SceneRenderer {
     pub voxel_renderer: VoxelRenderer,
     pub render_data: SceneData,
     pub debug: bool,
+
+    pub update_camera: bool,
 }
 
 #[derive(Debug)]
@@ -131,6 +133,8 @@ impl SceneRenderer {
             voxel_renderer,
             render_data,
             debug: true,
+
+            update_camera: false,
         })
     }
 
@@ -213,10 +217,12 @@ impl SceneRenderer {
             },
         }
 
-        let new_cam_pos = camera.get_position_in_meters(); 
-        if (self.last_send_camera_position.distance(new_cam_pos) * VOXELS_PER_METER as f32) > 100.0 {
-            self.worker_ref.send.camera_position(new_cam_pos);
-            self.last_send_camera_position = new_cam_pos;
+        if self.update_camera {
+            let new_cam_pos = camera.get_position_in_meters(); 
+            if (self.last_send_camera_position.distance(new_cam_pos) * VOXELS_PER_METER as f32) > 100.0 {
+                self.worker_ref.send.camera_position(new_cam_pos);
+                self.last_send_camera_position = new_cam_pos;
+            }
         }
         
         Ok(())

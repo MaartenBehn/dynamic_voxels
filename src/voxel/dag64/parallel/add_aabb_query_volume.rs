@@ -1,7 +1,7 @@
 use itertools::Either;
 use octa_force::{anyhow::{self, anyhow}, glam::{IVec3, Vec3Swizzles}, OctaResult};
 use smallvec::SmallVec;
-use crate::{util::{aabb::AABB, math::{get_dag_node_children, get_dag_node_children_xzy_i}, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeQureyAABB, VolumeQureyAABBResult}, voxel::dag64::{entry::{DAG64Entry, DAG64EntryKey}, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, parallel::MIN_PAR_LEVEL, util::{get_dag_offset_levels, get_voxel_size}}};
+use crate::{util::{aabb::AABB, math::{get_dag_node_children, get_dag_node_children_i}, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeQureyAABB, VolumeQureyAABBResult}, voxel::dag64::{entry::{DAG64Entry, DAG64EntryKey}, lod_heuristic::LODHeuristicT, node::VoxelDAG64Node, parallel::MIN_PAR_LEVEL, util::{get_dag_offset_levels, get_voxel_size}}};
 use super::ParallelVoxelDAG64;
 use rayon::iter::{walk_tree_postfix};
 use rayon::prelude::*;
@@ -60,7 +60,7 @@ impl ParallelVoxelDAG64 {
                     let new_level = level - 1;
                     let new_size = get_voxel_size(new_level);
 
-                    let (vec, bitmask) = get_dag_node_children_xzy_i().into_par_iter()
+                    let (vec, bitmask) = get_dag_node_children_i().into_par_iter()
                         .enumerate()
                         .map(move |(i, pos)| {
                             let pos = offset + pos * new_size;
@@ -138,7 +138,7 @@ impl ParallelVoxelDAG64 {
                     let mut nodes = SmallVec::<[_; 64]>::new();
                     let mut bitmask = 0;
 
-                    for (i, pos) in get_dag_node_children_xzy_i().into_iter().enumerate() {
+                    for (i, pos) in get_dag_node_children_i().into_iter().enumerate() {
                         let child = self.add_aabb_query_recursive(
                             model,
                             lod,

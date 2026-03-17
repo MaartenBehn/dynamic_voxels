@@ -52,6 +52,8 @@ pub enum SceneTask {
 
     FreeStagingBuffer(Buffer),
     CameraPosition(Vec3),
+    
+    DebugProbes((SceneObjectKey, bool)),
 }
 
 #[derive(Clone, Debug)]
@@ -104,6 +106,7 @@ impl SceneWorker {
             dag_store,
             lod,
             gi,
+            debug: Default::default(),
         })
     }
 
@@ -134,7 +137,7 @@ impl SceneWorker {
                             SceneTask::AddObject(worker_message) => {
                                 let (data, awnser) = worker_message.unwarp();
 
-                                let key = self.add_object(data)
+                                let key = self.add_object(data, true)
                                     .expect("Failed to add DAG Object");
 
                                 awnser(key);
@@ -152,7 +155,7 @@ impl SceneWorker {
                             },
                             SceneTask::GetObjectMat(worker_message) => {
                                 let (key, awnser) = worker_message.unwarp();
-                                
+    
                                 if let Some(o) = self.objects.get(key) {
                                     awnser(o.mat);
                                 } else {
@@ -171,7 +174,7 @@ impl SceneWorker {
                             },
                             SceneTask::UpdateModel(worker_message) => {
                                 let ((key, model), awnser) = worker_message.unwarp();
-                                
+    
                                 if let Some(o) = self.objects.get_mut(key) {
                                     o.model = model;
                                     o.rebuild_changed(&mut self.dag_store, &self.lod);
@@ -186,7 +189,13 @@ impl SceneWorker {
                                 self.update(&render_s).await.unwrap();
                                 self.clean();
                             },
-
+                            SceneTask::DebugProbes((key, set)) => {
+                                if set {
+                                    self.show_probes(key);
+                                    self.update(&render_s).await.unwrap();
+                                    self.clean();
+                                }
+                            },
                         }
                     },
 
@@ -298,18 +307,23 @@ impl SceneWorkerSend {
         self.send_task(SceneTask::UpdateModel(message));
         res
     }   
+    
+    pub fn debug_probes(&self, object: SceneObjectKey, show: bool) {
+        self.send_task(SceneTask::DebugProbes((object, show)));
+    }
 }
 
 impl fmt::Debug for SceneTask {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::AddObject(arg0) => f.debug_tuple("AddObject").finish(),
-            Self::RemoveObject(arg0) => f.debug_tuple("RemoveObject").finish(),
-            Self::FreeStagingBuffer(arg0) => f.debug_tuple("FreeStagingBuffer").finish(),
-            Self::CameraPosition(arg0) => f.debug_tuple("CameraPosition").finish(),
-            Self::GetObjectMat(arg0) => f.debug_tuple("GetObjectMat").finish(),
-            Self::UpdateObjectMat(arg0) => f.debug_tuple("UpdateObjectMat").finish(),
-            Self::UpdateModel(arg0) => f.debug_tuple("UpdateModel").finish(),
+            SceneTask::AddObject(arg0) => f.debug_tuple("AddObject").finish(),
+            SceneTask::RemoveObject(arg0) => f.debug_tuple("RemoveObject").finish(),
+            SceneTask::FreeStagingBuffer(arg0) => f.debug_tuple("FreeStagingBuffer").finish(),
+            SceneTask::CameraPosition(arg0) => f.debug_tuple("CameraPosition").finish(),
+            SceneTask::GetObjectMat(arg0) => f.debug_tuple("GetObjectMat").finish(),
+            SceneTask::UpdateObjectMat(arg0) => f.debug_tuple("UpdateObjectMat").finish(),
+            SceneTask::UpdateModel(arg0) => f.debug_tuple("UpdateModel").finish(),
+            SceneTask::DebugProbes(arg0) => f.debug_tuple("DebugProbes").finish(), 
         }
     }
 }

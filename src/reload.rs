@@ -71,10 +71,10 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
     #[cfg(feature="game")]
     {
         camera.set_meter_per_unit(METERS_PER_SHADER_UNIT as f32);
-        camera.set_position_in_meters(Vec3::new(21.97947, 387.1738, 52.79194)); 
+        camera.set_position_in_meters(Vec3::new(21.97947, 20.1738, 10.79194)); 
         camera.direction = Vec3::new(-0.31698707, -0.9095283, -0.26884493).normalize();
         
-        camera.speed = 500.0;
+        camera.speed = 10.0;
         camera.z_near = 0.001;
     }
 

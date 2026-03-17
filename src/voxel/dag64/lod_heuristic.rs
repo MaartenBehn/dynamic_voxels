@@ -27,7 +27,7 @@ pub struct LinearLODHeuristicSphere {
 
 impl LODHeuristicT for LinearLODHeuristicSphere {
     fn lod_level(&self, pos: IVec3) -> u8 {
-        let delta = pos - self.center.yxz();
+        let delta = pos - self.center;
 
         let level = delta.abs().max_element() / self.level_size;
         return level.clamp(1, 255) as u8;
@@ -52,7 +52,7 @@ pub struct PowHeuristicSphere {
 
 impl LODHeuristicT for PowHeuristicSphere {
     fn lod_level(&self, pos: IVec3) -> u8 {
-        let delta = pos - self.center.yxz();
+        let delta = pos - self.center;
 
         //dbg!(delta.length());
         //let level = delta.abs().max_element() / self.level_size;
