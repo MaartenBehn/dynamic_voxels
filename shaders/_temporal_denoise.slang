@@ -54,7 +54,7 @@ bool Reproject(int2 pos) {
   float2 prevPosf = fract(prevPos);
 
   if (!pc.GBuffer->CheckBounds(prevPosi)) return false;
-  //if (prevPosi.x == pos.x && prevPosi.y == pos.y && dot(prevPosf, prevPosf) < 0.025*0.025) return true;
+  if (prevPosi.x == pos.x && prevPosi.y == pos.y && dot(prevPosf, prevPosf) < 0.025*0.025) return true;
 
   AlbedoData currAlbedo = UnpackAlbedo(pc.GBuffer.AlbedoTex.Instance[pos]);
 

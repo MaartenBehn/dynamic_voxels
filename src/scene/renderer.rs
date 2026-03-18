@@ -90,10 +90,9 @@ impl SceneRenderer {
             allways_fullscreen,
         )?;
 
-        //voxel_renderer.max_bounces = 0;
-        //voxel_renderer.temporal_denoise = false;
-        //voxel_renderer.denoise_counters = false;
-        voxel_renderer.debug_channel = DebugChannel::All;
+        voxel_renderer.max_bounces = 0;
+        voxel_renderer.temporal_denoise = false;
+        voxel_renderer.denoise_counters = false;
 
         let worker = SceneWorker::new(gpu_buffer_size, &engine.context)?;
 

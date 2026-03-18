@@ -206,7 +206,7 @@ impl VoxelRenderer {
             denoise_counters: true,
             filter_passes: 2,
             temp_irradiance_tex,
-            static_accum_number: 20,
+            static_accum_number: 10,
 
             debug_depth_range: vec2(0.5, 1.1),
             debug_heat_map_range: vec2(0.0, 100.0),
