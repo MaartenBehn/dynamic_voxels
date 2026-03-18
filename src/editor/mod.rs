@@ -31,9 +31,9 @@ impl Editor {
 
         let mat = model.get_mat(res.new_object_index);
 
-        let key = scene_send.add_object(Mat4::IDENTITY, model.clone()).result_blocking();
+        let key = scene_send.add_object(Mat4::from_rotation_x(0.0_f32.to_radians()), model.clone()).result_blocking();
         
-        scene_send.debug_probes(key, true);
+        //scene_send.debug_probes(key, true);
 
         Ok(Self {
             scene_send,

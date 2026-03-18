@@ -10,7 +10,7 @@ use egui_double_slider::DoubleSlider;
 use g_buffer::{GBuffer, ImageAndViewAndHandle};
 use octa_force::anyhow::Result;
 use octa_force::camera::Camera;
-use octa_force::egui::{Align, Frame, Layout};
+use octa_force::egui::{Align, Frame, Layout, RichText};
 use octa_force::engine::Engine;
 use octa_force::glam::{uvec3, vec2, UVec2, Vec2, Vec3};
 use octa_force::image::{GenericImageView, ImageReader};
@@ -304,22 +304,29 @@ impl VoxelRenderer {
         Ok(())
     }
 
-    pub fn render_ui(&mut self, ctx: &egui::Context) { 
+    pub fn render_ui(&mut self, ctx: &egui::Context, camera: &Camera) { 
         egui::Window::new("Renderer")
-            .default_open(false)
+            .default_open(true)
             .show(ctx, |ui| {
+                ui.strong("Camera");
+                
+                let pos = camera.get_position_in_meters(); 
+                ui.label(format!("Pos: ({:.02}, {:.02}, {:.02})", pos.x, pos.y, pos.z)); 
+                
+                let dir = camera.direction; 
+                ui.label(format!("Dir: ({:.02}, {:.02}, {:.02})", dir.x, dir.y, dir.z)); 
+                ui.separator();
+                ui.strong("Path trace");
+
                 ui.add(egui::Slider::new(&mut self.max_bounces, 0..=10)
                     .text("Max Bounces")
                 );
-                ui.separator();
-
+                
                 div(ui, |ui| {
                     ui.checkbox(&mut self.temporal_denoise, "Temporal Denoise");
                     ui.checkbox(&mut self.denoise_counters, "Jitter");
                 });
 
-                ui.separator();
-                
                 ui.label(format!("Frame: {}", self.g_buffer.frame_no -1));
                 ui.label(format!("Steady : {}", self.g_buffer.num_steady_frames -1));
                 
@@ -328,18 +335,17 @@ impl VoxelRenderer {
                 );
                 
                 ui.separator();
+                ui.strong("A-tours filter");
 
                 ui.add(egui::Slider::new(&mut self.filter_passes, 0..=10)
-                    .text("Filter Passes")
+                    .text("Passes")
                 );
                 if self.filter_passes % 2 == 1 {
                     self.filter_passes += 1;
-                } 
-            });
+                }
 
-        egui::Window::new("Debug")
-            .default_open(false)
-            .show(ctx, |ui| {
+                ui.separator();
+                ui.strong("Debug");
                 egui::ComboBox::from_label("Channel")
                     .selected_text(format!("{:?}", self.debug_channel))
                     .show_ui(ui, |ui| {
@@ -377,8 +383,8 @@ impl VoxelRenderer {
                         .separation_distance(0.0)
                     );
                 }
-            });
 
+            });
     }
 
     pub fn on_size_changed(

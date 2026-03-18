@@ -1,7 +1,7 @@
 use std::{mem, time::Instant};
 
 use octa_force::{OctaResult, camera::Camera, egui, engine::Engine, glam::{UVec2, Vec3}, log::{debug, info}, vulkan::{Buffer, CommandBuffer, CommandPool, Context, Fence, Swapchain, ash::vk::{self, AttachmentLoadOp}, gpu_allocator::MemoryLocation}};
-use crate::{VOXELS_PER_METER, scene::{staging_copies::SceneStaging, worker::SceneWorkerRef}, util::math::to_mb, voxel::{palette::shared::SharedPalette, renderer::{RayManagerData, VoxelRenderer}}};
+use crate::{VOXELS_PER_METER, scene::{staging_copies::SceneStaging, worker::SceneWorkerRef}, util::math::to_mb, voxel::{palette::shared::SharedPalette, renderer::{DebugChannel, RayManagerData, VoxelRenderer}}};
 
 use super::{worker::{SceneWorker}};
 
@@ -90,9 +90,10 @@ impl SceneRenderer {
             allways_fullscreen,
         )?;
 
-        voxel_renderer.max_bounces = 0;
-        voxel_renderer.temporal_denoise = false;
-        voxel_renderer.denoise_counters = false;
+        //voxel_renderer.max_bounces = 0;
+        //voxel_renderer.temporal_denoise = false;
+        //voxel_renderer.denoise_counters = false;
+        voxel_renderer.debug_channel = DebugChannel::All;
 
         let worker = SceneWorker::new(gpu_buffer_size, &engine.context)?;
 
@@ -245,8 +246,8 @@ impl SceneRenderer {
         Ok(())
     }
 
-    pub fn render_ui(&mut self, ctx: &egui::Context) { 
-        self.voxel_renderer.render_ui(ctx);        
+    pub fn render_ui(&mut self, ctx: &egui::Context, camera: &Camera) { 
+        self.voxel_renderer.render_ui(ctx, camera);        
     }
 
     pub fn on_size_changed(

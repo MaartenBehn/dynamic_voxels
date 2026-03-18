@@ -7,10 +7,7 @@ use crate::{util::{math::get_dag_node_children_i, vector::Ve}, voxel::{dag64::{n
 pub const GI_PROBE_INDEX_NONE: u32 = u32::MAX;
 pub const GI_PROBE_MIN_LEVEL: u8 = 2;
 
-#[derive(Debug)]
-pub struct GIPoolAtlas {
-    pub images: Vec<ImageAndViewAndHandle>,
-}
+
 
 #[derive(Debug)]
 pub struct GIPool {

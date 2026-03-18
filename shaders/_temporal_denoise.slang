@@ -41,6 +41,8 @@ void StaticAccum(int2 pos) {
   float4 currAlbedo = pc.GBuffer.AlbedoTex.Instance[pos];
   pc.GBuffer.AlbedoTex.Instance[pos] = float4(lerp(prevAlbedo, currAlbedo, weight).rgb, currAlbedo.w);
 }
+
+
 bool Reproject(int2 pos) {
   float depth = pc.GBuffer.DepthTex.Instance[pos];
   if (depth <= 0) return false;  // sky
@@ -106,11 +108,11 @@ bool IsValidSample(int2 samplePos, float3 centerWorldPos, AlbedoData centerSurfa
   AlbedoData sampleSurface = UnpackAlbedo(pc.GBuffer.PrevAlbedoTex.Instance[samplePos]);
   if (dot(centerSurface.Normal, sampleSurface.Normal) < 0.5 || centerSurface.Emissive != sampleSurface.Emissive) return false;
 
-  // Plane distance check (ReBLUR)
   float sampleDepth = pc.GBuffer.PrevDepthTex.Instance[samplePos].r;
   if (sampleDepth <= 0.0) return false;  // sky
-  float3 sampleWorldPos = GetWorldPos(samplePos, sampleDepth, pc.GBuffer->PrevInvProjMat);
 
+  // Plane distance check (ReBLUR)
+  float3 sampleWorldPos = GetWorldPos(samplePos, sampleDepth, pc.GBuffer->PrevInvProjMat);
   float planeDist = abs(dot(centerWorldPos - sampleWorldPos, centerSurface.Normal));
   if (planeDist > SHADER_UNIT_PER_VOXEL * 0.6) return false;
 

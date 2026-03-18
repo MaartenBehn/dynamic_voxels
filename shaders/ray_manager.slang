@@ -75,7 +75,7 @@ public struct RayRunner {
     irradiance += throughput * emission;
 
     ray_dir = normalize(hit.Normal + GetSphereDir(blue_noise.GetSample()));
-    ray_pos = hit.Pos + hit.Normal * SHADER_UNIT_PER_VOXEL * 0.1;
+    ray_pos = hit.Pos + hit.Normal * SHADER_UNIT_PER_VOXEL * 0.001;
 
     return true;
   }

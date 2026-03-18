@@ -169,8 +169,8 @@ impl Tree64Renderer {
         Ok(())
     }
 
-    pub fn render_ui(&mut self, ctx: &egui::Context) { 
-        self.voxel_renderer.render_ui(ctx);        
+    pub fn render_ui(&mut self, ctx: &egui::Context, camera: &Camera) { 
+        self.voxel_renderer.render_ui(ctx, camera);        
     }
 
     pub fn on_size_changed(

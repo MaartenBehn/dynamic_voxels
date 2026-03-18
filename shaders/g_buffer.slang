@@ -1,6 +1,6 @@
 import texture_heap;         
 
-public static float SHADER_UNIT_PER_VOXEL = 0.0001;
+public static float SHADER_UNIT_PER_VOXEL = 0.01;
 
 public struct GBuffer {
   public float4x4 ProjMat, InvProjMat;
@@ -49,7 +49,7 @@ public static AlbedoData UnpackAlbedo(float4 value) {
     return data;
 }
 public static float4 PackAlbedo(float3 color, float3 normal, bool emiss) {
-    uint3 inorm = uint3(clamp(normal + 1, 0, 3));
+    uint3 inorm = uint3(clamp(normal + 1, 0, 2));
     float w = float(inorm.x << 0 | inorm.y << 2 | inorm.z << 4 | (emiss ? 1 << 6 : 0)) / 255.0;
     return float4(color, w);
 }

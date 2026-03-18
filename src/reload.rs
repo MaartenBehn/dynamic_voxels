@@ -44,7 +44,7 @@ pub const USE_PROFILE: bool = false;
 pub const NUM_FRAMES_IN_FLIGHT: usize = 2;
 
 pub const VOXELS_PER_METER: usize = 10;
-pub const METERS_PER_SHADER_UNIT: usize = 1000000;
+pub const METERS_PER_SHADER_UNIT: usize = 100;
 pub const VOXELS_PER_SHADER_UNIT: usize = VOXELS_PER_METER * METERS_PER_SHADER_UNIT;
 
 #[unsafe(no_mangle)]
@@ -71,8 +71,8 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
     #[cfg(feature="game")]
     {
         camera.set_meter_per_unit(METERS_PER_SHADER_UNIT as f32);
-        camera.set_position_in_meters(Vec3::new(21.97947, 20.1738, 10.79194)); 
-        camera.direction = Vec3::new(-0.31698707, -0.9095283, -0.26884493).normalize();
+        camera.set_position_in_meters(Vec3::new(36.64, 0.07, 4.66)); 
+        camera.direction = Vec3::new(-0.78, -0.04, -0.62).normalize();
         
         camera.speed = 10.0;
         camera.z_near = 0.001;
@@ -209,7 +209,6 @@ pub fn update(
     let time = logic_state.start_time.elapsed(); 
 
     logic_state.camera.update(&engine.controls, delta_time);
-    //info!("Camera Pos: {} Dir: {}", logic_state.camera.get_position_in_meters(), logic_state.camera.direction);
     
     #[cfg(any(feature="game"))]
     {
@@ -304,12 +303,12 @@ pub fn record_ui_commands(
 ) -> OctaResult<()> {
     #[cfg(any(feature="game"))]
     {
-        render_state.scene.render_ui(ctx);
+        render_state.scene.render_ui(ctx, &logic_state.camera);
     }
 
     #[cfg(any(feature="voxel"))]
     {
-        render_state.tree_renderer.render_ui(ctx);
+        render_state.tree_renderer.render_ui(ctx, &logic_state.camera);
     }
     
     #[cfg(any(feature="graph"))]

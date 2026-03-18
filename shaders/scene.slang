@@ -51,13 +51,13 @@ public struct Scene {
         float3 object_ray_pos = mul(float4(ray_pos, 1.0), mat).xyz;
         float3 object_ray_dir = mul(float4(ray_dir, 0.0), mat).xyz;
 
-        HitInfo hit_new = tree.RayCast(object_ray_pos, object_ray_dir, bounce_no != 0);
-
-        float4x4 inv_mat = tree_object.inv_mat;
-        hit_new.Pos = mul(float4(hit_new.Pos, 1.0), inv_mat).xyz; 
-        hit_new.Normal = normalize(mul(float4(hit_new.Normal, 0.0), inv_mat).xyz);
-
+        HitInfo hit_new = tree.RayCast(object_ray_pos, object_ray_dir, false);
+        
         if (!hit_new.Miss && (hit.t >= hit_new.t)) {
+          float4x4 inv_mat = tree_object.inv_mat;
+          hit_new.Pos = mul(float4(hit_new.Pos, 1.0), inv_mat).xyz; 
+          hit_new.Normal = normalize(mul(float4(hit_new.Normal, 0.0), inv_mat).xyz);
+
           hit = hit_new;
         } else {
           // To debug BVH

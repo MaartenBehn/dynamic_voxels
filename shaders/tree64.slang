@@ -29,57 +29,62 @@ public struct Tree64 {
     return hit;
   }
 
+  float3 non_align(float3 dir) {
+
+    float epsilon =  0.0001; 
+    if (abs(dir.x) < epsilon) dir.x = epsilon;
+    if (abs(dir.y) < epsilon) dir.y = epsilon;
+    if (abs(dir.z) < epsilon) dir.z = epsilon;
+    return dir;
+  }
+
   HitInfo Traversal(float3 origin, float3 dir, bool coarse) {
-    
-    if (abs(dir.x) < 0.0001) dir.x = 0.0001;
-    if (abs(dir.y) < 0.0001) dir.y = 0.0001;
-    if (abs(dir.z) < 0.0001) dir.z = 0.0001;
+    float3 inv_dir = 1.0f / dir;
 
-    float3 invDir = 1.0f / dir;
+    float3 side_dist, pos;
+    float t_min, t_max;
+    uint stack[11];
+    int scaleExp = 21;  // 0.25
 
-    float3 sideDist, pos;
-    float t_min;
     if (any(origin < 1.0 || origin >= 2.0)) {
-      
-      float3 is_positive = float3(float(invDir.x > 0), float(invDir.y > 0), float(invDir.z >= 0));     
+
+      float3 is_positive = float3(float(inv_dir.x > 0), float(inv_dir.y > 0), float(inv_dir.z >= 0));     
       float3 is_negative = 1.0f - is_positive;
-      
+
       float3 min_pos = 1.0001;
       float3 max_pos = 1.9999;
 
-      float3 left_side = is_positive * min_pos + is_negative * max_pos;
-      float3 right_side = is_positive * max_pos + is_negative * min_pos;
+      float3 min_side = is_positive * min_pos + is_negative * max_pos;
+      float3 max_side = is_positive * max_pos + is_negative * min_pos;
 
-      float3 left_side_times_one_over_dir = (left_side - origin) * invDir;
-      float3 right_side_times_one_over_dir = (right_side - origin) * invDir;
+      side_dist = (min_side - origin) * inv_dir;
+      float3 out_side_dist = (max_side - origin) * inv_dir;
 
-      t_min = max(left_side_times_one_over_dir.x, max(left_side_times_one_over_dir.y, left_side_times_one_over_dir.z));
-      float t_max = min(right_side_times_one_over_dir.x, min(right_side_times_one_over_dir.y, right_side_times_one_over_dir.z));
- 
+      t_min = max(side_dist.x, max(side_dist.y, side_dist.z));
+      t_max = min(out_side_dist.x, min(out_side_dist.y, out_side_dist.z));
+
       if (t_max < t_min) {
         HitInfo hit;
         return hit; 
       }
       pos = origin + dir * t_min;
-      sideDist = left_side_times_one_over_dir;
     } else {
       pos = origin;
     }
 
-    uint stack[11];
-    int scaleExp = 21;  // 0.25
-
     uint nodeIdx = start_index; // root
     Node node = nodes[nodeIdx];
- 
+
+    if (node.IsLeaf) {
+        HitInfo hit;
+        hit.t = t_min;
+        bool3 sideMask = t_min <= side_dist;
+        hit.Normal = select(sideMask, -sign(dir), 0.0);
+        return hit;
+    }
+
     int i;
     for (i = 0; i < 256; i++) {
-      //debug("i: %d", i);
-      if (coarse && i > 20 && node.IsLeaf) break;
-      // Early out for too few lanes active doesn't help much and causes light
-      // leaking or darkening, depending on whether we tell it's a hit or miss.
-      //if (coarse && i > 30 && WaveActiveCountBits(true) < WaveGetLaneCount()*1/4) break;
-
       int childIdx = GetNodeCellIndex(pos, scaleExp);
 
       // Descend
@@ -90,36 +95,41 @@ public struct Tree64 {
         scaleExp -= 2;
         childIdx = GetNodeCellIndex(pos, scaleExp);
       }
-      if ((node.PopMask >> childIdx & 1) != 0 && node.IsLeaf) break;
+
+      // Hit Leaf?
+      if ((node.PopMask >> childIdx & 1) != 0 && node.IsLeaf) {
+        add_iter_count(i);
+
+        HitInfo hit;
+        hit.MaterialId = leaf_data[node.ChildPtr + popcnt_var64(node.PopMask, childIdx)];
+        hit.Pos = pos;
+        hit.t = t_max;
+        bool3 sideMask = t_max >= side_dist;
+        hit.Normal = select(sideMask, -sign(dir), 0.0);
+        return hit;
+      }
 
       int advScaleExp = scaleExp;
 
-      // 2³ steps
+      // Skip nodes with only one child
       if ((node.PopMask >> (childIdx & 0b101010) & 0x00330033) == 0) advScaleExp++;
 
       // Compute next pos by intersecting with max cube edges
       pos = FloorScale(pos, advScaleExp);
-      float3 prevPos = pos;
+      float3 prev_pos = pos;
 
       float scale = bit_cast<float>((advScaleExp - 23 + 127) << 23);  // 2 ^ -(23 - advScaleExp)
-      sideDist = (step(0.0f, dir) * scale + (pos - origin)) * invDir;
+      side_dist = (step(0.0f, dir) * scale + (pos - origin)) * inv_dir;
 
-      // Distance biasing: corner misses
-      //   tmax = max(tmax, min(min(sideDist.x, sideDist.y), sideDist.z)) + 0.000004;
-      //   pos = origin + dir * tmax;
+      // Bounds clamping      
+      t_max = min(min(side_dist.x, side_dist.y), side_dist.z);
 
-      // Nudging: grid-like artifacts
-      //   pos += select(tmax == sideDist, copysign(scale * 0.01, dir), 0);
-
-      // Bounds clamping: robust but slightly more expansive
-      float tmax = min(min(sideDist.x, sideDist.y), sideDist.z);
-
-      float3 siblPos0 = select(tmax == sideDist, pos + copysign(scale, dir), pos);
-      float3 siblPos1 = asfloat(bit_cast<int3>(siblPos0) + ((1 << advScaleExp) - 1));
-      pos = clamp(origin + dir * tmax, siblPos0, siblPos1); // clamp to sibling bounds [0, 1)
+      float3 sibl_pos_0 = select(t_max == side_dist, pos + copysign(scale, dir), pos);
+      float3 sibl_pos_1 = asfloat(bit_cast<int3>(sibl_pos_0) + ((1 << advScaleExp) - 1));
+      pos = clamp(origin + dir * t_max, sibl_pos_0, sibl_pos_1); // clamp to sibling bounds [0, 1)
 
       // Find carry bit to tell which node we should ascend to
-      uint3 diffPos = asuint(pos) ^ asuint(prevPos);
+      uint3 diffPos = asuint(pos) ^ asuint(prev_pos);
       int diffExp = firstbithigh(diffPos.x | diffPos.y | diffPos.z); // 31 - lzcnt
       if (diffExp % 2 == 0) diffExp--;
 
@@ -135,91 +145,76 @@ public struct Tree64 {
     add_iter_count(i);
 
     HitInfo hit;
-
-    if (node.IsLeaf && scaleExp <= 21) {
-
-      int childIdx = GetNodeCellIndex(pos, scaleExp);
-      hit.MaterialId = leaf_data[node.ChildPtr + popcnt_var64(node.PopMask, childIdx)];
-      hit.Pos = pos;
-   
-      if (i > 0){
-        float t_max = min(min(sideDist.x, sideDist.y), sideDist.z);
-        hit.t = t_max;
-        bool3 sideMask = t_max >= sideDist;
-        hit.Normal = select(sideMask, -sign(dir), 0.0);
-      } else {
-        hit.t = t_min;
-        bool3 sideMask = t_min <= sideDist;
-        hit.Normal = select(sideMask, -sign(dir), 0.0);
-      }
-    }
     return hit;
   }
 
   HitInfo Traversal_OctMirror(float3 origin, float3 dir, bool coarse) {
+    float3 side_dist, pos;
+    float t_min, t_max;
 
-    float3 invDir = 1.0f / dir;
+    float3 inv_dir = 1.0f / dir;
 
-    float3 sideDist, pos;
-    float t_min;
     if (any(origin < 1.0 || origin >= 2.0)) {
-      
-      float3 is_positive = float3(float(invDir.x > 0), float(invDir.y > 0), float(invDir.z >= 0));     
+
+      float3 is_positive = float3(float(inv_dir.x > 0), float(inv_dir.y > 0), float(inv_dir.z >= 0));     
       float3 is_negative = 1.0f - is_positive;
-      
-      float3 min_pos = 1.0000001;
-      float3 max_pos = 1.9999999;
 
-      float3 left_side = is_positive * min_pos + is_negative * max_pos;
-      float3 right_side = is_positive * max_pos + is_negative * min_pos;
+      float3 min_pos = 1.0001;
+      float3 max_pos = 1.9999;
 
-      float3 left_side_times_one_over_dir = (left_side - origin) * invDir;
-      float3 right_side_times_one_over_dir = (right_side - origin) * invDir;
+      float3 min_side = is_positive * min_pos + is_negative * max_pos;
+      float3 max_side = is_positive * max_pos + is_negative * min_pos;
 
-      t_min = max(left_side_times_one_over_dir.x, max(left_side_times_one_over_dir.y, left_side_times_one_over_dir.z));
-      float t_max = min(right_side_times_one_over_dir.x, min(right_side_times_one_over_dir.y, right_side_times_one_over_dir.z));
- 
+      side_dist = (min_side - origin) * inv_dir;
+      float3 out_side_dist = (max_side - origin) * inv_dir;
+
+      t_min = max(side_dist.x, max(side_dist.y, side_dist.z));
+      t_max = min(out_side_dist.x, min(out_side_dist.y, out_side_dist.z));
+
       if (t_max < t_min) {
         HitInfo hit;
-        hit.MaterialId = 0;
-
         return hit; 
       }
-      pos = origin + dir * t_min;
-      origin = GetMirroredPos(origin, dir, true);
-      pos = GetMirroredPos(pos, dir, false);
 
-      sideDist = -left_side_times_one_over_dir;
+      pos = GetMirroredPos(origin + dir * t_min, dir, false);
+      origin = GetMirroredPos(origin, dir, false);
     } else {
       origin = GetMirroredPos(origin, dir, false);
       pos = origin;
+    }
+
+    uint nodeIdx = start_index; // root
+    Node node = nodes[nodeIdx];
+
+    if (node.IsLeaf) {
+        HitInfo hit;
+        hit.t = t_min;
+        bool3 sideMask = t_min <= side_dist;
+        hit.Normal = select(sideMask, -sign(dir), 0.0);
+        return hit;
     }
 
     uint groupId = spirv_asm {
       OpCapability VariablePointers;
       result:$$uint = OpLoad builtin(LocalInvocationIndex:uint);
     };
+
     static groupshared uint gs_stack[64][11];
-    //uint stack[11];
     uint* stack = &gs_stack[groupId][0];
     int scaleExp = 21;  // 0.25
-
-    uint nodeIdx = start_index; // root
-    Node node = nodes[nodeIdx];
-
-    invDir = 1.0f / -abs(dir);
-    uint mirrorMask = 0;
-
+    
     // Mirror coordinates to negative ray octant
-    if (dir.x > 0) mirrorMask |= 3 << 0;
-    if (dir.y > 0) mirrorMask |= 3 << 4;
-    if (dir.z > 0) mirrorMask |= 3 << 2;
-
+    uint mirrorMask = 0;
+    if (dir.x > 0) mirrorMask |= 3 << 4;
+    if (dir.y > 0) mirrorMask |= 3 << 2;
+    if (dir.z > 0) mirrorMask |= 3 << 0;
+    
+    // Mirror inv_dir
+    inv_dir = -abs(inv_dir);
+    
     int childIdx;
     int i;
     for (i = 0; i < 256; i++) {
-      if (coarse && i > 20 && node.IsLeaf) break;
-
       childIdx = GetNodeCellIndex(pos, scaleExp) ^ mirrorMask;
 
       // Descend
@@ -231,21 +226,33 @@ public struct Tree64 {
         scaleExp -= 2;
         childIdx = GetNodeCellIndex(pos, scaleExp) ^ mirrorMask;
       }
-      if ((node.PopMask >> childIdx & 1) != 0 && node.IsLeaf) break;
+
+      // Hit Leaf?
+      if ((node.PopMask >> childIdx & 1) != 0 && node.IsLeaf) {
+        add_iter_count(i);
+
+        HitInfo hit;
+        hit.MaterialId = leaf_data[node.ChildPtr + popcnt_var64(node.PopMask, childIdx)];
+        hit.Pos = GetMirroredPos(pos, dir, false);
+        hit.t = t_max;
+        bool3 sideMask = t_max >= side_dist;
+        hit.Normal = select(sideMask, -sign(dir), 0.0);
+        return hit;
+      }
 
       int advScaleExp = scaleExp;
 
-      // 2³ steps
+      // Skip nodes with only one child
       if ((node.PopMask >> (childIdx & 0b101010) & 0x00330033) == 0) advScaleExp++;
 
       // Compute next pos by intersecting with max cube edges
       float3 edgePos = FloorScale(pos, advScaleExp);
 
-      sideDist = (edgePos - origin) * invDir;
-      float tmax = min(min(sideDist.x, sideDist.y), sideDist.z);
+      side_dist = (edgePos - origin) * inv_dir;
+      t_max = min(min(side_dist.x, side_dist.y), side_dist.z);
 
-      int3 maxSiblBounds = bit_cast<int3>(edgePos) + select(sideDist == tmax, -1, (1 << advScaleExp) - 1);
-      pos = min(origin - abs(dir) * tmax, asfloat(maxSiblBounds));
+      int3 maxSiblBounds = bit_cast<int3>(edgePos) + select(side_dist == t_max, -1, (1 << advScaleExp) - 1);
+      pos = min(origin - abs(dir) * t_max, asfloat(maxSiblBounds));
 
       // Find carry bit to tell which node we should ascend to
       uint3 diffPos = asuint(pos) ^ asuint(edgePos);
@@ -263,26 +270,6 @@ public struct Tree64 {
     add_iter_count(i);
 
     HitInfo hit;
-
-    if (node.IsLeaf && scaleExp <= 21) {
-      pos = GetMirroredPos(pos, dir, false);
-
-      hit.MaterialId = leaf_data[node.ChildPtr + popcnt_var64(node.PopMask, childIdx)];
-      hit.Pos = pos;
-
-      if (i > 0){
-        float t_max = min(min(sideDist.x, sideDist.y), sideDist.z);
-        hit.t = t_max;
-        bool3 sideMask = t_max >= sideDist;
-        hit.Normal = select(sideMask, -sign(dir), 0.0);
-      } else {
-        // If objects are inside each other but the the loop never ran
-        hit.t = t_min;
-        bool3 sideMask = t_min <= sideDist;
-        hit.Normal = select(sideMask, -sign(dir), 0.0);
-      }
-    }
- 
     return hit;
   }
 
@@ -294,141 +281,6 @@ public struct Tree64 {
     // so just fallback to the original subtraction if that's not the case.
     if (outside) mirrored = 3.0 - pos;
     return select(dir > 0, mirrored, pos);
-  }
-
-  HitInfo Traversal_HDDA(float3 origin, float3 dir, bool coarse) {
-    uint stack[11];
-    int scale_exp = 21;  // 0.25
-
-    Node* node = &nodes[0];
-    stack[scale_exp >> 1] = 0;
-
-    if (abs(dir.x) < 0.0001) dir.x = 0.0001;
-    if (abs(dir.y) < 0.0001) dir.y = 0.0001;
-    if (abs(dir.z) < 0.0001) dir.z = 0.0001;
-
-    int signMask = 0, stepIdx = 0, currIdx = 0;
-    if (dir.x < 0) signMask |= 0b11 << 0;
-    if (dir.y < 0) signMask |= 0b11 << 4;
-    if (dir.z < 0) signMask |= 0b11 << 2;
-
-    float3 invDir = 1.0f / dir;
-    float3 pos = FloorScale(origin, scale_exp);
-
-    // Ensure start pos is inside the grid
-    // This is not correct but cheap and prevents the traversal from completely breaking down.
-    pos = clamp(pos, 1.0f, 1.9999999f);
-
-    float tmin = 0.0f;
-    int j = 0;
-
-    for (j = 0; j < (coarse ? 80 : 128); j++) {
-      float scale = bit_cast<float>((scale_exp - 23 + 127) << 23);  // 2 ^ -(23 - scale_exp)
-      float3 sideDist = (step(0.0f, dir) * scale + (pos - origin)) * invDir;
-
-      currIdx = GetNodeCellIndex(pos, scale_exp);
-      uint64_t mask = node->PopMask;
-
-      // DDA takes at worst N*3-1 iterations to traverse a N³ grid
-      [loop] // this really doesn't need to be unrolled, burns too many registers for some reason
-      for (int i = 0; i < 11; i++) {
-        if ((mask >> currIdx & 1) != 0) break;
-
-        if (sideDist.x < sideDist.y && sideDist.x < sideDist.z) {
-          sideDist.x += abs(invDir.x) * scale;
-          stepIdx = 1;
-        } else if (sideDist.y < sideDist.z) {
-          sideDist.y += abs(invDir.y) * scale;
-          stepIdx = 16;
-        } else {
-          sideDist.z += abs(invDir.z) * scale;
-          stepIdx = 4;
-        }
-        // Step position in selected axis, same as:
-        //   currIdx += (dir[stepAxis] < 0 ? -stepIdx : +stepIdx)
-        int prevIdx = currIdx;
-        currIdx += (stepIdx ^ signMask) - signMask;
-
-        // Bounds check: stop if increment flips any bit outside axis mask
-        if (uint(prevIdx ^ currIdx) >= uint(stepIdx << 2)) { currIdx = -1; break; }
-      }
-
-      // Descend if we hit any child
-      if (currIdx >= 0) {
-        // Undo last step
-        if (stepIdx == 1) sideDist.x -= abs(invDir.x) * scale;
-        if (stepIdx == 4) sideDist.z -= abs(invDir.z) * scale;
-        if (stepIdx == 16) sideDist.y -= abs(invDir.y) * scale;
-
-        if (stepIdx == 0) {
-          // This is the first iteration and origin is directly over a child - don't step, just descend
-          sideDist.x = 0;
-        }
-        // Compute hit pos
-        tmin = min(min(sideDist.x, sideDist.y), sideDist.z);
-        float3 hitPos = origin + tmin * dir;
-
-        if (node->IsLeaf) break;
-
-        // Clamp hit pos to be inside child bounding box to workaround float precision errors
-        uint3 childPos = currIdx >> uint3(0, 4, 2) & 3u;
-        childPos = (asuint(pos) & (~3u << scale_exp)) | childPos << scale_exp;
-
-        int child_scale_exp = scale_exp - 2;
-        uint3 subPos = clamp(asuint(hitPos), childPos, childPos | (3u << child_scale_exp));
-        subPos &= ~0u << child_scale_exp; // floor
-
-        pos = asfloat(subPos);
-
-        stack[scale_exp >> 1] = uint(uint64_t(node) - uint64_t(&nodes[0])); // push
-        scale_exp = child_scale_exp;
-
-        node = &nodes[node->ChildPtr + popcnt_var64(node->PopMask, currIdx)];
-      } else {
-        uint3 parentPos = asuint(pos);
-
-        // Compute step position to figure out the parent scale. For example,
-        // if we are at scale 1/64 and step crosses boundary of node 1/4, climb directly to it.
-        int stepDelta = (signMask & stepIdx) != 0 ? -1 : +1;
-        int stepPos;
-        if (stepIdx == 1) stepPos = parentPos.x;
-        if (stepIdx == 4) stepPos = parentPos.z;
-        if (stepIdx == 16) stepPos = parentPos.y;
-
-        int parent_scale_exp = scale_exp + 2;
-        scale_exp = firstbithigh(stepPos ^ (stepPos + (stepDelta << parent_scale_exp))); // 31 - lzcnt
-        if (scale_exp % 2 == 0) scale_exp--;  // dunno why diff gets misaligned, but this seems to work alright
-
-        if (scale_exp > 21) break;
-
-        // Step again using actual scale
-        parentPos &= ~0u << scale_exp;
-
-        stepDelta <<= scale_exp;
-        if (stepIdx == 1) parentPos.x += stepDelta;
-        if (stepIdx == 4) parentPos.z += stepDelta;
-        if (stepIdx == 16) parentPos.y += stepDelta;
-
-        pos = asfloat(parentPos);
-
-        node = (Node*)(uint64_t(&nodes[0]) + stack[scale_exp >> 1]); // pop
-      }
-
-    }
-    add_iter_count(j);
-
-    HitInfo hit;
-    hit.MaterialId = 0;
-
-    if (node->IsLeaf) {
-      hit.MaterialId = leaf_data[node->ChildPtr + popcnt_var64(node->PopMask, currIdx)];
-      hit.Pos = origin + tmin * dir;
-
-      bool3 sideMask = stepIdx == int3(1, 16, 4);
-      hit.Normal = select(sideMask, -sign(dir), 0.0);
-      return hit;
-    }
-    return hit;
   }
 
   static int GetNodeCellIndex(float3 pos, int scale_exp) {
