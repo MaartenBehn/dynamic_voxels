@@ -1,26 +1,3 @@
-public struct Random {
-    uint _state;
-
-    public __init(uint3 p) {
-        uint2 q = 1103515245U * p.xy;
-        uint n = q.x ^ (q.y >> 3U);
-        _state = n + p.z * 12345u;
-    }
-
-    // https://www.reedbeta.com/blog/hash-functions-for-gpu-rendering/
-    [__ref]
-    public uint NextU32() {
-        uint state = _state;
-        _state = _state * 747796405u + 2891336453u;
-        uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
-        return (word >> 22u) ^ word;
-    }
-    [__ref]
-    public float NextFloat() {
-        return float(NextU32()) * (1.0 / 4294967296.0);
-    }
-};
-
 public struct BlueNoise {
     Texture2D<uint8_t2> stbnTexture;
     int3 tilePos;
@@ -55,21 +32,6 @@ public float3 GetSphereDir(float2 sample) {
 
     float sy = sqrt(1.0 - y * y);
     return float3(sin(a) * sy, y, cos(a) * sy);
-}
-
-// Returns linear index for 3D grid in XYZ order. Sizes **must** be power of two.
-public uint GetLinearIndex(uint3 pos, uint sizeXZ, uint sizeY) {
-    return (pos.x & (sizeXZ - 1)) +
-           (pos.y & (sizeXZ - 1)) * sizeXZ +
-           (pos.z & (sizeY - 1)) * (sizeXZ * sizeXZ);
-}
-// Returns linear index for 3D grid in XYZ order. Sizes **must** be constant otherwise this will generate divisions.
-public uint3 GetPosFromLinearIndex(uint idx, uint sizeXZ, uint sizeY) {
-    uint3 pos;
-    pos.x = idx % sizeXZ;
-    pos.y = (idx / sizeXZ) % sizeXZ;
-    pos.z = (idx / sizeXZ) / sizeXZ;
-    return pos;
 }
 
 public bool CheckBounds(uint3 pos, uint sizeXZ, uint sizeY) {
@@ -108,14 +70,29 @@ public float norm_in_range( float x, float2 range ) {
   return (x - range.x) / (range.y - range.x); 
 }
 
-public void InterlockedSetBit(__ref uint64_t dest, uint index, bool value) {
-    // Workaround for 64-bit atomics which are slightly fucked on slang's spirv target atm
-    uint mask = 1 << (index & 31);
-    uint* ptr = (uint*)&dest + (index / 32u);
 
-    if (value) {
-        InterlockedOr(*ptr, mask);
-    } else {
-        InterlockedAnd(*ptr, ~mask);
+// Octahedral Mapping
+public float2 dir_to_oct(float3 n) {
+    n /= (abs(n.x) + abs(n.y) + abs(n.z));
+
+    float2 uv = n.xy;
+
+    if (n.z < 0.0) {
+        uv = (1.0 - abs(uv.yx)) * sign(uv.xy);
     }
+
+    return uv * 0.5 + 0.5;
 }
+
+public float3 oct_to_dir(float2 uv) {
+    uv = uv * 2.0 - 1.0;
+
+    float3 n = float3(uv.x, uv.y, 1.0 - abs(uv.x) - abs(uv.y));
+
+    if (n.z < 0.0) {
+        n.xy = (1.0 - abs(n.yx)) * sign(n.xy);
+    }
+
+    return normalize(n);
+}
+

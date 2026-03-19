@@ -41,12 +41,16 @@ impl SceneWorker {
         let allocation = self.allocator.alloc(size_of::<SceneObjectData>())?;
        
         let now = Instant::now();
-        
-        let entry_key = if use_gi {
-            let gi = GIExecutor::new(&self.gi.gi_pool, allocation.start() as u32);
-            dag.add_pos_query_volume(&add_object.model, &self.lod, gi)
+       
+        let entry_key = if cfg!(feature = "graph"){
+            dag.add_aabb_query_volume(&add_object.model, &self.lod)
         } else {
-            dag.add_pos_query_volume(&add_object.model, &self.lod, GINone)
+            if use_gi {
+                let gi = GIExecutor::new(&self.gi.gi_pool, allocation.start() as u32);
+                dag.add_pos_query_volume(&add_object.model, &self.lod, gi)
+            } else {
+                dag.add_pos_query_volume(&add_object.model, &self.lod, GINone)
+            }
         };
 
         let elapsed = now.elapsed();
@@ -68,6 +72,7 @@ impl SceneWorker {
         self.dag_store.mark_changed(dag_key);
 
         self.needs_bvh_update = true;
+        self.gi.needs_update = true;
         
         Ok(key)
     }

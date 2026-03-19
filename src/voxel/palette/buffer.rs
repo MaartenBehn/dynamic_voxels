@@ -9,6 +9,7 @@ use super::{palette::LocalPalette, shared::SharedPalette};
 pub struct PaletteBuffer {
     pub buffer: Buffer,
     pub palette: SharedPalette,
+    pub ptr: u64,
 }
 
 impl PaletteBuffer {
@@ -19,6 +20,7 @@ impl PaletteBuffer {
             (size_of::<u64>() * 256 * 2) as _)?;
 
         Ok(PaletteBuffer {
+            ptr: buffer.get_device_address(),
             buffer,
             palette,
         })

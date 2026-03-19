@@ -12,13 +12,14 @@ impl ParallelVoxelDAG64 {
         &mut self, 
         model: &M,
         lod: &LOD,
-        gi: G,
+        mut gi: G,
     ) -> DAG64EntryKey {
         let (offset, levels) = get_dag_offset_levels(model);
         if levels == 0 {
             return self.empty_entry();
         }
 
+        gi.set_level(levels);
         let root = self.add_pos_query_recursive_par(model, lod, gi, offset, levels);
 
         let root_index = self.nodes.push(&[root]);
@@ -77,7 +78,7 @@ impl ParallelVoxelDAG64 {
                     });
 
             let index = self.nodes.push(&children);
-            let gi_index = gi.new_probe_index(offset, level, pop_mask, &children);
+            let gi_index = gi.new_probe_index(index, offset, level, pop_mask, &children);
             VoxelDAG64Node::new(false, index, pop_mask, gi_index)
         }
     }
@@ -113,7 +114,7 @@ impl ParallelVoxelDAG64 {
             }
 
             let index = self.nodes.push(&children);
-            let gi_index = gi_pool.new_probe_index(offset, level, pop_mask, &children);
+            let gi_index = gi_pool.new_probe_index(index, offset, level, pop_mask, &children);
             VoxelDAG64Node::new(false, index, pop_mask, gi_index)
         }
     }

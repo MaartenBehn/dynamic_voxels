@@ -210,6 +210,10 @@ impl BuddyAllocator {
 
         Ok(())
     }
+
+    pub fn size(&self) -> usize {
+        self.size
+    }
 }
 
 fn calc_n(size: usize) -> usize {

@@ -1,7 +1,10 @@
 pub mod render_data;
 pub mod g_buffer;
 pub mod shader_stage;
-pub mod tree64_render;
+pub mod temporal_denoise;
+pub mod gi;
+pub mod base;
+//pub mod tree64_render;
 
 use std::mem;
 use std::time::Duration;
@@ -31,7 +34,9 @@ use super::palette::buffer::PaletteBuffer;
 use super::palette::shared::SharedPalette;
 
 use crate::NUM_FRAMES_IN_FLIGHT;
-
+use crate::voxel::renderer::base::{BaseRenderer, BlitDispatchParams, DebugChannel, SceneDispatchDispatchParams};
+use crate::voxel::renderer::gi::{GIProbeUpdateData, GIRenderer};
+use crate::voxel::renderer::temporal_denoise::{AToursFilterDispatchParams, TemporalDenoiseDispatchParams, TemporalDenoiseRenderer};
 
 const RENDER_DISPATCH_GROUP_SIZE_X: u32 = 8;
 const RENDER_DISPATCH_GROUP_SIZE_Y: u32 = 8;
@@ -39,204 +44,62 @@ const RENDER_DISPATCH_GROUP_SIZE_Y: u32 = 8;
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct VoxelRenderer {
-    heap: ImageDescriptorHeap,
+    pub heap: ImageDescriptorHeap,
     pub palette_buffer: PaletteBuffer,
     
-    g_buffer: GBuffer,
-
-    blue_noise_tex: ImageAndViewAndHandle,
-   
-    trace_ray_stage: ShaderStage,
-    denoise_stage: ShaderStage,
-    filter_stage: ShaderStage,
-    blit_stage: ShaderStage,
-
-    pub debug_channel: DebugChannel,
-    pub max_bounces: usize,
-    debug_depth_range: Vec2,
-    debug_heat_map_range: Vec2,
-    pub temporal_denoise: bool,
-    pub denoise_counters: bool,
-    static_accum_number: u32,
-
-    filter_passes: usize,
-    temp_irradiance_tex: ImageAndViewAndHandle,
-
-    render_into_swapchain: bool,
-}
-
-#[repr(C)]
-#[derive(Debug)]
-pub struct RayManagerData {
-    g_buffer_ptr: u64,
-    palette_ptr: u64,
-    max_bounces: u32,
-    blue_noise_tex: DescriptorHandleValue,
-}
-
-#[repr(C)]
-#[derive(Debug)]
-pub struct TemporalDenoiseDispatchParams {
-    g_buffer_ptr: u64,
-    static_accum_number: u32,
-}
-
-#[repr(C)]
-#[derive(Debug)]
-pub struct AToursFilterDispatchParams {
-    g_buffer_ptr: u64,
-    in_irradiance_tex: DescriptorHandleValue,
-    out_irradiance_tex: DescriptorHandleValue,
-    pass_index: u32,
-}
-
-#[repr(C)]
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
-pub enum DebugChannel {
-    None, 
-    Albedo,
-    Irradiance,
-    Normals,
-    Depth,
-    HeatMap,
-    Variance,
-    All,
-}
-
-#[repr(C)]
-#[derive(SpirvLayout)]
-#[derive(Debug)]
-pub struct ComposeDispatchParams {
-    g_buffer_ptr: u64,
-    debug_depth_range: Vec2,
-    debug_heat_map_range: Vec2,
-    debug_channel: DebugChannel,
+    pub g_buffer: GBuffer,
+    pub base: BaseRenderer,
+    pub gi: GIRenderer,
+    pub temporal_denoise: TemporalDenoiseRenderer,
 }
 
 impl VoxelRenderer {
-    pub fn new<D>(
+    pub fn new(
         context: &Context,
         swapchain: &Swapchain,
         camera: &Camera,
         palette: SharedPalette,
-        trace_ray_bin: &[u8],
         allways_fullscreen: bool,
     ) -> OctaResult<VoxelRenderer> {
 
         let render_into_swapchain = allways_fullscreen && context.swapchain_supports_storage();
 
         let mut heap = context.create_descriptor_heap(40)?;
-
         let palette_buffer = PaletteBuffer::new(context, palette)?;
-
         let g_buffer = GBuffer::new(context, &mut heap, camera, swapchain.size, render_into_swapchain, swapchain)?;
-
-        let img = ImageReader::open("assets/stbn_vec2_2Dx1D_128x128x64_combined.png")?.decode()?;
-        let red_green_pixels = img.pixels()
-                .map(|(_, _, p)| [p.0[0], p.0[1]])
-                .flatten()
-                .collect::<Vec<_>>();
-
-        let blue_noise_tex = context.create_texture_image_from_data(
-            Format::R8G8_UINT, UVec2 { x: img.width(), y: img.height() }, &red_green_pixels)?;
-
-        let blue_noise_handle = heap.create_image_handle(
-            &blue_noise_tex.view, 
-            vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC)?;
-        let blue_noise_tex = ImageAndViewAndHandle { image: blue_noise_tex.image, view: blue_noise_tex.view, handle: blue_noise_handle };   
-
-
-        let temp_irradiance_image = context.create_image(
-            vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC, 
-            MemoryLocation::GpuOnly, 
-            Format::R8G8B8A8_UNORM, 
-            swapchain.size)?;
-
-        let temp_irradiance_view = temp_irradiance_image.create_image_view(false)?;
-
-        let temp_irradiance_handle = heap.create_image_handle(&temp_irradiance_view, vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC)?;
-
-        let temp_irradiance_tex = ImageAndViewAndHandle {
-            image: temp_irradiance_image,
-            view: temp_irradiance_view,
-            handle: temp_irradiance_handle,
-        };
-
-        let sets = &[&heap.layout];
-        let push_constant_size = size_of::<D>()
-            .max(size_of::<TemporalDenoiseDispatchParams>())
-            .max(size_of::<ComposeDispatchParams>()) as u32;
         
-        let trace_ray_stage = ShaderStage::new(
-            context, 
-            trace_ray_bin, 
-            sets, push_constant_size)?;
+        let push_constant_size = size_of::<SceneDispatchDispatchParams>()
+            .max(size_of::<GIProbeUpdateData>())
+            .max(size_of::<TemporalDenoiseDispatchParams>())
+            .max(size_of::<BlitDispatchParams>()) as u32;
 
-        let denoise_stage = ShaderStage::new(
-            context, 
-            include_bytes!("../../../shaders/bin/_temporal_denoise_main.spv"), 
-            sets, push_constant_size)?;
+        let base = BaseRenderer::new(context, &mut heap, push_constant_size, render_into_swapchain)?;
+        let gi = GIRenderer::new(context, &mut heap, push_constant_size)?;
+        let temporal_denoise = TemporalDenoiseRenderer::new(context, swapchain, &mut heap, push_constant_size)?;
 
-        let filter_stage = ShaderStage::new(
-            context, 
-            include_bytes!("../../../shaders/bin/_a_tours_filter_main.spv"), 
-            sets, push_constant_size)?;
-
-        let blit_stage = ShaderStage::new(
-            context, 
-            include_bytes!("../../../shaders/bin/_blit_main.spv"), 
-            sets, push_constant_size)?;
-         
         Ok(VoxelRenderer {
             heap,
             palette_buffer,
-
             g_buffer,
-
-            blue_noise_tex,
-
-            trace_ray_stage,
-            denoise_stage,
-            filter_stage,
-            blit_stage,
-
-            debug_channel: DebugChannel::None,
-            max_bounces: 1,
-            temporal_denoise: true,
-            denoise_counters: true,
-            filter_passes: 2,
-            temp_irradiance_tex,
-            static_accum_number: 10,
-
-            debug_depth_range: vec2(0.5, 1.1),
-            debug_heat_map_range: vec2(0.0, 100.0),
-
-            render_into_swapchain,
+            base,
+            gi,
+            temporal_denoise,
         })
     }
-
-    pub fn get_ray_manager_data(&self) -> RayManagerData {
-        RayManagerData {
-            g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
-            palette_ptr: self.palette_buffer.buffer.get_device_address(),
-            max_bounces: self.max_bounces as _,
-            blue_noise_tex: self.blue_noise_tex.handle.value,
-        }
-    }
-
-    pub fn update(&mut self, camera: &Camera, context: &Context, size: UVec2, in_flight_frame_index: usize, frame_index: usize) -> OctaResult<()> {
-        self.g_buffer.update(camera, context, size, in_flight_frame_index, frame_index, self.denoise_counters)?;
+    
+    pub fn update(&mut self, camera: &Camera, context: &Context, size: UVec2, in_flight_frame_index: usize, frame_index: usize) 
+        -> OctaResult<()> {
+        self.g_buffer.update(camera, context, size, in_flight_frame_index, frame_index, self.temporal_denoise.denoise_counters)?;
         self.palette_buffer.update(context)?;
 
         Ok(())
     }
 
-    pub fn render<D>(
+    pub fn render(
         &mut self,
         offset: UVec2,
         buffer: &CommandBuffer,
         engine: &Engine,
-        trace_ray_dispact_params: D
     ) -> OctaResult<()> {
         let dispatch_size = uvec3(
             (engine.get_resolution().x / RENDER_DISPATCH_GROUP_SIZE_X) + 1,
@@ -245,47 +108,66 @@ impl VoxelRenderer {
 
         buffer.bind_descriptor_sets(
             vk::PipelineBindPoint::COMPUTE,
-            &self.trace_ray_stage.pipeline_layout,
+            &self.base.trace_scene_stage.pipeline_layout,
             0,
             &[&self.heap.set],
         );
 
-        self.trace_ray_stage.render(buffer, trace_ray_dispact_params, dispatch_size);
+        self.base.trace_scene_stage.render(buffer, SceneDispatchDispatchParams {
+            g_buffer_ptr: self.g_buffer.ptr,
+            palette_ptr: self.palette_buffer.ptr,
+            max_bounces: self.base.max_bounces,
+            blue_noise_tex: self.base.blue_noise_tex.handle.value,
+            start_ptr: self.base.start_ptr,
+            bvh_offset: self.base.bvh_offset,
+            bvh_len: self.base.bvh_len,
+            debug: false,
+        }, dispatch_size);
 
-        if self.temporal_denoise && self.debug_channel != DebugChannel::HeatMap {
-            self.denoise_stage.render(buffer, TemporalDenoiseDispatchParams {
-                g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
-                static_accum_number: self.static_accum_number,
+        if self.gi.active && self.gi.num_active_probes > 0 {
+            self.gi.gi_probe_update_stage.render(buffer, GIProbeUpdateData {
+                radiance_atlas: self.gi.radiance_atlas.handle.value,
+                depth_atlas: self.gi.depth_atlas.handle.value,
+                palette: self.palette_buffer.ptr,
+                start_ptr: self.base.start_ptr,
+                probes_offset: self.gi.probes_offset,
+            }, uvec3(self.gi.num_active_probes, 1, 1));
+        }
+
+        if self.temporal_denoise.temporal_denoise && self.base.debug_channel != DebugChannel::HeatMap {
+            self.temporal_denoise.denoise_stage.render(buffer, TemporalDenoiseDispatchParams {
+                g_buffer_ptr: self.g_buffer.ptr,
+                static_accum_number: self.temporal_denoise.static_accum_number,
             } ,dispatch_size);
 
-            for i in 0..self.filter_passes {
+            for i in 0..self.temporal_denoise.filter_passes {
 
                 let input_tex = if i % 2 == 0 {
                     self.g_buffer.irradiance_tex[engine.get_current_in_flight_frame_index()].handle.value
                 } else {
-                    self.temp_irradiance_tex.handle.value 
+                    self.temporal_denoise.temp_irradiance_tex.handle.value 
                 };
 
                 let output_tex = if i % 2 == 0 {
-                    self.temp_irradiance_tex.handle.value 
+                    self.temporal_denoise.temp_irradiance_tex.handle.value 
                 } else {
                     self.g_buffer.irradiance_tex[engine.get_current_in_flight_frame_index()].handle.value
                 };
 
-                self.filter_stage.render(buffer, AToursFilterDispatchParams {
-                    g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
+                self.temporal_denoise.filter_stage.render(buffer, AToursFilterDispatchParams {
+                    g_buffer_ptr: self.g_buffer.ptr,
                     in_irradiance_tex: input_tex,
                     out_irradiance_tex: output_tex,
                     pass_index: i as _,
-                } ,dispatch_size);
+                }, dispatch_size);
             }
         }
  
-        self.blit_stage.render(buffer, ComposeDispatchParams {
-            g_buffer_ptr: self.g_buffer.uniform_buffer.get_device_address(),
-            debug_channel: self.debug_channel,
-            debug_depth_range: self.debug_depth_range,
-            debug_heat_map_range: self.debug_heat_map_range,
+        self.base.blit_stage.render(buffer, BlitDispatchParams {
+            g_buffer_ptr: self.g_buffer.ptr,
+            debug_channel: self.base.debug_channel,
+            debug_depth_range: self.base.debug_depth_range,
+            debug_heat_map_range: self.base.debug_heat_map_range,
         }, dispatch_size);
 
         match &self.g_buffer.output_tex {
@@ -314,76 +196,20 @@ impl VoxelRenderer {
                 ui.label(format!("Pos: ({:.02}, {:.02}, {:.02})", pos.x, pos.y, pos.z)); 
                 
                 let dir = camera.direction; 
-                ui.label(format!("Dir: ({:.02}, {:.02}, {:.02})", dir.x, dir.y, dir.z)); 
-                ui.separator();
-                ui.strong("Path trace");
-
-                ui.add(egui::Slider::new(&mut self.max_bounces, 0..=10)
-                    .text("Max Bounces")
-                );
+                ui.label(format!("Dir: ({:.02}, {:.02}, {:.02})", dir.x, dir.y, dir.z));
                 
-                div(ui, |ui| {
-                    ui.checkbox(&mut self.temporal_denoise, "Temporal Denoise");
-                    ui.checkbox(&mut self.denoise_counters, "Jitter");
-                });
-
                 ui.label(format!("Frame: {}", self.g_buffer.frame_no -1));
                 ui.label(format!("Steady : {}", self.g_buffer.num_steady_frames -1));
-                
-                ui.add(egui::Slider::new(&mut self.static_accum_number, 10..=255)
-                    .text("Static Accum Number")
-                );
-                
+
                 ui.separator();
-                ui.strong("A-tours filter");
-
-                ui.add(egui::Slider::new(&mut self.filter_passes, 0..=10)
-                    .text("Passes")
-                );
-                if self.filter_passes % 2 == 1 {
-                    self.filter_passes += 1;
-                }
-
+                ui.strong("Path Tracer");
+                self.base.settings_ui(ui);
+                self.gi.settings_ui(ui);
+                self.temporal_denoise.settings_ui(ui);   
+                
                 ui.separator();
                 ui.strong("Debug");
-                egui::ComboBox::from_label("Channel")
-                    .selected_text(format!("{:?}", self.debug_channel))
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut self.debug_channel, DebugChannel::None, "None");
-                        ui.selectable_value(&mut self.debug_channel, DebugChannel::Albedo, "Albedo");
-                        ui.selectable_value(&mut self.debug_channel, DebugChannel::Irradiance, "Irradiance");
-                        ui.selectable_value(&mut self.debug_channel, DebugChannel::Depth, "Depth");
-                        ui.selectable_value(&mut self.debug_channel, DebugChannel::Normals, "Normals");
-                        ui.selectable_value(&mut self.debug_channel, DebugChannel::HeatMap, "HeatMap");
-                        ui.selectable_value(&mut self.debug_channel, DebugChannel::Variance, "Variance");
-                        ui.selectable_value(&mut self.debug_channel, DebugChannel::All, "All");
-                    }
-                    );
-
-                if matches!(self.debug_channel, DebugChannel::Depth) || matches!(self.debug_channel, DebugChannel::All) {  
-                    ui.label(format!("Depth Range: {:.02} - {:.02}", self.debug_depth_range.x, self.debug_depth_range.y));
-                    ui.add(DoubleSlider::new(
-                        &mut self.debug_depth_range.x,
-                        &mut self.debug_depth_range.y,
-                        0.0..=10.0,
-                    )
-                        .width(300.0)
-                        .separation_distance(0.1)
-                    );
-                }
-
-                if matches!(self.debug_channel, DebugChannel::HeatMap) || matches!(self.debug_channel, DebugChannel::All) {  
-                    ui.label(format!("Heat Map Range: {:.02} - {:.02}", self.debug_heat_map_range.x, self.debug_heat_map_range.y));
-                    ui.add(DoubleSlider::new(
-                        &mut self.debug_heat_map_range.x,
-                        &mut self.debug_heat_map_range.y,
-                        0.0..=255.0,
-                    )
-                        .width(300.0)
-                        .separation_distance(0.0)
-                    );
-                }
-
+                self.base.debug_settings_ui(ui); 
             });
     }
 
@@ -393,30 +219,11 @@ impl VoxelRenderer {
         size: UVec2,
         swapchain: &Swapchain,
     ) -> OctaResult<()> {
-        self.g_buffer.on_size_changed(context, &mut self.heap, size, self.render_into_swapchain, swapchain)?;
-
-        let temp_irradiance_image = context.create_image(
-            vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC, 
-            MemoryLocation::GpuOnly, 
-            Format::R8G8B8A8_UNORM, 
-            size)?;
-
-        let temp_irradiance_view = temp_irradiance_image.create_image_view(false)?;
-
-        let temp_irradiance_handle = self.heap.create_image_handle(&temp_irradiance_view, vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC)?;
-
-        self.temp_irradiance_tex = ImageAndViewAndHandle {
-            image: temp_irradiance_image,
-            view: temp_irradiance_view,
-            handle: temp_irradiance_handle,
-        };
-
+        self.g_buffer.on_size_changed(context, &mut self.heap, size, self.base.render_into_swapchain, swapchain)?;
+        self.temporal_denoise.on_size_changed(context, &mut self.heap, size)?;
+        
         Ok(())
     }
 }
 
-fn div(ui: &mut egui::Ui, add_contents: impl FnOnce(&mut egui::Ui)) {
-    Frame::NONE.show(ui, |ui| {
-        ui.with_layout(Layout::left_to_right(Align::TOP), add_contents);
-    });
-}
+

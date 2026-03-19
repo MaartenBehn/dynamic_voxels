@@ -46,7 +46,6 @@ impl SceneWorker {
         }
 
         builder.push(&self.bvh.nodes, self.bvh_allocation.start());
-        builder.update_bvh(self.bvh_allocation.start() as u32, self.bvh_len as u32);
 
         self.needs_bvh_update = false;
         Ok(())

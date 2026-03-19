@@ -82,8 +82,8 @@ impl SceneWorker {
         let mut dag_store = SceneDAGStore::new();
 
         let mut dag = ParallelVoxelDAG64::new(
-            20000000, 
-            4000000, 
+            2000000, 
+            40000, 
         );
         dag_store.add_dag(dag, &mut allocator).expect("Failed to add DAG to Store");
 
@@ -219,10 +219,6 @@ impl SceneWorker {
     }
 
     async fn update(&mut self, render_s: &Sender<SceneStaging>) -> OctaResult<()> {
-        if !self.needs_bvh_update && !self.dag_store.needs_update {
-            return Ok(());
-        }
-
         let mut builder = self.new_staging_builder();
 
         self.dag_store.update(&mut builder); 
@@ -233,10 +229,16 @@ impl SceneWorker {
 
         self.update_bvh(&mut builder)?;
 
+        self.gi.update(&mut builder);
+
         #[cfg(debug_assertions)]
         debug!("Scene Worker: Sending Staging Buffer");
 
-        render_s.send(builder.build()).await?;
+        if builder.is_empty() {
+            self.discard_builder(builder);
+        } else {
+            render_s.send(self.build_builder(builder)).await?;
+        }
 
         Ok(())
     }

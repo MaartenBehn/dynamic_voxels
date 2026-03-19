@@ -8,7 +8,6 @@ pub const GI_PROBE_INDEX_NONE: u32 = u32::MAX;
 pub const GI_PROBE_MIN_LEVEL: u8 = 2;
 
 
-
 #[derive(Debug)]
 pub struct GIPool {
     pub pools: Vec<sharded_slab::Slab<GIProbe>>,
@@ -17,18 +16,21 @@ pub struct GIPool {
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct GIProbe {
-    pub position: IVec3,
-    pub object_index: u32,
+    pub position: Vec3,
+    pub start_index: u32,
+    pub object_offset: u32,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct GIExecutor<'a> {
     pool: &'a GIPool,
-    object_index: u32,
+    object_offset: u32,
+    size: f32,
 }
 
 pub trait GI: Send + Sync + Copy {
-    fn new_probe_index(&self, offset: IVec3, level: u8, pop_mask: u64, children: &[VoxelDAG64Node]) -> u32; 
+    fn set_level(&mut self, level: u8);
+    fn new_probe_index(&self, index: u32, offset: IVec3, level: u8, pop_mask: u64, children: &[VoxelDAG64Node]) -> u32; 
 }
 
 impl GIPool {
@@ -36,7 +38,7 @@ impl GIPool {
         
         let mut pools = vec![];
 
-        for level in (0..levels).rev() {
+        for level in ((GI_PROBE_MIN_LEVEL as usize)..levels).rev() {
             pools.push(sharded_slab::Slab::new());
         }
 
@@ -45,15 +47,15 @@ impl GIPool {
             search_order: search_order(),
         }
     }
-
     
     pub fn get_memory_size(&self) -> usize {
         32
     }
 }
 
+
 impl<'a> GI for GIExecutor<'a> {
-    fn new_probe_index(&self, offset: IVec3, level: u8, pop_mask: u64, children: &[VoxelDAG64Node]) -> u32 {
+    fn new_probe_index(&self, index: u32, offset: IVec3, level: u8, pop_mask: u64, children: &[VoxelDAG64Node]) -> u32 {
         if pop_mask == 0 || level < GI_PROBE_MIN_LEVEL {
             return GI_PROBE_INDEX_NONE;
         }
@@ -63,19 +65,28 @@ impl<'a> GI for GIExecutor<'a> {
             return GI_PROBE_INDEX_NONE;
         }
 
-        let gi_level = &self.pool.pools[level as usize];
+        let pos_dag_space = 1.0 + (pos.unwrap().as_vec3() / self.size);
+
+        let gi_level = &self.pool.pools[(level - GI_PROBE_MIN_LEVEL) as usize];
+
         gi_level.insert(GIProbe {
-            position: pos.unwrap(),
-            object_index: self.object_index
+            position: pos_dag_space,
+            start_index: index,
+            object_offset: self.object_offset,
         }).expect(&format!("Probe pool full at level: {level}")) as u32
+    }
+
+    fn set_level(&mut self, level: u8) {
+        self.size = get_voxel_size(level) as f32;
     }
 }
 
 impl<'a> GIExecutor<'a> {
-    pub fn new(pool: &'a GIPool, object_index: u32) -> Self {
+    pub fn new(pool: &'a GIPool, object_offset: u32) -> Self {
         Self {
             pool,
-            object_index,
+            object_offset,
+            size: 0.0,
         }
     }
 
@@ -111,8 +122,6 @@ impl<'a> GIExecutor<'a> {
         None
     }
 }
-
-
 
 
 fn search_order() -> [(usize, IVec3); 64] {

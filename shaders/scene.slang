@@ -15,17 +15,23 @@ public struct SceneObject {
 }
 
 public struct DAG64SceneObject {
-  float4x4 mat;
-  float4x4 inv_mat;
-  uint64_t node_alloc;
-  uint64_t data_alloc;
-  uint root_index;
+  public float4x4 mat;
+  public float4x4 inv_mat;
+  public uint64_t node_alloc;
+  public uint64_t data_alloc;
+  public uint root_index;
 }
 
 public struct Scene {
   uint8_t* start_ptr;
   uint bvh_offset;
   uint bvh_len;
+
+  public __init( uint8_t* start_ptr, uint bvh_offset, uint bvh_len) {
+    this.start_ptr = start_ptr;
+    this.bvh_offset = bvh_offset;
+    this.bvh_len = bvh_len;
+  } 
 
   public HitInfo ray_cast(float3 ray_pos, float3 ray_dir, uint bounce_no) {
     SceneObject* bvh = (SceneObject*)(start_ptr + bvh_offset);
@@ -43,7 +49,6 @@ public struct Scene {
       }
 
       if (node.leaf) {
-
         DAG64SceneObject* tree_object = (DAG64SceneObject*)(start_ptr + node.object_start);
         Tree64 tree = Tree64((Node*)(start_ptr + tree_object.node_alloc), start_ptr + tree_object.data_alloc, tree_object.root_index);
 

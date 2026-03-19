@@ -3,9 +3,11 @@ use octa_force::vulkan::{Buffer, Context, ash::vk};
 use crate::scene::worker::SceneWorker;
 
 pub struct SceneStagingBuilder {
-    staging: SceneStaging,
+    buffer: Buffer,
+    regions: Vec<vk::BufferCopy>,
     offset: usize,
     optimal_alignment: OptimalBufferCopyAlligment,
+    force_send: bool,
 }
 
 #[derive(Debug)]
@@ -14,6 +16,8 @@ pub struct SceneStaging {
     pub regions: Vec<vk::BufferCopy>,
     pub bvh_offset: u32,
     pub bvh_len: u32,
+    pub probes_offset: u32,
+    pub num_active_probes: u32,
 }
 
 #[derive(Clone, Copy)]
@@ -24,25 +28,36 @@ impl SceneWorker {
 
         if let Some(buffer) = self.staging_buffers.pop() {
             SceneStagingBuilder {
-                staging: SceneStaging {
-                    buffer,
-                    regions: vec![],
-                    bvh_offset: self.bvh_allocation.start() as u32,
-                    bvh_len: self.bvh_len as u32,
-                },
+                buffer,
+                regions: vec![],
                 offset: 0,
                 optimal_alignment: self.optimal_alignment,
+                force_send: false,
             }
         } else {
             todo!("Alloc new staging buffer")
         }
     }
+
+    pub fn discard_builder(&mut self, builder: SceneStagingBuilder) {
+        self.staging_buffers.push(builder.buffer);
+    }
+
+    pub fn build_builder(&mut self, builder: SceneStagingBuilder) -> SceneStaging {
+        SceneStaging { 
+            buffer: builder.buffer, 
+            regions: builder.regions, 
+            bvh_offset: self.bvh_allocation.start() as u32, 
+            bvh_len: self.bvh_len as u32, 
+            probes_offset: self.gi.active.alloc.start() as u32, 
+            num_active_probes: self.gi.active.active_size,
+        }
+    }
 }
 
 impl SceneStagingBuilder {
-    pub fn update_bvh(&mut self, bvh_offset: u32, bvh_len: u32) {
-        self.staging.bvh_offset = bvh_offset;
-        self.staging.bvh_len = bvh_len;
+    pub fn mark_send(&mut self) {
+        self.force_send = true;
     }
 
     pub fn push<T: Copy>(&mut self, data: &[T], gpu_offset: usize) {
@@ -57,8 +72,8 @@ impl SceneStagingBuilder {
             data_size + (self.optimal_alignment.0 - (data_size % self.optimal_alignment.0))
         };
 
-        self.staging.buffer.copy_data_to_buffer_without_aligment(data, self.offset);
-        self.staging.regions.push(vk::BufferCopy { 
+        self.buffer.copy_data_to_buffer_without_aligment(data, self.offset);
+        self.regions.push(vk::BufferCopy { 
             size: size as u64,
             src_offset: self.offset as u64,
             dst_offset: gpu_offset as u64, 
@@ -66,8 +81,8 @@ impl SceneStagingBuilder {
         self.offset += size;
     }
 
-    pub fn build(self) -> SceneStaging {
-        self.staging
+    pub fn is_empty(&self) -> bool {
+        self.regions.is_empty() && !self.force_send
     }
 }
 

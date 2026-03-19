@@ -31,12 +31,6 @@ use std::time::{Duration, Instant};
 use crate::editor::Editor;
 #[cfg(any(feature="graph"))]
 use crate::mesh::scene::MeshScene;
-#[cfg(any(feature="voxel"))]
-use crate::voxel::dag64::parallel::ParallelVoxelDAG64;
-#[cfg(any(feature="voxel"))]
-use crate::voxel::renderer::VoxelRenderer;
-#[cfg(any(feature="voxel"))]
-use crate::voxel::renderer::tree64_render::Tree64Renderer;
 #[cfg(any(feature="graph"))]
 use crate::voxel::renderer::tree64_render::Tree64Renderer;
 
@@ -77,17 +71,7 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
         camera.speed = 10.0;
         camera.z_near = 0.001;
     }
-
-    #[cfg(feature="voxel")]
-    {
-        camera.set_meter_per_unit(METERS_PER_SHADER_UNIT as f32);
-        camera.set_position_in_meters(Vec3::new(228.99355, 269.8007, 114.694595)); 
-        camera.direction = Vec3::new(-0.6110025, -0.7362994, -0.29075617).normalize();
-        
-        camera.speed = 500.0;
-        camera.z_near = 0.001;
-    }
-
+    
     #[cfg(feature="graph")]
     {
         camera.set_meter_per_unit(METERS_PER_SHADER_UNIT as f32);
@@ -112,10 +96,7 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
 pub struct RenderState {   
     #[cfg(any(feature="game"))]
     pub editor: Editor,
-
-    #[cfg(any(feature="voxel"))]
-    pub tree_renderer: Tree64Renderer,
-    
+        
     #[cfg(any(feature="graph", feature="game"))]
     pub scene: SceneRenderer,
     
@@ -152,16 +133,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
             editor,
         })
     }
-       
-    #[cfg(feature="voxel")]
-    {
-        let tree_renderer = Tree64Renderer::new(engine, &logic_state.camera)?;
-         
-        Ok(RenderState {
-            tree_renderer,
-        })
-    }
-
+    
     #[cfg(feature="graph")]
     {
         use crate::mesh::scene::MeshScene;
@@ -190,7 +162,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         })
     }
 
-    #[cfg(not(any(feature="voxel", feature="graph", feature="game")))]
+    #[cfg(not(any(feature="graph", feature="game")))]
     {
         Ok(RenderState { })
     }
@@ -216,12 +188,6 @@ pub fn update(
         render_state.scene.update(engine, &logic_state.camera, engine.get_resolution())?;
     }
 
-    #[cfg(any(feature="voxel"))]
-    {
-        render_state.tree_renderer.update(engine, &logic_state.camera)?;
-    }
-    
-    
     #[cfg(feature="graph")]
     {
         render_state.composer.update(time, &logic_state.camera)?;
@@ -270,13 +236,6 @@ pub fn record_render_commands(
         command_buffer.swapchain_image_render_barrier(&engine.get_current_swapchain_image_and_view().image)?;
     }
 
-    #[cfg(any(feature="voxel"))]
-    {
-        render_state.tree_renderer.render(command_buffer, engine, &logic_state.camera)?;
-
-        command_buffer.swapchain_image_render_barrier(&engine.get_current_swapchain_image_and_view().image)?;
-    }
-
     #[cfg(any(feature="graph"))]
     {
         render_state.scene.render(UVec2::ZERO, command_buffer, &engine, &logic_state.camera)?;
@@ -306,14 +265,9 @@ pub fn record_ui_commands(
         render_state.scene.render_ui(ctx, &logic_state.camera);
     }
 
-    #[cfg(any(feature="voxel"))]
-    {
-        render_state.tree_renderer.render_ui(ctx, &logic_state.camera);
-    }
-    
     #[cfg(any(feature="graph"))]
     {
-        render_state.scene.render_ui(ctx);
+        render_state.scene.render_ui(ctx, &logic_state.camera);
 
         render_state.composer.render(ctx);
     }
@@ -342,9 +296,6 @@ pub fn on_recreate_swapchain(
 
     #[cfg(any(feature="game"))]
     render_state.scene.on_size_changed(engine.get_resolution(), &engine.context, &engine.swapchain)?;
-
-    #[cfg(any(feature="voxel"))]
-    render_state.tree_renderer.on_size_changed(engine)?;
 
     Ok(())
 }

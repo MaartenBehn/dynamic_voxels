@@ -30,6 +30,7 @@ pub struct GBuffer {
     pub prev_proj_mat: Mat4,
 
     pub uniform_buffer: Buffer,
+    pub ptr: u64,
     
     pub frame_no: u32,
     pub num_steady_frames: u32,
@@ -92,7 +93,9 @@ impl GBuffer {
 
             prev_proj_mat: proj_mat,
 
+            ptr: uniform_buffer.get_device_address(),
             uniform_buffer,
+
             frame_no: 0,
             num_steady_frames: 0,
         };
@@ -119,7 +122,7 @@ impl GBuffer {
         //debug!("Supported Image Formats: {:?}", context.physical_device.supported_image_formats);
         //debug!("Supported Depth Formats: {:?}", context.physical_device.supported_depth_formats);
          
-        let base_flags = vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC;
+    let base_flags = vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC;
 
         let mut create_image = |format: vk::Format, usage: vk::ImageUsageFlags|
             -> OctaResult<ImageAndViewAndHandle> { 
@@ -219,7 +222,6 @@ impl GBuffer {
                     dst_stage_mask: vk::PipelineStageFlags2::ALL_COMMANDS,
                 }
             ).collect::<Vec<_>>();
-
 
         context.execute_one_time_commands(|cmd_buffer| {
             cmd_buffer.pipeline_image_barriers(&barriers);

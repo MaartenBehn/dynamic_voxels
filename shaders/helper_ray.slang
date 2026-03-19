@@ -1,10 +1,6 @@
 import g_buffer;
 import helper_math;
 
-public interface IRayCastable {
-  public HitInfo RayCast(int3 worldOrigin, float3 origin, float3 dir, bool coarse);
-}
-
 public struct HitInfo {
   public float t;
   public float3 Pos;
@@ -50,8 +46,6 @@ public bool ray_clip_intersect(float3 origin, float3 inv_dir, float3 min_pos, fl
   return t_max > 0 && t_max > t_min;
 }
 
-
-public static const int kDefaultOpaqueMaterialId = 254;
 
 public struct Material {
     public uint2 Data;

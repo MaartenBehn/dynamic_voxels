@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 use octa_force::{glam::UVec3, vulkan::{ash::vk::{PushConstantRange, ShaderStageFlags}, CommandBuffer, ComputePipeline, ComputePipelineCreateInfo, Context, DescriptorSetLayout, PipelineLayout}, OctaResult};
 
 
-
 #[derive(Debug)]
 pub struct ShaderStage {
     pub push_constant_range: PushConstantRange,
