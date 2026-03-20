@@ -21,27 +21,45 @@ public struct DispatchParams {
 [shader("compute")]
 [numthreads(8, 8)]
 void main(uint2 pos: SV_DispatchThreadID) {
-  //if (pc.max_bounces > 0) {
-    path_trace_scene(pos);
-    return;
+  //if (pos.x == 500 && pos.y == 500) {
+  //  DEBUG_PRINT = true;
   //}
+  
+  path_trace_scene(pos); return;
 
-  //Scene scene = Scene(pc.start_ptr, pc.bvh_offset, pc.bvh_len);
+  Scene scene = Scene(pc.start_ptr, pc.bvh_offset, pc.bvh_len);
+
+  float3 ray_pos, ray_dir;
+  GetPrimaryRay(pos, ray_pos, ray_dir, pc.g_buffer);
+  ObjectHitInfo hit = scene.ray_cast(ray_pos, ray_dir);
+
+  if (hit.miss) {
+    pc.g_buffer.AlbedoTex.Instance[pos] = float4(1.0);
+    pc.g_buffer.IrradianceTex.Instance[pos] = float4(GetSkyColor(ray_dir, true), 0);
+    pc.g_buffer.DepthTex.Instance[pos] = -1.0;
+    pc.g_buffer.iter_tex.Instance[pos] = ITERS;
+    return;
+  }
+
+  float3 gloabl_pos = hit.global_pos();
+  float4 projPos = mul(pc.g_buffer.ProjMat, float4(gloabl_pos, 1.0));
+  float depth = projPos.z / projPos.w;
+  pc.g_buffer.DepthTex.Instance[pos] = depth;
+
+  let material = pc.palette[hit.material_id];
+  float3 albedo = material.Color;
+  float emission = material.Emission;
+  pc.g_buffer.AlbedoTex.Instance[pos] = PackAlbedo(albedo, hit.normal, emission > 0.5);
+  
 
 
 }
 
 void path_trace_scene(uint2 pos) {
-  if (pos.x == 500 && pos.y == 500) {
-    DEBUG_PRINT = true;
-  }
-
   Scene scene = Scene(pc.start_ptr, pc.bvh_offset, pc.bvh_len);
 
   float3 ray_pos, ray_dir;
- 
   GetPrimaryRay(pos, ray_pos, ray_dir, pc.g_buffer);
-
   ObjectHitInfo hit = scene.ray_cast(ray_pos, ray_dir);
     
   if (hit.miss) {
