@@ -6,23 +6,18 @@ import debug;
 import perf_counters;
 
 public struct Node {
-  uint PackedData[4];
+  uint packed_data[4];
 
-  property bool IsLeaf { get { return (PackedData[0] & 1) != 0; } }
-  property uint ChildPtr { get { return PackedData[0] >> 1; } }
-  property uint64_t PopMask { get { return PackedData[2] | uint64_t(PackedData[3]) << 32; } }
+  public property bool IsLeaf { get { return (packed_data[0] & 1) != 0; } }
+  public property uint ChildPtr { get { return packed_data[0] >> 1; } }
+  public property uint gi_probe_index { get { return packed_data[1]; } }
+  public property uint64_t pop_mask { get { return packed_data[2] | uint64_t(packed_data[3]) << 32; } }
 }
 
 public struct Tree64 {
   Node* nodes;
   uint8_t* leaf_data;
   uint start_index;
-
-  public __init(Node* nodes, uint8_t* leaf_data, uint start_index) {
-    this.nodes = nodes;
-    this.leaf_data = leaf_data;
-    this.start_index = start_index;
-  }
 
   public HitInfo RayCast(float3 rayPos, float3 rayDir, bool coarse) {
     HitInfo hit = Traversal(rayPos, rayDir, coarse);
@@ -89,20 +84,20 @@ public struct Tree64 {
       int childIdx = GetNodeCellIndex(pos, scaleExp);
 
       // Descend
-      while ((node.PopMask >> childIdx & 1) != 0 && !node.IsLeaf && scaleExp >= 2) {
+      while ((node.pop_mask >> childIdx & 1) != 0 && !node.IsLeaf && scaleExp >= 2) {
         stack[scaleExp >> 1] = nodeIdx;
-        nodeIdx = node.ChildPtr + popcnt_var64(node.PopMask, childIdx);
+        nodeIdx = node.ChildPtr + popcnt_var64(node.pop_mask, childIdx);
         node = nodes[nodeIdx];
         scaleExp -= 2;
         childIdx = GetNodeCellIndex(pos, scaleExp);
       }
 
       // Hit Leaf?
-      if ((node.PopMask >> childIdx & 1) != 0 && node.IsLeaf) {
+      if ((node.pop_mask >> childIdx & 1) != 0 && node.IsLeaf) {
         add_iter_count(i);
 
         HitInfo hit;
-        hit.MaterialId = leaf_data[node.ChildPtr + popcnt_var64(node.PopMask, childIdx)];
+        hit.MaterialId = leaf_data[node.ChildPtr + popcnt_var64(node.pop_mask, childIdx)];
         hit.Pos = pos;
 
         hit.t = t_max;
@@ -114,7 +109,7 @@ public struct Tree64 {
       int advScaleExp = scaleExp;
 
       // Skip nodes with only one child
-      if ((node.PopMask >> (childIdx & 0b101010) & 0x00330033) == 0) advScaleExp++;
+      if ((node.pop_mask >> (childIdx & 0b101010) & 0x00330033) == 0) advScaleExp++;
 
       // Compute next pos by intersecting with max cube edges
       pos = FloorScale(pos, advScaleExp);
@@ -220,9 +215,9 @@ public struct Tree64 {
       childIdx = GetNodeCellIndex(pos, scaleExp) ^ mirrorMask;
 
       // Descend
-      while ((node.PopMask >> childIdx & 1) != 0 && !node.IsLeaf) {
+      while ((node.pop_mask >> childIdx & 1) != 0 && !node.IsLeaf) {
         stack[scaleExp >> 1] = nodeIdx;
-        nodeIdx = node.ChildPtr + popcnt_var64(node.PopMask, childIdx);
+        nodeIdx = node.ChildPtr + popcnt_var64(node.pop_mask, childIdx);
         node = nodes[nodeIdx];
 
         scaleExp -= 2;
@@ -230,11 +225,11 @@ public struct Tree64 {
       }
 
       // Hit Leaf?
-      if ((node.PopMask >> childIdx & 1) != 0 && node.IsLeaf) {
+      if ((node.pop_mask >> childIdx & 1) != 0 && node.IsLeaf) {
         add_iter_count(i);
 
         HitInfo hit;
-        hit.MaterialId = leaf_data[node.ChildPtr + popcnt_var64(node.PopMask, childIdx)];
+        hit.MaterialId = leaf_data[node.ChildPtr + popcnt_var64(node.pop_mask, childIdx)];
         hit.Pos = GetMirroredPos(pos, dir, false);
         hit.t = t_max;
         bool3 sideMask = t_max >= side_dist;
@@ -245,7 +240,7 @@ public struct Tree64 {
       int advScaleExp = scaleExp;
 
       // Skip nodes with only one child
-      if ((node.PopMask >> (childIdx & 0b101010) & 0x00330033) == 0) advScaleExp++;
+      if ((node.pop_mask >> (childIdx & 0b101010) & 0x00330033) == 0) advScaleExp++;
 
       // Compute next pos by intersecting with max cube edges
       float3 edgePos = FloorScale(pos, advScaleExp);
@@ -285,14 +280,15 @@ public struct Tree64 {
     return select(dir > 0, mirrored, pos);
   }
 
-  static int GetNodeCellIndex(float3 pos, int scale_exp) {
-    uint3 cellPos = asuint(pos) >> scale_exp & 3;
-    return cellPos.x * 16 + cellPos.y * 4 + cellPos.z;
-  }
-  // floor(pos / scale) * scale
+    // floor(pos / scale) * scale
   static float3 FloorScale(float3 pos, int scale_exp) {
     uint mask = ~0u << scale_exp;
     return asfloat(asuint(pos) & mask);
   }
-
 }
+
+public static uint GetNodeCellIndex(float3 pos, uint scale_exp) {
+  uint3 cellPos = asuint(pos) >> scale_exp & 3;
+  return cellPos.x * 16 + cellPos.y * 4 + cellPos.z;
+}
+

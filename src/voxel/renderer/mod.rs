@@ -116,11 +116,12 @@ impl VoxelRenderer {
         self.base.trace_scene_stage.render(buffer, SceneDispatchDispatchParams {
             g_buffer_ptr: self.g_buffer.ptr,
             palette_ptr: self.palette_buffer.ptr,
-            max_bounces: self.base.max_bounces,
             blue_noise_tex: self.base.blue_noise_tex.handle.value,
             start_ptr: self.base.start_ptr,
             bvh_offset: self.base.bvh_offset,
             bvh_len: self.base.bvh_len,
+            active_probe_map_offset: self.gi.active_probe_map_offset,
+            max_bounces: self.base.max_bounces,
         }, dispatch_size);
 
         if self.gi.active && self.gi.num_active_probes > 0 {
@@ -129,7 +130,7 @@ impl VoxelRenderer {
                 depth_atlas: self.gi.depth_atlas.handle.value,
                 palette: self.palette_buffer.ptr,
                 start_ptr: self.base.start_ptr,
-                probes_offset: self.gi.probes_offset,
+                active_probe_data_offset: self.gi.active_probe_data_offset,
             }, uvec3(self.gi.num_active_probes, 1, 1)); //uvec3(self.gi.num_active_probes, 1, 1));
         }
 

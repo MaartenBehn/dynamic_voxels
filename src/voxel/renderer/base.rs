@@ -32,6 +32,7 @@ pub struct SceneDispatchDispatchParams {
     pub start_ptr: u64,
     pub bvh_offset: u32,
     pub bvh_len: u32,
+    pub active_probe_map_offset: u32,
     pub max_bounces: u32,
 }
 

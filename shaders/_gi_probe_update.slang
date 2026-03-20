@@ -5,16 +5,7 @@ import helper_math;
 import helper_ray;
 import scene;
 import tree64;
-
-public struct Probe {
-  float position_x;
-  float position_y;
-  float position_z;
-  uint start_index;
-  uint object_offset;
-
-  property float3 position { get { return float3(position_x, position_y, position_z); } }
-};
+import probe;
 
 struct DispatchParams {
   ImageHandle2D<float3> radiance_atlas; 

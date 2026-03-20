@@ -16,7 +16,8 @@ pub struct SceneStaging {
     pub regions: Vec<vk::BufferCopy>,
     pub bvh_offset: u32,
     pub bvh_len: u32,
-    pub probes_offset: u32,
+    pub active_probe_map_offset: u32,
+    pub active_probe_data_offset: u32,
     pub num_active_probes: u32,
 }
 
@@ -49,7 +50,8 @@ impl SceneWorker {
             regions: builder.regions, 
             bvh_offset: self.bvh_allocation.start() as u32, 
             bvh_len: self.bvh_len as u32, 
-            probes_offset: self.gi.active.alloc.start() as u32, 
+            active_probe_map_offset: self.gi.active.probe_map_alloc.start() as u32, 
+            active_probe_data_offset: self.gi.active.probe_data_alloc.start() as u32, 
             num_active_probes: self.gi.active.active_size,
         }
     }

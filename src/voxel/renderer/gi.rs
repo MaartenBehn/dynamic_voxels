@@ -13,7 +13,8 @@ pub struct GIRenderer {
 
     pub radiance_atlas: ImageAndViewAndHandle,
     pub depth_atlas: ImageAndViewAndHandle,
-    pub probes_offset: u32,
+    pub active_probe_map_offset: u32,
+    pub active_probe_data_offset: u32,
     pub num_active_probes: u32,
 
     pub active: bool,
@@ -26,7 +27,7 @@ pub struct GIProbeUpdateData {
     pub depth_atlas: DescriptorHandleValue,
     pub palette: u64,
     pub start_ptr: u64,
-    pub probes_offset: u32,
+    pub active_probe_data_offset: u32,
 }
 
 impl GIRenderer {
@@ -75,7 +76,8 @@ impl GIRenderer {
             radiance_atlas,
             depth_atlas,
             gi_probe_update_stage,
-            probes_offset: 0,
+            active_probe_map_offset: 0,
+            active_probe_data_offset: 0,
             num_active_probes: 0,
             active: true,
         })

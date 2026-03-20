@@ -170,7 +170,8 @@ impl SceneRenderer {
                     self.renderer.base.start_ptr = start_ptr;
                     self.renderer.base.bvh_offset = staging.bvh_offset;
                     self.renderer.base.bvh_len = staging.bvh_len;
-                    self.renderer.gi.probes_offset = staging.probes_offset;
+                    self.renderer.gi.active_probe_map_offset = staging.active_probe_map_offset;
+                    self.renderer.gi.active_probe_data_offset = staging.active_probe_data_offset;
                     self.renderer.gi.num_active_probes = staging.num_active_probes;
                     
                     self.start_staging_copy_time = Instant::now();

@@ -13,6 +13,7 @@ public struct DispatchParams {
   uint8_t* start_ptr;
   uint bvh_offset;
   uint bvh_len;
+  uint active_probe_map_offset;
   uint max_bounces;
 };
 [vk::push_constant] DispatchParams pc;
@@ -52,7 +53,7 @@ void main(uint2 pos: SV_DispatchThreadID) {
   pc.g_buffer.AlbedoTex.Instance[pos] = PackAlbedo(albedo, hit.normal, emission > 0.5);
   
 
-
+  
 }
 
 void path_trace_scene(uint2 pos) {
