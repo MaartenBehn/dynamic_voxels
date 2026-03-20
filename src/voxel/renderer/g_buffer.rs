@@ -188,7 +188,7 @@ impl GBuffer {
                         src_access_mask: vk::AccessFlags2::NONE,
                         dst_access_mask: vk::AccessFlags2::NONE,
                         src_stage_mask: vk::PipelineStageFlags2::NONE,
-                        dst_stage_mask: vk::PipelineStageFlags2::ALL_COMMANDS,
+                        dst_stage_mask: vk::PipelineStageFlags2::COMPUTE_SHADER,
                     },
                     ImageBarrier {
                         image: &img[1].image,
@@ -197,7 +197,7 @@ impl GBuffer {
                         src_access_mask: vk::AccessFlags2::NONE,
                         dst_access_mask: vk::AccessFlags2::NONE,
                         src_stage_mask: vk::PipelineStageFlags2::NONE,
-                        dst_stage_mask: vk::PipelineStageFlags2::ALL_COMMANDS,
+                        dst_stage_mask: vk::PipelineStageFlags2::COMPUTE_SHADER,
                     }
                 ]);
             })?;
@@ -219,7 +219,7 @@ impl GBuffer {
                     src_access_mask: vk::AccessFlags2::NONE,
                     dst_access_mask: vk::AccessFlags2::NONE,
                     src_stage_mask: vk::PipelineStageFlags2::NONE,
-                    dst_stage_mask: vk::PipelineStageFlags2::ALL_COMMANDS,
+                    dst_stage_mask: vk::PipelineStageFlags2::COMPUTE_SHADER,
                 }
             ).collect::<Vec<_>>();
 

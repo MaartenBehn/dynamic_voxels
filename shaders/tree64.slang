@@ -78,6 +78,7 @@ public struct Tree64 {
     if (node.IsLeaf) {
         HitInfo hit;
         hit.t = t_min;
+        hit.Pos = pos;
         bool3 sideMask = t_min <= side_dist;
         hit.Normal = select(sideMask, -sign(dir), 0.0);
         return hit;
@@ -103,6 +104,7 @@ public struct Tree64 {
         HitInfo hit;
         hit.MaterialId = leaf_data[node.ChildPtr + popcnt_var64(node.PopMask, childIdx)];
         hit.Pos = pos;
+
         hit.t = t_max;
         bool3 sideMask = t_max >= side_dist;
         hit.Normal = select(sideMask, -sign(dir), 0.0);

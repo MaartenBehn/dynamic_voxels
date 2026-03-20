@@ -40,8 +40,6 @@ public struct Scene {
     float3 inv_ray_dir = 1.0 / ray_dir;
 
     ObjectHitInfo object_hit;
-    object_hit.material_id = 0;
-
     while (current < bvh_len) {
       SceneObject node = bvh[current];
 
@@ -60,6 +58,7 @@ public struct Scene {
         float3 object_ray_dir = mul(float4(ray_dir, 0.0), object.mat).xyz;
 
         HitInfo hit = tree.RayCast(object_ray_pos, object_ray_dir, false);
+
         
         if (hit.hit && (object_hit.t >= hit.t)) {
           object_hit = ObjectHitInfo(hit, object, current, object_ray_dir);
@@ -86,11 +85,9 @@ public struct Scene {
     HitInfo hit = tree.RayCast(last_hit.pos, last_hit.ray_dir, false);
 
     ObjectHitInfo object_hit;
-    object_hit.material_id = 0;
     if (hit.hit) {
       object_hit = ObjectHitInfo(hit, last_hit.object, last_hit.bvh_index, last_hit.ray_dir);
     }
-    return object_hit;
     
     float3 ray_pos = mul(float4(last_hit.pos, 1.0), last_hit.object.inv_mat).xyz; 
     float3 ray_dir = mul(float4(last_hit.ray_dir, 0.0), last_hit.object.inv_mat).xyz; 
@@ -148,8 +145,18 @@ public struct ObjectHitInfo {
   public uint material_id;
   public float t;
 
+  public __init() {
+    t = float::maxValue;
+    material_id = 0;
+    normal = 0;
+    object.object  = (DAG64SceneObject*)0;
+    object.ray_dir = 0;
+    object.bvh_index = 0;
+    object.pos = 0;
+  }
+
   public __init(HitInfo hit, DAG64SceneObject* object, uint bvh_index, float3 ray_dir) {
-    this.object = HitObject(object, bvh_index, hit.Pos, ray_dir);
+    this.object = HitObject(object, bvh_index, ray_dir, hit.Pos);
     t = hit.t;
     normal = hit.Normal;
     material_id = hit.MaterialId;

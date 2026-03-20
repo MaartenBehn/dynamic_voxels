@@ -41,7 +41,7 @@ impl GIRenderer {
         let radiance_atlas_image= context.create_image(
             flags, 
             MemoryLocation::GpuOnly, 
-            Format::R8G8B8_UNORM, 
+            Format::R8G8B8A8_UNORM, 
             UVec2::splat(GI_RADIANCE_ATLAS_RES as _))?;
         let radiance_atlas_view = radiance_atlas_image.create_image_view(false)?;
         let radiance_atlas_handle = heap.create_image_handle(&radiance_atlas_view, flags)?;

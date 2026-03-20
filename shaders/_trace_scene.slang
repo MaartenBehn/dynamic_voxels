@@ -33,7 +33,7 @@ void main(uint2 pos: SV_DispatchThreadID) {
 
 void path_trace_scene(uint2 pos) {
   if (pos.x == 500 && pos.y == 500) {
-    //DEBUG_PRINT = pc.debug;
+    DEBUG_PRINT = true;
   }
 
   Scene scene = Scene(pc.start_ptr, pc.bvh_offset, pc.bvh_len);
@@ -60,10 +60,9 @@ void path_trace_scene(uint2 pos) {
   let material = pc.palette[hit.material_id];
   float3 albedo = material.Color;
   float emission = material.Emission;
+  pc.g_buffer.AlbedoTex.Instance[pos] = PackAlbedo(albedo, hit.normal, emission > 0.5);
 
   if (pc.max_bounces == 0) {
-    pc.g_buffer.AlbedoTex.Instance[pos] = PackAlbedo(albedo, hit.normal, emission > 0.5);
-
     // fake lighting just so that faces are distinguishable
     float3 irradiance = hit.normal.x != 0 ? 0.8 : 
       hit.normal.z != 0 ? 0.5 : 
@@ -79,12 +78,9 @@ void path_trace_scene(uint2 pos) {
 
   BlueNoise blue_noise = BlueNoise(pc.stbn_texture.Instance, pos, pc.g_buffer.FrameNo);
 
-  pc.g_buffer.AlbedoTex.Instance[pos] = PackAlbedo(albedo, hit.normal, emission > 0.5);
- 
   for (int bounce_no = 1; bounce_no <= pc.max_bounces; bounce_no++) {
-
     hit.object.ray_dir = normalize(hit.normal + GetSphereDir(blue_noise.GetSample()));
-    hit.object.pos = hit.object.pos + hit.normal * (0.1 / hit.object.object.size);
+    hit.object.pos = hit.object.pos + hit.normal * (1.0 / hit.object.object.size);
 
     hit = scene.ray_cast_from(hit.object);
 
