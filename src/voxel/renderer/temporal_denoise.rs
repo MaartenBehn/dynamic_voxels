@@ -58,12 +58,12 @@ impl TemporalDenoiseRenderer {
         let sets = &[&heap.layout];
         let denoise_stage = ShaderStage::new(
             context, 
-            include_bytes!("../../../shaders/bin/_temporal_denoise_main.spv"), 
+            include_bytes!(concat!(env!("OUT_DIR"),"/_temporal_denoise_main.spv")), 
             sets, push_constant_size)?;
 
         let filter_stage = ShaderStage::new(
             context, 
-            include_bytes!("../../../shaders/bin/_a_tours_filter_main.spv"), 
+            include_bytes!(concat!(env!("OUT_DIR"),"/_a_tours_filter_main.spv")), 
             sets, push_constant_size)?;
 
         Ok(Self {

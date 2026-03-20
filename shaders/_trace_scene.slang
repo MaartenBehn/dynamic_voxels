@@ -9,11 +9,11 @@ import perf_counters;
 public struct DispatchParams {
   GBuffer* g_buffer;
   Material* palette;
-  uint max_bounces;
   TextureHandle2D<uint8_t2> stbn_texture;  
   uint8_t* start_ptr;
   uint bvh_offset;
   uint bvh_len;
+  uint max_bounces;
 };
 [vk::push_constant] DispatchParams pc;
 
@@ -21,75 +21,86 @@ public struct DispatchParams {
 [shader("compute")]
 [numthreads(8, 8)]
 void main(uint2 pos: SV_DispatchThreadID) {
+  //if (pc.max_bounces > 0) {
+    path_trace_scene(pos);
+    return;
+  //}
+
+  //Scene scene = Scene(pc.start_ptr, pc.bvh_offset, pc.bvh_len);
+
+
+}
+
+void path_trace_scene(uint2 pos) {
   if (pos.x == 500 && pos.y == 500) {
     //DEBUG_PRINT = pc.debug;
   }
 
   Scene scene = Scene(pc.start_ptr, pc.bvh_offset, pc.bvh_len);
 
-  uint64_t clock_start = clockARB();
-  BlueNoise blue_noise = BlueNoise(pc.stbn_texture.Instance, pos, pc.g_buffer.FrameNo);
   float3 ray_pos, ray_dir;
-  float3 albedo;
-  float emission;
-  float3 irradiance;
-  float3 throughput;
  
   GetPrimaryRay(pos, ray_pos, ray_dir, pc.g_buffer);
 
-  irradiance = pc.max_bounces == 0 ? 1.0 : 0.0;
-  throughput = 1.0;
- 
-  for (int bounce_no = 0; bounce_no <= pc.max_bounces; bounce_no++) {
-    HitInfo hit = scene.ray_cast(ray_pos, ray_dir, bounce_no);
+  ObjectHitInfo hit = scene.ray_cast(ray_pos, ray_dir);
     
-    if (!hit.Miss) {
-      let material = pc.palette[hit.MaterialId];
-      albedo = material.Color;
-      emission = material.Emission;
+  if (hit.miss) {
+    pc.g_buffer.AlbedoTex.Instance[pos] = float4(1.0);
+    pc.g_buffer.IrradianceTex.Instance[pos] = float4(GetSkyColor(ray_dir, true), 0);
+    pc.g_buffer.DepthTex.Instance[pos] = -1.0;
+    pc.g_buffer.iter_tex.Instance[pos] = ITERS;
+    return;
+  }
+
+  float3 gloabl_pos = hit.global_pos();
+  float4 projPos = mul(pc.g_buffer.ProjMat, float4(gloabl_pos, 1.0));
+  float depth = projPos.z / projPos.w;
+  pc.g_buffer.DepthTex.Instance[pos] = depth;
+
+  let material = pc.palette[hit.material_id];
+  float3 albedo = material.Color;
+  float emission = material.Emission;
+
+  if (pc.max_bounces == 0) {
+    pc.g_buffer.AlbedoTex.Instance[pos] = PackAlbedo(albedo, hit.normal, emission > 0.5);
+
+    // fake lighting just so that faces are distinguishable
+    float3 irradiance = hit.normal.x != 0 ? 0.8 : 
+      hit.normal.z != 0 ? 0.5 : 
+      hit.normal.y  < 0 ? 0.3 : 1.0; 
+    pc.g_buffer.IrradianceTex.Instance[pos] = float4(irradiance, 0);
+
+    pc.g_buffer.iter_tex.Instance[pos] = ITERS;
+    return;
+  }  
+
+  float3 throughput = albedo;
+  float3 irradiance = throughput * emission;
+
+  BlueNoise blue_noise = BlueNoise(pc.stbn_texture.Instance, pos, pc.g_buffer.FrameNo);
+
+  pc.g_buffer.AlbedoTex.Instance[pos] = PackAlbedo(albedo, hit.normal, emission > 0.5);
+ 
+  for (int bounce_no = 1; bounce_no <= pc.max_bounces; bounce_no++) {
+
+    hit.object.ray_dir = normalize(hit.normal + GetSphereDir(blue_noise.GetSample()));
+    hit.object.pos = hit.object.pos + hit.normal * (0.1 / hit.object.object.size);
+
+    hit = scene.ray_cast_from(hit.object);
+
+    if (hit.miss) {
+      irradiance += GetSkyColor(ray_dir, false) * throughput;
+      break;
     }
 
-    if (bounce_no == 0) {
-      if (hit.Miss) {
-        pc.g_buffer.AlbedoTex.Instance[pos] = float4(1.0);
-        irradiance = GetSkyColor(ray_dir, true);
-        pc.g_buffer.DepthTex.Instance[pos] = -1.0;
-        break;
-      }
-      if (pc.max_bounces == 0) {
-        // fake lighting just so that faces are distinguishable
-        irradiance *= hit.Normal.x != 0 ? 0.8 : 
-          hit.Normal.z != 0 ? 0.5 : 
-          hit.Normal.y  < 0 ? 0.3 : 1.0;
-      }
-      pc.g_buffer.AlbedoTex.Instance[pos] = PackAlbedo(albedo, hit.Normal, emission > 0.5);
-
-      float4 projPos = mul(pc.g_buffer.ProjMat, float4(hit.Pos, 1.0));
-      float depth = projPos.z / projPos.w;
-      pc.g_buffer.DepthTex.Instance[pos] = depth;
-      //pc.g_buffer.DepthTex.Instance[pos] = hit.t;
-    } else {
-      if (hit.Miss) {
-        irradiance += GetSkyColor(ray_dir, false) * throughput;
-        break;
-      }
-      throughput *= albedo;
-    }
-
+    let material = pc.palette[hit.material_id];
+    float3 albedo = material.Color;
+    float emission = material.Emission;
+ 
+    throughput *= albedo;
     irradiance += throughput * emission;
-
-    ray_dir = normalize(hit.Normal + GetSphereDir(blue_noise.GetSample()));
-    ray_pos = hit.Pos + hit.Normal * SHADER_UNIT_PER_VOXEL * 0.001;
   }
 
   pc.g_buffer.IrradianceTex.Instance[pos] = float4(irradiance, 0);
   pc.g_buffer.iter_tex.Instance[pos] = ITERS;
 }
-
-float3 GetSkyColor(float3 dir, bool isPrimary) {
-  // For light bounces, sample smaller mips to maybe improve cache coherency.
-  //return -dir;
-  return float3(0.5);
-  //return pc.SkyTexture.Instance.SampleLevel(g_LinearSampler, dir, isPrimary ? 0 : 3) * (isPrimary?1:4);
-}
-

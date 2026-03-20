@@ -1,7 +1,7 @@
 use octa_force::{OctaResult, glam::{IVec3, Mat4, Vec3, Vec3A}};
 use slotmap::{Key, SlotMap, new_key_type};
 
-use crate::{VOXELS_PER_METER, VOXELS_PER_SHADER_UNIT, csg::csg_tree::tree::CSGTree, gi::gi_pool::GI_PROBE_MIN_LEVEL, scene::{gi::SceneGI, object::{SceneAddObject, SceneObject}, worker::{SceneObjectKey, SceneWorker}}, volume::VolumeBounds, voxel::palette::palette::MATERIAL_ID_DEBUG};
+use crate::{csg::csg_tree::tree::CSGTree, gi::gi_pool::GI_PROBE_MIN_LEVEL, scene::{gi::SceneGI, object::{SceneAddObject, SceneObject}, worker::{SceneObjectKey, SceneWorker}}, volume::VolumeBounds, voxel::palette::palette::MATERIAL_ID_DEBUG};
 
 new_key_type! { pub struct DebugShowProbesKey; }
 

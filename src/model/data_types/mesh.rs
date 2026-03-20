@@ -4,7 +4,7 @@ use octa_force::{glam::{Mat4, Quat, Vec3}, log::info};
 use slotmap::Key;
 use smallvec::SmallVec;
 
-use crate::{VOXELS_PER_SHADER_UNIT, csg::csg_tree::tree::CSGTree, mesh::{Mesh, scene::SceneMeshKey}, model::{collapse::{add_nodes::GetValueData, collapser::{CollapseValueT, Collapser}, template_changed::MatchValueData}, composer::{graph::ComposerGraph, make_template::MakeTemplateData, nodes::ComposeNode, output_state::OutputState}, data_types::{data_type::TemplateValue, position::{ValueIndexPosition, ValueIndexPosition3D}, volume::ValueIndexVolume}, template::Template}, util::default_types::{V3, Volume}, volume::VolumeBounds,};
+use crate::{csg::csg_tree::tree::CSGTree, mesh::{Mesh, scene::SceneMeshKey}, model::{collapse::{add_nodes::GetValueData, collapser::{CollapseValueT, Collapser}, template_changed::MatchValueData}, composer::{graph::ComposerGraph, make_template::MakeTemplateData, nodes::ComposeNode, output_state::OutputState}, data_types::{data_type::TemplateValue, position::{ValueIndexPosition, ValueIndexPosition3D}, volume::ValueIndexVolume}, template::Template}, util::{default_types::{V3, Volume}, shader_constants::VOXELS_PER_SHADER_UNIT}, volume::VolumeBounds,};
 
 pub type ValueIndexVoxels = usize;
 

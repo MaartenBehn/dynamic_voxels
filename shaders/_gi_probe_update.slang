@@ -1,19 +1,19 @@
+#include "constants.h"
+
 import texture_heap;
 import helper_math;
 import helper_ray;
 import scene;
 import tree64;
 
-#define GI_ATLAS_SIZE 64
-#define PROBE_RADIANCE_RES 8
-#define PROBE_DEPTH_RES 8
-#define PROBE_TILE_SIZE PROBE_DEPTH_RES
-#define RAYS_PER_TEXEL 1
-
 public struct Probe {
-  float3 position;
+  float position_x;
+  float position_y;
+  float position_z;
   uint start_index;
   uint object_offset;
+
+  property float3 position { get { return float3(position_x, position_y, position_z); } }
 };
 
 struct DispatchParams {
@@ -24,7 +24,6 @@ struct DispatchParams {
   uint probes_offset;
 };
 [vk::push_constant] DispatchParams pc;
-
 
 [shader("compute")]
 [numthreads(PROBE_TILE_SIZE, PROBE_TILE_SIZE, 1)]
@@ -37,7 +36,7 @@ void main(uint probeIdx: SV_GroupID, uint2 texel_pos: SV_GroupThreadID) {
   // ---- Compute atlas coord ----
   uint2 tile = ProbeTileOffset(probeIdx, GI_ATLAS_SIZE);
 
-  uint2 pixelCoord = tile * PROBE_TILE_SIZE + texel_pos;
+  uint2 pixelCoord = (tile * (PROBE_TILE_SIZE + PROBE_PADDING * 2)) + texel_pos + PROBE_PADDING;
 
   // ---- Convert texel → direction ----
   float2 uv = (texel_pos + 0.5) / PROBE_TILE_SIZE;
@@ -49,9 +48,7 @@ void main(uint probeIdx: SV_GroupID, uint2 texel_pos: SV_GroupThreadID) {
   DAG64SceneObject* tree_object = (DAG64SceneObject*)(pc.start_ptr + probe.object_offset);
   Tree64 tree = Tree64((Node*)(pc.start_ptr + tree_object.node_alloc), pc.start_ptr + tree_object.data_alloc, tree_object.root_index);
 
-  // ---- Monte Carlo sampling ----
-  for (uint i = 0; i < RAYS_PER_TEXEL; i++)
-  {
+  for (uint i = 0; i < RAYS_PER_TEXEL; i++) {
     uint seed = probeIdx * 73856093u + i * 19349663u + frameIndex;
 
     float2 xi = Random2(seed);
@@ -61,7 +58,10 @@ void main(uint probeIdx: SV_GroupID, uint2 texel_pos: SV_GroupThreadID) {
 
     HitInfo hit = tree.RayCast(probe.position, rayDir, false);
 
-    if (!hit.Miss) {
+    if (hit.miss) {
+      radiance += GetSkyColor(rayDir, true);
+      depth = -1.0;
+    } else {
       let material = pc.palette[hit.MaterialId];
       radiance += material.Color * material.Emission;
       depth += hit.t;

@@ -121,7 +121,6 @@ impl VoxelRenderer {
             start_ptr: self.base.start_ptr,
             bvh_offset: self.base.bvh_offset,
             bvh_len: self.base.bvh_len,
-            debug: false,
         }, dispatch_size);
 
         if self.gi.active && self.gi.num_active_probes > 0 {
@@ -131,7 +130,7 @@ impl VoxelRenderer {
                 palette: self.palette_buffer.ptr,
                 start_ptr: self.base.start_ptr,
                 probes_offset: self.gi.probes_offset,
-            }, uvec3(self.gi.num_active_probes, 1, 1));
+            }, uvec3(self.gi.num_active_probes, 1, 1)); //uvec3(self.gi.num_active_probes, 1, 1));
         }
 
         if self.temporal_denoise.temporal_denoise && self.base.debug_channel != DebugChannel::HeatMap {

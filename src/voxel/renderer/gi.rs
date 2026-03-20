@@ -1,10 +1,11 @@
 use octa_force::{OctaResult, egui::Ui, glam::{IVec3, UVec2}, vulkan::{Buffer, Context, DescriptorSet, DescriptorSetLayout, ash::vk::{self, Format}, descriptor_heap::{DescriptorHandleValue, ImageDescriptorHeap}, gpu_allocator::MemoryLocation}};
 
-use crate::{util::buddy_allocator::{BuddyAllocator, ManualBuddyAllocation}, voxel::renderer::{g_buffer::ImageAndViewAndHandle, shader_stage::ShaderStage}};
+use crate::{util::{buddy_allocator::{BuddyAllocator, ManualBuddyAllocation}, shader_constants::{GI_ATLAS_SIZE, PROBE_DEPTH_RES, PROBE_PADDING, PROBE_RADIANCE_RES}}, voxel::renderer::{g_buffer::ImageAndViewAndHandle, shader_stage::ShaderStage}};
 
-pub const GI_ATLAS_SIZE: usize = 64;
-const PROBE_RADIANCE_RES: usize = 8;
-const PROBE_DEPTH_RES: usize = 8;
+pub const PROBE_PADDED_RADIANCE_RES: usize = PROBE_RADIANCE_RES + PROBE_PADDING * 2; 
+pub const PROBE_PADDED_DEPTH_RES: usize = PROBE_DEPTH_RES + PROBE_PADDING * 2;
+pub const GI_RADIANCE_ATLAS_RES: usize = GI_ATLAS_SIZE * PROBE_PADDED_RADIANCE_RES;
+pub const GI_DEPTH_ATLAS_RES: usize = GI_ATLAS_SIZE * PROBE_PADDED_DEPTH_RES;
 
 #[derive(Debug)]
 pub struct GIRenderer {
@@ -35,14 +36,13 @@ impl GIRenderer {
         push_constant_size: u32,
     ) -> OctaResult<Self> {
         
-        let atlas_side_size = GI_ATLAS_SIZE;
-
+        dbg!(GI_RADIANCE_ATLAS_RES);
         let flags = vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::SAMPLED; 
         let radiance_atlas_image= context.create_image(
             flags, 
             MemoryLocation::GpuOnly, 
             Format::R8G8B8_UNORM, 
-            UVec2::splat((atlas_side_size * PROBE_RADIANCE_RES + 2) as _))?;
+            UVec2::splat(GI_RADIANCE_ATLAS_RES as _))?;
         let radiance_atlas_view = radiance_atlas_image.create_image_view(false)?;
         let radiance_atlas_handle = heap.create_image_handle(&radiance_atlas_view, flags)?;
         let radiance_atlas = ImageAndViewAndHandle { 
@@ -55,7 +55,7 @@ impl GIRenderer {
             flags, 
             MemoryLocation::GpuOnly, 
             Format::R32_SFLOAT, 
-            UVec2::splat((atlas_side_size * PROBE_DEPTH_RES + 2) as _))?;
+            UVec2::splat(GI_DEPTH_ATLAS_RES as _))?;
         let depth_atlas_view = depth_atlas_image.create_image_view(false)?;
         let depth_atlas_handle = heap.create_image_handle(&depth_atlas_view, flags)?;
         let depth_atlas = ImageAndViewAndHandle { 
@@ -67,7 +67,7 @@ impl GIRenderer {
         let sets = &[&heap.layout];
         let gi_probe_update_stage = ShaderStage::new(
             context, 
-            include_bytes!("../../../shaders/bin/_gi_probe_update_main.spv"), 
+            include_bytes!(concat!(env!("OUT_DIR"),"/_gi_probe_update_main.spv")), 
             sets, push_constant_size)?;
 
                        

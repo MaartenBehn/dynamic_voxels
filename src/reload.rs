@@ -26,6 +26,7 @@ use octa_force::puffin_egui::puffin;
 use octa_force::{egui, log, OctaResult};
 use voxel::palette::shared::SharedPalette;
 use std::time::{Duration, Instant};
+use crate::util::shader_constants::METERS_PER_SHADER_UNIT;
 
 #[cfg(any(feature="game"))]
 use crate::editor::Editor;
@@ -36,10 +37,6 @@ use crate::voxel::renderer::tree64_render::Tree64Renderer;
 
 pub const USE_PROFILE: bool = false;
 pub const NUM_FRAMES_IN_FLIGHT: usize = 2;
-
-pub const VOXELS_PER_METER: usize = 10;
-pub const METERS_PER_SHADER_UNIT: usize = 100;
-pub const VOXELS_PER_SHADER_UNIT: usize = VOXELS_PER_METER * METERS_PER_SHADER_UNIT;
 
 #[unsafe(no_mangle)]
 pub fn init_hot_reload(logger: &'static dyn Log, level: LevelFilter) -> OctaResult<()> {
@@ -64,6 +61,7 @@ pub fn new_logic_state() -> OctaResult<LogicState> {
  
     #[cfg(feature="game")]
     {
+
         camera.set_meter_per_unit(METERS_PER_SHADER_UNIT as f32);
         camera.set_position_in_meters(Vec3::new(36.64, 0.07, 4.66)); 
         camera.direction = Vec3::new(-0.78, -0.04, -0.62).normalize();

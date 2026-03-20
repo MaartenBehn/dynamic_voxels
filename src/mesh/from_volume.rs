@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use octa_force::glam::{Vec3, Vec3A, Vec3Swizzles, vec3a};
 
-use crate::{METERS_PER_SHADER_UNIT, VOXELS_PER_SHADER_UNIT, marching_cubes::marching_cubes::marching_cubes, mesh::{Mesh, Vertex}, util::{number::Nu, vector::Ve}, volume::{VolumeGradient, VolumeQureyPosValid, VolumeQureyPosValue}, voxel::palette::{Palette, shared::SharedPalette}};
+use crate::{marching_cubes::marching_cubes::marching_cubes, mesh::{Mesh, Vertex}, util::{number::Nu, shader_constants::VOXELS_PER_SHADER_UNIT, vector::Ve}, volume::{VolumeGradient, VolumeQureyPosValid, VolumeQureyPosValue}, voxel::palette::{Palette, shared::SharedPalette}};
 
 
 impl Mesh {

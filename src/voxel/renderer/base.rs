@@ -28,12 +28,11 @@ pub struct BaseRenderer {
 pub struct SceneDispatchDispatchParams {
     pub g_buffer_ptr: u64,
     pub palette_ptr: u64,
-    pub max_bounces: u32,
     pub blue_noise_tex: DescriptorHandleValue,
     pub start_ptr: u64,
     pub bvh_offset: u32,
     pub bvh_len: u32,
-    pub debug: bool,
+    pub max_bounces: u32,
 }
 
 #[repr(C)]
@@ -84,12 +83,12 @@ impl BaseRenderer {
         let sets = &[&heap.layout];
         let trace_scene_stage = ShaderStage::new(
             context, 
-            include_bytes!("../../../shaders/bin/_trace_scene_main.spv"), 
+            include_bytes!(concat!(env!("OUT_DIR"),"/_trace_scene_main.spv")), 
             sets, push_constant_size)?;
 
         let blit_stage = ShaderStage::new(
             context, 
-            include_bytes!("../../../shaders/bin/_blit_main.spv"), 
+            include_bytes!(concat!(env!("OUT_DIR"),"/_blit_main.spv")), 
             sets, push_constant_size)?;
 
         Ok(Self {

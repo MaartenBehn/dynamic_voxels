@@ -35,11 +35,11 @@ impl MeshRenderer {
             GraphicsPipelineCreateInfo {
                 shaders: &[
                     GraphicsShaderCreateInfo {
-                        source: &include_bytes!("../../shaders/bin/mesh_vertex.spv")[..],
+                        source: &include_bytes!(concat!(env!("OUT_DIR"),"/mesh_vertex.spv"))[..],
                         stage: vk::ShaderStageFlags::VERTEX,
                     },
                     GraphicsShaderCreateInfo {
-                        source: &include_bytes!("../../shaders/bin/mesh_fragment.spv")[..],
+                        source: &include_bytes!(concat!(env!("OUT_DIR"),"/mesh_fragment.spv"))[..],
                         stage: vk::ShaderStageFlags::FRAGMENT,
                     },
                 ],

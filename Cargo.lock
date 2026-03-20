@@ -950,6 +950,7 @@ dependencies = [
  "egui_double_slider",
  "egui_extras",
  "enum_dispatch",
+ "envparse",
  "fastrand",
  "fnv",
  "half",
@@ -1180,6 +1181,12 @@ dependencies = [
  "quote",
  "syn 2.0.106",
 ]
+
+[[package]]
+name = "envparse"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "62c1a5f4ccdee846cab47afc8caf7404cf4c8980ea0754e4e9742bf982cd0195"
 
 [[package]]
 name = "epaint"

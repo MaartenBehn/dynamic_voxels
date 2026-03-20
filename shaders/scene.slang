@@ -20,6 +20,7 @@ public struct DAG64SceneObject {
   public uint64_t node_alloc;
   public uint64_t data_alloc;
   public uint root_index;
+  public uint size;
 }
 
 public struct Scene {
@@ -31,14 +32,16 @@ public struct Scene {
     this.start_ptr = start_ptr;
     this.bvh_offset = bvh_offset;
     this.bvh_len = bvh_len;
-  } 
+  }
 
-  public HitInfo ray_cast(float3 ray_pos, float3 ray_dir, uint bounce_no) {
+  public ObjectHitInfo ray_cast(float3 ray_pos, float3 ray_dir) {
     SceneObject* bvh = (SceneObject*)(start_ptr + bvh_offset);
     uint current = 0; 
     float3 inv_ray_dir = 1.0 / ray_dir;
 
-    HitInfo hit;
+    ObjectHitInfo object_hit;
+    object_hit.material_id = 0;
+
     while (current < bvh_len) {
       SceneObject node = bvh[current];
 
@@ -49,24 +52,20 @@ public struct Scene {
       }
 
       if (node.leaf) {
-        DAG64SceneObject* tree_object = (DAG64SceneObject*)(start_ptr + node.object_start);
-        Tree64 tree = Tree64((Node*)(start_ptr + tree_object.node_alloc), start_ptr + tree_object.data_alloc, tree_object.root_index);
+        DAG64SceneObject* object = (DAG64SceneObject*)(start_ptr + node.object_start);
+        Tree64 tree = Tree64((Node*)(start_ptr + object.node_alloc), start_ptr + object.data_alloc, object.root_index);
 
-        float4x4 mat = tree_object.mat;
-        float3 object_ray_pos = mul(float4(ray_pos, 1.0), mat).xyz;
-        float3 object_ray_dir = mul(float4(ray_dir, 0.0), mat).xyz;
+        float4x4 mat = object.mat;
+        float3 object_ray_pos = mul(float4(ray_pos, 1.0), object.mat).xyz;
+        float3 object_ray_dir = mul(float4(ray_dir, 0.0), object.mat).xyz;
 
-        HitInfo hit_new = tree.RayCast(object_ray_pos, object_ray_dir, false);
+        HitInfo hit = tree.RayCast(object_ray_pos, object_ray_dir, false);
         
-        if (!hit_new.Miss && (hit.t >= hit_new.t)) {
-          float4x4 inv_mat = tree_object.inv_mat;
-          hit_new.Pos = mul(float4(hit_new.Pos, 1.0), inv_mat).xyz; 
-          hit_new.Normal = normalize(mul(float4(hit_new.Normal, 0.0), inv_mat).xyz);
-
-          hit = hit_new;
+        if (hit.hit && (object_hit.t >= hit.t)) {
+          object_hit = ObjectHitInfo(hit, object, current, object_ray_dir);
         } else {
           // To debug BVH
-          //hit.MaterialId = 1;
+          //object_hit.MaterialId = 1;
         }
 
         current = node.leaf_exit;
@@ -75,7 +74,96 @@ public struct Scene {
       }
     }
 
-    return hit;
+    return object_hit;
+  }
+
+  public ObjectHitInfo ray_cast_from(HitObject last_hit) {
+    Tree64 tree = Tree64(
+      (Node*)(start_ptr + last_hit.object.node_alloc), 
+      start_ptr + last_hit.object.data_alloc, 
+      last_hit.object.root_index);
+
+    HitInfo hit = tree.RayCast(last_hit.pos, last_hit.ray_dir, false);
+
+    ObjectHitInfo object_hit;
+    object_hit.material_id = 0;
+    if (hit.hit) {
+      object_hit = ObjectHitInfo(hit, last_hit.object, last_hit.bvh_index, last_hit.ray_dir);
+    }
+    return object_hit;
+    
+    float3 ray_pos = mul(float4(last_hit.pos, 1.0), last_hit.object.inv_mat).xyz; 
+    float3 ray_dir = mul(float4(last_hit.ray_dir, 0.0), last_hit.object.inv_mat).xyz; 
+    
+    SceneObject* bvh = (SceneObject*)(start_ptr + bvh_offset);
+    uint current = 0; 
+    float3 inv_ray_dir = 1.0 / ray_dir;
+
+    while (current < bvh_len) {
+      SceneObject node = bvh[current];
+
+      float t_min, t_max;
+      if (current == last_hit.bvh_index || !ray_clip_intersect(ray_pos, inv_ray_dir, node.min, node.max, t_min, t_max)) {
+        current = node.node_exit;
+        continue;
+      }
+
+      if (node.leaf) {
+        DAG64SceneObject* object = (DAG64SceneObject*)(start_ptr + node.object_start);
+        Tree64 tree = Tree64((Node*)(start_ptr + object.node_alloc), start_ptr + object.data_alloc, object.root_index);
+
+        float4x4 mat = object.mat;
+        float3 object_ray_pos = mul(float4(ray_pos, 1.0), object.mat).xyz;
+        float3 object_ray_dir = mul(float4(ray_dir, 0.0), object.mat).xyz;
+
+        HitInfo hit = tree.RayCast(object_ray_pos, object_ray_dir, false);
+        
+        if (hit.hit && (object_hit.t >= hit.t)) {
+          object_hit = ObjectHitInfo(hit, object, current, object_ray_dir);
+        } else {
+          // To debug BVH
+          //object_hit.MaterialId = 1;
+        }
+
+        current = node.leaf_exit;
+      } else {
+        current++;
+      }
+    }
+
+    return object_hit;    
+  }
+}
+
+public struct HitObject {
+  public DAG64SceneObject* object;
+  public uint bvh_index;
+  public float3 ray_dir;
+  public float3 pos;
+}
+
+public struct ObjectHitInfo {
+  public HitObject object;
+  public float3 normal;
+  public uint material_id;
+  public float t;
+
+  public __init(HitInfo hit, DAG64SceneObject* object, uint bvh_index, float3 ray_dir) {
+    this.object = HitObject(object, bvh_index, hit.Pos, ray_dir);
+    t = hit.t;
+    normal = hit.Normal;
+    material_id = hit.MaterialId;
+  }
+
+  public property bool miss { get { return material_id == 0; } }
+  public property bool hit { get { return material_id != 0; } }
+
+  public float3 global_pos() {
+    return mul(float4(object.pos, 1.0), object.object.inv_mat).xyz;
+  }
+
+  public float3 global_normal() {
+    return normalize(mul(float4(normal, 0.0), object.object.inv_mat).xyz);
   }
 }
 

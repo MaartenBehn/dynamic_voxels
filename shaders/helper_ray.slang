@@ -14,9 +14,8 @@ public struct HitInfo {
     MaterialId = 0;
   }
 
-  public property bool Miss {
-    get { return MaterialId == 0; }
-  }
+  public property bool miss { get { return MaterialId == 0; } }
+  public property bool hit { get { return MaterialId != 0; } }
 }
 
 public void GetPrimaryRay(int2 screenPos, out float3 rayPos, out float3 rayDir, GBuffer* g_buffer) {
@@ -71,3 +70,9 @@ public struct Material {
     }
 }
 
+public float3 GetSkyColor(float3 dir, bool isPrimary) {
+  // For light bounces, sample smaller mips to maybe improve cache coherency.
+  //return -dir;
+  return float3(0.5);
+  //return pc.SkyTexture.Instance.SampleLevel(g_LinearSampler, dir, isPrimary ? 0 : 3) * (isPrimary?1:4);
+}

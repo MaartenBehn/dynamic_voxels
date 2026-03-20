@@ -1,7 +1,7 @@
 use std::{mem, time::Instant};
 
 use octa_force::{OctaResult, camera::Camera, egui, engine::Engine, glam::{UVec2, Vec3}, log::{debug, info}, vulkan::{Buffer, CommandBuffer, CommandPool, Context, Fence, Swapchain, ash::vk::{self, AttachmentLoadOp}, gpu_allocator::MemoryLocation}};
-use crate::{VOXELS_PER_METER, scene::{staging_copies::SceneStaging, worker::SceneWorkerRef}, util::math::to_mb, voxel::{palette::shared::SharedPalette, renderer::{VoxelRenderer}}};
+use crate::{scene::{staging_copies::SceneStaging, worker::SceneWorkerRef}, util::{math::to_mb, shader_constants::VOXELS_PER_METER}, voxel::{palette::shared::SharedPalette, renderer::VoxelRenderer}};
 
 use super::{worker::{SceneWorker}};
 

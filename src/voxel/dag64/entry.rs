@@ -1,7 +1,7 @@
 use octa_force::glam::{IVec3, Mat4, Quat, Vec3};
 use slotmap::new_key_type;
 
-use crate::{VOXELS_PER_SHADER_UNIT, voxel::dag64::util::get_voxel_size};
+use crate::{util::shader_constants::VOXELS_PER_SHADER_UNIT, voxel::dag64::util::get_voxel_size};
 
 new_key_type! { pub struct DAG64EntryKey; }
 

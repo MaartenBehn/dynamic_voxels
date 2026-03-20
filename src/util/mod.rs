@@ -14,3 +14,4 @@ pub mod buddy_allocator;
 pub mod aabb_transformer;
 pub mod parallel_reuse_buffer;
 pub mod reuse_buffer;
+pub mod shader_constants;

@@ -48,6 +48,7 @@ enum_dispatch = "0.3.13"
 slotmap = "1.1.1"
 sharded-slab = "0.1.7"
 bitvec = "1"
+envparse = "0.1.0"
 
 octa-force = { path = "../octa-force-rs" }
 # octa-force = { version = "0.3.3", git = "https://github.com/MaartenBehn/octa-force-rs" }

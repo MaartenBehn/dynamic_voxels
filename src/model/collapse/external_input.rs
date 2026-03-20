@@ -1,6 +1,6 @@
 use octa_force::{camera::Camera, glam::Vec3};
 
-use crate::VOXELS_PER_METER;
+use crate::util::shader_constants::VOXELS_PER_METER;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ExternalInput {

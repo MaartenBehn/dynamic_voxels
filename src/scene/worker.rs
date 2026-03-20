@@ -6,7 +6,7 @@ use parking_lot::Mutex;
 use slotmap::{SlotMap, new_key_type};
 use smol::{channel::Sender, future::FutureExt};
 
-use crate::{VOXELS_PER_METER, bvh::Bvh, mesh::Mesh, scene::{bvh::{BVHExtraData, BVHObjectData}, dag_store::SceneDAGStore, debug::SceneDebugger, gi::SceneGI, object::{SceneAddObject, SceneObject}, staging_copies::OptimalBufferCopyAlligment}, util::{buddy_allocator::{BuddyAllocator, ManualBuddyAllocation}, default_types::{LODType, Volume}, worker_response::{WithRespose, WorkerRespose}}, voxel::dag64::{lod_heuristic::LODHeuristicT, parallel::ParallelVoxelDAG64}};
+use crate::{bvh::Bvh, mesh::Mesh, scene::{bvh::{BVHExtraData, BVHObjectData}, dag_store::SceneDAGStore, debug::SceneDebugger, gi::SceneGI, object::{SceneAddObject, SceneObject}, staging_copies::OptimalBufferCopyAlligment}, util::{buddy_allocator::{BuddyAllocator, ManualBuddyAllocation}, default_types::{LODType, Volume}, shader_constants::VOXELS_PER_METER, worker_response::{WithRespose, WorkerRespose}}, voxel::dag64::{lod_heuristic::LODHeuristicT, parallel::ParallelVoxelDAG64}};
 
 use super::{dag_store::SceneDAGKey, staging_copies::SceneStaging};
 

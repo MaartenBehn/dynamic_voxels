@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use octa_force::{OctaResult, anyhow::anyhow, glam::{Mat4, Vec3, Vec3A}, log::{debug, info}};
 
-use crate::{VOXELS_PER_SHADER_UNIT, gi::{gi_pool::GIExecutor, gi_pool_debugger::GINone}, scene::{dag_store::{SceneDAGKey, SceneDAGStore}, debug::ObjectDebug, staging_copies::SceneStagingBuilder, worker::{SceneObjectKey, SceneWorker}}, util::{aabb::AABB3, buddy_allocator::ManualBuddyAllocation, default_types::{LODType, Volume}}, volume::VolumeBounds, voxel::dag64::entry::{DAG64Entry, DAG64EntryKey}};
+use crate::{gi::{gi_pool::GIExecutor, gi_pool_debugger::GINone}, scene::{dag_store::{SceneDAGKey, SceneDAGStore}, debug::ObjectDebug, staging_copies::SceneStagingBuilder, worker::{SceneObjectKey, SceneWorker}}, util::{aabb::AABB3, buddy_allocator::ManualBuddyAllocation, default_types::{LODType, Volume}, shader_constants::VOXELS_PER_SHADER_UNIT}, volume::VolumeBounds, voxel::dag64::entry::{DAG64Entry, DAG64EntryKey}};
 
 #[derive(Debug)]
 pub struct SceneObject {
@@ -25,6 +25,7 @@ pub struct SceneObjectData {
     pub node_alloc: u64,
     pub data_alloc: u64,
     pub root_index: u32,
+    pub size: u32,
 }
 
 #[derive(Debug)]
@@ -124,6 +125,7 @@ impl SceneObject {
             node_alloc: dag.node_alloc.start() as u64,
             data_alloc: dag.data_alloc.start() as u64,
             root_index: self.entry.root_index,
+            size: self.entry.get_size(),
         };
 
         builder.push(&[data], self.allocation.start());
