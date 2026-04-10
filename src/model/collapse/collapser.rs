@@ -121,6 +121,10 @@ impl Collapser {
 
     async fn collapse_node(&mut self, node_index: CollapseNodeKey) {
 
+        if !self.nodes.contains_key(node_index) {
+            return;
+        }
+        
         let node = &self.nodes[node_index];
         let template_node = &self.template.nodes[node.template_index]; 
         let value = &self.template.values[template_node.value_index];

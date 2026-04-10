@@ -32,8 +32,6 @@ use crate::util::shader_constants::METERS_PER_SHADER_UNIT;
 use crate::editor::Editor;
 #[cfg(any(feature="graph"))]
 use crate::mesh::scene::MeshScene;
-#[cfg(any(feature="graph"))]
-use crate::voxel::renderer::tree64_render::Tree64Renderer;
 
 pub const USE_PROFILE: bool = false;
 pub const NUM_FRAMES_IN_FLIGHT: usize = 2;
@@ -243,7 +241,7 @@ pub fn record_render_commands(
             &logic_state.camera,
             engine, 
             render_state.composer.render_panel_size.as_vec2(),
-            &render_state.scene.voxel_renderer.palette_buffer,
+            &render_state.scene.renderer.palette_buffer,
         );
 
         command_buffer.swapchain_image_render_barrier(&engine.get_current_swapchain_image_and_view().image)?;

@@ -19,6 +19,12 @@ public struct Tree64 {
   uint8_t* leaf_data;
   uint start_index;
 
+  public __init(Node* nodes, uint8_t* leaf_data, uint start_index) {
+    this.nodes = nodes;
+    this.leaf_data = leaf_data;
+    this.start_index = start_index;
+  }
+
   public HitInfo RayCast(float3 rayPos, float3 rayDir, bool coarse) {
     HitInfo hit = Traversal(rayPos, rayDir, coarse);
     return hit;

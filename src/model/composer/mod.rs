@@ -2,7 +2,6 @@ pub mod nodes;
 pub mod viewer;
 pub mod pin;
 pub mod graph;
-pub mod external_input;
 pub mod output_state;
 pub mod flags;
 pub mod make_template;
@@ -142,10 +141,8 @@ impl ModelComposer {
 
     pub fn update(&mut self, time: Duration, camera: &Camera) -> OctaResult<()> {
         self.viewer_data.update(time);
-        self.update_external_input(camera);
-
+        
         if self.manual_rebuild || (self.auto_rebuild && self.graph.flags.needs_collapse_any())  {
-            self.manual_rebuild = false;
 
             if self.graph.flags.are_all_valid() {
                 debug!("Rebuilding Template");
@@ -153,7 +150,7 @@ impl ModelComposer {
                 let now = Instant::now();
 
                 self.template = self.graph.make_template(&mut self.palette);
-                self.collapser_worker.template_changed(self.template.clone(), self.external_input);
+                self.collapser_worker.template_changed(self.template.clone());
 
                 let elapsed = now.elapsed();
                 info!("Template took: {:?}", elapsed);
@@ -164,9 +161,22 @@ impl ModelComposer {
                 warn!("Cant Rebuild error in graph!");
             }
         } 
+
+        if self.manual_rebuild || (self.auto_rebuild)  {
+            let external_input = ExternalInput::new(camera);
+
+            let cam_changed = self.external_input.cam_position != external_input.cam_position;
+            self.external_input = external_input;
+
+            if cam_changed {
+                self.graph.flags.set_cam_notes_as_changed(&self.graph.snarl);
+                self.collapser_worker.external_input_changed(self.external_input);
+            }
+        }
        
         self.graph.save()?;
-
+        self.manual_rebuild = false;
+        
         Ok(())
     }
 }

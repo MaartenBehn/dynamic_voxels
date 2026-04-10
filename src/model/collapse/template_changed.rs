@@ -4,7 +4,7 @@ use itertools::Itertools;
 use octa_force::log::debug;
 use smallvec::SmallVec;
 
-use crate::{model::{data_types::{data_type::TemplateValue, number::ValueIndexNumber, position::{ValueIndexPosition, ValueIndexPosition2D, ValueIndexPosition3D}, position_pair_set::ValueIndexPositionSet, position_space::ValueIndexPositionSpace, volume::ValueIndexVolume}, template::{TEMPLATE_INDEX_NONE, Template, TemplateIndex, nodes::TemplateNode, value::ValueIndex}}, util::{default_types::T, number::Nu, vector::Ve}};
+use crate::{model::{data_types::{data_type::TemplateValue, number::ValueIndexNumber, position::{PositionValue, ValueIndexPosition, ValueIndexPosition2D, ValueIndexPosition3D}, position_pair_set::ValueIndexPositionSet, position_space::ValueIndexPositionSpace, volume::ValueIndexVolume}, template::{TEMPLATE_INDEX_NONE, Template, TemplateIndex, nodes::TemplateNode, value::ValueIndex}}, util::{default_types::T, number::Nu, vector::Ve}};
 
 use super::{collapser::{CollapseNodeKey, Collapser, UpdateDefinesOperation}, pending_operations::PendingOperations};
 

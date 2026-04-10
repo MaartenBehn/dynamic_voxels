@@ -45,6 +45,7 @@ impl Template {
                 creates: smallvec![],
                 created_by: (TEMPLATE_INDEX_NONE, 0),
                 dependecy_tree: Default::default(),
+                external_input_marker: Default::default(),
             }],
             values: vec![TemplateValue::None],
             max_level: 1,

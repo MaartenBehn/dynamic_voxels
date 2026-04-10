@@ -212,6 +212,8 @@ impl ComposerGraph {
                     }, pin.output == 0)))
                 }
                 ComposeNodeType::CamPosition => {
+                    data.template.nodes[data.building_template_index].external_input_marker.cam = true;
+
                     TemplateValue::Position3D(PositionValue::Cam)
                 }
                 _ => unreachable!(),

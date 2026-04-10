@@ -127,21 +127,22 @@ impl PendingOperations {
     }
 
     pub fn delete_collapse(&mut self, level: usize, value: CollapseNodeKey) {
-        if level >= self.pending_collapse.len() {
-            return;
-        }
-
-        let list = &mut self.pending_collapse[level -1];
-        for i in (0..list.len()).rev() {
-            if list[i] == value {
-                list.swap_remove_back(i);
+        if level < self.pending_collapse.len() {
+            let list = &mut self.pending_collapse[level -1];
+            for i in (0..list.len()).rev() {
+                if list[i] == value {
+                    list.swap_remove_back(i);
+                }
             }
+
         }
         
-        let list = &mut self.pending_next_collapse[level -1];
-        for i in (0..list.len()).rev() {
-            if list[i] == value {
-                list.swap_remove_back(i);
+        if level < self.pending_next_collapse.len() {
+            let list = &mut self.pending_next_collapse[level -1];
+            for i in (0..list.len()).rev() {
+                if list[i] == value {
+                    list.swap_remove_back(i);
+                }
             }
         }
     }

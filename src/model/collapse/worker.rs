@@ -6,11 +6,15 @@ use crate::{model::{composer::output_state::OutputState, template::{Template}}, 
 
 use super::{collapser::Collapser, external_input::{self, ExternalInput}};
 
-
 #[derive(Debug)]
 pub struct ComposeCollapseWorker {
     pub task: smol::Task<()>,
-    pub update_s: smol::channel::Sender<(Template, ExternalInput)>,
+    pub update_s: smol::channel::Sender<CollapserUpdate>,
+}
+
+enum CollapserUpdate {
+    Template(Template),
+    ExternalInput(ExternalInput)
 }
 
 #[derive(Debug)]
@@ -53,7 +57,7 @@ impl ComposeCollapseWorker {
     }
 
     async fn run(
-        update_r: smol::channel::Receiver<(Template, ExternalInput)>,
+        update_r: smol::channel::Receiver<CollapserUpdate>,
         collapser_s: smol::channel::Sender<Collapser>, 
         mut collapser: Collapser,
     ) {
@@ -68,26 +72,42 @@ impl ComposeCollapseWorker {
 
         loop {
             match update_r.recv().await {
-                Ok((new_template, external_input)) => {
-                    let now = Instant::now();
+                Ok(up) => {
+                    match up {
+                        CollapserUpdate::Template(template) => {
+                            collapser.template_changed(template);
 
-                    collapser.template_changed(new_template);
-                    collapser.external_input = external_input;
+                            let now = Instant::now();
+                            collapser.run().await;
 
-                    collapser.run().await;
+                            let elapsed = now.elapsed();
+                            info!("Collapse took: {:?}", elapsed);
+                            
+                            let _ = collapser_s.force_send(collapser.clone());
+                        },
+                        CollapserUpdate::ExternalInput(external_input) => {
+                            collapser.external_input = external_input;
+                            collapser.external_input_changed();
 
-                    let elapsed = now.elapsed();
-                    info!("Collapse took: {:?}", elapsed);
+                            let now = Instant::now();
+                            collapser.run().await;
 
-                    let _ = collapser_s.force_send(collapser.clone());
+                            let elapsed = now.elapsed();
+                            info!("Collapse took: {:?}", elapsed);
+                        },
+                    }
                 },
                 Err(e) => break,
             }
         }
     }
 
-    pub fn template_changed(&self, template: Template, external_input: ExternalInput) {
-        let _ = self.update_s.force_send((template, external_input));
+    pub fn template_changed(&self, template: Template) {
+        let _ = self.update_s.force_send(CollapserUpdate::Template(template));
+    }
+
+    pub fn external_input_changed(&self, external_input: ExternalInput) {
+        let _ = self.update_s.force_send(CollapserUpdate::ExternalInput(external_input));
     }
 }
 

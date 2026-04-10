@@ -27,10 +27,10 @@ pub struct ActiveProbeData {
 
 impl GIActive {
     pub fn new(allocator: &mut BuddyAllocator) -> OctaResult<Self> {
-        debug_assert!(ActiveProbeIndex::MAX > NUM_ACTIVE_PROBES);
+        debug_assert!(ActiveProbeIndex::MAX as usize > NUM_ACTIVE_PROBES);
         
         let probe_map_alloc = allocator.alloc(
-            INITAL_MAX_PROBES * size_of::<ActiveProbeIndex>());
+            INITAL_MAX_PROBES * size_of::<ActiveProbeIndex>())?;
         
         let probe_data_alloc = allocator.alloc(
             NUM_ACTIVE_PROBES * size_of::<ActiveProbeData>())?;
@@ -46,7 +46,7 @@ impl GIActive {
     pub fn update(&mut self, pool: &mut GIPool, builder: &mut SceneStagingBuilder) {
         if self.write_initial {
             builder.push(
-                &[ACTIVE_PROBE_INDEX_NONE; self.probe_map_alloc.size()], 
+                &vec![ACTIVE_PROBE_INDEX_NONE; self.probe_map_alloc.size()], 
                 self.probe_map_alloc.start());
 
             self.write_initial = false;

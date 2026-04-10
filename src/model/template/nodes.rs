@@ -1,6 +1,8 @@
 use egui_snarl::NodeId;
 use smallvec::SmallVec;
 
+use crate::model::collapse::external_input::ExternalInputMarker;
+
 use super::{dependency_tree::{DependencyPath, DependencyTree}, value::{ValueIndex}, TemplateIndex};
 
 #[derive(Debug, Clone)]
@@ -17,6 +19,8 @@ pub struct TemplateNode {
     pub depends_loop: SmallVec<[(TemplateIndex, DependencyPath); 4]>,
     
     pub dependend: SmallVec<[TemplateIndex; 4]>,
+
+    pub external_input_marker: ExternalInputMarker,
 }
 
 #[derive(Debug, Clone)]
