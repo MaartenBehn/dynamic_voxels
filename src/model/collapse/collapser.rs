@@ -211,7 +211,7 @@ impl Collapser {
 
                 let pos = pos[0];
 
-                volume.calculate_bounds();
+                //volume.calculate_bounds();
 
                 let data = match &mut self.nodes[node_index].data {
                     CollapseValue::Voxels(voxels) => voxels,

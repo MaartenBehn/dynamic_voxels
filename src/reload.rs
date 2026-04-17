@@ -132,7 +132,7 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
     
     #[cfg(feature="graph")]
     {
-        use crate::mesh::scene::MeshScene;
+        use crate::{mesh::scene::MeshScene, model::manual_example::{self, calc_manual}};
 
         let palette = SharedPalette::new();
         let mesh_scene = MeshScene::new(&engine.context, &engine.swapchain);
@@ -143,6 +143,8 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
             palette.clone(),
             false,
         )?;
+
+        calc_manual(scene.worker_ref.send.clone());
 
         let composer = ModelComposer::new(
             &logic_state.camera, 

@@ -61,6 +61,10 @@ impl VoxelCollapserData {
     ) { 
         self.on_delete(state);
 
+        let now = Instant::now();
+        info!("Update Voxel Object at: {:?}", now);
+        return;
+
         self.scene_key = state.scene.add_object(
             Mat4::from_scale_rotation_translation(
                 Vec3::ONE,

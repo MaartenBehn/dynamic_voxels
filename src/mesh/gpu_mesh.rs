@@ -11,6 +11,7 @@ pub struct GPUMesh {
 
 impl Mesh {
     pub fn flush_to_gpu(&self, contex: &Context) -> GPUMesh {
+
         let vertex_buffer = contex.create_gpu_only_buffer_from_data(
             BufferUsageFlags::VERTEX_BUFFER,
             &self.vertices)

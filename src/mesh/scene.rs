@@ -1,5 +1,5 @@
 use octa_force::{camera::Camera, engine::Engine, glam::{Mat4, Vec2}, log::debug, vulkan::{CommandBuffer, Context, Swapchain, ash::vk::AttachmentLoadOp}};
-use slotmap::{SlotMap, new_key_type};
+use slotmap::{Key, SlotMap, new_key_type};
 use smol::channel::Receiver;
 
 use crate::{mesh::{Mesh, gpu_mesh::GPUMesh, renderer::MeshRenderer}, util::worker_response::{WithRespose, WorkerRespose}, voxel::palette::buffer::PaletteBuffer};
@@ -56,6 +56,11 @@ impl MeshScene {
             match message {
                 MeshSceneMessage::Add(add) => {
                     let (data, awnser) = add.unwarp();
+                    if data.mesh.vertices.is_empty() {
+                        awnser(SceneMeshKey::null());
+                        return;
+                    }
+
                     let mesh = data.mesh.flush_to_gpu(context);
                     let key = self.meshes.insert(MeshObject { mesh, mat: data.mat });
                     

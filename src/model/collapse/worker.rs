@@ -61,7 +61,9 @@ impl ComposeCollapseWorker {
         collapser_s: smol::channel::Sender<Collapser>, 
         mut collapser: Collapser,
     ) {
+        
         let now = Instant::now();
+        info!("Start at: {:?}", now);
 
         collapser.run().await;
 
@@ -78,6 +80,7 @@ impl ComposeCollapseWorker {
                             collapser.template_changed(template);
 
                             let now = Instant::now();
+                            info!("Start at: {:?}", now);
                             collapser.run().await;
 
                             let elapsed = now.elapsed();
@@ -90,6 +93,7 @@ impl ComposeCollapseWorker {
                             collapser.external_input_changed();
 
                             let now = Instant::now();
+                            info!("Start at: {:?}", now);
                             collapser.run().await;
 
                             let elapsed = now.elapsed();
