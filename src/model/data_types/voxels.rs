@@ -61,6 +61,7 @@ impl VoxelCollapserData {
     ) { 
         self.on_delete(state);
 
+        /*
         self.scene_key = state.scene.add_object(
             Mat4::from_scale_rotation_translation(
                 Vec3::ONE,
@@ -69,6 +70,7 @@ impl VoxelCollapserData {
             ), 
             volume,
         ).result_async().await;
+        */
     } 
 }
 
