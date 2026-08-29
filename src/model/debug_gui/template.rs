@@ -227,6 +227,10 @@ impl Template {
                             self.value(ui, *base);
                             self.value(ui, *cut);
                         },
+                        VolumeValue::Intersection { a, b } => {
+                            self.value(ui, *a);
+                            self.value(ui, *b);
+                        },
                         VolumeValue::Material { mat, child } => {
                             self.value(ui, *child);
                         },
@@ -254,6 +258,10 @@ impl Template {
                         VolumeValue::Cut { base, cut } => {
                             self.value(ui, *base);
                             self.value(ui, *cut);
+                        },
+                        VolumeValue::Intersection { a, b } => {
+                            self.value(ui, *a);
+                            self.value(ui, *b);
                         },
                         VolumeValue::Material { mat, child } => {
                             self.value(ui, *child);

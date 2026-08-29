@@ -59,6 +59,14 @@ impl<M: Base + Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T,
         i
     }
 
+    pub fn add_intersection_node(&mut self, indecies: Vec<usize>) -> usize {
+        self.needs_bounds_recompute = true;
+
+        let i = self.nodes.len();
+        self.nodes.push(CSGTreeNode::new_intersection(indecies)); 
+        i
+    }
+
     pub fn set_root(&mut self, root: usize) {
         self.needs_bounds_recompute = true;
 

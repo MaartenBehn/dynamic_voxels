@@ -1,4 +1,4 @@
-use crate::{util::{number::Nu, vector::Ve}, volume::VolumeQureyPosValid};
+use crate::{csg::csg_tree::intersect::CSGTreeIntersect, util::{number::Nu, vector::Ve}, volume::VolumeQureyPosValid};
 
 use super::{remove::CSGTreeRemove, tree::{CSGTreeNodeData, CSGTree, CSGTreeIndex}, union::CSGTreeUnion};
 
@@ -15,6 +15,7 @@ impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
         match &node.data {
             CSGTreeNodeData::None => false,
             CSGTreeNodeData::Union(d) => self.is_position_valid_union(d, pos),
+            CSGTreeNodeData::Intersect(d) => self.is_position_valid_intersect(d, pos),
             CSGTreeNodeData::Cut(d) => self.is_position_valid_remove(d, pos),
             
             CSGTreeNodeData::Box(d) => d.is_position_valid(pos),
@@ -43,6 +44,19 @@ impl<M: Send + Sync, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
             }
         }
 
+        false
+    }
+
+    fn is_position_valid_intersect(&self, intersect: &CSGTreeIntersect<V, T, D>, pos: V) -> bool {
+        if intersect.aabb.pos_in_aabb(pos) {
+            for index in intersect.indecies.iter() {
+                let v = self.is_position_valid_index(*index, pos);
+                if !v {
+                    return false;
+                }
+            }
+            return true;
+        }
         false
     }
 

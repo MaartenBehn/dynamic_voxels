@@ -35,6 +35,10 @@ pub enum VolumeValue {
         base: ValueIndexVolume,
         cut: ValueIndexVolume,
     },
+    Intersection {
+        a: ValueIndexVolume,
+        b: ValueIndexVolume,
+    },
     Material {
         mat: u8,
         child: ValueIndexVolume,
@@ -68,6 +72,7 @@ impl ComposerGraph {
         }
 
         let node = self.snarl.get_node(node_id).expect("Node of remote not found");
+        dbg!(&node.t);
         let value = match &node.t {
             ComposeNodeType::Circle => TemplateValue::Volume2D(VolumeValue::Sphere { 
                 pos: self.make_position(node, 0, data),
@@ -105,6 +110,14 @@ impl ComposerGraph {
             ComposeNodeType::CutVolume3D => TemplateValue::Volume3D(VolumeValue::Cut {
                 base: self.make_volume(node, 0, data),
                 cut: self.make_volume(node, 1, data),
+            }),
+            ComposeNodeType::IntersectionVolume2D => TemplateValue::Volume2D(VolumeValue::Intersection {
+                a: self.make_volume(node, 0, data),
+                b: self.make_volume(node, 1, data),
+            }),
+            ComposeNodeType::IntersectionVolume3D => TemplateValue::Volume3D(VolumeValue::Intersection {
+                a: self.make_volume(node, 0, data),
+                b: self.make_volume(node, 1, data),
             }),
             ComposeNodeType::VolumeMaterial2D => TemplateValue::Volume2D(VolumeValue::Material {
                 child: self.make_volume(node, 0, data),
@@ -163,6 +176,13 @@ impl VolumeValue {
                     data.match_two_volumes(*base1, *base2)
                     && data.match_two_volumes(*cut1, *cut2)
                 },
+                _ => false,
+            },
+            VolumeValue::Intersection { a: a1, b: b1 } => match other {
+                VolumeValue::Union { a: a2, b: b2 } => {
+                    data.match_two_volumes(*a1, *a2)
+                    && data.match_two_volumes(*b1, *b2)
+                }, 
                 _ => false,
             },
             VolumeValue::Material { mat: mat1, child: child1 } => match other {
@@ -296,6 +316,33 @@ impl VolumeValue {
                 let root = tree.add_cut_node(base, cut);
 
                 (vec![root], r_0 || r_1)
+            },
+            VolumeValue::Intersection { a, b } => {
+                let (mut a, r_0) = collapser.template.get_volume_value(*a)
+                    .get_value_inner(get_value_data, collapser, mat, tree);
+          
+                let (mut b, r_1) = collapser.template.get_volume_value(*b)
+                    .get_value_inner(get_value_data, collapser, mat, tree);
+
+                if a.is_empty() || b.is_empty() {
+                    return (vec![], r_0 || r_1);
+                }
+
+                let a = if a.len() == 1 {
+                    a[0]
+                } else {
+                    tree.add_union_node(a)
+                };
+    
+                let b = if b.len() == 1 {
+                    b[0]
+                } else {
+                    tree.add_union_node(b)
+                };
+                
+                let root = tree.add_intersection_node(vec![a, b]);
+
+                (vec![root], r_0 && r_1)
             },
             VolumeValue::Material { mat: new_mat, child } => {
 

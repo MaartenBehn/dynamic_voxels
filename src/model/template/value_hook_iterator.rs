@@ -183,6 +183,10 @@ impl<'a> Iterator for ValueHooksIterator<'a> {
                             self.pointers.push(*base);
                             self.pointers.push(*cut);
                         },
+                        VolumeValue::Intersection { a, b } => {
+                            self.pointers.push(*a);
+                            self.pointers.push(*b);
+                        },
                         VolumeValue::Material { mat, child } => {
                             self.pointers.push(*child);
                         },

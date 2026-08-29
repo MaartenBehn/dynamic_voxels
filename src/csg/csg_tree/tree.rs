@@ -1,6 +1,6 @@
 use octa_force::glam::Mat4;
 
-use crate::{csg::{Base, primitves::{CSGPrimitive, r#box::CSGBox, cylinder::CSGCylinder, sphere::CSGSphere}}, util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid}};
+use crate::{csg::{Base, csg_tree::intersect::CSGTreeIntersect, primitves::{CSGPrimitive, r#box::CSGBox, cylinder::CSGCylinder, sphere::CSGSphere}}, util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, voxel::grid::{offset::OffsetVoxelGrid, shared::SharedVoxelGrid}};
 
 use super::{remove::CSGTreeRemove, union::CSGTreeUnion};
 
@@ -11,6 +11,7 @@ pub const CSG_TREE_INDEX_INVALID: CSGTreeIndex = CSGTreeIndex::MAX;
 pub enum CSGTreeNodeData<M, V: Ve<T, D>, T: Nu, const D: usize> {
     Union(CSGTreeUnion<V, T, D>),
     Cut(CSGTreeRemove),
+    Intersect(CSGTreeIntersect<V, T, D>),
    
     None,
     Box(CSGPrimitive<CSGBox, M, V::VectorF, D>),

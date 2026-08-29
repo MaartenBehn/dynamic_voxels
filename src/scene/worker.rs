@@ -82,7 +82,7 @@ impl SceneWorker {
         let mut dag_store = SceneDAGStore::new();
 
         let mut dag = ParallelVoxelDAG64::new(
-            2000000, 
+            20000000, 
             4000000, 
         );
         dag_store.add_dag(dag, &mut allocator).expect("Failed to add DAG to Store");

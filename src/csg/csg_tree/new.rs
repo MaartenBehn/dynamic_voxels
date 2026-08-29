@@ -2,7 +2,7 @@ use std::any::TypeId;
 
 use octa_force::glam::{vec3, Mat4, Quat, Vec3};
 
-use crate::{csg::{Base, csg_tree::union, primitves::{CSGPrimitive, PrimitiveType, r#box::CSGBox, cylinder::CSGCylinder, sphere::CSGSphere}}, util::{number::Nu, vector::Ve}, voxel::grid::shared::SharedVoxelGrid};
+use crate::{csg::{Base, csg_tree::{intersect::CSGTreeIntersect, union}, primitves::{CSGPrimitive, PrimitiveType, r#box::CSGBox, cylinder::CSGCylinder, sphere::CSGSphere}}, util::{number::Nu, vector::Ve}, voxel::grid::shared::SharedVoxelGrid};
 
 use super::{remove::CSGTreeRemove, tree::{CSGTree, CSGTreeIndex, CSGTreeNode, CSGTreeNodeData, CSG_TREE_INDEX_INVALID}, union::CSGTreeUnion};
 
@@ -78,6 +78,10 @@ impl <M: Base, V: Ve<T, D>, T: Nu, const D: usize> CSGTreeNode<M, V, T, D> {
     
     pub fn new_cut(base: CSGTreeIndex, cut: CSGTreeIndex) -> Self {
         CSGTreeNode::new(CSGTreeNodeData::Cut(CSGTreeRemove::new(base, cut)), CSG_TREE_INDEX_INVALID)
+    }
+
+    pub fn new_intersection(nodes: Vec<CSGTreeIndex>) -> Self {
+        CSGTreeNode::new(CSGTreeNodeData::Intersect(CSGTreeIntersect::new(nodes)), CSG_TREE_INDEX_INVALID)
     }
 }
 

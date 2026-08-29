@@ -3,6 +3,7 @@ pub mod new;
 pub mod add;
 pub mod union;
 pub mod remove;
+pub mod intersect;
 pub mod aabb;
 pub mod pos_valid;
 pub mod pos_value;

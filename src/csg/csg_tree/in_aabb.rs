@@ -1,4 +1,4 @@
-use crate::{util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeQureyAABB, VolumeQureyAABBResult}, voxel::palette::palette::MATERIAL_ID_NONE};
+use crate::{csg::csg_tree::intersect::CSGTreeIntersect, util::{aabb::AABB, math_config::MC, number::Nu, vector::Ve}, volume::{VolumeQureyAABB, VolumeQureyAABBResult}, voxel::palette::palette::MATERIAL_ID_NONE};
 
 use super::{remove::CSGTreeRemove, tree::{CSGTreeNodeData, CSGTree, CSGTreeIndex}, union::CSGTreeUnion};
 
@@ -15,6 +15,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> CSGTree<u8, V, T, D> {
         match &node.data {
             CSGTreeNodeData::None => VolumeQureyAABBResult::Full(MATERIAL_ID_NONE),
             CSGTreeNodeData::Union(d) => self.get_aabb_value_union(d, aabb),
+            CSGTreeNodeData::Intersect(d) => self.get_aabb_value_intersect(d, aabb),
             CSGTreeNodeData::Cut(d) => self.get_aabb_value_remove(d, aabb),
 
             CSGTreeNodeData::Box(d) => d.get_aabb_value(aabb),
@@ -44,6 +45,30 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> CSGTree<u8, V, T, D> {
         }
 
         VolumeQureyAABBResult::Full(MATERIAL_ID_NONE)
+    }
+
+    fn get_aabb_value_intersect(&self, intersect: &CSGTreeIntersect<V, T, D>, aabb: AABB<V, T, D>) -> VolumeQureyAABBResult {
+
+        let mut value = VolumeQureyAABBResult::Full(MATERIAL_ID_NONE);
+        if intersect.aabb.collides_aabb(aabb) {
+            for index in intersect.indecies.iter() {
+                let v = self.get_aabb_value_index(*index, aabb); 
+                if matches!(v, VolumeQureyAABBResult::Full(MATERIAL_ID_NONE)) {
+                    return v;
+                }
+
+                if matches!(value, VolumeQureyAABBResult::Full(MATERIAL_ID_NONE)) {
+                    if matches!(v, VolumeQureyAABBResult::Full(_)) {
+                        value = v;
+                    }
+                } else if matches!(v, VolumeQureyAABBResult::Full(_)) {
+                    if (v != value) {
+                        value = VolumeQureyAABBResult::Mixed;
+                    }
+                }
+            }
+        }
+        value
     }
 
     fn get_aabb_value_remove(&self, remove: &CSGTreeRemove, aabb: AABB<V, T, D>) -> VolumeQureyAABBResult {

@@ -59,6 +59,8 @@ impl ComposerGraph {
         }
 
         let node = self.snarl.get_node(node_id).expect("Node of remote not found");
+
+        dbg!(&node.t);
         let value = match &node.t {
             ComposeNodeType::Grid2D => {
                 

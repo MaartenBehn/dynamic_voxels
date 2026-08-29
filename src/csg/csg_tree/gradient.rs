@@ -1,4 +1,4 @@
-use crate::{csg::csg_tree::{remove::CSGTreeRemove, tree::{CSGTree, CSGTreeIndex, CSGTreeNodeData}, union::CSGTreeUnion}, util::{number::Nu, vector::Ve}, volume::VolumeGradient};
+use crate::{csg::csg_tree::{intersect::CSGTreeIntersect, remove::CSGTreeRemove, tree::{CSGTree, CSGTreeIndex, CSGTreeNodeData}, union::CSGTreeUnion}, util::{number::Nu, vector::Ve}, volume::VolumeGradient};
 
 impl<M, V: Ve<T, D>, T: Nu, const D: usize> VolumeGradient<V::VectorF, D> for CSGTree<M, V, T, D> {
     fn get_gradient_at_position(&self, pos: V::VectorF) -> V::VectorF {
@@ -12,7 +12,8 @@ impl<M, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
         match &node.data {
             CSGTreeNodeData::None => V::VectorF::ZERO,
             CSGTreeNodeData::Union(d) => self.get_gradient_at_position_union(d, pos),
-            CSGTreeNodeData::Cut(d) => self.get_gradient_at_position_union_remove(d, pos),
+            CSGTreeNodeData::Intersect(d) => self.get_gradient_at_position_intersect(d, pos),
+            CSGTreeNodeData::Cut(d) => self.get_gradient_at_position_remove(d, pos),
             
             CSGTreeNodeData::Box(d) => d.get_gradient_at_position(pos),
             CSGTreeNodeData::Sphere(d) => d.get_gradient_at_position(pos),
@@ -36,7 +37,11 @@ impl<M, V: Ve<T, D>, T: Nu, const D: usize> CSGTree<M, V, T, D> {
         max_grad
     }
 
-    fn get_gradient_at_position_union_remove(&self, remove: &CSGTreeRemove, pos: V::VectorF) -> V::VectorF {
+    fn get_gradient_at_position_intersect(&self, intersect: &CSGTreeIntersect<V, T, D>, pos: V::VectorF) -> V::VectorF {
+        todo!()        
+    }
+
+    fn get_gradient_at_position_remove(&self, remove: &CSGTreeRemove, pos: V::VectorF) -> V::VectorF {
         todo!()        
     }
 }

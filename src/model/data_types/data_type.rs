@@ -83,6 +83,8 @@ pub enum ComposeNodeType {
     UnionVolume3D,
     CutVolume2D,
     CutVolume3D,
+    IntersectionVolume2D,
+    IntersectionVolume3D,
  
     // Math
     SplitPosition2D,
@@ -264,6 +266,17 @@ pub fn get_node_templates() -> Vec<ComposeNode> {
             .input(ComposeDataType::Volume3D, "base")
             .input(ComposeDataType::Volume3D, "cut")
             .output(ComposeDataType::Volume3D, "v"),
+
+        ComposeNode::new(ComposeNodeType::IntersectionVolume2D, ComposeNodeGroupe::Volume2D)
+            .input(ComposeDataType::Volume2D, "a")
+            .input(ComposeDataType::Volume2D, "b")
+            .output(ComposeDataType::Volume2D, "v"),
+
+        ComposeNode::new(ComposeNodeType::IntersectionVolume2D, ComposeNodeGroupe::Volume3D)
+            .input(ComposeDataType::Volume3D, "a")
+            .input(ComposeDataType::Volume3D, "b")
+            .output(ComposeDataType::Volume3D, "v"),
+
 
         ComposeNode::new(ComposeNodeType::VolumeMaterial2D, ComposeNodeGroupe::Volume2D)
             .input(ComposeDataType::Volume2D, "v")

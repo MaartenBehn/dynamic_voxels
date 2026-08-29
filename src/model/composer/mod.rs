@@ -105,12 +105,10 @@ impl ModelComposer {
         self.viewer_data.offset = Vec2::new(0.0, split_y as f32);
 
         let res = egui::SidePanel::right("Right Side")
-            .min_width(500.0)
+            .min_width(300.0)
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical()
                     .show(ui, |ui| {
-                        ui.set_min_width(500.0);
-
                         div(ui, Margin::same(10), |ui| {
                             ui.checkbox(&mut self.auto_rebuild, "Auto Rebuild");
                             if ui.button("Rebuild").clicked() {

@@ -41,7 +41,7 @@ pub trait VolumeQureyPosValue<V: Ve<T, D>, T: Nu, const D: usize>: VolumeBounds<
     fn get_value(&self, pos: V) -> u8;
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum VolumeQureyAABBResult {
     Full(u8),
     Mixed,

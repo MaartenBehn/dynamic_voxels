@@ -56,7 +56,7 @@ impl Tree64Renderer {
         let now = Instant::now();
 
         let mut dag = ParallelVoxelDAG64::new(
-            200000000, 
+            20000000, 
             10000, 
         );
         dag.print_memory_info();

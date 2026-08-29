@@ -55,6 +55,7 @@ impl<M, V: Ve<T, D>, T: Nu, const D: usize> BHShape<(), V::VectorF, f32, D> for 
         match &self.data {
             CSGTreeNodeData::None => AABB::default(),
             CSGTreeNodeData::Union(d) => d.get_bounds().to_f(),
+            CSGTreeNodeData::Intersect(d) => d.get_bounds().to_f(),
             CSGTreeNodeData::Cut(csgtree_remove) => {
                 let base = csgtree_remove.base;
                 shapes.aabb(base)

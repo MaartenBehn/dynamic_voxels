@@ -1,4 +1,4 @@
-use crate::{util::{number::Nu, vector::Ve}, volume::VolumeQureyPosValue, voxel::palette::palette::MATERIAL_ID_NONE};
+use crate::{csg::csg_tree::intersect::CSGTreeIntersect, util::{number::Nu, vector::Ve}, volume::VolumeQureyPosValue, voxel::palette::palette::MATERIAL_ID_NONE};
 
 use super::{remove::CSGTreeRemove, tree::{CSGTreeNodeData, CSGTree, CSGTreeIndex}, union::CSGTreeUnion};
 
@@ -15,6 +15,7 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> CSGTree<u8, V, T, D> {
         match &node.data {
             CSGTreeNodeData::None => 0,
             CSGTreeNodeData::Union(d) => self.get_value_union(d, pos),
+            CSGTreeNodeData::Intersect(d) => self.get_value_intersect(d, pos),
             CSGTreeNodeData::Cut(d) => self.get_value_remove(d, pos),
             
             CSGTreeNodeData::Box(d) => d.get_value(pos),
@@ -44,6 +45,26 @@ impl<V: Ve<T, D>, T: Nu, const D: usize> CSGTree<u8, V, T, D> {
         }
 
         MATERIAL_ID_NONE
+    }
+
+    fn get_value_intersect(&self, intersect: &CSGTreeIntersect<V, T, D>, pos: V) -> u8 {
+        
+        if !intersect.aabb.pos_in_aabb(pos) {
+            return MATERIAL_ID_NONE;
+        }
+
+        let mut value = MATERIAL_ID_NONE;
+        for index in intersect.indecies.iter() {
+            let v = self.get_value_index(*index, pos);
+            if v == MATERIAL_ID_NONE {
+                return v;
+            }
+
+            if value == MATERIAL_ID_NONE {
+                value = MATERIAL_ID_NONE;
+            }
+        }
+        value
     }
 
     fn get_value_remove(&self, remove: &CSGTreeRemove, pos: V) -> u8 {
