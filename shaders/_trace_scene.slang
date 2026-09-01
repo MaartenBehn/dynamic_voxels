@@ -137,7 +137,7 @@ void path_trace_scene(uint2 pos) {
 
 
 float3 SampleProbeRadiance(uint probeIdx, float3 dir) {
-    float2 uv = dir_to_oct(normalize(-dir));
+    float2 uv = dir_to_oct(normalize(dir));
     uint2 tile = ProbeTileOffset(probeIdx, GI_ATLAS_SIZE);
 
     float2 texel_pos = clamp(uv, 0.5 / PROBE_TILE_SIZE, 1.0 - 0.5 / PROBE_TILE_SIZE) * PROBE_TILE_SIZE;
@@ -145,7 +145,7 @@ float3 SampleProbeRadiance(uint probeIdx, float3 dir) {
                      + uint2(texel_pos) 
                      + PROBE_PADDING;
 
-    if (pc.debug_probe_depth) {
+    if (pc.debug_probe_depth != 0) {
       return float3(pc.depth_atlas.Instance[pixelCoord]);
     }
     return pc.radiance_atlas.Instance[pixelCoord];

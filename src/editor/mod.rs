@@ -21,7 +21,7 @@ impl Editor {
         scene_send: SceneWorkerSend,
     ) -> OctaResult<Self> {
         
-        let factor = 4.0;
+        let factor = 1.0;
         let mut model = Volume::new_sphere_float(Vec3A::new(0.0, 0.0, 0.0), 
             100.0 * factor, MATERIAL_ID_BASE);
         let res = model.cut_with_sphere(
@@ -33,8 +33,8 @@ impl Editor {
 
         let key = scene_send.add_object(Mat4::from_rotation_x(0.0_f32.to_radians()), model.clone()).result_blocking();
         
-        //scene_send.debug_probe_location(key, true);
-        scene_send.debug_probe_data(10);
+        scene_send.debug_probe_location(key, true);
+        scene_send.debug_probe_data(30);
 
         Ok(Self {
             scene_send,

@@ -65,7 +65,7 @@ impl<'a> GI for GIExecutor<'a> {
             return GI_PROBE_INDEX_NONE;
         }
 
-        let pos_dag_space = (1.0 + (pos.unwrap().as_vec3() / (self.size * VOXELS_PER_SHADER_UNIT as f32)));
+        let pos_dag_space = (1.0 + (pos.unwrap().as_vec3() / self.size));
 
         let gi_level = &self.pool.pools[(level - GI_PROBE_MIN_LEVEL) as usize];
 

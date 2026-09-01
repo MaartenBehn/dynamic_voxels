@@ -18,7 +18,7 @@ impl ParallelVoxelDAG64 {
             return self.empty_entry();
         }
 
-        let root = self.add_aabb_query_recursive_par(model, lod, offset, levels);
+        let root = self.add_aabb_query_recursive_par(model, offset, lod, IVec3::ZERO, levels);
 
         let root_index = self.nodes.push(&[root]);
         let key = self.entry_points.lock().insert(DAG64Entry { 
@@ -33,18 +33,19 @@ impl ParallelVoxelDAG64 {
     pub(super) fn add_aabb_query_recursive_par<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3> + Send + Sync, LOD: LODHeuristicT>(
         &self,
         model: &M,
+        model_offset: IVec3,
         lod: &LOD,
         offset: IVec3,
         level: u8,
     ) -> VoxelDAG64Node {
         if level <= lod.lod_level(offset) {
-            self.add_aabb_query_leaf(model, offset, level)
+            self.add_aabb_query_leaf(model, model_offset, offset, level)
         } else {
 
             let size = get_voxel_size(level);
             let aabb = AABB::new(
-                V::ve_from(offset), 
-                V::ve_from(offset + size));
+                V::ve_from(offset + model_offset), 
+                V::ve_from(offset + size + model_offset));
 
             let res = model.get_aabb_value(aabb); 
 
@@ -67,12 +68,14 @@ impl ParallelVoxelDAG64 {
                             let res = if level > MIN_PAR_LEVEL {
                                 self.add_aabb_query_recursive_par(
                                     model,
+                                    model_offset,
                                     lod,
                                     pos, 
                                     new_level) 
                             } else {
                                 self.add_aabb_query_recursive(
                                     model,
+                                    model_offset,
                                     lod,
                                     pos, 
                                     new_level) 
@@ -109,17 +112,18 @@ impl ParallelVoxelDAG64 {
     pub(super) fn add_aabb_query_recursive<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>, LOD: LODHeuristicT>(
         &self,
         model: &M,
+        model_offset: IVec3,
         lod: &LOD,
         offset: IVec3,
         level: u8,
     ) -> VoxelDAG64Node {
         if level <= lod.lod_level(offset) {
-            self.add_aabb_query_leaf(model, offset, level)
+            self.add_aabb_query_leaf(model, model_offset, offset, level)
         } else {
             let size = get_voxel_size(level);
-            let aabb = AABB::new(
-                V::ve_from(offset), 
-                V::ve_from(offset + size));
+            let min = offset + model_offset;
+            let max = min + size; 
+            let aabb = AABB::new(V::ve_from(min), V::ve_from(max));
 
             let res = model.get_aabb_value(aabb); 
 
@@ -141,6 +145,7 @@ impl ParallelVoxelDAG64 {
                     for (i, pos) in get_dag_node_children_i().into_iter().enumerate() {
                         let child = self.add_aabb_query_recursive(
                             model,
+                            model_offset,
                             lod,
                             offset + pos * new_size,
                             new_level,
@@ -160,13 +165,14 @@ impl ParallelVoxelDAG64 {
     pub(super) fn add_aabb_query_leaf<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>>(
         &self,
         model: &M,
+        model_offset: IVec3,
         offset: IVec3,
-        node_level: u8,
+        level: u8,
     ) -> VoxelDAG64Node {
-        let scale = 1 << (2 * node_level);
-        let aabb = AABB::new(
-                V::ve_from(offset), 
-                V::ve_from(offset + scale));
+        let size = get_voxel_size(level);
+            let min = offset + model_offset;
+            let max = min + size; 
+            let aabb = AABB::new(V::ve_from(min), V::ve_from(max));
 
         let res = model.get_aabb_value(aabb);
 
@@ -179,7 +185,7 @@ impl ParallelVoxelDAG64 {
                 }
             },
             VolumeQureyAABBResult::Mixed =>  {
-                self.add_pos_query_leaf(model, offset, node_level)
+                self.add_pos_query_leaf(model, model_offset, offset, level)
             },
         }
     }

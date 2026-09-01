@@ -17,8 +17,8 @@ impl ParallelVoxelDAG64 {
         let mut entry_data = self.expand_to_include_aabb(based_on_entry, change_aabb);
 
         gi.set_level(entry_data.levels);
-        let root = self.update_pos_recursive_par(model, lod, gi, 
-            change_aabb, entry_data.levels, entry_data.offset, entry_data.root_index);
+        let root = self.update_pos_recursive_par(model, entry_data.offset, lod, gi, 
+            change_aabb, entry_data.levels, IVec3::ZERO, entry_data.root_index);
         entry_data.root_index = self.nodes.push(&[root]);
 
         let key = self.entry_points.lock().insert(entry_data);
@@ -29,6 +29,7 @@ impl ParallelVoxelDAG64 {
     pub(super) fn update_pos_recursive_par<G: GI, V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3> + Send + Sync, LOD: LODHeuristicT>(
         &self, 
         model: &M, 
+        model_offset: IVec3,
         lod: &LOD,
         gi: G,
         aabb: AABB<V, T, 3>, 
@@ -40,7 +41,8 @@ impl ParallelVoxelDAG64 {
 
         if node.is_leaf() {
             let new_node = self.add_pos_query_leaf(
-                model, 
+                model,
+                model_offset,
                 offset,
                 level,
             );
@@ -49,44 +51,48 @@ impl ParallelVoxelDAG64 {
         }
         
         let new_level = level -1;
-        let new_scale = get_voxel_size(level);
+        let new_size = get_voxel_size(level);
 
         let (new_children, new_bitmask) = get_dag_node_children_i()
             .into_par_iter()
             .enumerate()
             .map(|(i, pos)| {
-                let min = offset + pos * new_scale;
-                let max = min + new_scale;
-                (i, AABB::new(V::ve_from(min), V::ve_from(max)))
+                let new_offset = offset + pos * new_size; 
+                let min = new_offset + model_offset;
+                let max = min + new_size;
+                (i, new_offset, AABB::new(V::ve_from(min), V::ve_from(max)))
             })
-            .filter(|(_, node_aabb)| aabb.collides_aabb(*node_aabb))
-            .map(|(i, node_aabb)| {
+            .filter(|(_, _, node_aabb)| aabb.collides_aabb(*node_aabb))
+            .map(|(i, new_offset, node_aabb)| {
                 let index_in_children = node.get_index_in_children_unchecked(i as u32);
                 let new_node = if !node.is_occupied(i as u32) {
 
                     (self.add_pos_query_recursive(
-                        model, 
+                        model,
+                        model_offset,
                         lod,
                         gi,
-                        node_aabb.min().ve_into(),
+                        new_offset,
                         new_level,
                     ).check_empty(), true)
                 } else if aabb.contains_aabb(node_aabb) {
                     (Some(self.add_pos_query_recursive(
                         model, 
+                        model_offset,
                         lod,
                         gi,
-                        node_aabb.min().ve_into(),
+                        new_offset,
                         new_level,
                     )), false)
                 } else {
                     (Some(self.update_pos_recursive(
                         model,
+                        model_offset,
                         lod,
                         gi,
                         aabb,
                         new_level,
-                        node_aabb.min().ve_into(),
+                        new_offset,
                         node.index() + index_in_children,
                     )), false)
                 };
@@ -145,6 +151,7 @@ impl ParallelVoxelDAG64 {
     fn update_pos_recursive<G: GI, V: Ve<T, 3>, T: Nu, M: VolumeQureyPosValue<V, T, 3>, LOD: LODHeuristicT>(
         &self, 
         model: &M, 
+        model_offset: IVec3,
         lod: &LOD,
         gi: G,
         aabb: AABB<V, T, 3>, 
@@ -157,6 +164,7 @@ impl ParallelVoxelDAG64 {
         if node.is_leaf() {
             let new_node = self.add_pos_query_leaf(
                 model, 
+                model_offset,
                 offset,
                 level,
             );
@@ -173,7 +181,8 @@ impl ParallelVoxelDAG64 {
         for (i, pos) in get_dag_node_children_i().into_iter()
             .enumerate()
             .rev() {
-            let min = offset + pos * new_size;
+            let new_offset = offset + pos * new_size; 
+            let min = new_offset + model_offset;
             let max = min + new_size;
             let node_aabb = AABB::new(V::ve_from(min), V::ve_from(max));
 
@@ -184,9 +193,10 @@ impl ParallelVoxelDAG64 {
 
                     let new_child_node = self.add_pos_query_recursive(
                         model,
+                        model_offset,
                         lod,
                         gi,
-                        min,
+                        new_offset,
                         new_level,
                     );
 
@@ -207,19 +217,21 @@ impl ParallelVoxelDAG64 {
                 let new_child_node = if aabb.contains_aabb(node_aabb) {
                     self.add_pos_query_recursive(
                         model, 
+                        model_offset,
                         lod,
                         gi,
-                        min,
+                        new_offset,
                         new_level,
                     )
                 } else {
                     self.update_pos_recursive(
                         model,
+                        model_offset,
                         lod,
                         gi,
                         aabb,
                         new_level,
-                        min,
+                        new_offset,
                         node.index() + index_in_children,
                     )
                 };

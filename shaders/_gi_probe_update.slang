@@ -25,12 +25,12 @@ void main(uint probeIdx: SV_GroupID, uint2 texel_pos: SV_GroupThreadID) {
   Probe* probes = (Probe*)(pc.start_ptr + pc.probes_offset); 
   Probe probe = probes[probeIdx];
 
-  // ---- Compute atlas coord ----
+  // Compute atlas coord 
   uint2 tile = ProbeTileOffset(probeIdx, GI_ATLAS_SIZE);
 
   uint2 pixelCoord = (tile * (PROBE_TILE_SIZE + PROBE_PADDING * 2)) + texel_pos + PROBE_PADDING;
 
-  // ---- Convert texel → direction ----
+  // Convert texel → direction
   float2 uv = (texel_pos + 0.5) / PROBE_TILE_SIZE;
   float3 dir = oct_to_dir(uv);
 
@@ -45,17 +45,14 @@ void main(uint probeIdx: SV_GroupID, uint2 texel_pos: SV_GroupThreadID) {
 
     float2 xi = Random2(seed);
 
-    float3 local = CosineSampleHemisphere(xi);
-    float3 rayDir = ToWorld(local, dir);
+    HitInfo hit = tree.RayCast(probe.position, dir, false);
 
-    HitInfo hit = tree.RayCast(probe.position, rayDir, false);
-
-    if (hit.miss) {
-      radiance += GetSkyColor(rayDir, true);
+    if (hit.miss || hit.t <= 0) {
+      radiance += GetSkyColor(dir, true);
       depth = 0.0;
     } else {
       let material = pc.palette[hit.MaterialId];
-      radiance += material.Color; // * material.Emission;
+      radiance += material.Color * material.Emission;
       depth += hit.t;
     }
   }
@@ -67,7 +64,7 @@ void main(uint probeIdx: SV_GroupID, uint2 texel_pos: SV_GroupThreadID) {
   float3 oldRad = pc.radiance_atlas.Instance[pixelCoord];
   float oldDepth = pc.depth_atlas.Instance[pixelCoord];
 
-  float blendAlpha = 0.5;
+  float blendAlpha = 1.0;
   pc.radiance_atlas.Instance[pixelCoord] = lerp(oldRad, radiance, blendAlpha);
   pc.depth_atlas.Instance[pixelCoord]    = lerp(oldDepth, depth, blendAlpha);
 

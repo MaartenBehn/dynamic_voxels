@@ -15,7 +15,7 @@ impl ParallelVoxelDAG64 {
         let change_aabb = model.get_change_bounds();
         let mut entry_data = self.expand_to_include_aabb(based_on_entry, change_aabb);
 
-        let root = self.update_aabb_recursive_par(model, lod, change_aabb, entry_data.levels, entry_data.offset, entry_data.root_index);
+        let root = self.update_aabb_recursive_par(model, entry_data.offset, lod, change_aabb, entry_data.levels, IVec3::ZERO, entry_data.root_index);
         entry_data.root_index = self.nodes.push(&[root]);
 
         let key = self.entry_points.lock().insert(entry_data);
@@ -26,6 +26,7 @@ impl ParallelVoxelDAG64 {
     pub(super) fn update_aabb_recursive_par<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3> + Send + Sync, LOD: LODHeuristicT>(
         &self, 
         model: &M, 
+        model_offset: IVec3,
         lod: &LOD,
         aabb: AABB<V, T, 3>, 
         level: u8, 
@@ -37,6 +38,7 @@ impl ParallelVoxelDAG64 {
         if node.is_leaf() {
             let new_node = self.add_aabb_query_leaf(
                 model, 
+                model_offset,
                 offset,
                 level,
             );
@@ -51,7 +53,8 @@ impl ParallelVoxelDAG64 {
             .into_par_iter()
             .enumerate()
             .map(|(i, pos)| {
-                let min = offset + pos * new_size;
+                let new_offset = offset + pos * new_size; 
+                let min = new_offset + model_offset;
                 let max = min + new_size;
                 let node_aabb = AABB::new(V::ve_from(min), V::ve_from(max));
 
@@ -65,15 +68,17 @@ impl ParallelVoxelDAG64 {
                     if new_level > MIN_PAR_LEVEL {
                         self.add_aabb_query_recursive_par(
                             model, 
+                            model_offset,
                             lod,
-                            node_aabb.min().ve_into(),
+                            new_offset,
                             new_level,
                         )
                     } else {
                         self.add_aabb_query_recursive(
                             model, 
+                            model_offset,
                             lod,
-                            node_aabb.min().ve_into(),
+                            new_offset,
                             new_level,
                         )
                     }
@@ -83,15 +88,17 @@ impl ParallelVoxelDAG64 {
                     if new_level > MIN_PAR_LEVEL {
                         self.add_aabb_query_recursive_par(
                             model,
+                            model_offset,
                             lod,
-                            node_aabb.min().ve_into(),
+                            new_offset,
                             new_level,
                         )
                     } else {
                         self.add_aabb_query_recursive(
                             model,
+                            model_offset,
                             lod,
-                            node_aabb.min().ve_into(),
+                            new_offset,
                             new_level,
                         )
                     }
@@ -101,6 +108,7 @@ impl ParallelVoxelDAG64 {
                     if new_level > MIN_PAR_LEVEL {
                         self.update_aabb_recursive_par(
                             model,
+                            model_offset,
                             lod,
                             aabb,
                             new_level,
@@ -110,6 +118,7 @@ impl ParallelVoxelDAG64 {
                     } else {
                         self.update_aabb_recursive(
                             model,
+                            model_offset,
                             lod,
                             aabb,
                             new_level,
@@ -165,6 +174,7 @@ impl ParallelVoxelDAG64 {
     fn update_aabb_recursive<V: Ve<T, 3>, T: Nu, M: VolumeQureyAABB<V, T, 3>, LOD: LODHeuristicT>(
         &self, 
         model: &M, 
+        model_offset: IVec3,
         lod: &LOD,
         aabb: AABB<V, T, 3>, 
         level: u8, 
@@ -176,6 +186,7 @@ impl ParallelVoxelDAG64 {
         if node.is_leaf() {
             let new_node = self.add_aabb_query_leaf(
                 model, 
+                model_offset,
                 offset,
                 level,
             );
@@ -205,6 +216,7 @@ impl ParallelVoxelDAG64 {
                 let new_child_node = if aabb.contains_aabb(node_aabb) {
                     self.add_aabb_query_recursive(
                         model, 
+                        model_offset,
                         lod, 
                         min,
                         new_level,
@@ -212,6 +224,7 @@ impl ParallelVoxelDAG64 {
                 } else {
                     self.update_aabb_recursive(
                         model,
+                        model_offset,
                         lod,
                         aabb,
                         new_level,
@@ -233,6 +246,7 @@ impl ParallelVoxelDAG64 {
 
             let new_child_node = self.add_aabb_query_recursive(
                 model,
+                model_offset,
                 lod,
                 min,
                 new_level,

@@ -41,7 +41,7 @@ impl SceneWorker {
             return Ok(());
         }
 
-        let level = 3;
+        let level = 2;
 
         let mat = object.mat;
         let start = object.allocation.start() as u32;
@@ -51,8 +51,9 @@ impl SceneWorker {
         let mut csg_children = vec![];
 
         let size =  object.entry.get_size() as f32;
+        let offset = object.entry.offset.as_vec3() / size; 
         for pos in self.iter_probe_level(start, level) {
-            let world_pos = (pos - 1.0) * size;
+            let world_pos = (pos - 1.0 + offset) * size;
 
             csg_children.push(csg.add_sphere(Vec3A::from(world_pos), level as f32 * 1.0, MATERIAL_ID_DEBUG));
         }
@@ -92,7 +93,9 @@ impl SceneWorker {
             .find(|o| o.allocation.start() == object_offset as usize)
             .unwrap();
 
-        let world_pos = (position - 1.0) * (object.entry.get_size() as f32 * VOXELS_PER_SHADER_UNIT as f32);
+        let offset = (object.entry.offset.as_vec3() / object.entry.get_size() as f32); 
+        let world_pos = (position - 1.0 + offset) * object.entry.get_size() as f32;
+
         let radius = 5;
         let mat = object.mat;
 
