@@ -8,5 +8,6 @@ pub const GI_ATLAS_SIZE: usize = parse_env!("GI_ATLAS_SIZE" as usize);
 pub const PROBE_RADIANCE_RES: usize = parse_env!("PROBE_RADIANCE_RES" as usize);
 pub const PROBE_DEPTH_RES: usize = parse_env!("PROBE_DEPTH_RES" as usize);
 
-pub const PROBE_PADDING: usize = 1;
+pub const PROBE_PADDING: usize = parse_env!("PROBE_PADDING" as usize);
+pub const MATERIAL_ID_PROBE: usize = parse_env!("MATERIAL_ID_PROBE" as usize);
 

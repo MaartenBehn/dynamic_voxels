@@ -44,7 +44,7 @@ impl SceneRenderer {
         allways_fullscreen: bool,
     ) -> OctaResult<SceneRenderer> {
 
-        let gpu_buffer_size = 2_usize.pow(30);
+        let gpu_buffer_size = 2_usize.pow(if cfg!(feature="graph") { 30 } else { 29 });
         info!("Scene Buffer size: {:.04} MB", to_mb(gpu_buffer_size));
   
         let flags = vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS_KHR | vk::BufferUsageFlags::TRANSFER_DST;
@@ -173,6 +173,8 @@ impl SceneRenderer {
                     self.renderer.gi.active_probe_map_offset = staging.active_probe_map_offset;
                     self.renderer.gi.active_probe_data_offset = staging.active_probe_data_offset;
                     self.renderer.gi.num_active_probes = staging.num_active_probes;
+                    self.renderer.gi.debug_probe_pos = staging.debug_probe_pos;
+                    self.renderer.gi.debug_probe_index = staging.debug_probe_index;
                     
                     self.start_staging_copy_time = Instant::now();
                     self.copy_staging(staging, engine)?;

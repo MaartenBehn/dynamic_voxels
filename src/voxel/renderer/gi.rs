@@ -1,4 +1,4 @@
-use octa_force::{OctaResult, egui::Ui, glam::{IVec3, UVec2}, vulkan::{Buffer, Context, DescriptorSet, DescriptorSetLayout, ash::vk::{self, Format}, descriptor_heap::{DescriptorHandleValue, ImageDescriptorHeap}, gpu_allocator::MemoryLocation}};
+use octa_force::{OctaResult, egui::Ui, glam::{IVec3, UVec2, Vec3}, vulkan::{Buffer, Context, DescriptorSet, DescriptorSetLayout, ash::vk::{self, Format}, descriptor_heap::{DescriptorHandleValue, ImageDescriptorHeap}, gpu_allocator::MemoryLocation}};
 
 use crate::{util::{buddy_allocator::{BuddyAllocator, ManualBuddyAllocation}, shader_constants::{GI_ATLAS_SIZE, PROBE_DEPTH_RES, PROBE_PADDING, PROBE_RADIANCE_RES}}, voxel::renderer::{g_buffer::ImageAndViewAndHandle, shader_stage::ShaderStage}};
 
@@ -18,6 +18,10 @@ pub struct GIRenderer {
     pub num_active_probes: u32,
 
     pub active: bool,
+
+    pub debug_probe_pos: Vec3,
+    pub debug_probe_index: u32,
+    pub debug_probe_depth: bool,
 }
 
 #[repr(C)]
@@ -80,12 +84,17 @@ impl GIRenderer {
             active_probe_data_offset: 0,
             num_active_probes: 0,
             active: true,
+            debug_probe_pos: Vec3::ZERO,
+            debug_probe_index: 0,
+            debug_probe_depth: false,
         })
     }
 
     pub fn settings_ui(&mut self, ui: &mut Ui) {
         ui.checkbox(&mut self.active, "Use Probes");
         ui.label(format!("Active Probes: {}", self.num_active_probes));
+        ui.label(format!("Debug Probe: {} {}", self.debug_probe_index, self.debug_probe_pos));
+        ui.checkbox(&mut self.debug_probe_depth, "Debug Probe Depth");
     }
 
 }

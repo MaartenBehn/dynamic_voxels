@@ -52,6 +52,7 @@ impl GIActive {
             self.write_initial = false;
         }
 
+        self.active_size = 0;
         for (i, probe) in pool.pools[0].unique_iter().enumerate() {
             if i >= NUM_ACTIVE_PROBES {
                 break;

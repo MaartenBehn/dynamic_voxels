@@ -1,4 +1,4 @@
-use octa_force::vulkan::{Buffer, Context, ash::vk};
+use octa_force::{glam::Vec3, vulkan::{Buffer, Context, ash::vk}};
 
 use crate::scene::worker::SceneWorker;
 
@@ -19,6 +19,8 @@ pub struct SceneStaging {
     pub active_probe_map_offset: u32,
     pub active_probe_data_offset: u32,
     pub num_active_probes: u32,
+    pub debug_probe_pos: Vec3,
+    pub debug_probe_index: u32,
 }
 
 #[derive(Clone, Copy)]
@@ -53,6 +55,8 @@ impl SceneWorker {
             active_probe_map_offset: self.gi.active.probe_map_alloc.start() as u32, 
             active_probe_data_offset: self.gi.active.probe_data_alloc.start() as u32, 
             num_active_probes: self.gi.active.active_size,
+            debug_probe_pos: self.debug.probe_data.as_ref().map(|d| d.probe_position).unwrap_or_default(),
+            debug_probe_index: self.debug.probe_data.as_ref().map(|d| d.active_index).unwrap_or_default() as u32,
         }
     }
 }

@@ -26,12 +26,12 @@ fn main() {
         name: APP_NAME.to_string(),
         start_size: uvec2(WIDTH, HEIGHT),
         num_frames_in_flight: NUM_FRAMES_IN_FLIGHT,
-        max_fps: 100,
+        max_fps: 60,
 
         ray_tracing: EngineFeatureValue::NotUsed,
         compute_rendering: EngineFeatureValue::Needed,
         validation_layers: EngineFeatureValue::Needed,
-        shader_debug_printing: EngineFeatureValue::Needed,
+        shader_debug_printing: EngineFeatureValue::NotUsed,
         shader_debug_clock: if USE_PROFILE {
             EngineFeatureValue::Needed
         } else {

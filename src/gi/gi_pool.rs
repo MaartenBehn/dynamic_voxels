@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use octa_force::glam::{IVec3, UVec3, Vec3, uvec3};
 
-use crate::{util::{math::get_dag_node_children_i, vector::Ve}, voxel::{dag64::{node::VoxelDAG64Node, util::get_voxel_size}, renderer::g_buffer::ImageAndViewAndHandle}};
+use crate::{util::{math::get_dag_node_children_i, shader_constants::VOXELS_PER_SHADER_UNIT, vector::Ve}, voxel::{dag64::{node::VoxelDAG64Node, util::get_voxel_size}, renderer::g_buffer::ImageAndViewAndHandle}};
 
 pub const GI_PROBE_INDEX_NONE: u32 = u32::MAX;
 pub const GI_PROBE_MIN_LEVEL: u8 = 2;
@@ -65,7 +65,7 @@ impl<'a> GI for GIExecutor<'a> {
             return GI_PROBE_INDEX_NONE;
         }
 
-        let pos_dag_space = 1.0 + (pos.unwrap().as_vec3() / self.size);
+        let pos_dag_space = (1.0 + (pos.unwrap().as_vec3() / (self.size * VOXELS_PER_SHADER_UNIT as f32)));
 
         let gi_level = &self.pool.pools[(level - GI_PROBE_MIN_LEVEL) as usize];
 

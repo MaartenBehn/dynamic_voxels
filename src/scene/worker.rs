@@ -53,7 +53,8 @@ pub enum SceneTask {
     FreeStagingBuffer(Buffer),
     CameraPosition(Vec3),
     
-    DebugProbes((SceneObjectKey, bool)),
+    DebugProbeLocation((SceneObjectKey, bool)),
+    DebugProbeData(usize),
 }
 
 #[derive(Clone, Debug)]
@@ -81,10 +82,15 @@ impl SceneWorker {
 
         let mut dag_store = SceneDAGStore::new();
 
-        let mut dag = ParallelVoxelDAG64::new(
+        let mut dag = if cfg!(feature="graph") { ParallelVoxelDAG64::new(
             20000000, 
             4000000, 
-        );
+        ) } else {
+            ParallelVoxelDAG64::new(
+                2000000, 
+                4000000, 
+            )
+        };
         dag_store.add_dag(dag, &mut allocator).expect("Failed to add DAG to Store");
 
         let lod = LODType::default();
@@ -189,12 +195,19 @@ impl SceneWorker {
                                 self.update(&render_s).await.unwrap();
                                 self.clean();
                             },
-                            SceneTask::DebugProbes((key, set)) => {
+                            SceneTask::DebugProbeLocation((key, set)) => {
                                 if set {
-                                    self.show_probes(key);
+                                    self.show_probe_location(key);
                                     self.update(&render_s).await.unwrap();
                                     self.clean();
+
+                                    
                                 }
+                            },
+                            SceneTask::DebugProbeData(active_index) => {
+                                self.show_probe_data(active_index);
+                                self.update(&render_s).await.unwrap();
+                                self.clean();
                             },
                         }
                     },
@@ -310,8 +323,12 @@ impl SceneWorkerSend {
         res
     }   
     
-    pub fn debug_probes(&self, object: SceneObjectKey, show: bool) {
-        self.send_task(SceneTask::DebugProbes((object, show)));
+    pub fn debug_probe_location(&self, object: SceneObjectKey, show: bool) {
+        self.send_task(SceneTask::DebugProbeLocation((object, show)));
+    }
+
+    pub fn debug_probe_data(&self, active_index: usize) {
+        self.send_task(SceneTask::DebugProbeData(active_index));
     }
 }
 
@@ -325,7 +342,8 @@ impl fmt::Debug for SceneTask {
             SceneTask::GetObjectMat(arg0) => f.debug_tuple("GetObjectMat").finish(),
             SceneTask::UpdateObjectMat(arg0) => f.debug_tuple("UpdateObjectMat").finish(),
             SceneTask::UpdateModel(arg0) => f.debug_tuple("UpdateModel").finish(),
-            SceneTask::DebugProbes(arg0) => f.debug_tuple("DebugProbes").finish(), 
+            SceneTask::DebugProbeLocation(arg0) => f.debug_tuple("DebugProbeLocation").finish(), 
+            SceneTask::DebugProbeData(arg0) => f.debug_tuple("DebugProbeDate").finish(), 
         }
     }
 }

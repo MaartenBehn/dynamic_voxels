@@ -1,5 +1,5 @@
 use egui_double_slider::DoubleSlider;
-use octa_force::{OctaResult, egui::{self, Align, Frame, Layout, Ui}, glam::{UVec2, Vec2, vec2}, image::{GenericImageView, ImageReader}, vulkan::{Context, DescriptorSet, DescriptorSetLayout, ash::vk::{self, Format}, descriptor_heap::{DescriptorHandleValue, ImageDescriptorHeap}}};
+use octa_force::{OctaResult, egui::{self, Align, Frame, Layout, Ui}, glam::{UVec2, Vec2, Vec3, vec2}, image::{GenericImageView, ImageReader}, vulkan::{Context, DescriptorSet, DescriptorSetLayout, ash::vk::{self, Format}, descriptor_heap::{DescriptorHandleValue, ImageDescriptorHeap}}};
 use spirv_struct_layout::SpirvLayout;
 
 use crate::voxel::renderer::{g_buffer::ImageAndViewAndHandle, shader_stage::ShaderStage};
@@ -26,14 +26,21 @@ pub struct BaseRenderer {
 #[repr(C)]
 #[derive(Debug)]
 pub struct SceneDispatchDispatchParams {
+    pub debug_probe_pos: Vec3,
+    pub debug_probe_index: u32,
+
     pub g_buffer_ptr: u64,
     pub palette_ptr: u64,
     pub blue_noise_tex: DescriptorHandleValue,
+    pub radiance_atlas: DescriptorHandleValue, 
+    pub depth_atlas: DescriptorHandleValue,
     pub start_ptr: u64,
     pub bvh_offset: u32,
     pub bvh_len: u32,
     pub active_probe_map_offset: u32,
-    pub max_bounces: u32,
+    pub max_bounces: u32, 
+    pub use_probes: u32,
+    pub debug_probe_depth: u32,
 }
 
 #[repr(C)]

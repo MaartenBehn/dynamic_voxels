@@ -25,4 +25,11 @@
 
 #define PROBE_TILE_SIZE PROBE_DEPTH_RES
 #define RAYS_PER_TEXEL 1
+
+#ifndef PROBE_PADDING
 #define PROBE_PADDING 1
+#endif
+
+#ifndef MATERIAL_ID_PROBE
+#define MATERIAL_ID_PROBE 3
+#endif

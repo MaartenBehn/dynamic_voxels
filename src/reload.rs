@@ -113,7 +113,6 @@ pub fn new_render_state(logic_state: &mut LogicState, engine: &mut Engine) -> Oc
         use crate::{editor::Editor, mesh::scene::MeshScene};
 
         let palette = SharedPalette::new();
-        let mesh_scene = MeshScene::new(&engine.context, &engine.swapchain);
 
         let scene = SceneRenderer::new(
             engine, 

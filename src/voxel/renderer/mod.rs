@@ -34,6 +34,7 @@ use super::palette::buffer::PaletteBuffer;
 use super::palette::shared::SharedPalette;
 
 use crate::NUM_FRAMES_IN_FLIGHT;
+use crate::util::shader_constants::METERS_PER_SHADER_UNIT;
 use crate::voxel::renderer::base::{BaseRenderer, BlitDispatchParams, DebugChannel, SceneDispatchDispatchParams};
 use crate::voxel::renderer::gi::{GIProbeUpdateData, GIRenderer};
 use crate::voxel::renderer::temporal_denoise::{AToursFilterDispatchParams, TemporalDenoiseDispatchParams, TemporalDenoiseRenderer};
@@ -117,11 +118,17 @@ impl VoxelRenderer {
             g_buffer_ptr: self.g_buffer.ptr,
             palette_ptr: self.palette_buffer.ptr,
             blue_noise_tex: self.base.blue_noise_tex.handle.value,
+            radiance_atlas: self.gi.radiance_atlas.handle.value,
+            depth_atlas: self.gi.depth_atlas.handle.value,
             start_ptr: self.base.start_ptr,
             bvh_offset: self.base.bvh_offset,
             bvh_len: self.base.bvh_len,
             active_probe_map_offset: self.gi.active_probe_map_offset,
             max_bounces: self.base.max_bounces,
+            debug_probe_pos: self.gi.debug_probe_pos / METERS_PER_SHADER_UNIT as f32,
+            debug_probe_index: self.gi.debug_probe_index,
+            use_probes:  if self.gi.active {1} else {0},
+            debug_probe_depth: if self.gi.debug_probe_depth {1} else {0},
         }, dispatch_size);
 
         if self.gi.active && self.gi.num_active_probes > 0 {

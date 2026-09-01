@@ -7,6 +7,10 @@ build = "build.rs"
 [lints.rust]
 unused = "allow"
 
+[profile.debug-fast]
+inherits = "dev"
+opt-level = 3
+
 [profile.dev-fast]
 inherits = "dev"
 debug = 0

@@ -7,7 +7,6 @@ use crate::model::collapse::collapser::CollapseValueT;
 use crate::model::composer::output_state::OutputState;
 
 
-
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum ComposeDataType {
     Number(Option<T>), 

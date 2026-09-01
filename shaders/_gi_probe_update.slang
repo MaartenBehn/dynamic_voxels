@@ -3,6 +3,7 @@
 import texture_heap;
 import helper_math;
 import helper_ray;
+import helper_probes;
 import scene;
 import tree64;
 import probe;
@@ -51,10 +52,10 @@ void main(uint probeIdx: SV_GroupID, uint2 texel_pos: SV_GroupThreadID) {
 
     if (hit.miss) {
       radiance += GetSkyColor(rayDir, true);
-      depth = -1.0;
+      depth = 0.0;
     } else {
       let material = pc.palette[hit.MaterialId];
-      radiance += material.Color * material.Emission;
+      radiance += material.Color; // * material.Emission;
       depth += hit.t;
     }
   }
@@ -66,17 +67,10 @@ void main(uint probeIdx: SV_GroupID, uint2 texel_pos: SV_GroupThreadID) {
   float3 oldRad = pc.radiance_atlas.Instance[pixelCoord];
   float oldDepth = pc.depth_atlas.Instance[pixelCoord];
 
-  float blendAlpha = 1.0;
+  float blendAlpha = 0.5;
   pc.radiance_atlas.Instance[pixelCoord] = lerp(oldRad, radiance, blendAlpha);
   pc.depth_atlas.Instance[pixelCoord]    = lerp(oldDepth, depth, blendAlpha);
 
-}
-
-
-uint2 ProbeTileOffset(uint atlasIndex, uint atlasWidthInTiles) {
-    uint x = atlasIndex % atlasWidthInTiles;
-    uint y = atlasIndex / atlasWidthInTiles;
-    return uint2(x, y);
 }
 
 float Hash(uint x) {

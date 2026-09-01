@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use octa_force::{OctaResult, anyhow::anyhow, glam::{Mat4, Vec3, Vec3A}, log::{debug, info}};
 
-use crate::{gi::{gi_pool::GIExecutor, gi_pool_debugger::GINone}, scene::{dag_store::{SceneDAGKey, SceneDAGStore}, debug::ObjectDebug, staging_copies::SceneStagingBuilder, worker::{SceneObjectKey, SceneWorker}}, util::{aabb::AABB3, buddy_allocator::ManualBuddyAllocation, default_types::{LODType, Volume}, shader_constants::VOXELS_PER_SHADER_UNIT}, volume::VolumeBounds, voxel::dag64::entry::{DAG64Entry, DAG64EntryKey}};
+use crate::{gi::{gi_pool::GIExecutor, gi_none::GINone}, scene::{dag_store::{SceneDAGKey, SceneDAGStore}, debug::ObjectDebug, staging_copies::SceneStagingBuilder, worker::{SceneObjectKey, SceneWorker}}, util::{aabb::AABB3, buddy_allocator::ManualBuddyAllocation, default_types::{LODType, Volume}, shader_constants::VOXELS_PER_SHADER_UNIT}, volume::VolumeBounds, voxel::dag64::entry::{DAG64Entry, DAG64EntryKey}};
 
 #[derive(Debug)]
 pub struct SceneObject {
@@ -36,6 +36,8 @@ pub struct SceneAddObject {
 
 impl SceneWorker {
     pub fn add_object(&mut self, add_object: SceneAddObject, use_gi: bool) -> OctaResult<SceneObjectKey> {
+        debug!("Add object");
+
         let dag_key = self.dag_store.active_dag();
         let dag = self.dag_store.get_dag_mut(dag_key);
 

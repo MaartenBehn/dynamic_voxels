@@ -1,6 +1,8 @@
 use bitvec::{array::BitArray, bitarr, order::Lsb0};
 use octa_force::{OctaResult, anyhow::bail, glam::{Vec3A, Vec4, uvec3, vec3, vec4}, vulkan::{Buffer, Context, ash::vk, gpu_allocator::MemoryLocation}};
 
+use crate::util::shader_constants::MATERIAL_ID_PROBE;
+
 use super::{material::Material, Palette};
 
 pub const MATERIAL_ID_NONE: u8 = 0; 
@@ -18,12 +20,15 @@ impl LocalPalette {
         let mut materials = [Material::default(); 256];
         let mut used = bitarr![u64, Lsb0; 0; 256];
         
-        used.set(0, true);
-        materials[1].set_simple_color([255, 255, 255]);
-        used.set(1, true);
+        used.set(MATERIAL_ID_NONE as _, true);
+        materials[MATERIAL_ID_BASE as usize].set_simple_color([255, 255, 255]);
+        used.set(MATERIAL_ID_BASE as _, true);
         
-        materials[2].set_simple_color([255, 255, 0]);
-        used.set(2, true);
+        materials[MATERIAL_ID_DEBUG as usize].set_simple_color([255, 255, 0]);
+        used.set(MATERIAL_ID_DEBUG as _, true);
+
+        used.set(MATERIAL_ID_PROBE as _, true);
+
 
         Self { 
             materials,
