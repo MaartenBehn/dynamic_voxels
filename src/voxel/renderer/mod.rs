@@ -13,6 +13,7 @@ use egui_double_slider::DoubleSlider;
 use g_buffer::{GBuffer, ImageAndViewAndHandle};
 use octa_force::anyhow::Result;
 use octa_force::camera::Camera;
+use octa_force::descriptor_heap::heap::ImageDescriptorHeap;
 use octa_force::egui::{Align, Frame, Layout, RichText};
 use octa_force::engine::Engine;
 use octa_force::glam::{uvec3, vec2, UVec2, Vec2, Vec3};
@@ -20,7 +21,6 @@ use octa_force::image::{GenericImageView, ImageReader};
 use octa_force::log::{debug, info};
 use octa_force::puffin_egui::puffin;
 use octa_force::vulkan::ash::vk::{self, BufferDeviceAddressInfo, Format, PushConstantRange, ShaderStageFlags};
-use octa_force::vulkan::descriptor_heap::{DescriptorHandleValue, ImageDescriptorHeap};
 use octa_force::vulkan::gpu_allocator::MemoryLocation;
 use octa_force::vulkan::sampler_pool::{SamplerPool, SamplerSetHandle};
 use octa_force::vulkan::{
@@ -41,6 +41,8 @@ use crate::voxel::renderer::temporal_denoise::{AToursFilterDispatchParams, Tempo
 
 const RENDER_DISPATCH_GROUP_SIZE_X: u32 = 8;
 const RENDER_DISPATCH_GROUP_SIZE_Y: u32 = 8;
+
+include!(concat!(env!("OUT_DIR"), "/generated_samplers.rs"));
 
 #[allow(dead_code)]
 #[derive(Debug)]
@@ -65,7 +67,7 @@ impl VoxelRenderer {
 
         let render_into_swapchain = allways_fullscreen && context.swapchain_supports_storage();
 
-        let mut heap = context.create_descriptor_heap(40)?;
+        let mut heap = context.create_descriptor_heap(40, Some(REFLECTED_SAMPLERS))?;
         let palette_buffer = PaletteBuffer::new(context, palette)?;
         let g_buffer = GBuffer::new(context, &mut heap, camera, swapchain.size, render_into_swapchain, swapchain)?;
         
@@ -124,11 +126,13 @@ impl VoxelRenderer {
             bvh_offset: self.base.bvh_offset,
             bvh_len: self.base.bvh_len,
             active_probe_map_offset: self.gi.active_probe_map_offset,
+            active_probe_data_offset: self.gi.active_probe_data_offset,
             max_bounces: self.base.max_bounces,
             debug_probe_pos: self.gi.debug_probe_pos / METERS_PER_SHADER_UNIT as f32,
             debug_probe_index: self.gi.debug_probe_index,
             use_probes:  if self.gi.active {1} else {0},
             debug_probe_depth: if self.gi.debug_probe_depth {1} else {0},
+            only_use_probe_level: self.gi.only_use_probe_level,
         }, dispatch_size);
 
         if self.gi.active && self.gi.num_active_probes > 0 {
@@ -138,6 +142,7 @@ impl VoxelRenderer {
                 palette: self.palette_buffer.ptr,
                 start_ptr: self.base.start_ptr,
                 active_probe_data_offset: self.gi.active_probe_data_offset,
+                frame_no: self.g_buffer.frame_no,
             }, uvec3(self.gi.num_active_probes, 1, 1)); //uvec3(self.gi.num_active_probes, 1, 1));
         }
 

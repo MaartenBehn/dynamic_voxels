@@ -1,4 +1,4 @@
-use octa_force::{OctaResult, egui::Ui, glam::{IVec3, UVec2, Vec3}, vulkan::{Buffer, Context, DescriptorSet, DescriptorSetLayout, ash::vk::{self, Format}, descriptor_heap::{DescriptorHandleValue, ImageDescriptorHeap}, gpu_allocator::MemoryLocation}};
+use octa_force::{OctaResult, descriptor_heap::heap::{DescriptorHandleValue, ImageDescriptorHeap}, egui::{self, Ui}, glam::{IVec3, UVec2, Vec3}, vulkan::{Buffer, Context, DescriptorSet, DescriptorSetLayout, ash::vk::{self, Format}, gpu_allocator::MemoryLocation}};
 
 use crate::{util::{buddy_allocator::{BuddyAllocator, ManualBuddyAllocation}, shader_constants::{GI_ATLAS_SIZE, PROBE_DEPTH_RES, PROBE_PADDING, PROBE_RADIANCE_RES}}, voxel::renderer::{g_buffer::ImageAndViewAndHandle, shader_stage::ShaderStage}};
 
@@ -16,12 +16,14 @@ pub struct GIRenderer {
     pub active_probe_map_offset: u32,
     pub active_probe_data_offset: u32,
     pub num_active_probes: u32,
+    pub only_use_probe_level: i32,
 
     pub active: bool,
 
     pub debug_probe_pos: Vec3,
     pub debug_probe_index: u32,
     pub debug_probe_depth: bool,
+
 }
 
 #[repr(C)]
@@ -32,7 +34,8 @@ pub struct GIProbeUpdateData {
     pub palette: u64,
     pub start_ptr: u64,
     pub active_probe_data_offset: u32,
-}
+    pub frame_no: u32,
+}   
 
 impl GIRenderer {
     pub fn new(
@@ -41,7 +44,6 @@ impl GIRenderer {
         push_constant_size: u32,
     ) -> OctaResult<Self> {
         
-        dbg!(GI_RADIANCE_ATLAS_RES);
         let flags = vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::SAMPLED; 
         let radiance_atlas_image= context.create_image(
             flags, 
@@ -83,6 +85,7 @@ impl GIRenderer {
             active_probe_map_offset: 0,
             active_probe_data_offset: 0,
             num_active_probes: 0,
+            only_use_probe_level: -1,
             active: true,
             debug_probe_pos: Vec3::ZERO,
             debug_probe_index: 0,
@@ -95,6 +98,9 @@ impl GIRenderer {
         ui.label(format!("Active Probes: {}", self.num_active_probes));
         ui.label(format!("Debug Probe: {} {}", self.debug_probe_index, self.debug_probe_pos));
         ui.checkbox(&mut self.debug_probe_depth, "Debug Probe Depth");
+        ui.add(egui::Slider::new(&mut self.only_use_probe_level, -1..=10)
+            .text("Only Use Probe Level")
+        );
     }
 
 }

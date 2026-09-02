@@ -1,5 +1,5 @@
 use egui_double_slider::DoubleSlider;
-use octa_force::{OctaResult, egui::{self, Align, Frame, Layout, Ui}, glam::{UVec2, Vec2, Vec3, vec2}, image::{GenericImageView, ImageReader}, vulkan::{Context, DescriptorSet, DescriptorSetLayout, ash::vk::{self, Format}, descriptor_heap::{DescriptorHandleValue, ImageDescriptorHeap}}};
+use octa_force::{OctaResult, descriptor_heap::heap::{DescriptorHandleValue, ImageDescriptorHeap}, egui::{self, Align, Frame, Layout, Ui}, glam::{UVec2, Vec2, Vec3, vec2}, image::{GenericImageView, ImageReader}, vulkan::{Context, DescriptorSet, DescriptorSetLayout, ash::vk::{self, Format}, }};
 use spirv_struct_layout::SpirvLayout;
 
 use crate::voxel::renderer::{g_buffer::ImageAndViewAndHandle, shader_stage::ShaderStage};
@@ -38,9 +38,11 @@ pub struct SceneDispatchDispatchParams {
     pub bvh_offset: u32,
     pub bvh_len: u32,
     pub active_probe_map_offset: u32,
+    pub active_probe_data_offset: u32,
     pub max_bounces: u32, 
     pub use_probes: u32,
     pub debug_probe_depth: u32,
+    pub only_use_probe_level: i32,
 }
 
 #[repr(C)]

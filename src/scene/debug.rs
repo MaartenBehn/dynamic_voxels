@@ -41,7 +41,7 @@ impl SceneWorker {
             return Ok(());
         }
 
-        let level = 2;
+        let level = 3;
 
         let mat = object.mat;
         let start = object.allocation.start() as u32;
@@ -116,8 +116,6 @@ impl SceneWorker {
             active_index,
             probe_position: world_pos / VOXELS_PER_METER as f32,
         });
-
-        dbg!(&self.debug.probe_data);
 
         Ok(()) 
     }

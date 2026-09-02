@@ -58,10 +58,9 @@ public struct Scene {
         float3 object_ray_dir = mul(float4(ray_dir, 0.0), object.mat).xyz;
 
         HitInfo hit = tree.RayCast(object_ray_pos, object_ray_dir, false);
-
-        
+ 
         if (hit.hit && (object_hit.t >= hit.t)) {
-          object_hit = ObjectHitInfo(hit, object, current, object_ray_dir);
+          object_hit = ObjectHitInfo(hit, object, tree, current, object_ray_dir);
         } else {
           // To debug BVH
           //object_hit.MaterialId = 1;
@@ -86,7 +85,7 @@ public struct Scene {
 
     ObjectHitInfo object_hit;
     if (hit.hit) {
-      object_hit = ObjectHitInfo(hit, last_hit.object, last_hit.bvh_index, last_hit.ray_dir);
+      object_hit = ObjectHitInfo(hit, last_hit.object, last_hit.tree, last_hit.bvh_index, last_hit.ray_dir);
     }
     
     float3 ray_pos = mul(float4(last_hit.pos, 1.0), last_hit.object.inv_mat).xyz; 
@@ -116,7 +115,7 @@ public struct Scene {
         HitInfo hit = tree.RayCast(object_ray_pos, object_ray_dir, false);
         
         if (hit.hit && (object_hit.t >= hit.t)) {
-          object_hit = ObjectHitInfo(hit, object, current, object_ray_dir);
+          object_hit = ObjectHitInfo(hit, object, tree, current, object_ray_dir);
         } else {
           // To debug BVH
           //object_hit.MaterialId = 1;
@@ -134,6 +133,7 @@ public struct Scene {
 
 public struct HitObject {
   public DAG64SceneObject* object;
+  public Tree64 tree;
   public uint bvh_index;
   public float3 ray_dir;
   public float3 pos;
@@ -155,8 +155,8 @@ public struct ObjectHitInfo {
     object.pos = 0;
   }
 
-  public __init(HitInfo hit, DAG64SceneObject* object, uint bvh_index, float3 ray_dir) {
-    this.object = HitObject(object, bvh_index, ray_dir, hit.Pos);
+  public __init(HitInfo hit, DAG64SceneObject* object, Tree64 tree, uint bvh_index, float3 ray_dir) {
+    this.object = HitObject(object, tree, bvh_index, ray_dir, hit.Pos);
     t = hit.t;
     normal = hit.Normal;
     material_id = hit.MaterialId;

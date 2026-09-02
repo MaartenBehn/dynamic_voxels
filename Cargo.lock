@@ -2609,6 +2609,8 @@ dependencies = [
  "notify-debouncer-full",
  "puffin_egui",
  "raw-window-handle",
+ "serde",
+ "serde_json",
  "simplelog",
  "winit",
 ]

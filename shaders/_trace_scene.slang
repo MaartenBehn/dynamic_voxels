@@ -16,15 +16,17 @@ public struct DispatchParams {
   GBuffer* g_buffer;
   Material* palette;
   TextureHandle2D<uint8_t2> stbn_texture; 
-  ImageHandle2D<float3> radiance_atlas; 
-  ImageHandle2D<float> depth_atlas;
+  TextureHandle2D<float3> radiance_atlas; 
+  TextureHandle2D<float> depth_atlas;
   uint8_t* start_ptr;
   uint bvh_offset;
   uint bvh_len;
   uint active_probe_map_offset;
+  uint active_probe_data_offset;
   uint max_bounces; 
   uint use_probes;
   uint debug_probe_depth;
+  int only_use_probe_level;
 };
 [vk::push_constant] DispatchParams pc;
 
@@ -85,8 +87,14 @@ void path_trace_scene(uint2 pos) {
 
   if (hit.material_id == MATERIAL_ID_PROBE) {
     float3 incomingLightDir = normalize(pc.debug_probe_pos - gloabl_pos);
-    float3 probeRadiance = SampleProbeRadiance(pc.debug_probe_index, incomingLightDir);
-    pc.g_buffer.IrradianceTex.Instance[pos] = float4(probeRadiance, 1.0);
+    uint2 coord = probe_pixel_coord_from_dir(pc.debug_probe_index, -incomingLightDir);
+    
+    if (pc.debug_probe_depth != 0) {
+      pc.g_buffer.IrradianceTex.Instance[pos] = float4(float3(pc.depth_atlas.Instance[coord]), 0);
+    } else {
+      pc.g_buffer.IrradianceTex.Instance[pos] = float4(float3(pc.radiance_atlas.Instance[coord]), 0);
+    }
+
     pc.g_buffer.iter_tex.Instance[pos] = ITERS;
     return;
   }
@@ -95,7 +103,7 @@ void path_trace_scene(uint2 pos) {
   float3 albedo = material.Color;
   float emission = material.Emission;
   pc.g_buffer.AlbedoTex.Instance[pos] = PackAlbedo(albedo, hit.normal, emission > 0.5);
-  
+ 
   if (pc.max_bounces == 0) {
     // fake lighting just so that faces are distinguishable
     float3 irradiance = hit.normal.x != 0 ? 0.8 : 
@@ -109,10 +117,10 @@ void path_trace_scene(uint2 pos) {
 
   float3 throughput = albedo;
   float3 irradiance = throughput * emission;
-
+ 
   BlueNoise blue_noise = BlueNoise(pc.stbn_texture.Instance, pos, pc.g_buffer.FrameNo);
 
-  for (int bounce_no = 1; bounce_no <= pc.max_bounces; bounce_no++) {
+  for (int bounce_no = 2; bounce_no <= pc.max_bounces; bounce_no++) {
     hit.object.ray_dir = normalize(hit.normal + GetSphereDir(blue_noise.GetSample()));
     hit.object.pos = hit.object.pos + hit.normal * (1.0 / hit.object.object.size);
 
@@ -131,22 +139,25 @@ void path_trace_scene(uint2 pos) {
     irradiance += throughput * emission;
   }
 
+  if (pc.use_probes != 0) {
+    uint16_t* active_probes_map = (uint16_t*)(pc.start_ptr + pc.active_probe_map_offset); 
+    Probe* probes = (Probe*)(pc.start_ptr + pc.active_probe_data_offset); 
+    
+    let dir = normalize(hit.normal + GetSphereDir(blue_noise.GetSample())); 
+    float3 probe_irradiance = hit.object.tree.sample_probe_radiance(
+      hit.object.pos, 
+      dir,
+      active_probes_map,
+      probes,
+      pc.radiance_atlas,
+      pc.depth_atlas,
+      pc.only_use_probe_level); 
+    irradiance += throughput * probe_irradiance;
+  }
+
   pc.g_buffer.IrradianceTex.Instance[pos] = float4(irradiance, 0);
   pc.g_buffer.iter_tex.Instance[pos] = ITERS;
 }
 
 
-float3 SampleProbeRadiance(uint probeIdx, float3 dir) {
-    float2 uv = dir_to_oct(normalize(dir));
-    uint2 tile = ProbeTileOffset(probeIdx, GI_ATLAS_SIZE);
 
-    float2 texel_pos = clamp(uv, 0.5 / PROBE_TILE_SIZE, 1.0 - 0.5 / PROBE_TILE_SIZE) * PROBE_TILE_SIZE;
-    uint2 pixelCoord = (tile * (PROBE_TILE_SIZE + PROBE_PADDING * 2)) 
-                     + uint2(texel_pos) 
-                     + PROBE_PADDING;
-
-    if (pc.debug_probe_depth != 0) {
-      return float3(pc.depth_atlas.Instance[pixelCoord]);
-    }
-    return pc.radiance_atlas.Instance[pixelCoord];
-}

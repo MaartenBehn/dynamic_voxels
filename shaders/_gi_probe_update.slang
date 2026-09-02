@@ -6,7 +6,6 @@ import helper_ray;
 import helper_probes;
 import scene;
 import tree64;
-import probe;
 
 struct DispatchParams {
   ImageHandle2D<float3> radiance_atlas; 
@@ -14,62 +13,70 @@ struct DispatchParams {
   Material* palette;
   uint8_t* start_ptr;
   uint probes_offset;
+  uint frame_no;
 };
 [vk::push_constant] DispatchParams pc;
 
 [shader("compute")]
 [numthreads(PROBE_TILE_SIZE, PROBE_TILE_SIZE, 1)]
-void main(uint probeIdx: SV_GroupID, uint2 texel_pos: SV_GroupThreadID) {
-  uint frameIndex = 0; 
+void main(uint probe_idx: SV_GroupID, uint2 texel_pos: SV_GroupThreadID) {
+    Probe* probes = (Probe*)(pc.start_ptr + pc.probes_offset); 
+    Probe probe = probes[probe_idx];
 
-  Probe* probes = (Probe*)(pc.start_ptr + pc.probes_offset); 
-  Probe probe = probes[probeIdx];
+    // Compute atlas pixel coordinates
+    uint2 tile = probe_tile_offset(probe_idx);
+    uint2 pixel_coord = (tile * (PROBE_TILE_SIZE + PROBE_PADDING * 2)) + texel_pos + PROBE_PADDING;
 
-  // Compute atlas coord 
-  uint2 tile = ProbeTileOffset(probeIdx, GI_ATLAS_SIZE);
+    // Base texel UV in octahedral space [0, 1]
+    float2 base_uv = (float2(texel_pos) + 0.5) / float(PROBE_TILE_SIZE);
 
-  uint2 pixelCoord = (tile * (PROBE_TILE_SIZE + PROBE_PADDING * 2)) + texel_pos + PROBE_PADDING;
+    float3 accumulated_radiance = float3(0.0);
+    float accumulated_depth = 0.0;
 
-  // Convert texel → direction
-  float2 uv = (texel_pos + 0.5) / PROBE_TILE_SIZE;
-  float3 dir = oct_to_dir(uv);
+    DAG64SceneObject* tree_object = (DAG64SceneObject*)(pc.start_ptr + probe.object_offset);
+    Tree64 tree = Tree64(
+        (Node*)(pc.start_ptr + tree_object.node_alloc), 
+        pc.start_ptr + tree_object.data_alloc, 
+        tree_object.root_index
+    );
 
-  float3 radiance = float3(0,0,0);
-  float depth = 0.0;
+    for (uint i = 0; i < RAYS_PER_TEXEL; i++) {
+        uint seed = probe_idx * 73856093u + i * 19349663u + pc.frame_no;
+        float2 xi = Random2(seed);
 
-  DAG64SceneObject* tree_object = (DAG64SceneObject*)(pc.start_ptr + probe.object_offset);
-  Tree64 tree = Tree64((Node*)(pc.start_ptr + tree_object.node_alloc), pc.start_ptr + tree_object.data_alloc, tree_object.root_index);
+        // Jitter UV within the texel footprint for anti-aliasing / smooth direction sampling
+        float2 jittered_uv = (float2(texel_pos) + xi) / float(PROBE_TILE_SIZE);
+        float3 ray_dir = oct_to_dir(jittered_uv);
 
-  for (uint i = 0; i < RAYS_PER_TEXEL; i++) {
-    uint seed = probeIdx * 73856093u + i * 19349663u + frameIndex;
+        HitInfo hit = tree.RayCast(probe.position, ray_dir, false);
 
-    float2 xi = Random2(seed);
-
-    HitInfo hit = tree.RayCast(probe.position, dir, false);
-
-    if (hit.miss || hit.t <= 0) {
-      radiance += GetSkyColor(dir, true);
-      depth = 0.0;
-    } else {
-      let material = pc.palette[hit.MaterialId];
-      radiance += material.Color * material.Emission;
-      depth += hit.t;
+        if (hit.miss || hit.t <= 0.0) {
+            accumulated_radiance += GetSkyColor(ray_dir, true);
+            accumulated_depth += 0.0;
+        } else {
+            let material = pc.palette[hit.MaterialId];
+            accumulated_radiance += material.Color * material.Emission;
+            accumulated_depth += hit.t;
+        }
     }
-  }
 
-  radiance /= RAYS_PER_TEXEL;
-  depth /= RAYS_PER_TEXEL;
+    accumulated_radiance /= float(RAYS_PER_TEXEL);
+    accumulated_depth /= float(RAYS_PER_TEXEL);
 
-  // ---- Temporal accumulation ----
-  float3 oldRad = pc.radiance_atlas.Instance[pixelCoord];
-  float oldDepth = pc.depth_atlas.Instance[pixelCoord];
+    // ---- Temporal accumulation ----
+    if (pc.frame_no > 0) {
+        float3 old_radiance = pc.radiance_atlas.Instance[pixel_coord];
+        float old_depth = pc.depth_atlas.Instance[pixel_coord];
 
-  float blendAlpha = 1.0;
-  pc.radiance_atlas.Instance[pixelCoord] = lerp(oldRad, radiance, blendAlpha);
-  pc.depth_atlas.Instance[pixelCoord]    = lerp(oldDepth, depth, blendAlpha);
-
+        float blend_alpha = 1.0 / float(pc.frame_no + 1);
+        
+        pc.radiance_atlas.Instance[pixel_coord] = lerp(old_radiance, accumulated_radiance, blend_alpha);
+        pc.depth_atlas.Instance[pixel_coord]    = lerp(old_depth, accumulated_depth, blend_alpha);
+    } else {
+        pc.radiance_atlas.Instance[pixel_coord] = accumulated_radiance;
+        pc.depth_atlas.Instance[pixel_coord]    = accumulated_depth;
+    }
 }
-
 float Hash(uint x) {
     x ^= x >> 17;
     x *= 0xed5ad4bb;

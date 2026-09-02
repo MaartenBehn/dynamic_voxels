@@ -110,3 +110,5 @@ public struct ShadowSamplerDescAttribute {
     int wrap = WrapMode.Repeat;
     int op = CompareOp.Gt;
 };
+
+

@@ -1,9 +1,16 @@
 // Original Code by https://dubiousconst282.github.io/2024/10/03/voxel-ray-tracing/
 
+#include "constants.h"
+
 import helper_ray;
 import helper_math;
+import helper_probes;
 import debug;
 import perf_counters;
+import texture_heap;
+
+[SamplerDesc(MagFilter.Linear, MinFilter.Linear, MipFilter.Nearest, WrapMode.ClampToEdge)]
+SamplerState bilinear_clamp_sampler;
 
 public struct Node {
   uint packed_data[4];
@@ -291,10 +298,82 @@ public struct Tree64 {
     uint mask = ~0u << scale_exp;
     return asfloat(asuint(pos) & mask);
   }
+
+  public float3 sample_probe_radiance(
+      float3 pos,
+      float3 dir,
+      uint16_t* active_probes_map,
+      Probe* probes,
+      TextureHandle2D<float3> radiance_atlas,
+      TextureHandle2D<float> depth_atlas,
+      int debug_level = -1
+      ) {
+    uint node_idx = start_index;
+    Node node = nodes[node_idx];
+
+    float3 accumulated_radiance = float3(0.0, 0.0, 0.0);
+    float total_weight = 0.0;
+
+    int scale_exp = 21;
+    int current_level = 0;
+
+    for (int i = 0; i < 6; i++) {
+      if (node.gi_probe_index != GI_PROBE_INDEX_NONE && (debug_level < 0 || debug_level == current_level)) {
+        uint16_t active_probe_index = active_probes_map[node.gi_probe_index];
+
+        if (active_probe_index != ACTIVE_PROBE_INDEX_NONE) {
+          Probe probe = probes[active_probe_index];
+
+          float3 probe_to_hit = pos - probe.position;
+          float dist_to_hit = length(probe_to_hit);
+          float3 dir_to_hit = (dist_to_hit > 0.0001) ? (probe_to_hit / dist_to_hit) : dir;
+
+          float2 depth_uv = probe_uv_from_dir((uint)active_probe_index, dir_to_hit);
+          float probe_depth = depth_atlas.Instance.SampleLevel(bilinear_clamp_sampler, depth_uv, 0.0).x;
+          float visibility_weight = compute_probe_visibility(dist_to_hit, probe_depth);
+          return float3(visibility_weight);
+
+          if (visibility_weight > 0.001) {
+            float2 radiance_uv = probe_uv_from_dir((uint)active_probe_index, dir);
+
+            float3 probe_radiance = radiance_atlas.Instance.SampleLevel(bilinear_clamp_sampler, radiance_uv, 0.0).rgb;
+
+            float level_weight = pow(2.0, (float)current_level);
+            float final_weight = level_weight * visibility_weight;
+
+            accumulated_radiance += probe_radiance * final_weight;
+            total_weight += final_weight;
+          }
+
+          if (debug_level == current_level) {
+            break;
+          }
+        }
+      }
+
+      int child_idx = GetNodeCellIndex(pos, scale_exp);
+      if ((node.pop_mask >> child_idx & 1) != 0 && !node.IsLeaf && scale_exp >= 2) {
+        scale_exp -= 2;
+        node_idx = node.ChildPtr + popcnt_var64(node.pop_mask, child_idx);
+        node = nodes[node_idx];
+        current_level++;
+      } else {
+        break;
+      }
+    }
+
+    if (total_weight > 0.0) {
+      return accumulated_radiance / total_weight;
+    }
+
+    return float3(0.0, 0.0, 0.0);
+  }
 }
 
 public static uint GetNodeCellIndex(float3 pos, uint scale_exp) {
   uint3 cellPos = asuint(pos) >> scale_exp & 3;
   return cellPos.x * 16 + cellPos.y * 4 + cellPos.z;
 }
+
+
 

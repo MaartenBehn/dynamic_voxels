@@ -34,7 +34,7 @@ impl Editor {
         let key = scene_send.add_object(Mat4::from_rotation_x(0.0_f32.to_radians()), model.clone()).result_blocking();
         
         scene_send.debug_probe_location(key, true);
-        scene_send.debug_probe_data(30);
+        scene_send.debug_probe_data(0);
 
         Ok(Self {
             scene_send,

@@ -1,4 +1,4 @@
-use octa_force::{OctaResult, egui::{self, Align, Frame, Layout, Ui}, glam::UVec2, vulkan::{Context, DescriptorSet, DescriptorSetLayout, Swapchain, ash::vk::{self, Format}, descriptor_heap::{DescriptorHandleValue, ImageDescriptorHeap}, gpu_allocator::MemoryLocation}};
+use octa_force::{OctaResult, descriptor_heap::heap::{DescriptorHandleValue, ImageDescriptorHeap}, egui::{self, Align, Frame, Layout, Ui}, glam::UVec2, vulkan::{Context, DescriptorSet, DescriptorSetLayout, Swapchain, ash::vk::{self, Format}, gpu_allocator::MemoryLocation}};
 
 use crate::voxel::renderer::{g_buffer::ImageAndViewAndHandle, shader_stage::ShaderStage};
 
