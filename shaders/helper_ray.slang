@@ -72,6 +72,7 @@ public struct Material {
 
 public float3 GetSkyColor(float3 dir, bool isPrimary) {
   // For light bounces, sample smaller mips to maybe improve cache coherency.
+  return dir * 0.9 + 0.1;
   return -dir * 0.5 + 0.5;
   //return float3(0.5);
   //return pc.SkyTexture.Instance.SampleLevel(g_LinearSampler, dir, isPrimary ? 0 : 3) * (isPrimary?1:4);

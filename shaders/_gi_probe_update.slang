@@ -9,10 +9,14 @@ import tree64;
 
 struct DispatchParams {
   ImageHandle2D<float3> radiance_atlas; 
+  TextureHandle2D<float3> last_radiance_atlas; 
   ImageHandle2D<float> depth_atlas;
+  TextureHandle2D<float> last_depth_atlas;
+  TextureHandle2D<uint8_t2> stbn_texture; 
   Material* palette;
   uint8_t* start_ptr;
-  uint probes_offset;
+  uint active_probe_map_offset;
+  uint active_probe_data_offset;
   uint frame_no;
 };
 [vk::push_constant] DispatchParams pc;
@@ -20,7 +24,7 @@ struct DispatchParams {
 [shader("compute")]
 [numthreads(PROBE_TILE_SIZE, PROBE_TILE_SIZE, 1)]
 void main(uint probe_idx: SV_GroupID, uint2 texel_pos: SV_GroupThreadID) {
-    Probe* probes = (Probe*)(pc.start_ptr + pc.probes_offset); 
+    Probe* probes = (Probe*)(pc.start_ptr + pc.active_probe_data_offset); 
     Probe probe = probes[probe_idx];
 
     // Compute atlas pixel coordinates
@@ -57,6 +61,21 @@ void main(uint probe_idx: SV_GroupID, uint2 texel_pos: SV_GroupThreadID) {
             let material = pc.palette[hit.MaterialId];
             accumulated_radiance += material.Color * material.Emission;
             accumulated_depth += hit.t;
+
+            let throughput = material.Color; 
+
+            uint16_t* active_probes_map = (uint16_t*)(pc.start_ptr + pc.active_probe_map_offset); 
+
+            BlueNoise blue_noise = BlueNoise(pc.stbn_texture.Instance, texel_pos, pc.frame_no);
+            ray_dir = normalize(hit.Normal + GetSphereDir(blue_noise.GetSample())); 
+            float3 probe_irradiance = tree.sample_probe_radiance(
+                hit.Pos, 
+                ray_dir,
+                active_probes_map,
+                probes,
+                pc.last_radiance_atlas,
+                pc.last_depth_atlas); 
+            accumulated_radiance += throughput * probe_irradiance;
         }
     }
 

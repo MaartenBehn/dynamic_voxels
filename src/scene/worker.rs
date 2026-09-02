@@ -1,12 +1,12 @@
 use core::fmt;
 use std::{ops::Deref, sync::Arc};
 
-use octa_force::{OctaResult, anyhow::bail, camera::Camera, glam::{Mat4, Vec3, Vec3A}, log::{debug, error, trace, warn}, vulkan::{Buffer, Context, ash::vk, gpu_allocator::MemoryLocation}};
+use octa_force::{OctaResult, anyhow::bail, camera::Camera, glam::{Mat4, Vec3, Vec3A}, log::{debug, error, info, trace, warn}, vulkan::{Buffer, Context, ash::vk, gpu_allocator::MemoryLocation}};
 use parking_lot::Mutex;
 use slotmap::{SlotMap, new_key_type};
 use smol::{channel::Sender, future::FutureExt};
 
-use crate::{bvh::Bvh, mesh::Mesh, scene::{bvh::{BVHExtraData, BVHObjectData}, dag_store::SceneDAGStore, debug::SceneDebugger, gi::SceneGI, object::{SceneAddObject, SceneObject}, staging_copies::OptimalBufferCopyAlligment}, util::{buddy_allocator::{BuddyAllocator, ManualBuddyAllocation}, default_types::{LODType, Volume}, shader_constants::VOXELS_PER_METER, worker_response::{WithRespose, WorkerRespose}}, voxel::dag64::{lod_heuristic::LODHeuristicT, parallel::ParallelVoxelDAG64}};
+use crate::{bvh::Bvh, mesh::Mesh, scene::{bvh::{BVHExtraData, BVHObjectData, INITAL_BVH_ALLOCATION_SIZE}, dag_store::SceneDAGStore, debug::SceneDebugger, gi::SceneGI, object::{SceneAddObject, SceneObject}, staging_copies::OptimalBufferCopyAlligment}, util::{buddy_allocator::{BuddyAllocator, ManualBuddyAllocation}, default_types::{LODType, Volume}, math::to_mb, shader_constants::VOXELS_PER_METER, worker_response::{WithRespose, WorkerRespose}}, voxel::dag64::{lod_heuristic::LODHeuristicT, parallel::ParallelVoxelDAG64}};
 
 use super::{dag_store::SceneDAGKey, staging_copies::SceneStaging};
 
@@ -77,8 +77,10 @@ impl SceneWorker {
         let optimal_alignment = OptimalBufferCopyAlligment::new(context);
 
         let mut allocator = BuddyAllocator::new(buffer_size, 32);
+
         let bvh = Bvh::empty();
-        let bvh_allocation = allocator.alloc(1024)?;
+        info!("BVH Buffer size: {:.04} MB", to_mb(INITAL_BVH_ALLOCATION_SIZE));
+        let bvh_allocation = allocator.alloc(INITAL_BVH_ALLOCATION_SIZE)?;
 
         let mut dag_store = SceneDAGStore::new();
 

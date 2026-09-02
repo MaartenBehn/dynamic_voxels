@@ -116,12 +116,15 @@ impl VoxelRenderer {
             &[&self.heap.set],
         );
 
+        let current_index = engine.get_current_in_flight_frame_index();
+        let last_index = 1 - current_index; 
+
         self.base.trace_scene_stage.render(buffer, SceneDispatchDispatchParams {
             g_buffer_ptr: self.g_buffer.ptr,
             palette_ptr: self.palette_buffer.ptr,
             blue_noise_tex: self.base.blue_noise_tex.handle.value,
-            radiance_atlas: self.gi.radiance_atlas.handle.value,
-            depth_atlas: self.gi.depth_atlas.handle.value,
+            radiance_atlas: self.gi.radiance_atlas[last_index].handle.value,
+            depth_atlas: self.gi.depth_atlas[last_index].handle.value,
             start_ptr: self.base.start_ptr,
             bvh_offset: self.base.bvh_offset,
             bvh_len: self.base.bvh_len,
@@ -136,11 +139,18 @@ impl VoxelRenderer {
         }, dispatch_size);
 
         if self.gi.active && self.gi.num_active_probes > 0 {
+
             self.gi.gi_probe_update_stage.render(buffer, GIProbeUpdateData {
-                radiance_atlas: self.gi.radiance_atlas.handle.value,
-                depth_atlas: self.gi.depth_atlas.handle.value,
+                radiance_atlas: [
+                    self.gi.radiance_atlas[current_index].handle.value, 
+                    self.gi.radiance_atlas[last_index].handle.value],
+                depth_atlas: [
+                    self.gi.depth_atlas[current_index].handle.value, 
+                    self.gi.depth_atlas[last_index].handle.value],
+                blue_noise_tex: self.base.blue_noise_tex.handle.value,
                 palette: self.palette_buffer.ptr,
                 start_ptr: self.base.start_ptr,
+                active_probe_map_offset: self.gi.active_probe_map_offset,
                 active_probe_data_offset: self.gi.active_probe_data_offset,
                 frame_no: self.g_buffer.frame_no,
             }, uvec3(self.gi.num_active_probes, 1, 1)); //uvec3(self.gi.num_active_probes, 1, 1));

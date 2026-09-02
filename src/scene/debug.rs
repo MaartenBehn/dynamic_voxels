@@ -20,7 +20,6 @@ pub struct SceneDebugger {
 pub struct SceneProbeLocations {
     object: SceneObjectKey,
     probe_object: SceneObjectKey,
-    level: usize,
 }
 
 #[derive(Debug)]
@@ -41,8 +40,6 @@ impl SceneWorker {
             return Ok(());
         }
 
-        let level = 3;
-
         let mat = object.mat;
         let start = object.allocation.start() as u32;
         let offset = object.entry.offset;
@@ -52,7 +49,7 @@ impl SceneWorker {
 
         let size =  object.entry.get_size() as f32;
         let offset = object.entry.offset.as_vec3() / size; 
-        for pos in self.iter_probe_level(start, level) {
+        for (pos, level) in self.iter_probes(start) {
             let world_pos = (pos - 1.0 + offset) * size;
 
             csg_children.push(csg.add_sphere(Vec3A::from(world_pos), level as f32 * 1.0, MATERIAL_ID_DEBUG));
@@ -68,7 +65,6 @@ impl SceneWorker {
         self.objects[key].debug.show_probes_key = self.debug.probe_location.insert(SceneProbeLocations { 
             object: key, 
             probe_object, 
-            level
         });
 
         Ok(())
@@ -85,7 +81,7 @@ impl SceneWorker {
         }
 
         let (position, object_offset) = {
-            let probe = self.gi.gi_pool.pools[0].get(active_index).unwrap();
+            let probe = self.gi.gi_pool.probes.get(active_index).unwrap();
             (probe.position, probe.object_offset)
         };
 
@@ -120,25 +116,21 @@ impl SceneWorker {
         Ok(()) 
     }
 
-    fn iter_probes(&mut self, start: u32) -> impl Iterator<Item = (Vec3, usize)> {
-        self.gi.gi_pool.pools.iter_mut()
-            .enumerate()
-            .flat_map(move |(level, gi_level)| {
-                gi_level.unique_iter()
-                    .filter_map(move |probe| {
-                        if probe.object_offset == start {
-                            Some((probe.position, level))
-                        } else {
-                            None
-                        }
-                    })
+    fn iter_probes(&mut self, start: u32) -> impl Iterator<Item = (Vec3, u8)> {
+        self.gi.gi_pool.probes.unique_iter()
+            .filter_map(move |(probe)| {
+                if probe.object_offset == start {
+                    Some((probe.position, probe.level as u8))
+                } else {
+                    None
+                }
             })
     }
 
-    fn iter_probe_level(&mut self, start: u32, level: usize) -> impl Iterator<Item = Vec3> {
-        self.gi.gi_pool.pools[level - GI_PROBE_MIN_LEVEL as usize].unique_iter()
-            .filter_map(move |probe| {
-                if probe.object_offset == start {
+    fn iter_probe_level(&mut self, start: u32, level: u8) -> impl Iterator<Item = Vec3> {
+        self.gi.gi_pool.probes.unique_iter()
+            .filter_map(move |(probe)| {
+                if probe.level == level as u32 && probe.object_offset == start {
                     Some(probe.position)
                 } else {
                     None

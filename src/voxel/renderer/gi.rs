@@ -11,8 +11,8 @@ pub const GI_DEPTH_ATLAS_RES: usize = GI_ATLAS_SIZE * PROBE_PADDED_DEPTH_RES;
 pub struct GIRenderer {
     pub gi_probe_update_stage: ShaderStage,
 
-    pub radiance_atlas: ImageAndViewAndHandle,
-    pub depth_atlas: ImageAndViewAndHandle,
+    pub radiance_atlas: [ImageAndViewAndHandle; 2],
+    pub depth_atlas: [ImageAndViewAndHandle; 2],
     pub active_probe_map_offset: u32,
     pub active_probe_data_offset: u32,
     pub num_active_probes: u32,
@@ -29,10 +29,12 @@ pub struct GIRenderer {
 #[repr(C)]
 #[derive(Debug)]
 pub struct GIProbeUpdateData {
-    pub radiance_atlas: DescriptorHandleValue, 
-    pub depth_atlas: DescriptorHandleValue,
+    pub radiance_atlas: [DescriptorHandleValue; 2], 
+    pub depth_atlas: [DescriptorHandleValue; 2],
+    pub blue_noise_tex: DescriptorHandleValue,
     pub palette: u64,
     pub start_ptr: u64,
+    pub active_probe_map_offset: u32,
     pub active_probe_data_offset: u32,
     pub frame_no: u32,
 }   
@@ -44,32 +46,35 @@ impl GIRenderer {
         push_constant_size: u32,
     ) -> OctaResult<Self> {
         
-        let flags = vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::SAMPLED; 
-        let radiance_atlas_image= context.create_image(
-            flags, 
-            MemoryLocation::GpuOnly, 
-            Format::R8G8B8A8_UNORM, 
-            UVec2::splat(GI_RADIANCE_ATLAS_RES as _))?;
-        let radiance_atlas_view = radiance_atlas_image.create_image_view(false)?;
-        let radiance_atlas_handle = heap.create_image_handle(&radiance_atlas_view, flags)?;
-        let radiance_atlas = ImageAndViewAndHandle { 
-            image: radiance_atlas_image, 
-            view: radiance_atlas_view, 
-            handle: radiance_atlas_handle 
+        let mut create_image = |format: vk::Format|
+            -> OctaResult<ImageAndViewAndHandle> {
+            let flags = vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::SAMPLED; 
+            let image = context.create_image(
+                flags, 
+                MemoryLocation::GpuOnly, 
+                format, 
+                UVec2::splat(GI_RADIANCE_ATLAS_RES as _))?;
+
+            let view = image.create_image_view(false)?;
+
+            let handle = heap.create_image_handle(&view, flags)?;
+            
+            Ok(ImageAndViewAndHandle {
+                image,
+                view,
+                handle,
+            })
         };
 
-        let depth_atlas_image= context.create_image(
-            flags, 
-            MemoryLocation::GpuOnly, 
-            Format::R32_SFLOAT, 
-            UVec2::splat(GI_DEPTH_ATLAS_RES as _))?;
-        let depth_atlas_view = depth_atlas_image.create_image_view(false)?;
-        let depth_atlas_handle = heap.create_image_handle(&depth_atlas_view, flags)?;
-        let depth_atlas = ImageAndViewAndHandle { 
-            image: depth_atlas_image, 
-            view: depth_atlas_view, 
-            handle: depth_atlas_handle 
-        };
+        let radiance_atlas= [
+            create_image(Format::R8G8B8A8_UNORM)?,
+            create_image(Format::R8G8B8A8_UNORM)?
+        ];
+
+        let depth_atlas= [
+            create_image(Format::R32_SFLOAT)?,
+            create_image(Format::R32_SFLOAT)?
+        ]; 
 
         let sets = &[&heap.layout];
         let gi_probe_update_stage = ShaderStage::new(

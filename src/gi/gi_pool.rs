@@ -6,11 +6,19 @@ use crate::{util::{math::get_dag_node_children_i, shader_constants::VOXELS_PER_S
 
 pub const GI_PROBE_INDEX_NONE: u32 = u32::MAX;
 pub const GI_PROBE_MIN_LEVEL: u8 = 2;
+pub const GI_PROBE_INDEX_BITS: usize = 16;
 
+pub struct GIPoolConifig;
+impl sharded_slab::Config for GIPoolConifig {
+    const MAX_THREADS: usize = 18;
+    const MAX_PAGES: usize = 2;
+    const INITIAL_PAGE_SIZE: usize = sharded_slab::DefaultConfig::INITIAL_PAGE_SIZE;
+    const RESERVED_BITS: usize = 64 - GI_PROBE_INDEX_BITS;
+}
 
 #[derive(Debug)]
 pub struct GIPool {
-    pub pools: Vec<sharded_slab::Slab<GIProbe>>,
+    pub probes: sharded_slab::Slab<GIProbe, GIPoolConifig>,
     search_order: [(usize, IVec3); 64],
 }
 
@@ -19,6 +27,7 @@ pub struct GIProbe {
     pub position: Vec3,
     pub start_index: u32,
     pub object_offset: u32,
+    pub level: u32,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -35,15 +44,8 @@ pub trait GI: Send + Sync + Copy {
 
 impl GIPool {
     pub fn new(levels: usize) -> Self {
-        
-        let mut pools = vec![];
-
-        for level in ((GI_PROBE_MIN_LEVEL as usize)..levels).rev() {
-            pools.push(sharded_slab::Slab::new());
-        }
-
         Self {
-            pools,
+            probes: sharded_slab::Slab::new_with_config(),
             search_order: search_order(),
         }
     }
@@ -52,7 +54,6 @@ impl GIPool {
         32
     }
 }
-
 
 impl<'a> GI for GIExecutor<'a> {
     fn new_probe_index(&self, index: u32, offset: IVec3, level: u8, pop_mask: u64, children: &[VoxelDAG64Node]) -> u32 {
@@ -67,13 +68,16 @@ impl<'a> GI for GIExecutor<'a> {
 
         let pos_dag_space = (1.0 + (pos.unwrap().as_vec3() / self.size));
 
-        let gi_level = &self.pool.pools[(level - GI_PROBE_MIN_LEVEL) as usize];
-
-        gi_level.insert(GIProbe {
+        let index = self.pool.probes.insert(GIProbe {
             position: pos_dag_space,
             start_index: index,
             object_offset: self.object_offset,
-        }).expect(&format!("Probe pool full at level: {level}")) as u32
+            level: level as u32,
+        }).expect(&format!("Probe pool overflow"));
+        
+        dbg!(index);
+
+        index as u32
     }
 
     fn set_level(&mut self, level: u8) {
@@ -122,7 +126,6 @@ impl<'a> GIExecutor<'a> {
         None
     }
 }
-
 
 fn search_order() -> [(usize, IVec3); 64] {
 

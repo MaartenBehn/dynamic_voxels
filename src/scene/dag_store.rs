@@ -4,7 +4,7 @@ use octa_force::{OctaResult, log::{debug, info}, vulkan::{Buffer, Context, ash::
 use slotmap::{new_key_type, SlotMap};
 use smallvec::SmallVec;
 
-use crate::{scene::{object::SceneObject, staging_copies::SceneStagingBuilder, worker::SceneObjectKey}, util::buddy_allocator::{BuddyAllocator, ManualBuddyAllocation}, voxel::dag64::{lod_heuristic::{LODHeuristicNone, LinearLODHeuristicSphere, PowHeuristicSphere}, parallel::ParallelVoxelDAG64}};
+use crate::{scene::{object::SceneObject, staging_copies::SceneStagingBuilder, worker::SceneObjectKey}, util::{buddy_allocator::{BuddyAllocator, ManualBuddyAllocation}, math::to_mb}, voxel::dag64::{lod_heuristic::{LODHeuristicNone, LinearLODHeuristicSphere, PowHeuristicSphere}, parallel::ParallelVoxelDAG64}};
 
 new_key_type! { pub struct SceneDAGKey; }
 
@@ -36,7 +36,10 @@ impl SceneDAGStore {
 
     pub fn add_dag(&mut self, dag: ParallelVoxelDAG64, allocator: &mut BuddyAllocator) -> OctaResult<SceneDAGKey> {
 
+        info!("DAG Node Buffer size: {:.04} MB", to_mb(dag.nodes.get_memory_size()));
         let node_alloc = allocator.alloc(dag.nodes.get_memory_size())?;
+        
+        info!("DAG Data Buffer size: {:.04} MB", to_mb(dag.data.get_memory_size()));
         let data_alloc = allocator.alloc(dag.data.get_memory_size())?;
 
         self.needs_update = true;

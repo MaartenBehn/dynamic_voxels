@@ -86,16 +86,35 @@ void path_trace_scene(uint2 pos) {
   pc.g_buffer.DepthTex.Instance[pos] = depth;
 
   if (hit.material_id == MATERIAL_ID_PROBE) {
-    float3 incomingLightDir = normalize(pc.debug_probe_pos - gloabl_pos);
-    uint2 coord = probe_pixel_coord_from_dir(pc.debug_probe_index, -incomingLightDir);
     
-    if (pc.debug_probe_depth != 0) {
-      pc.g_buffer.IrradianceTex.Instance[pos] = float4(float3(pc.depth_atlas.Instance[coord]), 0);
-    } else {
-      pc.g_buffer.IrradianceTex.Instance[pos] = float4(float3(pc.radiance_atlas.Instance[coord]), 0);
-    }
+    float3 incomingLightDir = normalize(pc.debug_probe_pos - gloabl_pos);
+   
+    float3 probe_color;
+    bool sample_probe = true;
 
+    if (sample_probe) {
+
+      float2 coord = probe_uv_from_dir(pc.debug_probe_index, -incomingLightDir);
+
+      if (pc.debug_probe_depth != 0) {
+        probe_color = float3(pc.depth_atlas.Instance.SampleLevel(probe_sampler, coord, 0.0));
+      } else {
+        probe_color = pc.radiance_atlas.Instance.SampleLevel(probe_sampler, coord, 0.0);
+      }
+    } else {
+
+      uint2 coord = probe_pixel_coord_from_dir(pc.debug_probe_index, -incomingLightDir);
+
+      if (pc.debug_probe_depth != 0) {
+        probe_color = float3(pc.depth_atlas.Instance[coord]);
+      } else {
+        probe_color = pc.radiance_atlas.Instance[coord];
+      }
+    }
+      
+    pc.g_buffer.IrradianceTex.Instance[pos] = float4(probe_color, 0);
     pc.g_buffer.iter_tex.Instance[pos] = ITERS;
+
     return;
   }
 
@@ -121,8 +140,10 @@ void path_trace_scene(uint2 pos) {
   BlueNoise blue_noise = BlueNoise(pc.stbn_texture.Instance, pos, pc.g_buffer.FrameNo);
 
   for (int bounce_no = 2; bounce_no <= pc.max_bounces; bounce_no++) {
-    hit.object.ray_dir = normalize(hit.normal + GetSphereDir(blue_noise.GetSample()));
-    hit.object.pos = hit.object.pos + hit.normal * (1.0 / hit.object.object.size);
+    ray_dir = normalize(hit.normal + GetSphereDir(blue_noise.GetSample()));
+    ray_pos = hit.object.pos + hit.normal * (1.0 / hit.object.object.size); 
+    hit.object.ray_dir = ray_dir;
+    hit.object.pos = ray_pos;
 
     hit = scene.ray_cast_from(hit.object);
 
@@ -143,10 +164,10 @@ void path_trace_scene(uint2 pos) {
     uint16_t* active_probes_map = (uint16_t*)(pc.start_ptr + pc.active_probe_map_offset); 
     Probe* probes = (Probe*)(pc.start_ptr + pc.active_probe_data_offset); 
     
-    let dir = normalize(hit.normal + GetSphereDir(blue_noise.GetSample())); 
+    ray_dir = normalize(hit.normal + GetSphereDir(blue_noise.GetSample())); 
     float3 probe_irradiance = hit.object.tree.sample_probe_radiance(
       hit.object.pos, 
-      dir,
+      ray_dir,
       active_probes_map,
       probes,
       pc.radiance_atlas,

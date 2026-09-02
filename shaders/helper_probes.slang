@@ -1,6 +1,10 @@
 #include "constants.h"
 
 import helper_math;
+import texture_heap;
+
+[SamplerDesc(MagFilter.Linear, MinFilter.Linear, MipFilter.Nearest, WrapMode.ClampToEdge)]
+public SamplerState probe_sampler;
 
 public struct Probe {
   public float3 position;
@@ -19,24 +23,18 @@ public uint2 probe_pixel_coord_from_dir(uint probe_idx, float3 dir) {
   uint2 tile = probe_tile_offset(probe_idx);
 
   float2 texel_pos = clamp(uv, 0.5 / PROBE_TILE_SIZE, 1.0 - 0.5 / PROBE_TILE_SIZE) * PROBE_TILE_SIZE;
-  return (tile * (PROBE_TILE_SIZE + PROBE_PADDING * 2)) 
-                     + uint2(texel_pos) 
-                     + PROBE_PADDING;
+
+  return (tile * (PROBE_TILE_SIZE + PROBE_PADDING * 2)) + PROBE_PADDING + uint2(texel_pos);
 }
 
 public float2 probe_uv_from_dir(uint probe_idx, float3 dir) {
-    float2 oct_uv = dir_to_oct(dir); // Maps 3D vector to [0, 1] octahedral square
+  float2 uv = dir_to_oct(normalize(dir));
+  uint2 tile = probe_tile_offset(probe_idx);
 
-    // Map octahedral square into the probe's specific tile footprint in the atlas
-    float2 tile_size = float2(PROBE_TILE_SIZE);
-    float2 atlas_size = float2(GI_ATLAS_SIZE, GI_ATLAS_SIZE);
-    
-    uint2 tile_idx = probe_tile_offset(probe_idx);
-    float2 tile_min_pixel = float2(tile_idx * (PROBE_TILE_SIZE + 2) + 1);
+  float2 texel_pos = clamp(uv, 0.5 / PROBE_TILE_SIZE, 1.0 - 0.5 / PROBE_TILE_SIZE) * PROBE_TILE_SIZE;
 
-    // Position within pixel centers
-    float2 pixel_coord = tile_min_pixel + oct_uv * tile_size;
-    return pixel_coord / atlas_size;
+  return (float2(tile * (PROBE_TILE_SIZE + PROBE_PADDING * 2) + PROBE_PADDING) + texel_pos) 
+    / float2(GI_ATLAS_SIZE * (PROBE_TILE_SIZE + PROBE_PADDING * 2), GI_ATLAS_SIZE * (PROBE_TILE_SIZE + PROBE_PADDING * 2)); 
 }
 
 public float compute_probe_visibility(
@@ -44,12 +42,6 @@ public float compute_probe_visibility(
     float sampled_probe_depth, 
     float depth_bias = 0.05
 ) {
-    if (sampled_probe_depth <= 0.0) {
-        return 1.0;
-    }
-
-    // If the hit point is further from the probe than the probe's recorded distance to geometry,
-    // a surface sits between the probe and our hit point.
     float depth_diff = dist_to_probe - sampled_probe_depth;
     return smoothstep(depth_bias, 0.0, depth_diff);
 }

@@ -1,8 +1,9 @@
 use itertools::Itertools;
-use octa_force::{OctaResult, glam::Vec3, log::debug};
+use octa_force::{OctaResult, glam::Vec3, log::{debug, info}};
 
-use crate::{bvh::{Bvh, node::BHNode, shape::{BHShape, Shapes}}, scene::{object::SceneObject, staging_copies::SceneStagingBuilder, worker::SceneWorker}, util::aabb::AABB};
+use crate::{bvh::{Bvh, node::BHNode, shape::{BHShape, Shapes}}, scene::{object::SceneObject, staging_copies::SceneStagingBuilder, worker::SceneWorker}, util::{aabb::AABB, math::to_mb}};
 
+pub const INITAL_BVH_ALLOCATION_SIZE: usize = 1024;
 
 #[derive(Clone, Copy, Debug)]
 pub struct BVHObject<'a> (&'a SceneObject);
@@ -42,6 +43,8 @@ impl SceneWorker {
 
         if self.bvh_allocation.size() < flat_bvh_size {
             self.allocator.dealloc(self.bvh_allocation)?;
+
+            info!("Reallocating BVH Buffer size: {:.04} MB", to_mb(flat_bvh_size));
             self.bvh_allocation = self.allocator.alloc(flat_bvh_size)?;
         }
 

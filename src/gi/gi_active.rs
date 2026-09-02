@@ -1,13 +1,13 @@
 use std::sync::{Arc, atomic::AtomicUsize};
 
-use octa_force::{OctaResult, glam::{IVec3, Vec3}};
+use octa_force::{OctaResult, glam::{IVec3, Vec3}, log::info};
 
-use crate::{gi::gi_pool::GIPool, scene::staging_copies::SceneStagingBuilder, util::{buddy_allocator::{BuddyAllocator, ManualBuddyAllocation}, shader_constants::GI_ATLAS_SIZE}};
+use crate::{gi::gi_pool::GIPool, scene::staging_copies::SceneStagingBuilder, util::{buddy_allocator::{BuddyAllocator, ManualBuddyAllocation}, math::to_mb, shader_constants::GI_ATLAS_SIZE}};
 
 pub type ActiveProbeIndex = u16; 
 pub const ACTIVE_PROBE_INDEX_NONE: ActiveProbeIndex = ActiveProbeIndex::MAX;
 pub const NUM_ACTIVE_PROBES: usize = GI_ATLAS_SIZE * GI_ATLAS_SIZE; 
-pub const INITAL_MAX_PROBES: usize = 100000;
+pub const INITAL_MAX_PROBES: usize = u16::MAX as usize;
 
 #[derive(Debug)]
 pub struct GIActive {
@@ -28,12 +28,16 @@ pub struct ActiveProbeData {
 impl GIActive {
     pub fn new(allocator: &mut BuddyAllocator) -> OctaResult<Self> {
         debug_assert!(ActiveProbeIndex::MAX as usize > NUM_ACTIVE_PROBES);
+       
+        let probe_map_size = INITAL_MAX_PROBES * size_of::<ActiveProbeIndex>(); 
+        info!("Probe Map Buffer size: {:.04} MB", to_mb(probe_map_size));
         
-        let probe_map_alloc = allocator.alloc(
-            INITAL_MAX_PROBES * size_of::<ActiveProbeIndex>())?;
-        
-        let probe_data_alloc = allocator.alloc(
-            NUM_ACTIVE_PROBES * size_of::<ActiveProbeData>())?;
+        let probe_map_alloc = allocator.alloc(probe_map_size)?;
+
+        let probe_data_size = NUM_ACTIVE_PROBES * size_of::<ActiveProbeIndex>(); 
+        info!("Active Probe Data Buffer size: {:.04} MB", to_mb(probe_data_size));
+
+        let probe_data_alloc = allocator.alloc(probe_data_size)?;
 
         Ok(Self {
             probe_map_alloc,
@@ -53,8 +57,8 @@ impl GIActive {
         }
 
         self.active_size = 0;
-        for (i, probe) in pool.pools[0].unique_iter().enumerate() {
-            if i >= NUM_ACTIVE_PROBES {
+        for (key, probe) in pool.probes.unique_iter_with_idx() {
+            if self.active_size as usize >= NUM_ACTIVE_PROBES {
                 break;
             }
 
@@ -66,11 +70,11 @@ impl GIActive {
 
             builder.push(
                 &[active_probe], 
-                self.probe_data_alloc.start() + i * size_of::<ActiveProbeData>());
+                self.probe_data_alloc.start() + self.active_size as usize * size_of::<ActiveProbeData>());
             
             builder.push(
-                &[i as ActiveProbeIndex],
-                self.probe_map_alloc.start() + i * size_of::<ActiveProbeIndex>());
+                &[self.active_size as ActiveProbeIndex],
+                self.probe_map_alloc.start() + key * size_of::<ActiveProbeIndex>());
 
             self.active_size += 1;
         }

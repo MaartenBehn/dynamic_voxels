@@ -9,9 +9,6 @@ import debug;
 import perf_counters;
 import texture_heap;
 
-[SamplerDesc(MagFilter.Linear, MinFilter.Linear, MipFilter.Nearest, WrapMode.ClampToEdge)]
-SamplerState bilinear_clamp_sampler;
-
 public struct Node {
   uint packed_data[4];
 
@@ -326,17 +323,17 @@ public struct Tree64 {
 
           float3 probe_to_hit = pos - probe.position;
           float dist_to_hit = length(probe_to_hit);
-          float3 dir_to_hit = (dist_to_hit > 0.0001) ? (probe_to_hit / dist_to_hit) : dir;
+          float3 dir_to_hit = (dist_to_hit > 0.0000001) ? (probe_to_hit / dist_to_hit) : dir;
 
           float2 depth_uv = probe_uv_from_dir((uint)active_probe_index, dir_to_hit);
-          float probe_depth = depth_atlas.Instance.SampleLevel(bilinear_clamp_sampler, depth_uv, 0.0).x;
+          float probe_depth = depth_atlas.Instance.SampleLevel(probe_sampler, depth_uv, 0.0).x;
           float visibility_weight = compute_probe_visibility(dist_to_hit, probe_depth);
           return float3(visibility_weight);
 
           if (visibility_weight > 0.001) {
             float2 radiance_uv = probe_uv_from_dir((uint)active_probe_index, dir);
 
-            float3 probe_radiance = radiance_atlas.Instance.SampleLevel(bilinear_clamp_sampler, radiance_uv, 0.0).rgb;
+            float3 probe_radiance = radiance_atlas.Instance.SampleLevel(probe_sampler, radiance_uv, 0.0).rgb;
 
             float level_weight = pow(2.0, (float)current_level);
             float final_weight = level_weight * visibility_weight;
@@ -363,6 +360,10 @@ public struct Tree64 {
     }
 
     if (total_weight > 0.0) {
+      if (debug_level >= 0) {
+        return accumulated_radiance;
+      }
+
       return accumulated_radiance / total_weight;
     }
 
