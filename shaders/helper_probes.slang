@@ -40,8 +40,8 @@ public float2 probe_uv_from_dir(uint probe_idx, float3 dir) {
 public float compute_probe_visibility(
     float dist_to_probe, 
     float sampled_probe_depth, 
-    float depth_bias = 0.05
-) {
+    float depth_bias = 0.02) {
+
     float depth_diff = dist_to_probe - sampled_probe_depth;
     return smoothstep(depth_bias, 0.0, depth_diff);
 }

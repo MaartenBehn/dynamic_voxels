@@ -303,6 +303,7 @@ public struct Tree64 {
       Probe* probes,
       TextureHandle2D<float3> radiance_atlas,
       TextureHandle2D<float> depth_atlas,
+      float probe_depth_bias,
       int debug_level = -1
       ) {
     uint node_idx = start_index;
@@ -315,59 +316,135 @@ public struct Tree64 {
     int current_level = 0;
 
     for (int i = 0; i < 6; i++) {
-      if (node.gi_probe_index != GI_PROBE_INDEX_NONE && (debug_level < 0 || debug_level == current_level)) {
-        uint16_t active_probe_index = active_probes_map[node.gi_probe_index];
+        if (debug_level < 0 || debug_level == current_level) {
+            
+            // Fast bitcast equivalent to: float cell_size = exp2((float)(scale_exp - 23));
+            float cell_size = bit_cast<float>((scale_exp - 23 + 127) << 23); 
+            
+            // Map position to a continuous cell index space centered on probes
+            float3 normalized_pos = pos - 1.0f; // Shift to [0, 1) domain
+            float3 continuous_idx = (normalized_pos / cell_size) - 0.5f;
 
-        if (active_probe_index != ACTIVE_PROBE_INDEX_NONE) {
-          Probe probe = probes[active_probe_index];
+            int3 base_idx = int3(floor(continuous_idx));
+            float3 f = frac(continuous_idx);
 
-          float3 probe_to_hit = pos - probe.position;
-          float dist_to_hit = length(probe_to_hit);
-          float3 dir_to_hit = (dist_to_hit > 0.0000001) ? (probe_to_hit / dist_to_hit) : dir;
+            float3 level_radiance = float3(0.0, 0.0, 0.0);
+            float level_vis_weight = 0.0;
 
-          float2 depth_uv = probe_uv_from_dir((uint)active_probe_index, dir_to_hit);
-          float probe_depth = depth_atlas.Instance.SampleLevel(probe_sampler, depth_uv, 0.0).x;
-          float visibility_weight = compute_probe_visibility(dist_to_hit, probe_depth);
-          return float3(visibility_weight);
+            // Sample the 8 trilinear neighborhood corners
+            [unroll]
+            for (int corner = 0; corner < 8; corner++) {
+                int3 offset = int3(corner & 1, (corner >> 1) & 1, (corner >> 2) & 1);
+                
+                // Trilinear weight for this corner
+                float trilinear_w = (offset.x ? f.x : (1.0 - f.x)) *
+                                    (offset.y ? f.y : (1.0 - f.y)) *
+                                    (offset.z ? f.z : (1.0 - f.z));
 
-          if (visibility_weight > 0.001) {
-            float2 radiance_uv = probe_uv_from_dir((uint)active_probe_index, dir);
+                // Quick skip if trilinear weight is negligible
+                if (trilinear_w < 0.001) continue;
 
-            float3 probe_radiance = radiance_atlas.Instance.SampleLevel(probe_sampler, radiance_uv, 0.0).rgb;
+                int3 neighbor_idx = base_idx + offset;
+                float3 neighbor_pos = (neighbor_idx + 0.5f) * cell_size + 1.0f; // Map back to world pos
+                
+                uint active_probe_index = fetch_probe_global(neighbor_pos, scale_exp, active_probes_map);
 
-            float level_weight = pow(2.0, (float)current_level);
-            float final_weight = level_weight * visibility_weight;
+                if (active_probe_index != ACTIVE_PROBE_INDEX_NONE) {
+                    Probe probe = probes[active_probe_index];
 
-            accumulated_radiance += probe_radiance * final_weight;
-            total_weight += final_weight;
-          }
+                    float3 probe_to_hit = pos - probe.position;
+                    float dist_to_hit = length(probe_to_hit);
+                    float3 dir_to_hit = probe_to_hit / dist_to_hit;
 
-          if (debug_level == current_level) {
-            break;
-          }
+                    float2 depth_uv = probe_uv_from_dir((uint)active_probe_index, dir_to_hit);
+                    float probe_depth = depth_atlas.Instance.SampleLevel(probe_sampler, depth_uv, 0.0).x;
+                    
+                    float visibility_weight = compute_probe_visibility(dist_to_hit, probe_depth, probe_depth_bias);
+                    float combined_weight = trilinear_w * visibility_weight;
+
+                    if (combined_weight > 0.001) {
+                        float2 radiance_uv = probe_uv_from_dir((uint)active_probe_index, dir);
+                        float3 probe_radiance = radiance_atlas.Instance.SampleLevel(probe_sampler, radiance_uv, 0.0).rgb;
+
+                        level_radiance += probe_radiance * combined_weight;
+                        level_vis_weight += combined_weight;
+                    }
+                }
+            }
+
+            // Accumulate layer contribution to global output
+            if (level_vis_weight > 0.001) {
+                float level_weight_factor = pow(2.0, (float)current_level);
+                
+                // Normalize layer radiance to prevent darkening at sparse boundaries,
+                // then scale by the layer's overall validity/weight.
+                float3 normalized_layer_radiance = level_radiance / level_vis_weight;
+                float final_layer_weight = level_weight_factor * min(level_vis_weight, 1.0);
+
+                accumulated_radiance += normalized_layer_radiance * final_layer_weight;
+                total_weight += final_layer_weight;
+            }
+
+            if (debug_level == current_level) {
+                break;
+            }
         }
-      }
 
-      int child_idx = GetNodeCellIndex(pos, scale_exp);
-      if ((node.pop_mask >> child_idx & 1) != 0 && !node.IsLeaf && scale_exp >= 2) {
-        scale_exp -= 2;
-        node_idx = node.ChildPtr + popcnt_var64(node.pop_mask, child_idx);
-        node = nodes[node_idx];
-        current_level++;
-      } else {
-        break;
-      }
+        // Descend main query point to next hierarchy level
+        int child_idx = GetNodeCellIndex(pos, scale_exp);
+        if ((node.pop_mask >> child_idx & 1) != 0 && !node.IsLeaf && scale_exp >= 2) {
+            scale_exp -= 2;
+            node_idx = node.ChildPtr + popcnt_var64(node.pop_mask, child_idx);
+            node = nodes[node_idx];
+            current_level++;
+        } else {
+            break;
+        }
     }
 
     if (total_weight > 0.0) {
-      if (debug_level >= 0) {
-        return accumulated_radiance;
-      }
-
-      return accumulated_radiance / total_weight;
+        if (debug_level >= 0) {
+            return accumulated_radiance;
+        }
+        return accumulated_radiance / total_weight;
     }
 
     return float3(0.0, 0.0, 0.0);
+}
+
+  uint fetch_probe_global(
+      float3 target_pos, 
+      int target_scale_exp, 
+      uint16_t* active_probes_map) {
+
+    // Bounds check based on your traversal boundaries [1.0, 2.0)
+    if (any(target_pos < 1.0f) || any(target_pos >= 2.0f)) {
+      return ACTIVE_PROBE_INDEX_NONE;
+    }
+
+    uint node_idx = start_index;
+    Node node = nodes[node_idx];
+    int current_scale = 21; // Root scale
+
+    while (current_scale > target_scale_exp) {
+      int child_idx = GetNodeCellIndex(target_pos, current_scale);
+
+      // If empty space or leaf is reached before target scale, no probe exists here
+      if ((node.pop_mask >> child_idx & 1) == 0 || node.IsLeaf) {
+        return ACTIVE_PROBE_INDEX_NONE;
+      }
+
+      current_scale -= 2;
+      node_idx = node.ChildPtr + popcnt_var64(node.pop_mask, child_idx);
+      node = nodes[node_idx];
+    }
+
+    // We reached the target scale level. Check if a probe exists.
+    if (current_scale == target_scale_exp && node.gi_probe_index != GI_PROBE_INDEX_NONE) {
+      return active_probes_map[node.gi_probe_index];
+    }
+
+    return ACTIVE_PROBE_INDEX_NONE;
   }
 }
 

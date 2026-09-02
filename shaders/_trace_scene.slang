@@ -27,6 +27,7 @@ public struct DispatchParams {
   uint use_probes;
   uint debug_probe_depth;
   int only_use_probe_level;
+  float probe_depth_bias; 
 };
 [vk::push_constant] DispatchParams pc;
 
@@ -123,7 +124,7 @@ void path_trace_scene(uint2 pos) {
   float emission = material.Emission;
   pc.g_buffer.AlbedoTex.Instance[pos] = PackAlbedo(albedo, hit.normal, emission > 0.5);
  
-  if (pc.max_bounces == 0) {
+  if (pc.max_bounces == 0 && pc.use_probes == 0) {
     // fake lighting just so that faces are distinguishable
     float3 irradiance = hit.normal.x != 0 ? 0.8 : 
       hit.normal.z != 0 ? 0.5 : 
@@ -139,7 +140,7 @@ void path_trace_scene(uint2 pos) {
  
   BlueNoise blue_noise = BlueNoise(pc.stbn_texture.Instance, pos, pc.g_buffer.FrameNo);
 
-  for (int bounce_no = 2; bounce_no <= pc.max_bounces; bounce_no++) {
+  for (int bounce_no = 1; bounce_no <= pc.max_bounces; bounce_no++) {
     ray_dir = normalize(hit.normal + GetSphereDir(blue_noise.GetSample()));
     ray_pos = hit.object.pos + hit.normal * (1.0 / hit.object.object.size); 
     hit.object.ray_dir = ray_dir;
@@ -160,11 +161,18 @@ void path_trace_scene(uint2 pos) {
     irradiance += throughput * emission;
   }
 
-  if (pc.use_probes != 0) {
+  if (pc.use_probes != 0 && !hit.miss) {
     uint16_t* active_probes_map = (uint16_t*)(pc.start_ptr + pc.active_probe_map_offset); 
     Probe* probes = (Probe*)(pc.start_ptr + pc.active_probe_data_offset); 
-    
-    ray_dir = normalize(hit.normal + GetSphereDir(blue_noise.GetSample())); 
+   
+    float3 ray_dir;
+    if (pc.max_bounces <= 1) {
+      ray_dir = hit.normal;
+    } else {
+      BlueNoise blue_noise = BlueNoise(pc.stbn_texture.Instance, pos, pc.g_buffer.FrameNo);
+      ray_dir = normalize(hit.normal + GetSphereDir(blue_noise.GetSample()));
+    }
+
     float3 probe_irradiance = hit.object.tree.sample_probe_radiance(
       hit.object.pos, 
       ray_dir,
@@ -172,6 +180,7 @@ void path_trace_scene(uint2 pos) {
       probes,
       pc.radiance_atlas,
       pc.depth_atlas,
+      pc.probe_depth_bias,
       pc.only_use_probe_level); 
     irradiance += throughput * probe_irradiance;
   }

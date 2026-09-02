@@ -18,6 +18,7 @@ struct DispatchParams {
   uint active_probe_map_offset;
   uint active_probe_data_offset;
   uint frame_no;
+  float probe_depth_bias; 
 };
 [vk::push_constant] DispatchParams pc;
 
@@ -45,7 +46,8 @@ void main(uint probe_idx: SV_GroupID, uint2 texel_pos: SV_GroupThreadID) {
     );
 
     for (uint i = 0; i < RAYS_PER_TEXEL; i++) {
-        uint seed = probe_idx * 73856093u + i * 19349663u + pc.frame_no;
+        uint seed = probe_idx * 73856093u + i * 19349663u + pc.frame_no * 83492791u 
+                  + texel_pos.x * 1234567u + texel_pos.y * 7654321u;
         float2 xi = Random2(seed);
 
         // Jitter UV within the texel footprint for anti-aliasing / smooth direction sampling
@@ -74,7 +76,8 @@ void main(uint probe_idx: SV_GroupID, uint2 texel_pos: SV_GroupThreadID) {
                 active_probes_map,
                 probes,
                 pc.last_radiance_atlas,
-                pc.last_depth_atlas); 
+                pc.last_depth_atlas, 
+                pc.probe_depth_bias); 
             accumulated_radiance += throughput * probe_irradiance;
         }
     }
@@ -84,8 +87,8 @@ void main(uint probe_idx: SV_GroupID, uint2 texel_pos: SV_GroupThreadID) {
 
     // ---- Temporal accumulation ----
     if (pc.frame_no > 0) {
-        float3 old_radiance = pc.radiance_atlas.Instance[pixel_coord];
-        float old_depth = pc.depth_atlas.Instance[pixel_coord];
+        float3 old_radiance = pc.last_radiance_atlas.Instance[pixel_coord];
+        float old_depth = pc.last_depth_atlas.Instance[pixel_coord];
 
         float blend_alpha = 1.0 / float(pc.frame_no + 1);
         
@@ -111,25 +114,3 @@ float2 Random2(uint seed) {
     return float2(Hash(seed), Hash(seed * 1664525u));
 }
 
-float3 CosineSampleHemisphere(float2 xi) {
-    float r = sqrt(xi.x);
-    float theta = 2.0 * 3.14159265 * xi.y;
-
-    float x = r * cos(theta);
-    float y = r * sin(theta);
-    float z = sqrt(1.0 - xi.x);
-
-    return float3(x, y, z);
-}
-
-void BuildBasis(float3 n, out float3 t, out float3 b) {
-    float3 up = abs(n.z) < 0.999 ? float3(0,0,1) : float3(1,0,0);
-    t = normalize(cross(up, n));
-    b = cross(n, t);
-}
-
-float3 ToWorld(float3 localDir, float3 n) {
-    float3 t, b;
-    BuildBasis(n, t, b);
-    return localDir.x * t + localDir.y * b + localDir.z * n;
-}

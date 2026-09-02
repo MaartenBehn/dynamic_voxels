@@ -43,6 +43,7 @@ pub struct SceneDispatchDispatchParams {
     pub use_probes: u32,
     pub debug_probe_depth: u32,
     pub only_use_probe_level: i32,
+    pub probe_depth_bias: f32,
 }
 
 #[repr(C)]

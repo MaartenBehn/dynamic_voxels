@@ -24,6 +24,7 @@ pub struct GIRenderer {
     pub debug_probe_index: u32,
     pub debug_probe_depth: bool,
 
+    pub probe_depth_bias: f32,
 }
 
 #[repr(C)]
@@ -37,6 +38,7 @@ pub struct GIProbeUpdateData {
     pub active_probe_map_offset: u32,
     pub active_probe_data_offset: u32,
     pub frame_no: u32,
+    pub probe_depth_bias: f32,
 }   
 
 impl GIRenderer {
@@ -95,11 +97,15 @@ impl GIRenderer {
             debug_probe_pos: Vec3::ZERO,
             debug_probe_index: 0,
             debug_probe_depth: false,
+            probe_depth_bias: 0.03,
         })
     }
 
     pub fn settings_ui(&mut self, ui: &mut Ui) {
         ui.checkbox(&mut self.active, "Use Probes");
+        ui.add(egui::Slider::new(&mut self.probe_depth_bias, 0.001..=0.5)
+            .text("Probe Depth Bias")
+        );
         ui.label(format!("Active Probes: {}", self.num_active_probes));
         ui.label(format!("Debug Probe: {} {}", self.debug_probe_index, self.debug_probe_pos));
         ui.checkbox(&mut self.debug_probe_depth, "Debug Probe Depth");

@@ -21,7 +21,7 @@ impl LocalPalette {
         let mut used = bitarr![u64, Lsb0; 0; 256];
         
         used.set(MATERIAL_ID_NONE as _, true);
-        materials[MATERIAL_ID_BASE as usize].set_simple_color([255, 255, 255]);
+        materials[MATERIAL_ID_BASE as usize].set_simple_color([150, 150, 150]);
         used.set(MATERIAL_ID_BASE as _, true);
         
         materials[MATERIAL_ID_DEBUG as usize].set_simple_color([255, 255, 0]);

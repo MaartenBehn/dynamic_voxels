@@ -136,6 +136,7 @@ impl VoxelRenderer {
             use_probes:  if self.gi.active {1} else {0},
             debug_probe_depth: if self.gi.debug_probe_depth {1} else {0},
             only_use_probe_level: self.gi.only_use_probe_level,
+            probe_depth_bias: self.gi.probe_depth_bias,
         }, dispatch_size);
 
         if self.gi.active && self.gi.num_active_probes > 0 {
@@ -153,6 +154,7 @@ impl VoxelRenderer {
                 active_probe_map_offset: self.gi.active_probe_map_offset,
                 active_probe_data_offset: self.gi.active_probe_data_offset,
                 frame_no: self.g_buffer.frame_no,
+                probe_depth_bias: self.gi.probe_depth_bias,
             }, uvec3(self.gi.num_active_probes, 1, 1)); //uvec3(self.gi.num_active_probes, 1, 1));
         }
 
