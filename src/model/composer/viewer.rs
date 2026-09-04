@@ -266,6 +266,8 @@ impl<'a> SnarlViewer<ComposeNode> for ComposeViewer<'a> {
 
             self.flags.update_node_valid(from.id.node, snarl);
             self.flags.update_node_valid(to.id.node, snarl);
+            self.flags.set_changed(from.id.node, snarl);
+            self.flags.set_changed(to.id.node, snarl);
         }
     }
 
