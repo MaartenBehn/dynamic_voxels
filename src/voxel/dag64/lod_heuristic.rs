@@ -54,10 +54,8 @@ impl LODHeuristicT for PowHeuristicSphere {
     fn lod_level(&self, pos: IVec3) -> u8 {
         let delta = pos - self.center;
 
-        //dbg!(delta.length());
         //let level = delta.abs().max_element() / self.level_size;
         let level = ((delta.length() as f32).powf(0.5) / self.render_dist) as u8;
-        //dbg!(level);
 
         return level.max(1);
     }

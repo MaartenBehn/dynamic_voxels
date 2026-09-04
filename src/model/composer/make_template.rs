@@ -115,7 +115,6 @@ impl ComposerGraph {
         data: &mut MakeTemplateData<'a>
     ) -> MakeTemplateNodeData {
        
-        dbg!(self.get_creates_input_remote_pin(node));
         let inactive = MakeTemplateNodeData {
             building_template_index: data.building_template_index,
             created_by_node_id: self.get_creates_input_remote_pin(node),
@@ -137,8 +136,6 @@ impl ComposerGraph {
                 external_input_marker: Default::default(),
             }
         );
-
-        dbg!(&node.id.0);
 
         data.enshure_map_size(node.id);
         data.map_node_id[node.id.0].0 = template_index;
@@ -163,11 +160,6 @@ impl MakeTemplateNodeData{
             if !node.depends.contains(&create_by_template_index) {
                 node.depends.push(create_by_template_index);
             }
-
-            dbg!(&self);
-            dbg!(&create_by_node_id);
-            dbg!(&data.template.nodes);
-
 
             let creates_index = data.template.nodes[create_by_template_index].creates.len();
             data.template.nodes[data.building_template_index].created_by = (create_by_template_index, creates_index);

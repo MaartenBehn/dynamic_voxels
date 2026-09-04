@@ -67,8 +67,6 @@ impl ParallelVoxelDAG64 {
     }
 
     pub fn is_filled_to(&self, factor: f32) -> bool {
-        //dbg!(self.nodes.filled());
-        //dbg!(self.data.filled());
         self.nodes.filled() > factor || self.data.filled() > factor
     }
 }

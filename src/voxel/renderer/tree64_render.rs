@@ -46,7 +46,6 @@ impl Tree64Renderer {
         /*
         let box_gizmo = BoxGizmo::new(Mat4::from_scale(Vec3::splat(10000.0)));
         let mut csg = box_gizmo.csg;
-        dbg!(&csg);
         */
 
         let mut lod = PowHeuristicSphere::default();

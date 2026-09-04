@@ -93,7 +93,7 @@ impl GIRenderer {
             active_probe_data_offset: 0,
             num_active_probes: 0,
             only_use_probe_level: -1,
-            active: true,
+            active: false,
             debug_probe_pos: Vec3::ZERO,
             debug_probe_index: 0,
             debug_probe_depth: false,

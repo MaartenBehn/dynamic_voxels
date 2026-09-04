@@ -93,6 +93,8 @@ impl ModelComposer {
                     data: &mut self.viewer_data,
                     flags: &mut self.graph.flags,
                     palette: &mut self.palette,
+                    global_mouse_pos: ctx.pointer_latest_pos().unwrap_or_default(), 
+                    local_mouse_pos: Default::default(),
                 };
 
                 SnarlWidget::new()
@@ -135,10 +137,27 @@ impl ModelComposer {
             self.render_panel_size = new_render_panel_size;
             self.render_panel_changed = true;
         }
+
+        self.viewer_data.frame = self.viewer_data.frame.wrapping_add(1)
     }
 
     pub fn update(&mut self, time: Duration, camera: &Camera) -> OctaResult<()> {
         self.viewer_data.update(time);
+       
+
+        let external_input = ExternalInput::new(camera);
+
+        let cam_changed = self.external_input.cam_position != external_input.cam_position;
+        self.external_input = external_input;
+
+        if cam_changed {
+            self.graph.flags.set_cam_notes_as_changed(&self.graph.snarl);
+
+            if self.manual_rebuild || (self.auto_rebuild && self.graph.flags.needs_collapse_any()) {
+                self.collapser_worker.external_input_changed(self.external_input);
+                self.graph.flags.reset_change_flags();
+            }
+        }
         
         if self.manual_rebuild || (self.auto_rebuild && self.graph.flags.needs_collapse_any())  {
 
@@ -159,18 +178,6 @@ impl ModelComposer {
                 warn!("Cant Rebuild error in graph!");
             }
         } 
-
-        if self.manual_rebuild || (self.auto_rebuild)  {
-            let external_input = ExternalInput::new(camera);
-
-            let cam_changed = self.external_input.cam_position != external_input.cam_position;
-            self.external_input = external_input;
-
-            if cam_changed {
-                self.graph.flags.set_cam_notes_as_changed(&self.graph.snarl);
-                self.collapser_worker.external_input_changed(self.external_input);
-            }
-        }
        
         self.graph.save()?;
         self.manual_rebuild = false;

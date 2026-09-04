@@ -58,6 +58,7 @@ impl SceneWorker {
 
         let elapsed = now.elapsed();
         info!("Voxel DAG Build took: {:?}", elapsed);
+        dag.print_memory_info();
 
         let entry = dag.get_entry(entry_key);
 
@@ -81,10 +82,17 @@ impl SceneWorker {
     }
 
     pub fn remove_object(&mut self, key: SceneObjectKey) -> OctaResult<SceneObject> {
+        
         self.needs_bvh_update = true;
-        self.objects.remove(key)
+        let removed_object = self.objects.remove(key)
             .map(|o| Ok(o))
-            .unwrap_or(Err(anyhow!("Scene Object Key invalid")))
+            .unwrap_or(Err(anyhow!("Scene Object Key invalid")))?;
+
+        let dag_key = self.dag_store.active_dag();
+        let dag = self.dag_store.get_dag_mut(dag_key);
+
+        dag.remove_entry(removed_object.entry_key);
+        Ok(removed_object)
     }
 
     pub fn rebuild_all_dag_objects(&mut self) {

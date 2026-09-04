@@ -3,7 +3,7 @@ use std::{marker::PhantomData, time::Duration};
 use bitvec::vec::BitVec;
 use egui_snarl::{ui::{AnyPins, NodeLayout, PinInfo, PinPlacement, SnarlStyle, SnarlViewer}, InPin, InPinId, NodeId, OutPin, OutPinId, Snarl};
 use itertools::Itertools;
-use octa_force::{egui::{self, Color32, CornerRadius, DragValue, Pos2, Sense, StrokeKind, Ui, WidgetInfo, WidgetType, color_picker::color_edit_button_rgb}, glam::{IVec2, IVec3, Vec2, Vec3A}, log::debug};
+use octa_force::{egui::{self, Color32, CornerRadius, DragValue, Pos2, Sense, StrokeKind, Ui, WidgetInfo, WidgetType, color_picker::color_edit_button_rgb, emath::TSTransform}, glam::{IVec2, IVec3, Vec2, Vec3A}, log::debug};
 use smallvec::SmallVec;
 
 use crate::{model::{composer::flags::ComposerNodeFlags, data_types::data_type::{ComposeDataType, ComposeNodeGroupe, ComposeNodeType, get_node_templates}}, util::{default_types::{V2, V3}, number::Nu, vector::Ve}, voxel::palette::{Palette, picker::palette_color_picker, shared::SharedPalette}};
@@ -18,6 +18,8 @@ pub struct ComposeViewer<'a> {
     pub data: &'a mut ComposeViewerData,
     pub flags: &'a mut ComposerNodeFlags,
     pub palette: &'a mut SharedPalette,
+    pub global_mouse_pos: Pos2,
+    pub local_mouse_pos: Pos2,
 }
 
 #[derive(Debug)]
@@ -27,10 +29,12 @@ pub struct ComposeViewerTemplates {
 }
 
 #[derive(Debug)]
-pub struct ComposeViewerData {    
+pub struct ComposeViewerData { 
+    pub frame: usize,
     pub not_valid_scale: f32,
     pub offset: Vec2,
     pub hovered_menue_groupe: Option<ComposeNodeGroupe>,
+    pub menue_clicked: (Pos2, usize),
 }
 
 pub const fn style() -> SnarlStyle {
@@ -94,10 +98,12 @@ impl ComposeViewerTemplates {
 
 impl ComposeViewerData {
     pub fn new() -> Self {
-        Self {        
+        Self {    
+            frame: 0,
             not_valid_scale: 0.0,
             offset: Vec2::default(),
-            hovered_menue_groupe: None, 
+            hovered_menue_groupe: None,
+            menue_clicked: (Default::default(), 0),
         }
     }
 
@@ -108,8 +114,11 @@ impl ComposeViewerData {
 }
 
 
-
 impl<'a> SnarlViewer<ComposeNode> for ComposeViewer<'a> {
+    fn current_transform(&mut self, to_global: &mut TSTransform, snarl: &mut Snarl<ComposeNode>) {
+        self.local_mouse_pos = to_global.inverse().mul_pos(self.global_mouse_pos);
+    }
+
     fn title(&mut self, node: &ComposeNode) -> String { 
         node.title() 
     }
@@ -266,6 +275,11 @@ impl<'a> SnarlViewer<ComposeNode> for ComposeViewer<'a> {
 
     fn show_graph_menu(&mut self, pos: egui::Pos2, ui: &mut Ui, snarl: &mut Snarl<ComposeNode>) {
 
+        if (self.data.menue_clicked.1 + 1) != self.data.frame {
+            self.data.menue_clicked.0 = self.local_mouse_pos;
+        } 
+        self.data.menue_clicked.1 = self.data.frame;
+
         ui.label("Add node");
         for group in self.templates.groupe_templates.iter() {
             let group_type = group[0].group;
@@ -277,7 +291,7 @@ impl<'a> SnarlViewer<ComposeNode> for ComposeViewer<'a> {
                         if ui.button(node.title()).clicked() {
                             ui.close();
 
-                            self.add_node(pos, node, snarl);
+                            self.add_node(self.data.menue_clicked.0, node, snarl);
                             return;
                         }
                     }
@@ -301,6 +315,10 @@ impl<'a> SnarlViewer<ComposeNode> for ComposeViewer<'a> {
         src_pins: AnyPins,
         snarl: &mut Snarl<ComposeNode>,
     ) {
+        if (self.data.menue_clicked.1 + 1) != self.data.frame {
+            self.data.menue_clicked.0 = self.local_mouse_pos;
+        } 
+        self.data.menue_clicked.1 = self.data.frame;
 
         ui.label("Add node");
 
@@ -331,7 +349,7 @@ impl<'a> SnarlViewer<ComposeNode> for ComposeViewer<'a> {
 
                             for (i, to_data) in to_pins {
                                 if ui.button(to_data.get_name()).clicked() {
-                                    let node_id = self.add_node(pos, node, snarl);
+                                    let node_id = self.add_node(self.data.menue_clicked.0, node, snarl);
 
                                     let dst_pin = InPinId {
                                         node: node_id,
@@ -348,7 +366,7 @@ impl<'a> SnarlViewer<ComposeNode> for ComposeViewer<'a> {
                             } 
                         } else if !to_pins.is_empty() {
                             if ui.button(format!("{:?}",  node.t)).clicked() {
-                                let node_id = self.add_node(pos, node, snarl);
+                                let node_id = self.add_node(self.data.menue_clicked.0, node, snarl);
 
                                 let dst_pin = InPinId {
                                     node: node_id,
@@ -395,7 +413,7 @@ impl<'a> SnarlViewer<ComposeNode> for ComposeViewer<'a> {
 
                             for (i, to_data) in to_pins {
                                 if ui.button(to_data.get_name()).clicked() {
-                                    let node_id = self.add_node(pos, node, snarl);
+                                    let node_id = self.add_node(self.data.menue_clicked.0, node, snarl);
 
                                     let dst_pin = OutPinId {
                                         node: node_id,
@@ -412,7 +430,7 @@ impl<'a> SnarlViewer<ComposeNode> for ComposeViewer<'a> {
                             } 
                         } else if !to_pins.is_empty() {
                             if ui.button(format!("{:?}",  node.t)).clicked() {
-                                let node_id = self.add_node(pos, node, snarl);
+                                let node_id = self.add_node(self.data.menue_clicked.0, node, snarl);
 
                                 let dst_pin = OutPinId {
                                     node: node_id,

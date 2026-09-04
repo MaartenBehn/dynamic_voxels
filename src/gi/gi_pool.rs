@@ -75,8 +75,6 @@ impl<'a> GI for GIExecutor<'a> {
             level: level as u32,
         }).expect(&format!("Probe pool overflow"));
         
-        dbg!(index);
-
         index as u32
     }
 

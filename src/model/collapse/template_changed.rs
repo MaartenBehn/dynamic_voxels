@@ -25,6 +25,10 @@ impl Collapser {
         // [new] = old
         let mut matched_template_indecies = vec![TEMPLATE_INDEX_NONE; new_template.nodes.len()];
         matched_template_indecies[0] = 0;
+
+        // [old] = new
+        let mut old_matched_template_indecies = vec![TEMPLATE_INDEX_NONE; self.nodes.len()];
+        matched_template_indecies[0] = 0;
       
         let mut to_match: Vec<Vec<(TemplateIndex, TemplateIndex)>> = iter::repeat_with(|| {Vec::new()})
             .take(self.template.max_level +1)
@@ -44,7 +48,6 @@ impl Collapser {
 
         mem::swap(&mut new_nodes_per_template_index[0], 
                     &mut self.nodes_per_template_index[0]);
-
 
         let mut min_to_match_level = 0;
 
@@ -80,19 +83,20 @@ impl Collapser {
 
                     left_new_children[new_parent_template_index].swap_remove(i);
                     matched_template_indecies[new_match_index] = old_template_index;
+                    old_matched_template_indecies[old_template_index] = new_match_index;
 
                     left_new_children[new_match_index] = new_template.nodes[new_match_index].creates.iter()
                         .map(|c| c.to_create)
                         .enumerate()
                         .collect();
                     
-                    for old_child_index in new_template.nodes[old_template_index].creates.iter().map(|c| c.to_create) {
-                        let old_child = &new_template.nodes[old_child_index];
+                    for old_child_index in self.template.nodes[old_template_index].creates.iter().map(|c| c.to_create) {
+                        let old_child = &self.template.nodes[old_child_index];
                         to_match[old_child.level].push((old_child_index, new_match_index));
                     }
 
                     mem::swap(&mut new_nodes_per_template_index[new_match_index], 
-                    &mut self.nodes_per_template_index[old_template_index]);
+                    &mut self.nodes_per_template_index[old_template_index]); 
 
                 } else {
                     debug!("not found!");
@@ -101,12 +105,30 @@ impl Collapser {
                         self.delete_node(index);
                     }
                 }
-  
+
             } else {
                 min_to_match_level += 1;
             }
         }
 
+        for collapser_node in self.nodes.values_mut() {
+            if old_matched_template_indecies[collapser_node.template_index] != TEMPLATE_INDEX_NONE {
+                collapser_node.template_index = old_matched_template_indecies[collapser_node.template_index]; 
+            }
+
+            for (child_template_index, _) in collapser_node.children.iter_mut() {
+                if old_matched_template_indecies[*child_template_index] != TEMPLATE_INDEX_NONE {
+                    (*child_template_index) = old_matched_template_indecies[*child_template_index]; 
+                }
+            }
+
+            for (child_template_index, _) in collapser_node.depends.iter_mut() {
+                if old_matched_template_indecies[*child_template_index] != TEMPLATE_INDEX_NONE {
+                    (*child_template_index) = old_matched_template_indecies[*child_template_index]; 
+                }
+            }
+        }
+        
         for (new_parent_index, left_new_children) in left_new_children.into_iter().enumerate() {
             for (creates_index, left_new) in left_new_children {
                 let level = new_template.nodes[left_new].level;

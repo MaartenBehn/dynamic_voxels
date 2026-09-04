@@ -32,7 +32,7 @@ impl VoxelDAG64 {
         self.entry_points.keys().next().unwrap().to_owned()
     }
 
-     fn print_memory_info(&self) {
+    fn print_memory_info(&self) {
         info!("VoxelDAG64: nodes {} MB, data {} MB", 
             to_mb(self.nodes.get_memory_size()),
             to_mb(self.data.get_memory_size()),

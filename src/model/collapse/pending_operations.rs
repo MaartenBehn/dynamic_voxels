@@ -67,7 +67,6 @@ impl PendingOperations {
     }
 
     pub fn push_collpase(&mut self, level: usize, value: CollapseNodeKey) {
-        #[cfg(debug_assertions)]
         if self.pending_collapse[level - 1].contains(&value) {
             warn!("Duplicate push collapse {value:?}");
             return;
@@ -78,7 +77,6 @@ impl PendingOperations {
     }
 
     pub fn push_later_collpase(&mut self, level: usize, value: CollapseNodeKey) {
-        #[cfg(debug_assertions)]
         if self.pending_next_collapse[level - 1].contains(&value) {
             warn!("Duplicate push collapse later {value:?}");
             return;

@@ -86,7 +86,7 @@ impl SceneWorker {
 
         let mut dag = if cfg!(feature="graph") { ParallelVoxelDAG64::new(
             20000000, 
-            4000000, 
+            8000000, 
         ) } else {
             ParallelVoxelDAG64::new(
                 2000000, 

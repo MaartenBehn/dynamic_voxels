@@ -111,6 +111,7 @@ impl SceneDAGStore {
 
                     let elapsed = now.elapsed();
                     debug!("DAG Clean took: {:?}", elapsed);
+                    dag.dag.print_memory_info();
 
                     for object_key in dag.objects.iter() {
                         let object = &mut objects[*object_key];
